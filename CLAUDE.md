@@ -1,111 +1,60 @@
-# CLAUDE.md
+# Tileset generator
 
-## The specification is the source of truth
+A procedural tileset generator: a pure engine, `generate(config, seed) → Grid<TileState>`,
+and a Svelte renderer that owns layout, scaling, clipping and asset resolution.
 
-`/spec` holds a complete, agreed ten-document specification package. **Read
-`/spec/00-overview.md` before doing anything else.** It is the front door: it says what the
-system is, what V1 includes and excludes, and which document to open next. `/spec/01-glossary.md`
-is the naming authority and `/spec/roadmap.md` is the complement of `00` — everything V1 is not.
+There is one engine. It publishes as a package and consumers pin a version, so any change
+to generated output is a versioning problem, not a conformance one (`05` **X9**).
 
-Where code and a spec disagree, **the spec is right and the code is a bug.** Where the spec is
-wrong, it gets amended — never worked around, never silently reinterpreted.
+## Where things are
 
-**Do not restate the spec.** Do not summarise it into another file, do not paraphrase a section
-into a code comment, do not describe what a document says without opening it. This package's
-recorded failure mode is stale restatement: ten cross-document claims described work that had
-already landed, and two were written by passes that had just finished criticising the pattern.
-A citation (`04` §7.2) is cheap and stays true; a paraphrase rots.
+| Path               | What                                                                           |
+| ------------------ | ------------------------------------------------------------------------------ |
+| `/spec`            | The specification. Read `/spec/README.md` first — not all of it binds equally. |
+| `/adr`             | Reversed or contested decisions. Five files.                                   |
+| `/attic`           | The authoring-phase audit and its harvests. Historical. **Do not cite it.**    |
+| `packages/tileset` | Engine and renderer. `@tileset/core`.                                          |
+| `apps/editor`      | The editor. Not started.                                                       |
 
-**A claim about a spec document is stale by default.** Before asserting what any document says,
-open it, and name what you opened.
+## Rules
 
-## Citations
+- **Open a document before making any claim about it.** A claim about another file is stale
+  by default. Every known-false statement in this package was written by someone describing
+  a document they had not just read.
+- **Section numbers are append-only** — `01` §11.4. New sections take the next unused number.
+  Nothing is renumbered; a removed section keeps its number as a tombstone.
+- **Never regenerate a vector table to make a test pass** — ADR-004. An unexpected diff means
+  output moved without anyone intending it, which is the point of the table.
+- **Terminology is fixed.** `TileState` not `CellState`, `Tile` not `TileType`, `TileAsset`
+  not `Variant`. The rejected names and why they lost are in `01` §10.1. Drift here is the
+  cheapest thing to preserve and the most expensive thing to lose.
+- **`generate()` trusts its input** (`06` §10, **C5**). Validation is a separate function and
+  is not on the critical path.
 
-Cite as `` `04` §7.2 `` — backticked document number, then the section. Invariants are cited by
-ID: **G2**, **R10**, **C4**. Never write a bare `§7.2`; `01` §1.2 withdrew that shorthand.
+## Current state
 
-## Terminology is not negotiable
+Pre-implementation. Nine engine units, then a minimal renderer:
 
-`Cell`, `TileState`, `Tile`, `TileAsset`, `Grid`, `Layout`, `Operation`, `TilesetFile`,
-`TilesetConfig`.
+1. Hash core — `02` §6.6, §6.7
+2. Attribute table and bounding — `03` §5.1–§5.4
+3. `Tile`, `TileAsset`, the weight walk — `03` §3, §4.1–§4.3
+4. `TileState` and null initialization — `02` §8, §8.1
+5. Selection presets — `04` §4.2–§4.5
+6. Source presets — `04` §5.2–§5.4, `05` §6.2, §6.4
+7. Mapping — `04` §6.1–§6.4
+8. Blend and Target — `04` §7.1–§7.3, ADR-001
+9. `generate()` and the evaluation loop — `02` §4, §5, §9
 
-Not `CellState`, not `TileType`, not `Variant`. `01` §10.1 holds the full list of rejected forms,
-§10.2 the reserved words, §10.3 the collisions that are deliberate and must not be "fixed".
-Terminology drift is the cheapest way to break this package quietly. Check `01` before coining
-any name that will appear in a type, an export, a config key, or an error code.
+Then `cellBox` / `cellAt` (`07` §5.2–§5.3, §8.2–§8.3) and a `<Tileset>` that resolves each
+cell to a `Drawable` (`08` §4.2) and nothing more.
 
-Qualify `type` and `default` — each carries four senses (`01` §11.5). Write _registered type_,
-_Target type_, _default Blend_, _parameter default_, _attribute default_.
+## Deferred on purpose
 
-## Invariants are the test vocabulary
+Not open questions. Do not rediscover them as such.
 
-The package declares 86 invariants across eight documents: **G**1–5, **D**1–11, **O**1–8,
-**X**0–10, **C**1–10, **R**1–15, **S**1–10, **E**1–16 (`01` §13).
-
-Every test that discharges an invariant is named for it:
-
-```
-test('G2: clipped cells participate fully in generation', …)
-test('R10: paint order is row-major', …)
-```
-
-Run `pnpm invariants` for coverage against the declared set. An invariant that is a posture
-rather than an assertion is listed in `test/untestable.md` with a reason — absent and untestable
-must never be indistinguishable.
-
-## Amending a spec
-
-Implementation will find contradictions and under-determination. When it does: **stop, do not
-resolve it in code, and use the `spec-amendment` skill.** Propose the change, wait for
-confirmation, then apply it — never amend a spec in passing or as a step inside a larger task.
-Section numbers are append-only (`01` §11.4) — new sections take the next unused number, nothing
-is renumbered, a removed section keeps its number as a tombstone.
-
-## Regression vectors
-
-Four exact tables define output stability: hash and `mixLoad` (`02` §6.6, §6.7; **X10**), and
-geometry and transform (`07` §11.3; **R15**). Plus reference configs snapshotted against a
-`(config, seed, loadSalt)` triple.
-
-**Never regenerate a vector table to make a test pass.** An unexpected diff means output moved
-without anyone intending it, which is the entire point of the tables. Regeneration happens only
-alongside a deliberate major bump. Use the `regression-vectors` skill.
-
-## Layout
-
-```
-packages/tileset/     engine + renderer, one package (E2 requires one pinned version)
-apps/editor/          the editor; a host, not a caller (08 §3.1, S2)
-spec/                 the specification package — read-only in practice
-adr/                  ADR-001, ADR-002
-PLAN.md               build order and sequencing — deliberately NOT in /spec (roadmap §3.3)
-pnpm-workspace.yaml   declares packages/* and apps/*
-```
-
-The engine is pure and knows nothing of pixels (`02` §4.2, **G1**). The renderer owns layout,
-scaling, clipping, and asset resolution. Nothing in `packages/tileset` may import from
-`apps/editor`.
-
-## Commands
-
-```
-pnpm -r build
-pnpm -r test
-pnpm -r lint
-
-pnpm --filter @tileset/core test           # the package alone; pure, browser-free
-pnpm --filter @tileset/core vectors:check  # regression tables; must pass before any commit
-pnpm --filter @tileset/editor dev
-
-pnpm invariants   # root script: invariant coverage across both workspaces, against the declared 86
-```
-
-`invariants` is a root script rather than a per-workspace one on purpose. The census is package-wide — **E**1–16 live in `apps/editor` and the rest in `packages/tileset` — and a count that can only be taken one workspace at a time cannot be checked against `01` §13's 86.
-
-## Standing rules
-
-- We are before `1.0.0`. `0.x` promises nothing (`05` §10.3) — but `1.0.0` is a **decision**, not
-  a milestone that arrives on its own. Do not declare it.
-- Never invent to fill a gap. If the spec does not settle something, say so and stop.
-- Do not add a schedule or a priority to anything in `/spec`. Sequencing lives in `PLAN.md`.
-- `05` §3 assumes one engine. There is no public plugin API and no second implementation.
+- **Vector tables** — all five, generated once units 1–9 pass, under ADR-004.
+- **`validate()` and the error vocabulary** — `06` §5–§10, after the engine draws.
+- **Reference configs** — `05` §11.1, once the Sources they exercise exist.
+- **Transforms, cropping, `onAssetError`** — `07` §6, §6.4; `08` §4.4.
+- **The editor** — after the renderer.
+- **The invariant census and `pnpm invariants`** — at 1.0 planning, not before.

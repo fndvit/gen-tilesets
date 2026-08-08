@@ -3,6 +3,8 @@
 > **Status:** Draft, agreed. The package is complete — §10.  
 > **Depends on:** `01`–`09`, `roadmap.md`, and `/adr`. This document is a harvest, not an authorship.  
 > **Amended:** §3.1, §4.3, §4.4, §4.5, §6, §7, §9, §10, §10.1, §10.2, §12, Q5 — the `09` pass, 2026-08-06  
+> **Amended:** §6 — `_harvest.md` indexed on its entry to the package, 2026-08-08. See ADR-003  
+> **Amended:** §10.2 — the running total withdrawn in favour of a floor over the sites table, 2026-08-08. See `PLAN.md` §0.5  
 > **Constrains:** nothing.
 
 ---
@@ -281,20 +283,21 @@ posture is permanent, there is no row and this section says so.
 
 ## 6. Document index
 
-| Doc                         | Owns                                                                                          | Prefix | Status           |
-| --------------------------- | --------------------------------------------------------------------------------------------- | ------ | ---------------- |
-| `00-overview.md`            | Scope, non-goals, the V1 boundary, this index                                                 | —      | this document    |
-| `01-glossary.md`            | Terminology, and which document owns which vocabulary                                         | —      | Draft, agreed    |
-| `02-generation-contract.md` | The engine boundary: signature, purity, seed model, coordinate space, hashing, `TileState`    | **G**  | Draft, agreed    |
-| `03-domain-model.md`        | The nouns: `Tile`, `TileAsset`, the attribute set, domains, defaults, bounding                | **D**  | Draft, agreed    |
-| `04-operations.md`          | The verbs: Selection, Source, Mapping, Blend, Target semantics and every V1 preset            | **O**  | Draft, agreed    |
-| `05-extension-model.md`     | How the list of types grows, what an entry declares, and package versioning                   | **X**  | Draft, agreed    |
-| `06-config-schema.md`       | The file: JSON shape, key names, `schemaVersion`, strictness, validation and error vocabulary | **C**  | Draft, agreed    |
-| `07-render-contract.md`     | What this renderer guarantees: geometry, asset resolution, transforms, paint order, stability | **R**  | Draft, agreed    |
-| `08-renderer-svelte.md`     | The component: props, events, substrate, SSR, the exported surface                            | **S**  | Draft, agreed    |
-| `09-editor.md`              | Editor architecture, authoring affordances, advisory diagnostics                              | **E**  | Draft, agreed    |
-| `roadmap.md`                | Every deferral, its cost, and its gate                                                        | —      | Draft, agreed    |
-| `/adr/*`                    | Decisions reversed, or contested and likely to be re-proposed                                 | —      | ADR-001, ADR-002 |
+| Doc                         | Owns                                                                                          | Prefix | Status                      |
+| --------------------------- | --------------------------------------------------------------------------------------------- | ------ | --------------------------- |
+| `00-overview.md`            | Scope, non-goals, the V1 boundary, this index                                                 | —      | this document               |
+| `01-glossary.md`            | Terminology, and which document owns which vocabulary                                         | —      | Draft, agreed               |
+| `02-generation-contract.md` | The engine boundary: signature, purity, seed model, coordinate space, hashing, `TileState`    | **G**  | Draft, agreed               |
+| `03-domain-model.md`        | The nouns: `Tile`, `TileAsset`, the attribute set, domains, defaults, bounding                | **D**  | Draft, agreed               |
+| `04-operations.md`          | The verbs: Selection, Source, Mapping, Blend, Target semantics and every V1 preset            | **O**  | Draft, agreed               |
+| `05-extension-model.md`     | How the list of types grows, what an entry declares, and package versioning                   | **X**  | Draft, agreed               |
+| `06-config-schema.md`       | The file: JSON shape, key names, `schemaVersion`, strictness, validation and error vocabulary | **C**  | Draft, agreed               |
+| `07-render-contract.md`     | What this renderer guarantees: geometry, asset resolution, transforms, paint order, stability | **R**  | Draft, agreed               |
+| `08-renderer-svelte.md`     | The component: props, events, substrate, SSR, the exported surface                            | **S**  | Draft, agreed               |
+| `09-editor.md`              | Editor architecture, authoring affordances, advisory diagnostics                              | **E**  | Draft, agreed               |
+| `roadmap.md`                | Every deferral, its cost, and its gate                                                        | —      | Draft, agreed               |
+| `_harvest.md`               | The harvest ledger: what each numbered document contributed to `01`, `00` and `roadmap`       | —      | Retired ledger; see ADR-003 |
+| `/adr/*`                    | Decisions reversed, or contested and likely to be re-proposed                                 | —      | ADR-001, ADR-002            |
 
 **A correction, recorded rather than made silently.** An earlier index described `07` as _what
 any renderer must guarantee_. `07` §3.1 objects to that wording in as many words and asks it to
@@ -505,8 +508,12 @@ amending is a claim about that document, verified by opening it and never by tru
 that records the claim.** It applies to `_harvest.md`'s retirement markers, to §10.1's owed-work
 table, and to `roadmap` §10 Q2, which stayed open against an `08` that had already been amended.
 
-**There are now fourteen, and the count is the finding.** The rule above has prevented none of
-them. It is stated here rather than derived, so the sites are given and it can be checked:
+**The sites are given below, and the number they sum to is a floor rather than a count.** The
+rule above has prevented none of them. A pass that finds an instance adds the site here; no pass
+recounts, and nothing in the package is obliged to know the current total. Fourteen is what the
+table sums to, and it can only be understated — §8.5 forbids a recorded instance leaving the
+table, so a floor goes out of date by growing rather than by becoming false. That is the one
+property a running total does not have, and it is the property this section exists to name.
 
 | Where the instances are recorded                                                      | Count |
 | ------------------------------------------------------------------------------------- | ----- |
@@ -519,10 +526,18 @@ them. It is stated here rather than derived, so the sites are given and it can b
 | `roadmap` §4.5: `01` §14's citation of `roadmap` §5.4, true when written              | 1     |
 | This pass: §12's second row, and `01` §13's claim that **D3** is owed its rewrite     | 2     |
 
-Four were produced by conversations that were **actively auditing for the pattern**, which is
-what makes it worth a count rather than a rule. The last two are a milder form — correct when
-written and stale when applied — and they are the harder ones, because nothing was wrong at the
-moment of writing.
+Four of the fourteen were produced by conversations that were **actively auditing for the
+pattern**, which is what makes the sites worth recording rather than the rule worth restating.
+The last two are a milder form — correct when written and stale when applied — and they are the
+harder ones, because nothing was wrong at the moment of writing.
+
+**A register was considered and cut, and the total is now cut for the same reason.**
+`_harvest.md`'s `00` block records the first: a fourteen-row register, one row per instance,
+would have made this document the owner of rows no other document carries, which is authorship
+and §1.1 forbids it. A running total is that register's residue — a claim this document owns,
+maintained by nobody, incremented by every pass including the ones auditing for the pattern. Each
+site survives because it is checkable by opening what it names. A sum of sites is not, and a
+reader who needs the current number gets it by adding the column.
 
 **What to do about it is not decided here.** `roadmap` §10 Q6 holds the question and its three
 options: date each such note, drop them and record the amendment only where it is owed, or keep

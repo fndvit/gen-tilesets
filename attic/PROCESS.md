@@ -70,11 +70,12 @@ missing **Amended** line. §9's paraphrase of `01` §11.2 is now a quotation, fo
 survivor: `07`, `09`, and `01` each carry a one-line residue, recorded with the date and the
 document opened.
 
-**§10.2's count is fourteen, not thirteen.** The fourteenth was found by this pass and is the
-milder form: `01` §13 said **D3** _is owed_ its rewrite, and `03` carries it, rewritten in place,
-amended by the conversation that wrote the sentence. §10.2 now gives the site of every instance
-so the number is checkable, and routes what to do about it to `roadmap` §10 Q6 rather than
-restating the rule a third time.
+**§10.2 gained a fourteenth site, not a thirteenth.** The fourteenth was found by this pass and
+is the milder form: `01` §13 said **D3** _is owed_ its rewrite, and `03` carries it, rewritten in
+place, amended by the conversation that wrote the sentence. §10.2 gives the site of every
+instance so the number is checkable, and routes what to do about it to `roadmap` §10 Q6 rather
+than restating the rule a third time. **Its number has since become a floor rather than a
+count** — `00` §10.2, amended 2026-08-08, `PLAN.md` §0.5.
 
 §9 gained two process rows — verify a cross-document claim by opening the document, confirm a
 document arrived before running a pass against it. That is Q6's third option taken provisionally,
