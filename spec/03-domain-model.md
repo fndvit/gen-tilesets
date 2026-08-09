@@ -5,7 +5,8 @@
 > **Constrains:** `04-operations.md`, `06-config-schema.md`, `07-render-contract.md`  
 > **Amended:** open questions 1, 2, 3 resolved by `06-config-schema.md` §10, §5.3, §6  
 > **Amended:** §5.5, §6.4, §8, Q6 — see `07-render-contract.md` §10, §4.4
-> **Amended:** §4.2, §4.3, **D3** rewritten in place — see `01-glossary.md` §7.1, Q7
+> **Amended:** §4.2, §4.3, **D3** rewritten in place — see `01-glossary.md` §7.1, Q7  
+> **Amended:** §4.3's hash key now names the effective seed — see `02-generation-contract.md` §6.3, §6.7
 
 ---
 
@@ -138,12 +139,22 @@ Given a cell's resolved `tileId`:
 ```
 assets = tile.assets sorted canonically by id
 total  = sum of weights                              // > 0 by §4.1
-h      = hash(seed, "asset", x, y, config.assetSalt) // [0, 1) per 02 §6.3
+h      = hash(effective(assets), "asset", x, y, config.assetSalt)  // [0, 1) per 02 §6.3
 target = h * total
 
 walk assets accumulating `cumulative += weight`
 the first asset whose `cumulative > target` is selected
 ```
+
+**On `effective(assets)` rather than the seed.** An earlier revision of this block wrote
+`hash(seed, …)`. ADR-002 left it standing on the grounds that this section _cites_ `02` §6.3
+rather than specifying it, but the block writes a literal key, and `02` §6's instruction to
+read _the seed_ as _the effective seed_ is scoped to that section and does not reach here.
+The asset channel resolves its seed as
+`config.reseedAssetsOnLoad ? mixLoad(seedU32, loadSalt) : seedU32` (`02` §6.7). Written out
+because an implementer working from this block alone would produce an asset channel that
+ignores `reseedAssetsOnLoad` entirely — a flag that silently does nothing, which is the
+failure shape `05` §6.1 rejects for the stochastic declaration.
 
 The comparison is **strict** so that a zero-weight asset can never win: it does not advance
 `cumulative`, so it never satisfies the test. And because `h < 1` strictly, `target < total`,
