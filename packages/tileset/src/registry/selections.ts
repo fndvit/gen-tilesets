@@ -31,6 +31,33 @@ export type SelectionImpl = (
 export interface SelectionRegistration {
   name: string;
   params: ParamSchema;
+
+  /**
+   * Whether the Selection is **coordinate-bound** — `04` §4.4's table.
+   *
+   * | Term                 | Defined by             | Survives a resize |
+   * | -------------------- | ---------------------- | ----------------- |
+   * | **Procedural**       | a rule                 | ✅                |
+   * | **Coordinate-bound** | specific coordinates   | ❌ orphaned       |
+   *
+   * `09` **E12** requires confirmation before a design-width change "whenever the
+   * config holds a coordinate-bound Selection", and `09` §9.3 is explicit that a
+   * dialogue appearing every time "teaches the author to dismiss it before
+   * reading, which is worse than no dialogue". So the editor has to know which
+   * Selections are at risk, exactly.
+   *
+   * **A declaration rather than a list of names in the editor**, on the same
+   * reasoning **X5** gives for `stochastic`: `04` §4.4's table names six
+   * Selections and the registry is open, so a Selection registered later would
+   * be classified by a list that had never heard of it — silently procedural,
+   * and silently exempt from the one confirmation that protects it.
+   *
+   * Deriving it from the `ParamSchema` is not available either: `everyNth`'s
+   * `offset` and `rect`'s `y` are both bounded integers, and nothing in the
+   * schema distinguishes *a rule's parameter* from *a coordinate*.
+   */
+  coordinateBound: boolean;
+
   impl: SelectionImpl;
 }
 
@@ -39,6 +66,7 @@ export const selections = new Registry<SelectionRegistration>("selection");
 /** Always. */
 selections.register({
   name: "all",
+  coordinateBound: false,
   params: {},
   impl: () => true,
 });
@@ -56,6 +84,7 @@ selections.register({
  */
 selections.register({
   name: "rect",
+  coordinateBound: true,
   params: {
     x: { type: "integer" },
     y: { type: "integer" },
@@ -82,6 +111,7 @@ selections.register({
  */
 selections.register({
   name: "checkerboard",
+  coordinateBound: false,
   params: { parity: { type: "enum", values: [0, 1] } },
   impl: (p, cx, cy) => (cx + cy) % 2 === p.parity,
 });
@@ -101,6 +131,7 @@ selections.register({
  */
 selections.register({
   name: "everyNth",
+  coordinateBound: false,
   params: {
     axis: { type: "enum", values: ["column", "row"] },
     n: { type: "integer", min: 1 },
@@ -130,6 +161,7 @@ selections.register({
  */
 selections.register({
   name: "random",
+  coordinateBound: false,
   params: { density: { type: "number", min: 0, max: 1 } },
   impl: (p, cx, cy, ctx) =>
     hash(ctx.effectiveSeed, selectionChannel(ctx.operationId), cx, cy, ctx.salt) < (p.density as number),
@@ -143,6 +175,7 @@ selections.register({
  */
 selections.register({
   name: "cellList",
+  coordinateBound: true,
   params: { cells: { type: "cellList" } },
   impl: (p, cx, cy) => {
     const cells = p.cells as [number, number][];

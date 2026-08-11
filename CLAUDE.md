@@ -13,8 +13,10 @@ to generated output is a versioning problem, not a conformance one (`05` **X9**)
 | `/spec`            | The specification. Read `/spec/README.md` first — not all of it binds equally. |
 | `/adr`             | Reversed or contested decisions. Five files.                                   |
 | `/attic`           | The authoring-phase audit and its harvests. Historical. **Do not cite it.**    |
+| `DECISIONS.md`     | Append-only. **Only what the spec does not answer.** See below.                |
 | `packages/tileset` | Engine and renderer. `@tileset/core`.                                          |
-| `apps/editor`      | The editor. Not started.                                                       |
+| `apps/editor`      | The editor. In progress — dev server on 5174.                                  |
+| `apps/demo`        | A fixture page for the renderer. Port 5173.                                    |
 
 ## Rules
 
@@ -33,28 +35,78 @@ to generated output is a versioning problem, not a conformance one (`05` **X9**)
 
 ## Current state
 
-Pre-implementation. Nine engine units, then a minimal renderer:
+**The engine and the renderer are built.** All nine engine units pass — hash core, attribute
+table, the weight walk, `TileState`, Selection and Source presets, mapping, Blend/Target, and
+`generate()` — as do `cellBox` / `cellAt` and a `<Tileset>` that resolves each cell to a
+`Drawable` and nothing more. `pnpm test` and `pnpm typecheck` are green from the repo root.
 
-1. Hash core — `02` §6.6, §6.7
-2. Attribute table and bounding — `03` §5.1–§5.4
-3. `Tile`, `TileAsset`, the weight walk — `03` §3, §4.1–§4.3
-4. `TileState` and null initialization — `02` §8, §8.1
-5. Selection presets — `04` §4.2–§4.5
-6. Source presets — `04` §5.2–§5.4, `05` §6.2, §6.4
-7. Mapping — `04` §6.1–§6.4
-8. Blend and Target — `04` §7.1–§7.3, ADR-001
-9. `generate()` and the evaluation loop — `02` §4, §5, §9
+Three additions to the package's exported surface, all recorded in `DECISIONS.md`:
 
-Then `cellBox` / `cellAt` (`07` §5.2–§5.3, §8.2–§8.3) and a `<Tileset>` that resolves each
-cell to a `Drawable` (`08` §4.2) and nothing more.
+- **`selection()`** — `02` §12, `09` §6.2, **E8**. The overlay's cell set, so the editor
+  implements no Selection's test.
+- **`SelectionRegistration.coordinateBound`** — `04` §4.4, `09` **E12**. Which Selections a
+  resize orphans, declared rather than listed in the editor. **X5**'s reasoning transplanted.
+- **`<Tileset>` exposes its render box element** — `08` §7. The editor needs it to convert a
+  pointer event into render space, which `07` §8.2 assigns to the caller. **R5** is untouched.
+
+**The editor is complete.** All twelve steps of the plan, 0–11, are done:
+
+| Done | Step                                                                             |
+| ---- | -------------------------------------------------------------------------------- |
+| ✅   | 0 · `selection()` · 1 · new document, memorable seed · 2 · `yOffset`             |
+| ✅   | 3 · preview width (**E11**) · 4 · tile library, drops, ids · 5 · operation stack |
+| ✅   | 6a–6c · the create-operation workflow, all four steps, and its commit           |
+| ✅   | 7 · the `cellList` brush (§7.3) · 8 · the Selection overlay (**E7**, **E8**)    |
+| ✅   | 9 · seed, both salts, the load flags, and the load preview (§8.1's four rows)   |
+| ✅   | 10 · undo (**E6**) and **E12**'s confirmation, with §9.4's orphan advisories    |
+| ✅   | 11 · export (**E14**) — `tileset.json` and its asset folder, as a zip          |
+
+`fflate` is the repo's only runtime dependency, taken on at Step 11 because a browser cannot
+write a folder unaided.
+
+Import does not ship: it requires `validate()`, which is deferred. Every session starts from a
+new document.
+
+### Next, in order
+
+The editor's plan is finished, so what remains is engine work that was blocked on it:
+
+1. **The five vector tables** — unblocked since units 1–9 passed, and now that the editor
+   exercises the engine there are real configs to draw them from. ADR-004 governs.
+2. **`validate()` and the error vocabulary** — `06` §5–§10. It is what editor *import* is
+   blocked on, and the one thing that would make **E15**'s development assertion available.
+3. **Reference configs** — `05` §11.1, once `vignette` exists to exercise.
+
+## `DECISIONS.md`
+
+Append-only, one entry per answer, and it records **only what the specification does not
+answer.** Where the spec answers a question, the citation belongs in the code instead.
+
+Read it before re-deciding anything about the editor — it is where the reasoning lives for the
+brush's stroke gesture, the shadow config the overlay resolves against, the id scheme, the
+refusal on deleting a referenced Tile, and the preview-width zoom. Around thirty entries.
 
 ## Deferred on purpose
 
 Not open questions. Do not rediscover them as such.
 
-- **Vector tables** — all five, generated once units 1–9 pass, under ADR-004.
-- **`validate()` and the error vocabulary** — `06` §5–§10, after the engine draws.
+- **Vector tables** — all five, still ungenerated. Units 1–9 pass, so they are now unblocked.
+  The existing tests assert *properties*, never fixed expected values; do not mistake
+  `geometry.test.ts` or `hash.test.ts` for the tables. Generate under ADR-004.
+- **`validate()` and the error vocabulary** — `06` §5–§10. The engine draws now, so this is
+  unblocked too, and editor import is blocked on it.
 - **Reference configs** — `05` §11.1, once the Sources they exercise exist.
-- **Transforms, cropping, `onAssetError`** — `07` §6, §6.4; `08` §4.4.
-- **The editor** — after the renderer.
+- **Author-controlled cropping** — `08` §13's `[EXTENSION POINT]`, a `meta` key carrying a
+  source rect. It must ship with a default equal to the centre square or its arrival breaks
+  **R14**. *(Transforms, centre-crop under **R8**, and `onAssetError` are built — this bullet
+  used to claim otherwise.)*
 - **The invariant census and `pnpm invariants`** — at 1.0 planning, not before.
+
+Two gaps found while building, flagged rather than worked around:
+
+- **`vignette` is specified in `04` §5.2 and not registered.** Four Sources appear in the
+  editor where five should. When it is registered it appears there with nothing written for it.
+- **`.svelte` components cannot be unit-tested.** `apps/editor/vitest.config.ts` drops the
+  Svelte plugin deliberately — Vitest 2 bundles Vite 5, the plugin needs Vite 8 — so a module
+  holding a rune cannot be imported by a test. That is why `drafting.svelte.ts` holds the
+  `$state` and `draft.svelte.ts` holds the logic.

@@ -41,6 +41,23 @@
     provider?: AssetProvider;
     /** `08` **S6**. Fires for a resolution failure and a load failure alike. */
     onAssetError?: (ref: AssetRef, cause: unknown) => void;
+
+    /**
+     * The render box element — `08` §7, bindable and read-only in practice.
+     *
+     * **The host measures; the renderer does not.** `07` **R5** forbids the
+     * *renderer* consulting or measuring anything to compute a cell box, and it
+     * never needs to. But converting a pointer event into render space is
+     * `07` §8.2's explicitly-assigned *caller* work, and that requires the box's
+     * position on screen. So the element is exposed and "an editor calling
+     * `getBoundingClientRect()` on it is doing something **R5** does not touch".
+     *
+     * This is the whole of what `09` needs from the component beyond `cellBox`
+     * and `cellAt`. In particular there is **no exported grid**: an overlay shows
+     * which cells an Operation *selects*, which `09` derives from the Operation
+     * it is editing, never from the drawn output.
+     */
+    box?: HTMLDivElement | null;
   }
 
   // There is no width prop: `07` §5.3 makes every quantity a fixed fraction of
@@ -56,6 +73,7 @@
     loadSalt = 0,
     provider = defaultProvider,
     onAssetError,
+    box = $bindable(null),
   }: Props = $props();
 
   // **Invariant S4** — with no optional props the picture is fixed:
@@ -182,7 +200,7 @@
   **§4.5** — the output is decorative. The box is `aria-hidden` and every image
   carries `alt=""`. Meaningful content is never a tile.
 -->
-<div class="tileset" style="aspect-ratio: {ratio};" aria-hidden="true">
+<div class="tileset" style="aspect-ratio: {ratio};" aria-hidden="true" bind:this={box}>
   <!--
     Cells are painted in row-major order — ascending y, then ascending x within a
     row (**R10**). `grid.cells` is stored row-major, so document order gives it

@@ -9,6 +9,13 @@
 
 export { generate } from "./generate.js";
 
+/**
+ * `09` §6.2, **E8** — the overlay's cell set, so the editor implements no
+ * Selection test. `02` §12 carries it as required; `05` §10.2 makes it a minor
+ * bump, since it moves no output.
+ */
+export { selection } from "./selection.js";
+
 export {
   ATTRIBUTE_NAMES,
   ATTRIBUTES,
@@ -21,16 +28,19 @@ export {
 
 export { canonicalAssets, prepareTile, walkWeights, type PreparedTile } from "./assets.js";
 
-export type { EvalCtx } from "./ctx.js";
+export { operationCtx, type EvalCtx } from "./ctx.js";
 
 export {
   ASSET_CHANNEL,
   channelU32,
+  effectiveSeeds,
   hash,
   hashU32,
   mixLoad,
+  pickSeed,
   selectionChannel,
   stage1,
+  type EffectiveSeeds,
 } from "./hash.js";
 
 export {

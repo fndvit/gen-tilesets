@@ -18,8 +18,8 @@
 
 import { initialTileState, writeAttribute } from "./attributes.js";
 import { prepareTile, walkWeights, type PreparedTile } from "./assets.js";
-import type { EvalCtx } from "./ctx.js";
-import { ASSET_CHANNEL, hash, mixLoad, stage1 } from "./hash.js";
+import { operationCtx, type EvalCtx } from "./ctx.js";
+import { ASSET_CHANNEL, effectiveSeeds, hash, pickSeed } from "./hash.js";
 import { applyNumericMapping, applyTileMapping, isTileMapping } from "./mapping.js";
 import { blends, type BlendRegistration } from "./registry/blends.js";
 import { selections, type SelectionRegistration } from "./registry/selections.js";
@@ -62,27 +62,21 @@ export function generate(
   const { rows, columns } = config;
 
   // Stage 1 runs once per generation (02 §6.6, §6.7).
-  const seedU32 = stage1(seed);
-
+  //
   // Each channel resolves an effective seed BEFORE Stage 2 mixes position into
   // it. Resolving it here rather than inside a Source is deliberate: a Source
   // handed the raw seed would silently ignore its own Operation's flag (ADR-002).
-  const loadMixed = mixLoad(seedU32, loadSalt);
-  const effectiveOp = (op: Operation): number => (op.reseedOnLoad ? loadMixed : seedU32);
-  const effectiveAssets = config.reseedAssetsOnLoad ? loadMixed : seedU32;
+  //
+  // Shared with selection() rather than written twice -- see pickSeed.
+  const seeds = effectiveSeeds(seed, loadSalt);
+  const effectiveAssets = pickSeed(seeds, config.reseedAssetsOnLoad);
 
   const prepared: PreparedOperation[] = config.operations.map((op) => ({
     op,
     selection: selections.get(op.selection.type),
     source: sources.get(op.source.type),
     blend: blends.get(op.blend),
-    ctx: {
-      rows,
-      columns,
-      effectiveSeed: effectiveOp(op),
-      operationId: op.id,
-      salt: op.salt ?? 0,
-    },
+    ctx: operationCtx(config, op, seeds),
   }));
 
   // Sorting a Tile's assets is O(a log a) and cannot change during a generation,

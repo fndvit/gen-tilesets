@@ -176,6 +176,37 @@ export function mixLoad(seedU32: number, loadSalt: number): number {
   return (h ^ (h >>> 13)) >>> 0;
 }
 
+/**
+ * Both seeds a run can hash against, resolved once (`02` §6.7).
+ *
+ * `onLoad` is computed whether or not anything is flagged. It is one
+ * multiply-xor-shift round per generation, and branching to avoid it would make
+ * the cost of the flag depend on whether any Operation happens to carry it.
+ */
+export interface EffectiveSeeds {
+  /** `stage1(seed)`. What an unflagged channel hashes against, on every load, forever. */
+  plain: number;
+  /** `mixLoad(plain, loadSalt)`. What a flagged channel hashes against. */
+  onLoad: number;
+}
+
+export function effectiveSeeds(seed: string, loadSalt: number): EffectiveSeeds {
+  const plain = stage1(seed);
+  return { plain, onLoad: mixLoad(plain, loadSalt) };
+}
+
+/**
+ * A channel's effective seed, selected by its own `reseedOnLoad` flag.
+ *
+ * Shared by `generate()` and `selection()` rather than written twice: a
+ * `selection()` that resolved this differently would draw an overlay showing
+ * cells the Operation does not act on, under exactly the flag whose whole
+ * purpose is to make them differ (`09` §6.2).
+ */
+export function pickSeed(seeds: EffectiveSeeds, reseedOnLoad: boolean | undefined): number {
+  return reseedOnLoad === true ? seeds.onLoad : seeds.plain;
+}
+
 /** The three channel-string shapes. The set is closed at three (`05` **X3**). */
 export const ASSET_CHANNEL = "asset";
 

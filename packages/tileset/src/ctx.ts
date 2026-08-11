@@ -20,6 +20,10 @@
  * indicate why. Resolving it once, outside the Source, makes the flag work
  * whether or not the Source's author was thinking about it (ADR-002).
  */
+
+import { pickSeed, type EffectiveSeeds } from "./hash.js";
+import type { Operation, TilesetConfig } from "./types.js";
+
 export interface EvalCtx {
   rows: number;
   columns: number;
@@ -32,4 +36,27 @@ export interface EvalCtx {
    * every consumer truncates anyway (`06` §5.2).
    */
   salt: number;
+}
+
+/**
+ * One Operation's `ctx`, built the same way for `generate()` and `selection()`.
+ *
+ * Shared rather than written twice on `07` **R1**'s reasoning one layer up: the
+ * `09` §6.2 export exists so the editor's overlay shows the cells the Operation
+ * will actually act on, and two constructions of this object could disagree
+ * about the effective seed or the salt while both looking correct.
+ */
+export function operationCtx(
+  config: Pick<TilesetConfig, "rows" | "columns">,
+  op: Operation,
+  seeds: EffectiveSeeds,
+): EvalCtx {
+  return {
+    rows: config.rows,
+    columns: config.columns,
+    effectiveSeed: pickSeed(seeds, op.reseedOnLoad),
+    operationId: op.id,
+    // 06 §5.1: absent means 0.
+    salt: op.salt ?? 0,
+  };
 }
