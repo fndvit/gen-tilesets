@@ -11,6 +11,7 @@ export {
   cellAt,
   cellBox,
   cellCentre,
+  cellPlacementPercent,
   gridWidth,
   naturalHeight,
   naturalRatio,
@@ -18,12 +19,14 @@ export {
   originY,
   scaleFactor,
   type CellBox,
+  type CellPlacement,
   type GridGeometry,
 } from "./geometry.js";
 
 export {
   applyMatrix,
   cssTransform,
+  isIdentityTransform,
   transformMatrix,
   type Matrix,
   type TransformAttributes,

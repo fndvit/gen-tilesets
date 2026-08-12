@@ -22,8 +22,8 @@
 <script lang="ts">
   import { generate } from "../generate.js";
   import type { TileState, TilesetFile } from "../types.js";
-  import { naturalRatio } from "./geometry.js";
-  import { cssTransform } from "./transform.js";
+  import { cellPlacementPercent, naturalRatio } from "./geometry.js";
+  import { cssTransform, isIdentityTransform } from "./transform.js";
   import {
     assetKey,
     defaultProvider,
@@ -92,16 +92,13 @@
   const layout = $derived(file.layout);
   const ratio = $derived(naturalRatio(layout, file.config.rows));
 
-  // Placement constants — `08` §6.3. Every quantity is a multiple of the cell's
-  // own side, and a cell is square, so nothing observes the element.
-  //
-  //   side / Wpx     = cellSize / referenceWidth
-  //   left in sides  = (referenceWidth - columns * cellSize) / (2 * cellSize) + x
-  //   top  in sides  = y - yOffset
-  const sidePercent = $derived((layout.cellSize / layout.referenceWidth) * 100);
-  const leftBase = $derived(
-    (layout.referenceWidth - file.config.columns * layout.cellSize) / (2 * layout.cellSize),
-  );
+  // Placement is `cellPlacementPercent`'s, not a second copy of it (**S10**).
+  // This component used to open-code `sidePercent` and `leftBase` here, which
+  // meant the pure geometry and the only renderer that ships reached the same
+  // numbers by two routes and could drift apart without anything reporting it —
+  // the exact failure `07` **R1** names. It is called per cell from `cellStyle`
+  // below rather than hoisted into a `$derived`: it reads `layout` and
+  // `config.columns`, so it re-evaluates with them.
 
   // `meta` lookup, keyed by the (tileId, assetId) pair per `07` §4.1.
   const metaByKey = $derived.by(() => {
@@ -163,29 +160,59 @@
   }
 
   /**
-   * The cell's full transform list.
+   * The cell's whole inline style: placement, then its own transform, then its
+   * opacity.
    *
-   * `07` §6.3 and `08` §6.3 both warn about this: **a CSS transform list applies
-   * right to left**, so the list must read `translate(...) rotate(...) scale(...)`
-   * for **D11**'s scale-before-rotation to hold. Placing the translation last, or
-   * scale before rotate, produces a picture that looks deliberate.
+   * **Placement is by percentage margin, not by `transform: translate()`**
+   * (`08` §12). §6.3 illustrated the translate, and it drew seams: a transformed
+   * element is rasterized at sub-pixel precision — the substrate is not permitted
+   * to snap it — so at any width where `s * cellSize` is fractional, every cell
+   * edge landed mid-pixel and was antialiased. Two adjacent antialiased edges each
+   * contribute *partial* coverage to the shared boundary pixel, and source-over of
+   * two partial coverages never sums to one, so a sliver of the backdrop survived
+   * at every seam. That is `07` §5.6's "faint grid of seams across the whole
+   * background… invisible at some widths and obvious at others", reached through
+   * the substrate rather than through the arithmetic.
    *
-   * `transform-origin` is the element's own centre (the CSS default), which is the
-   * drawable box's centre, as **D11** and **R7** require.
+   * A **percentage margin resolves against the containing block's width** — this
+   * is true of `margin-top` as well as `margin-left`, and it is why the vertical
+   * offset a percentage `top` could not carry (§6.3's objection) is carried here
+   * anyway. So placement stays a fixed fraction of `Wpx` per `07` §5.3, nothing
+   * is measured, and **S8** is untouched: a host overriding the box height still
+   * gets square cells clipped by **R9**, never stretched ones.
    *
-   * **The list itself is `cssTransform`'s**, not a second copy of it. This
-   * component used to spell it out inline, which meant the pure function and the
-   * only renderer that ships could disagree — and they would have, the moment
-   * ADR-005 added `scale` to one of them. What is local here is the *placement*:
-   * `leftBase` and `yOffset` are grid geometry (`08` §6.3), which
-   * `cssTransform` takes as an argument precisely because it is not an
-   * attribute.
+   * **The `transform` property is omitted entirely for an identity cell.** That is
+   * what earns the snap: an untransformed border box is pixel-snapped, and
+   * **R6**'s shared edge survives the snap because cell `x`'s right edge and cell
+   * `x+1`'s left edge are one number, and `round()` of one number is one number.
+   * Neither a gap nor an overlap can open, at any `Wpx`.
+   *
+   * **`opacity` is omitted at 1** for the same reason: a value below 1 forces a
+   * stacking context, and emitting it unconditionally imposed one on every cell in
+   * the grid for no gain.
+   *
+   * `07` §6.3 and `08` §6.3's ordering warning still binds what `cssTransform`
+   * emits — **a CSS transform list applies right to left**, so it must read
+   * `rotate(...) scale(...)` for **D11**'s scale-before-rotation to hold. The list
+   * is `cssTransform`'s and not a second copy of it: this component used to spell
+   * it out inline, which meant the pure function and the only renderer that ships
+   * could disagree — and they would have, the moment ADR-005 added `scale` to one
+   * of them.
    */
-  function cellTransform(cell: TileState, x: number, y: number): string {
-    return cssTransform(cell, {
-      xPercent: (leftBase + x) * 100,
-      yPercent: (y - layout.yOffset) * 100,
-    });
+  function cellStyle(cell: TileState, x: number, y: number): string {
+    const { leftPercent, topPercent, sidePercent } = cellPlacementPercent(
+      layout,
+      file.config.columns,
+      x,
+      y,
+    );
+    let style =
+      `width: ${sidePercent}%; ` +
+      `margin-left: ${leftPercent}%; ` +
+      `margin-top: ${topPercent}%;`;
+    if (!isIdentityTransform(cell)) style += ` transform: ${cssTransform(cell)};`;
+    if (cell.opacity < 1) style += ` opacity: ${cell.opacity};`;
+    return style;
   }
 </script>
 
@@ -220,14 +247,7 @@
     {#if cell.tileId !== null && cell.assetId !== null}
       {@const key = assetKey(cell.tileId, cell.assetId)}
       {#if !loadFailed.has(key)}
-        <div
-          class="cell"
-          style="width: {sidePercent}%; transform: {cellTransform(
-            cell,
-            i % grid.columns,
-            Math.floor(i / grid.columns),
-          )}; opacity: {cell.opacity};"
-        >
+        <div class="cell" style={cellStyle(cell, i % grid.columns, Math.floor(i / grid.columns))}>
           <!--
             Geometry is computed and committed before resolution is attempted, and
             is never revised as a result of it (**R5**, §4.2). So: no layout shift
@@ -274,7 +294,9 @@
     top: 0;
     left: 0;
     /* Cells are square (02 §7); `width` is set inline as a percentage of the
-       render box and the height follows. */
+       render box and the height follows. `margin-left` / `margin-top` carry the
+       placement, both as percentages of the render box's *width* — see
+       `cellStyle`. */
     aspect-ratio: 1;
     /* D11 / R7 — every transform is about the drawable box's centre. */
     transform-origin: 50% 50%;
@@ -283,7 +305,15 @@
        clipping per cell would clip the two features the attribute set exists to
        provide (07 §7.1). */
     overflow: visible;
-    will-change: transform;
+    /*
+      No `will-change: transform`. It promoted every cell to its own composited
+      layer, and a layer is rasterized and composited with its own independent
+      device-pixel snapping — which is `07` §5.6's forbidden "compute each cell's
+      left and size independently, round both" reached through the compositor
+      instead of through the arithmetic. It also made the seam depend on DPR and
+      on which rasterization path the browser chose, and cost one layer per cell
+      in a grid that is routinely hundreds of cells.
+    */
   }
 
   .cell img {

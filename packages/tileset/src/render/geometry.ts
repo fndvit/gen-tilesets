@@ -118,6 +118,57 @@ export function cellBox(g: GridGeometry, x: number, y: number): CellBox {
   };
 }
 
+/** A cell's placement, expressed as percentages of `Wpx` — see `cellPlacementPercent`. */
+export interface CellPlacement {
+  /** `cellBox().left` as a percentage of `Wpx`. */
+  leftPercent: number;
+  /** `cellBox().top` as a percentage of `Wpx` — of the **width**, not the height. */
+  topPercent: number;
+  /** The cell's side as a percentage of `Wpx`. Cells are square (`02` §7). */
+  sidePercent: number;
+}
+
+/**
+ * `cellBox` with `Wpx` cancelled out — `07` §5.3, `08` §6.3.
+ *
+ * Every quantity in §5.2 is `Wpx` times a constant of `Layout` and `columns`, so
+ * dividing the box through by `Wpx` leaves a set of constants:
+ *
+ *     sidePercent = cellSize / referenceWidth * 100
+ *     leftPercent = ((referenceWidth - columns * cellSize) / (2 * cellSize) + x) * sidePercent
+ *     topPercent  = (y - yOffset) * sidePercent
+ *
+ * `leftPercent / 100 * Wpx` is `cellBox(g, x, y).left` exactly, and likewise for
+ * `top`. **`topPercent` is a fraction of the width too**, not of the height: the
+ * vertical pitch is `s * cellSize`, the same quantity as the horizontal one,
+ * because cells are square. A percentage resolved against the box's height would
+ * stretch cells the moment a host overrode that height, which `08` **S8**
+ * explicitly permits it to do for `07` §7.3's vertical bleed.
+ *
+ * **Invariant S10** — this exists so the component does not reimplement the
+ * arithmetic. It is the same mapping as `cellBox`, in the units a stylesheet can
+ * consume, and `R6`'s shared edge survives the change of units: cell `x`'s
+ * `leftPercent + sidePercent` is cell `x+1`'s `leftPercent`, because both sides
+ * evaluate the same expression.
+ *
+ * Percentages rather than px for `07` §5.3's reasons — no measurement, correct at
+ * every width, complete geometry under SSR where `Wpx` is unknown.
+ */
+export function cellPlacementPercent(
+  layout: Layout,
+  columns: number,
+  x: number,
+  y: number,
+): CellPlacement {
+  const sidePercent = (layout.cellSize / layout.referenceWidth) * 100;
+  const leftBase = (layout.referenceWidth - columns * layout.cellSize) / (2 * layout.cellSize);
+  return {
+    leftPercent: (leftBase + x) * sidePercent,
+    topPercent: (y - layout.yOffset) * sidePercent,
+    sidePercent,
+  };
+}
+
 /** The cell box's centre in render space — what every transform is taken about (**R7**). */
 export function cellCentre(box: CellBox): { cx: number; cy: number } {
   return { cx: (box.left + box.right) / 2, cy: (box.top + box.bottom) / 2 };

@@ -96,8 +96,19 @@
   /** How much room the editor's own column has. Not a limit on `Wpx` — see `zoom`. */
   let available = $state(0);
 
-  /** The column, less the two handle gutters. What "fill" fills and what the zoom fits into. */
-  const room = $derived(Math.max(available - 2 * HANDLE, MIN_WIDTH));
+  /**
+   * The column, less the two handle gutters. What "fill" fills and what the zoom
+   * fits into.
+   *
+   * **Floored to a whole pixel.** `clientWidth` in a flex column is routinely
+   * fractional, so *fill* otherwise handed the render box a `Wpx` with a
+   * fractional part that nothing in the editor chose and no two layouts would
+   * agree on. `07` §5.3 makes the layout correct at every `Wpx`, fractional
+   * included, and `08` §12's placement holds there too — this is not what fixed
+   * the seams. It removes one avoidable source of run-to-run variation, so the
+   * same file at the same preset draws the same picture.
+   */
+  const room = $derived(Math.max(Math.floor(available) - 2 * HANDLE, MIN_WIDTH));
 
   /**
    * The requested width. `null` means *fill the column* — the state a fresh

@@ -525,3 +525,81 @@ that agreement, and that is what `08` defers — not the drawing, which already 
 | 4   | Is `Wpx` ever needed before first paint?                                           | **Open.** §6.3 needs no measurement, and §7 hands measurement to the host — but `cellAt` requires a `Wpx` value, and an editor converting a pointer event gets it from the exposed element. If any host needs it earlier, this becomes a real question. Nothing in V1 does.                                             |
 | 5   | Should `meta` be validated at all?                                                 | **Open**, unchanged — `07` **Q5**. §4.3's throw on a missing `src` narrows the blast radius to one tile but is not validation.                                                                                                                                                                                          |
 | 6   | Does the editor ever want `cellAt` bounded?                                        | **Deferred** → `09-editor.md` (`07` **Q6**). Unaffected by **S10**: bounding is one comparison at the call site either way.                                                                                                                                                                                             |
+
+---
+
+## 12. Placement is by margin, not by transform
+
+§6.3 illustrated placement as a leading `translate(...)` in the cell's transform list. **The
+shipping renderer does not do that**, and this section records why. §6.3 opens "the CSS is one way
+to express it" — it is an illustration, not a binding, so nothing here reverses a decision and
+there is no ADR. `07` §5's arithmetic is untouched; only its expression in CSS moves.
+
+### 12.1 What the translate did
+
+A transformed element is rasterized at sub-pixel precision. The substrate is not permitted to snap
+it, because snapping a rotated or scaled box would be wrong. So placing cells with a transform put
+every cell edge wherever `s * cellSize` happened to land, and at any width where that is
+fractional, every edge was antialiased.
+
+Two adjacent antialiased edges do not close. Each contributes *partial* coverage to the shared
+boundary pixel, and source-over compositing of two partial coverages never sums to one, so a
+sliver of the backdrop survived at every seam. That is `07` §5.6's named failure — "a faint grid
+of seams across the whole background… invisible at some widths and obvious at others" — reached
+through the substrate rather than through the arithmetic. **R6** held in `cellBox` the whole time
+and was violated in the paint.
+
+`will-change: transform` on the cell made it worse and less predictable: it promoted every cell to
+its own composited layer, and a layer is rasterized and composited with its own independent
+device-pixel snapping. That is precisely §5.6's forbidden "compute each cell's `left` and `size`
+independently, round both", expressed through the compositor. It also made the artifact depend on
+DPR and on which rasterization path the browser chose.
+
+The reported case: `referenceWidth` 1000, `cellSize` 50, `Wpx` 615. `s` is 0.615 and the cell side
+is 30.75px, so every edge sits a quarter-pixel off the device grid. At `Wpx` 600 the side is
+exactly 30px, every edge is integral, and the seams vanish — which is the whole of "it depends on
+the render box size".
+
+### 12.2 What replaces it
+
+```
+width:       calc(100% * cellSize / referenceWidth);
+aspect-ratio: 1;
+margin-left: calc(<left in sides> * 100% * cellSize / referenceWidth);
+margin-top:  calc(<top  in sides> * 100% * cellSize / referenceWidth);
+```
+
+**A percentage margin resolves against the containing block's width** — `margin-top` as well as
+`margin-left`. That is the fact §6.3 did not use, and it dissolves §6.3's objection to a
+percentage `top`: the vertical offset a percentage `top` could not carry is carried by a
+percentage `margin-top` anyway, because it too is a fraction of `Wpx`. Every quantity therefore
+stays a fixed fraction of `Wpx` per `07` §5.3, nothing is measured, and **S8** is untouched — a
+host overriding the box height still gets square cells clipped by **R9**, never stretched ones.
+
+The `transform` property is then **omitted entirely** for a cell whose attributes are the
+identity. An untransformed border box is pixel-snapped by the substrate, and **R6**'s shared edge
+survives the snap for the reason §5.6 gives when it permits snapping at all: cell `x`'s right edge
+and cell `x+1`'s left edge are one number, and `round()` of one number is one number. Neither a
+gap nor an overlap can open, at any `Wpx`. A cell that *is* transformed is deliberately
+free-floating — `07` §7.1 makes spilling the point of the attribute set — and its antialiased edge
+is correct rather than a defect.
+
+`opacity` is likewise emitted only below 1. Emitting `opacity: 1` on every cell imposed a stacking
+context on the whole grid for no gain, and with the per-cell layer above it was what made the
+overlap visible when an author added an opacity Operation.
+
+### 12.3 What this costs
+
+**Invariant S11** — _Placement is expressed in properties the substrate pixel-snaps, and the
+`transform` property carries the cell's own attributes and nothing else. A cell at identity
+attributes emits no `transform` at all._
+
+- `cssTransform`'s placement argument becomes optional. The ordering rule is unchanged and still
+  binds whenever a translate is supplied: `translate(...) rotate(...) scale(...)`, or **D11**
+  inverts.
+- The percentages are `cellPlacementPercent`, a new pure function in `render/geometry.ts` —
+  `cellBox` with `Wpx` cancelled out, which is `07` §5.3's cancellation written down. The
+  component used to open-code them, so **S10** is now literally true where it previously was not.
+- The drawn picture moves by sub-pixels. Under **R14** that is a major bump after 1.0; before 1.0
+  it is a fix. `cellBox`, `cellAt`, and `07` **R15**'s two vector tables are **unaffected** — the
+  exact arithmetic did not move, and neither did §5.4's worked example.

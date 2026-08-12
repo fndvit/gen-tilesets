@@ -90,25 +90,47 @@ export function applyMatrix(m: Matrix, x: number, y: number): { x: number; y: nu
  * `scale(2, 1) rotate(90deg)` is the wrong picture. "The inversion is easy to
  * introduce and produces a picture that looks deliberate."
  *
- * `08` §6.3 adds the other half: the placement translation composes with this,
- * and the whole list must read `translate(...) rotate(...) scale(...)`. Placing
- * the translation last inverts the order.
+ * **`translate` is optional, and the shipping renderer omits it.** `08` §6.3
+ * illustrated placement as a leading `translate(...)` in this same list, and
+ * `08` §12 records why that is no longer what `<Tileset>` emits: a transformed
+ * element is rasterized at sub-pixel precision, so placing cells with a transform
+ * put every seam on a fractional device pixel and reopened exactly the sub-pixel
+ * gap `07` §5.6 (**R6**) forbids. Placement now rides on percentage margins,
+ * which the substrate snaps on the shared edge, and this list carries the cell's
+ * own attributes and nothing else.
  *
- * `translate` is expressed in percentages of the cell's own size, which resolve
- * against the cell rather than the render box — that is what carries the vertical
- * offset a percentage `top` could not (`08` §6.3).
+ * When `translate` *is* supplied the list is unchanged, and the ordering rule
+ * still binds: the whole list must read `translate(...) rotate(...) scale(...)`,
+ * because placing the translation last inverts the order.
  *
  * The element's `transform-origin` is its own centre (the CSS default), which is
- * the drawable box's centre, as **D11** and **R7** require.
+ * the drawable box's centre, as **D11** and **R7** require. Placement by margin
+ * does not move that centre — a margin shifts the border box, and the origin is
+ * a percentage of the border box.
  */
 export function cssTransform(
   attrs: TransformAttributes,
-  translate: { xPercent: number; yPercent: number },
+  translate?: { xPercent: number; yPercent: number },
 ): string {
   const { sx, sy } = axes(attrs);
-  return (
-    `translate(${translate.xPercent}%, ${translate.yPercent}%) ` +
-    `rotate(${attrs.rotation}deg) ` +
-    `scale(${sx}, ${sy})`
-  );
+  const placement =
+    translate === undefined ? "" : `translate(${translate.xPercent}%, ${translate.yPercent}%) `;
+  return placement + `rotate(${attrs.rotation}deg) ` + `scale(${sx}, ${sy})`;
+}
+
+/**
+ * Whether the cell's transform is the identity — no rotation and unit scale on
+ * both axes and on ADR-005's uniform factor.
+ *
+ * This is what lets `<Tileset>` omit the `transform` property entirely for a cell
+ * that does not need one, which is the whole of the seam fix: an untransformed
+ * element has its border box pixel-snapped by the substrate, and **R6**'s shared
+ * edge is preserved through the snap because `round()` of one number is one
+ * number. A cell that *is* transformed is deliberately free-floating — `07` §7.1
+ * makes spilling the point of the attribute set — and its antialiased edge is
+ * correct rather than a defect.
+ */
+export function isIdentityTransform(attrs: TransformAttributes): boolean {
+  const { sx, sy } = axes(attrs);
+  return attrs.rotation === 0 && sx === 1 && sy === 1;
 }

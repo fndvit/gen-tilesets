@@ -3,6 +3,7 @@ import type { Layout } from "../types.js";
 import {
   cellAt,
   cellBox,
+  cellPlacementPercent,
   gridWidth,
   naturalHeight,
   naturalRatio,
@@ -11,7 +12,12 @@ import {
   scaleFactor,
   type GridGeometry,
 } from "./geometry.js";
-import { applyMatrix, cssTransform, transformMatrix } from "./transform.js";
+import {
+  applyMatrix,
+  cssTransform,
+  isIdentityTransform,
+  transformMatrix,
+} from "./transform.js";
 
 /** 07 §5.4's worked example, verbatim. */
 const layout: Layout = {
@@ -123,6 +129,108 @@ describe("cell edges are shared, never independently rounded — R6", () => {
     for (let x = 0; x < 7; x++) {
       expect(cellBox(g, x + 1, 0).left - cellBox(g, x, 0).right).toBe(0);
     }
+  });
+});
+
+describe("cellPlacementPercent — the CSS the component emits — S10", () => {
+  /**
+   * The reported seam: design width 1000, cell size 50, render box 615px. `s` is
+   * 0.615 and the cell side is 30.75px, so every edge falls a quarter-pixel off
+   * the device grid. This is the case that must resolve to `cellBox` exactly.
+   */
+  const seamLayout: Layout = {
+    cellSize: 50,
+    referenceWidth: 1000,
+    yOffset: 0,
+    horizontalAlignment: "gutter",
+  };
+  const seamGeo = (Wpx: number): GridGeometry => ({
+    layout: seamLayout,
+    rows: 20,
+    columns: 21,
+    Wpx,
+  });
+
+  it.each([
+    { name: "07 §5.4's layout", g: geo },
+    { name: "the reported 1000/50 layout", g: seamGeo },
+  ])("resolves against Wpx to exactly cellBox — $name", ({ g: mk }) => {
+    // 615 is the reported render box; 768.4 and 1237.3 are awkward on purpose;
+    // 1000 and 640 divide evenly and are the widths at which the seam vanished.
+    for (const Wpx of [615, 640, 768.4, 1000, 1237.3, 1920]) {
+      const g = mk(Wpx);
+      for (let y = 0; y < 4; y++) {
+        for (let x = 0; x < g.columns; x++) {
+          const p = cellPlacementPercent(g.layout, g.columns, x, y);
+          const box = cellBox(g, x, y);
+          expect((p.leftPercent / 100) * Wpx).toBeCloseTo(box.left, 9);
+          expect((p.topPercent / 100) * Wpx).toBeCloseTo(box.top, 9);
+          expect((p.sidePercent / 100) * Wpx).toBeCloseTo(box.right - box.left, 9);
+        }
+      }
+    }
+  });
+
+  it("keeps R6's shared edge after Wpx is cancelled out", () => {
+    // The seam fix rests on this: the browser snaps a cell's border box to whole
+    // device pixels, and round() cannot open a gap between two edges that are the
+    // same number. Cell x's left + side must therefore *be* cell x+1's left.
+    for (const Wpx of [615, 768.4, 1237.3]) {
+      for (let x = 0; x < 20; x++) {
+        const a = cellPlacementPercent(seamLayout, 21, x, 0);
+        const b = cellPlacementPercent(seamLayout, 21, x + 1, 0);
+        expect(((a.leftPercent + a.sidePercent) / 100) * Wpx).toBeCloseTo(
+          (b.leftPercent / 100) * Wpx,
+          9,
+        );
+      }
+    }
+  });
+
+  it("is a fraction of the width vertically too, so a host height cannot stretch a cell", () => {
+    // `topPercent` and `sidePercent` are both percentages of Wpx -- not of the
+    // box's height. That is what keeps cells square under 08 S8's host height
+    // override, where 07 §7.3's vertical bleed lives.
+    const p0 = cellPlacementPercent(seamLayout, 21, 0, 0);
+    const p1 = cellPlacementPercent(seamLayout, 21, 0, 1);
+    expect(p1.topPercent - p0.topPercent).toBeCloseTo(p0.sidePercent, 12);
+  });
+
+  it("does not read Wpx, rows, or anything measured — R5", () => {
+    expect(cellPlacementPercent.length).toBe(4);
+  });
+});
+
+describe("isIdentityTransform — what lets a cell omit its transform", () => {
+  it("is true only at unit scale on every factor and no rotation", () => {
+    expect(isIdentityTransform({ scale: 1, scaleX: 1, scaleY: 1, rotation: 0 })).toBe(true);
+    expect(isIdentityTransform({ scale: 1, scaleX: 1, scaleY: 1, rotation: 90 })).toBe(false);
+    expect(isIdentityTransform({ scale: 2, scaleX: 1, scaleY: 1, rotation: 0 })).toBe(false);
+    expect(isIdentityTransform({ scale: 1, scaleX: -1, scaleY: 1, rotation: 0 })).toBe(false);
+    expect(isIdentityTransform({ scale: 1, scaleX: 1, scaleY: 1.001, rotation: 0 })).toBe(false);
+  });
+
+  it("sees ADR-005's uniform factor cancelling an axis, because it is one matrix", () => {
+    // 07 §10.1 gives `scale` and the axes one ordinal: S(scaleX * scale, ...).
+    // 0.5 * 2 is 1 on both axes, so the cell really is untransformed.
+    expect(isIdentityTransform({ scale: 2, scaleX: 0.5, scaleY: 0.5, rotation: 0 })).toBe(true);
+  });
+});
+
+describe("cssTransform's optional placement translate — 08 §12", () => {
+  it("omits the translate entirely when none is given", () => {
+    const css = cssTransform({ scale: 1, scaleX: 2, scaleY: 1, rotation: 90 });
+    expect(css).not.toContain("translate");
+    expect(css).toBe("rotate(90deg) scale(2, 1)");
+  });
+
+  it("still leads with the translate when one is given, for D11's order", () => {
+    const css = cssTransform(
+      { scale: 1, scaleX: 2, scaleY: 1, rotation: 90 },
+      { xPercent: 50, yPercent: -25 },
+    );
+    expect(css.indexOf("translate")).toBeLessThan(css.indexOf("rotate"));
+    expect(css.indexOf("rotate")).toBeLessThan(css.indexOf("scale("));
   });
 });
 

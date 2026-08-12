@@ -723,3 +723,25 @@ builds will not read.
 output change to `05` **X9**. The bump stands on the correct grounds — `Operation.target`'s
 admissible set widened — and every legal v1 file was always a structurally legal v2 file, which
 is why the migration is a no-op.
+
+---
+
+### 2026-08-12 — The *fill* preview width is floored to a whole pixel
+
+**Arose in:** the seam fix. The renderer's half is `08` §12 and is cited from the code, not
+here — this entry is only the editor's half, which no spec answers.
+
+`PreviewFrame`'s *fill* state sets `Wpx` from the column's `clientWidth`, which in a flex
+column is routinely fractional. `07` §5.3 makes the layout correct at every `Wpx`, fractional
+included, and `08` §12's placement holds there too, so nothing is *wrong* with a fractional
+width. But it is a width nobody chose: the same file at the same preset drew a marginally
+different picture depending on what else was in the shell that session, and while the seams
+were being chased that was one more variable that had to be excluded by hand.
+
+**Answer:** floor `available` before subtracting the handle gutters. The presets (375, 768,
+1024, 1440) were already integers; this makes *fill* one too.
+
+**Not** a clamp and **not** a minimum on `Wpx` — the 2026-08-10 preview-width entries stand,
+`Wpx` is still unclamped and still exceeds the column freely under the display zoom, and
+`09` §9.2's **E11** still writes no field. Rounding rather than flooring would be equally
+defensible; flooring loses at most one pixel and cannot make the frame overflow its gutter.
