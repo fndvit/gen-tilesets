@@ -398,18 +398,21 @@ normalized domain.
 `03` **D11** fixes scale before rotation, both about the drawable's centre. This section supplies
 the mathematics.
 
-Let `(cx, cy)` be the cell box's centre in render space, `θ` the cell's `rotation` in degrees.
+Let `(cx, cy)` be the cell box's centre in render space, `θ` the cell's `rotation` in degrees,
+and `sx = scaleX · scale`, `sy = scaleY · scale` — §10.1's three scale contributors folded into
+the one matrix they describe (ADR-005). At `scale = 1` this is `S(scaleX, scaleY)` exactly, which
+is what it read before the attribute existed.
 
 ```
-M = T(cx, cy) · R(θ) · S(scaleX, scaleY) · T(−cx, −cy)
+M = T(cx, cy) · R(θ) · S(sx, sy) · T(−cx, −cy)
 ```
 
 As the standard affine six-tuple `[a b c d e f]`, where `x' = a·x + c·y + e` and
 `y' = b·x + d·y + f`:
 
 ```
-a = scaleX · cos θ        c = −scaleY · sin θ
-b = scaleX · sin θ        d =  scaleY · cos θ
+a = sx · cos θ            c = −sy · sin θ
+b = sx · sin θ            d =  sy · cos θ
 e = cx − (a·cx + c·cy)    f = cy − (b·cx + d·cy)
 ```
 
@@ -705,12 +708,13 @@ hardcoded fields off a `TileState`.
 Each entry declares which **facet** of drawing the attribute contributes to, and for transform
 contributors, its position in the composition order:
 
-| Attribute  | Facet       | Order | Contribution                                        |
-| ---------- | ----------- | ----- | --------------------------------------------------- |
-| `scaleX`   | transform   | 1     | `S(scaleX, scaleY)` about the drawable box's centre |
-| `scaleY`   | transform   | 1     | —                                                   |
-| `rotation` | transform   | 2     | `R(θ)` about the same centre, clockwise-positive    |
-| `opacity`  | compositing | —     | multiplies the drawable's alpha; order-independent  |
+| Attribute  | Facet       | Order | Contribution                                                        |
+| ---------- | ----------- | ----- | ------------------------------------------------------------------- |
+| `scale`    | transform   | 1     | uniform, multiplied into both axes of the same `S`                  |
+| `scaleX`   | transform   | 1     | `S(scaleX · scale, scaleY · scale)` about the drawable box's centre |
+| `scaleY`   | transform   | 1     | —                                                                   |
+| `rotation` | transform   | 2     | `R(θ)` about the same centre, clockwise-positive                    |
+| `opacity`  | compositing | —     | multiplies the drawable's alpha; order-independent                  |
 
 `03` **D11** is the two transform rows read in order. Stating it as an ordinal generalizes it: a
 future `skew` or `blur` arrives with a declared position, and the question _where in the
@@ -719,6 +723,13 @@ code happened to put it.
 
 `scaleX` and `scaleY` share an ordinal because they are one matrix; they are separate attributes
 for the reason `03` §5.4 gives and not because they compose separately.
+
+**`scale` shares it too, and this is the generalization paying off** — ADR-005. A uniform factor
+multiplied into `S` **commutes** with the axis factors, so there is no order between the three to
+pin and the ordinal is answered without a new position being invented. **D11**'s
+scale-before-rotation is untouched. At `scale = 1` the product is arithmetically the matrix that
+existed before the attribute, which is what lets §11.3's transform table gain rows without any
+existing row moving.
 
 ### 10.2 An attribute with no applier is a failure
 
@@ -795,7 +806,7 @@ It is hard in one layer of three. The other two reduce to exact tables in the ma
 | Layer           | Artifact                                                                    | Catches                                                                          |
 | --------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | **Geometry**    | `(Layout, rows, columns, Wpx, x, y) → cellBox`, plus `(…, px, py) → cellAt` | The placement formula, `s`, bleed, centring, `yOffset`, the half-open round trip |
-| **Transform**   | `(scaleX, scaleY, rotation, cellBox) → [a b c d e f]`                       | **D11**'s order, the rotation sign, the centre, scale-1 tangency                 |
+| **Transform**   | `(scale, scaleX, scaleY, rotation, cellBox) → [a b c d e f]`                | **D11**'s order, the rotation sign, the centre, scale-1 tangency                 |
 | **Compositing** | —                                                                           | Paint order, clipping, crop, opacity                                             |
 
 **Invariant R15** — _The renderer's deliverable is two vector tables — geometry and transform —

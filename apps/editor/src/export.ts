@@ -52,7 +52,7 @@ export const FILE_NAME = "tileset.json";
  * a `TilesetFile`", so there is no projection here that could disagree with what
  * previewed.
  *
- * - `schemaVersion: 1` — required, and the file is never written without it.
+ * - `schemaVersion: 2` — required, and the file is never written without it.
  * - `engineVersion` — the pinned package of **E2**, so it is truthful by
  *   construction rather than by being remembered.
  * - **Every field explicitly, except `steps`.** `06` §5.1: the schema's defaults

@@ -123,7 +123,7 @@ declares vetoes.
 **Invariant X2** — _Adding a Blend obliges a review of every Target's veto list. A Blend
 declaring `numeric` becomes available on every numeric Target at once unless vetoed._
 
-> `min` is added, declaring `numeric`. It is immediately accepted by `scaleX`, `scaleY`,
+> `min` is added, declaring `numeric`. It is immediately accepted by `scale`, `scaleX`, `scaleY`,
 > `rotation`, and `opacity`. Three of those are sensible. `min` on `rotation` under a
 > wrapping domain is not — `min(350°, 10°)` is `10°`, but `350°` is ten degrees _anticlockwise_
 > of `10°`, so the "smaller" value is the larger rotation. `rotation` vetoes it, alongside

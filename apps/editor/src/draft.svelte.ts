@@ -28,6 +28,7 @@
 
 import {
   isAccepted,
+  isTileMapping,
   paletteTotal,
   TARGETS,
   type AttributeName,
@@ -62,6 +63,20 @@ export interface Draft {
   /** Allocated at creation, never reassigned (§4.3). */
   id: string;
   step: Step;
+
+  /**
+   * Carried, not authored — the draft has no control for either.
+   *
+   * A create-draft holds `06` §5.1's defaults and an **edit**-draft holds
+   * whatever the Operation it opened from had, so committing an edit preserves
+   * a reroll (§8.3) the author did from the stack row. Writing `0`/`false` here
+   * instead would silently undo that reroll on every parameter change, which is
+   * `05` §6.1's complaint — a control that appears to do one thing and does
+   * another — in the one gesture whose whole point is that it changes nothing
+   * else.
+   */
+  salt: number;
+  reseedOnLoad: boolean;
   /** `null` until the author picks one. No default is invented (`DECISIONS.md` Q7). */
   selectionType: string | null;
   selectionParams: Record<string, unknown>;
@@ -115,6 +130,10 @@ export function newDraft(id: string): Draft {
   return {
     id,
     step: "selection",
+    // `06` §5.1 makes both optional and §11.3 makes the editor write every field
+    // explicitly anyway. Step 9's controls are on the stack row, not here.
+    salt: 0,
+    reseedOnLoad: false,
     selectionType: null,
     selectionParams: {},
     target: null,
@@ -233,14 +252,86 @@ export function toShadowOperation(draft: Draft): Operation | null {
   if (draft.selectionType === null) return null;
   return {
     id: draft.id,
-    salt: 0,
-    reseedOnLoad: false,
+    // **Read**, unlike the three placeholders below: `selection()` reaches these
+    // through `operationCtx`, whose closure **O4** fixes at `{rows, columns,
+    // effectiveSeed, operationId, salt}`. An edit-draft carrying `0` here would
+    // draw a `random` Selection's overlay against a salt the committed Operation
+    // does not have, so the overlay would disagree with the picture.
+    salt: draft.salt,
+    reseedOnLoad: draft.reseedOnLoad,
     selection: { type: draft.selectionType, ...draft.selectionParams },
     // Not read by `selection()`. Placeholders, not defaults.
     source: { type: "constant" },
     target: "opacity",
     mapping: { range: [1, 1] },
     blend: "set",
+  };
+}
+
+/**
+ * An existing Operation reopened as a draft — the inverse of `toOperation`.
+ *
+ * ## Why editing reuses the draft rather than writing to the file directly
+ *
+ * **E5** requires every file-touching action to produce a legal file, and the
+ * intermediate states of an edit are not legal ones: retargeting from `tileId`
+ * to `opacity` passes through a moment where the mapping is a palette and the
+ * Target wants a range, which `06` **C8** has no way to express. So an edit
+ * commits as **one** transition, exactly as a creation does, and the draft is
+ * the thing that holds the in-flight compound value in both cases.
+ *
+ * ## What it preserves
+ *
+ * The **id** (§4.3 — never reassigned), and through it the Operation's hash
+ * channels; its index, which `replaceOperation` maintains; and `salt` /
+ * `reseedOnLoad`, which no step of the workflow authors. An edit therefore moves
+ * the picture only as much as the edit implies.
+ *
+ * ## Why the unused mapping slot is not left empty
+ *
+ * `Draft` holds both mapping shapes and `target` picks which one commits (**C8**
+ * again). An Operation carries only one, so the other is seeded from `newDraft`
+ * — the same value a fresh draft has. That is what lets the author retarget from
+ * `opacity` to `tileId` mid-edit and find a legal palette waiting, rather than
+ * an empty one `isComplete` would reject for reasons the panel cannot explain.
+ *
+ * Parameters are un-spread here: `06` §7.1 spreads them as siblings of `type`,
+ * so recovering them is `type` removed and the rest kept. `type` is reserved in
+ * the parameter namespace, which is what makes that split unambiguous rather
+ * than merely usually-right.
+ *
+ * ## Nothing here aliases the file
+ *
+ * The draft is mutated in place — §7.3's brush writes straight into
+ * `selectionParams`, and the mapping controls write into `numeric` and
+ * `palette`. Every container is therefore copied out of the Operation, not
+ * borrowed from it. Sharing one would let a control edit `session.file` without
+ * a transition, which is **E3** and **E6** both defeated by an assignment: the
+ * picture would move with nothing on the undo stack to move it back.
+ *
+ * The copies are one level deep, which is the depth the controls write at. A
+ * `cellList` is replaced wholesale rather than pushed into (`App.svelte`'s
+ * `paintCells`), so its array is not shared even though this does not clone it.
+ */
+export function fromOperation(op: Operation): Draft {
+  const fresh = newDraft(op.id);
+  const { type: selectionType, ...selectionParams } = op.selection;
+  const { type: sourceType, ...sourceParams } = op.source;
+  const mapping = op.mapping;
+  return {
+    ...fresh,
+    salt: op.salt ?? 0,
+    reseedOnLoad: op.reseedOnLoad === true,
+    selectionType,
+    selectionParams,
+    sourceType,
+    sourceParams,
+    target: op.target,
+    blend: op.blend,
+    numeric: isTileMapping(mapping)
+      ? fresh.numeric
+      : { ...mapping, range: [mapping.range[0], mapping.range[1]] },
+    palette: isTileMapping(mapping) ? mapping.palette.map((entry) => ({ ...entry })) : fresh.palette,
   };
 }
 
@@ -257,10 +348,8 @@ export function toOperation(draft: Draft): Operation | null {
   const mapping = mappingOf(draft);
   return {
     id: draft.id,
-    // `06` §5.1 makes both optional and §11.3 makes the editor write every field
-    // explicitly anyway. Step 9 gives them their controls.
-    salt: 0,
-    reseedOnLoad: false,
+    salt: draft.salt,
+    reseedOnLoad: draft.reseedOnLoad,
     selection: { type: draft.selectionType!, ...draft.selectionParams },
     source: { type: draft.sourceType!, ...draft.sourceParams },
     target: draft.target!,

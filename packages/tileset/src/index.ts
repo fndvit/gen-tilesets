@@ -63,6 +63,28 @@ export { Registry, type ParamSchema, type ParamSpec } from "./registry/registry.
 export { selections, type SelectionRegistration } from "./registry/selections.js";
 export { evalSource, sources, type SourceRegistration } from "./registry/sources.js";
 
+/**
+ * `06` §4.3, §4.4 — the migration table and the walk over it. Runs **before**
+ * `validate()`, because §9.2 forbids validation from coercing anything.
+ */
+export {
+  migrate,
+  MIGRATIONS,
+  type Migration,
+  type MigrationOutcome,
+} from "./migrate.js";
+
+/**
+ * `06` §5–§10, **C5** — a separate function, off the critical path.
+ * `generate()` trusts its input; this is what makes that trust earned.
+ */
+export {
+  SCHEMA_VERSION,
+  validate,
+  type ErrorCode,
+  type ValidationError,
+} from "./validate.js";
+
 export { tileStateAt } from "./types.js";
 export type {
   AttributeName,

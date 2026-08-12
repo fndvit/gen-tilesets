@@ -23,10 +23,26 @@ import { cellCentre } from "./geometry.js";
 export type Matrix = [a: number, b: number, c: number, d: number, e: number, f: number];
 
 export interface TransformAttributes {
+  /** Uniform, multiplied into both axes — ADR-005, `07` §10.1. */
+  scale: number;
   scaleX: number;
   scaleY: number;
   /** Degrees. **Positive is clockwise** — see below. */
   rotation: number;
+}
+
+/**
+ * The two scale rows of `07` §10.1 folded into the one matrix they describe.
+ *
+ * `scale` shares `scaleX`/`scaleY`'s ordinal rather than taking a new one: a
+ * uniform factor multiplied into `S` commutes with the axis factors, so there is
+ * no order to pin between them. `07` §10.1 already reads the shared ordinal as
+ * "they are one matrix", and this is a third contributor to it. **D11**'s
+ * scale-before-rotation is untouched, and at `scale = 1` the product is
+ * arithmetically the matrix that existed before ADR-005.
+ */
+function axes(attrs: TransformAttributes): { sx: number; sy: number } {
+  return { sx: attrs.scaleX * attrs.scale, sy: attrs.scaleY * attrs.scale };
 }
 
 /**
@@ -48,11 +64,12 @@ export function transformMatrix(attrs: TransformAttributes, box: CellBox): Matri
   const t = (attrs.rotation * Math.PI) / 180;
   const cos = Math.cos(t);
   const sin = Math.sin(t);
+  const { sx, sy } = axes(attrs);
 
-  const a = attrs.scaleX * cos;
-  const b = attrs.scaleX * sin;
-  const c = -attrs.scaleY * sin;
-  const d = attrs.scaleY * cos;
+  const a = sx * cos;
+  const b = sx * sin;
+  const c = -sy * sin;
+  const d = sy * cos;
   const e = cx - (a * cx + c * cy);
   const f = cy - (b * cx + d * cy);
 
@@ -88,9 +105,10 @@ export function cssTransform(
   attrs: TransformAttributes,
   translate: { xPercent: number; yPercent: number },
 ): string {
+  const { sx, sy } = axes(attrs);
   return (
     `translate(${translate.xPercent}%, ${translate.yPercent}%) ` +
     `rotate(${attrs.rotation}deg) ` +
-    `scale(${attrs.scaleX}, ${attrs.scaleY})`
+    `scale(${sx}, ${sy})`
   );
 }

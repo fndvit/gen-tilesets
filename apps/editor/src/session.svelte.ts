@@ -103,4 +103,28 @@ export const session = {
   reset(): void {
     history = replaced(history, newDocument());
   },
+
+  /**
+   * Open an imported document, whole — §12.4.
+   *
+   * `reset()` is the precedent and this is the same shape: a *replacement*
+   * rather than a transition, because there is no function from the outgoing
+   * file to the incoming one and pretending otherwise would put a `() => file`
+   * on the stack that ignores its argument.
+   *
+   * **Undoable**, again by **E6** — an import replaces everything the author had,
+   * so it is exactly the action that most needs to be reversible. Undo restores
+   * the previous document; it does **not** restore that document's asset bytes,
+   * which live in the session store outside the file and were swapped with it.
+   * That is `09` §15 Q8's session-scoped store showing through, not a defect in
+   * the undo stack, and it is the same gap a reload has always had.
+   *
+   * **The file is validated before it gets here.** §12.4 refuses to open a file
+   * with any `ValidationError`, and **S3** requires the host to hold a valid file
+   * at every instant — so this takes a `TilesetFile`, and the caller has already
+   * proved it is one.
+   */
+  open(file: TilesetFile): void {
+    history = replaced(history, file);
+  },
 };

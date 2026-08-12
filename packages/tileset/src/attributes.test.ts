@@ -18,6 +18,7 @@ describe("the V1 attribute set — 03 §5.4", () => {
     const s = initialTileState();
     expect(s.tileId).toBeNull();
     expect(s.assetId).toBeNull();
+    expect(s.scale).toBe(1);
     expect(s.scaleX).toBe(1);
     expect(s.scaleY).toBe(1);
     expect(s.rotation).toBe(0);
@@ -28,6 +29,10 @@ describe("bounding", () => {
   it("leaves scale unbounded — 03 §5.4", () => {
     expect(bound(ATTRIBUTES.scaleX, 1e6)).toBe(1e6);
     expect(bound(ATTRIBUTES.scaleX, -3)).toBe(-3); // a flip
+    // The uniform attribute answers the same three questions, for the same
+    // reasons -- ADR-005.
+    expect(bound(ATTRIBUTES.scale, 1e6)).toBe(1e6);
+    expect(ATTRIBUTES.scale.default).toBe(1);
   });
 
   it("clamps opacity to [0, 1]", () => {

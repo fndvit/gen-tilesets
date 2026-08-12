@@ -16,10 +16,17 @@ export type Identifier = string;
 // Attributes and Targets
 // ---------------------------------------------------------------------------
 
-/** The V1 attribute set. Closed by `03` **D7**. */
-export type AttributeName = "scaleX" | "scaleY" | "rotation" | "opacity";
+/**
+ * The attribute set. Closed by `03` **D7** — an addition is a schema change, not
+ * a registration.
+ *
+ * `scale` arrived by that route in ADR-005 and carried `schemaVersion` to 2. It
+ * is uniform and **composes with** the two axes rather than replacing them:
+ * `S(scaleX · scale, scaleY · scale)`.
+ */
+export type AttributeName = "scale" | "scaleX" | "scaleY" | "rotation" | "opacity";
 
-/** `06` §7. Four attributes plus the structural `tileId`. Closed by `05` §4.2. */
+/** `06` §7. The attributes plus the structural `tileId`. Closed by `05` §4.2. */
 export type TargetName = "tileId" | AttributeName;
 
 /** `04` §7.2. Two Target types, and only two — see `03` §5.4's note. */
@@ -39,6 +46,8 @@ export type TargetType = "numeric" | "tile";
 export interface TileState {
   tileId: string | null;
   assetId: string | null;
+  /** Uniform, multiplied into both axes at render — ADR-005, `07` §10.1. */
+  scale: number;
   scaleX: number;
   scaleY: number;
   rotation: number;
@@ -207,8 +216,15 @@ export interface Layout {
 
 /** The only name in the package for the thing on disk (`06` §3). */
 export interface TilesetFile {
-  /** Required. Absent or unknown is a load failure (`06` **C2**). */
-  schemaVersion: 1;
+  /**
+   * Required. Absent or unknown is a load failure (`06` **C2**).
+   *
+   * **2 since ADR-005**, which added the `scale` attribute and so changed the
+   * shape of `TileState`. There is no v1 compatibility path: `validate()`
+   * rejects a v1 file with `SCHEMA_VERSION_UNKNOWN`, which is what **C2** says
+   * an unknown version is.
+   */
+  schemaVersion: 2;
   /** Required, advisory, never validated against anything (`06` **C3**). */
   engineVersion: string;
   config: TilesetConfig;

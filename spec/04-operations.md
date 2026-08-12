@@ -610,6 +610,7 @@ Two Target types exist: **numeric** and **tile**.
 | Target     | Type    | Default | Vetoes     |
 | ---------- | ------- | ------- | ---------- |
 | `tileId`   | tile    | `set`   | —          |
+| `scale`    | numeric | `set`   | —          |
 | `scaleX`   | numeric | `set`   | —          |
 | `scaleY`   | numeric | `set`   | —          |
 | `rotation` | numeric | `set`   | `multiply` |
@@ -620,6 +621,7 @@ A Target's accepted set is every Blend accepting its type, less its vetoes:
 | Target     | Accepted                 |
 | ---------- | ------------------------ |
 | `tileId`   | `set`                    |
+| `scale`    | `set`, `add`, `multiply` |
 | `scaleX`   | `set`, `add`, `multiply` |
 | `scaleY`   | `set`, `add`, `multiply` |
 | `rotation` | `set`, `add`             |
@@ -628,10 +630,13 @@ A Target's accepted set is every Blend accepting its type, less its vetoes:
 `add` on a tile palette is meaningless, so no Blend but `set` accepts the tile type, and the
 editor shows no blend control for `tileId` at all. `multiply` on `rotation` is arithmetically
 defined but has no authoring meaning under a wrapping domain, so `rotation` vetoes it rather
-than leaving it as a trap.
+than leaving it as a trap. `scale` arrived with ADR-005 and vetoes nothing: a uniform scale is
+the case where `multiply` is the natural Blend, since two Operations each scaling by 0.9 should
+compose to 0.81, which is what `multiply` means and what `set` cannot express (**X2**'s review,
+carried out rather than deferred).
 
 **Why the declaration runs this way round.** The alternative — each Target enumerating the
-Blends it accepts — yields the same five rows today and closes the set permanently tomorrow.
+Blends it accepts — yields the same rows today and closes the set permanently tomorrow.
 Attributes are closed (`03` **D7**) and Targets follow them, so a Blend added later would be
 accepted by nothing and §7.1's `[EXTENSION POINT]` on `min` / `max` would be empty. Under the
 inversion a new Blend declares `numeric` and is available on every numeric Target at once,

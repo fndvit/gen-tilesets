@@ -81,6 +81,14 @@ export interface TargetSpec {
 /** `04` §7.2. Targets are closed by `05` §4.2 — they follow the attributes. */
 export const TARGETS: Readonly<Record<TargetName, TargetSpec>> = {
   tileId: { type: "tile", default: "set", vetoes: [] },
+  /**
+   * **No veto** — ADR-005, and **X2**'s review carried out rather than deferred.
+   * A uniform scale is the case where `multiply` is the natural Blend: two
+   * Operations each scaling by 0.9 should compose to 0.81, which is what
+   * `multiply` means and what `set` cannot express. The domain is open, so
+   * nothing here has `rotation`'s wrapping problem.
+   */
+  scale: { type: "numeric", default: "set", vetoes: [] },
   scaleX: { type: "numeric", default: "set", vetoes: [] },
   scaleY: { type: "numeric", default: "set", vetoes: [] },
   /**

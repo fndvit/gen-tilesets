@@ -23,18 +23,51 @@
  * logic in it is what keeps the logic testable.
  */
 
-import { newDraft, type Draft } from "./draft.svelte.js";
+import type { Operation } from "@tileset/core";
+import { fromOperation, newDraft, type Draft } from "./draft.svelte.js";
 
 let open = $state<Draft | null>(null);
+
+/**
+ * Which transition the open draft commits.
+ *
+ * It cannot be inferred from the draft. An edit-draft's id **is** in
+ * `config.operations` and a create-draft's is not, so "is this id in the stack?"
+ * would answer correctly — right up until the Operation being edited is removed
+ * underneath the panel, at which point the same question turns an edit into a
+ * silent creation that re-adds what the author just deleted. The mode is
+ * recorded rather than reconstructed, and the stale case is handled as the stale
+ * case it is (`App.svelte`).
+ */
+let mode = $state<"create" | "edit">("create");
 
 export const drafting = {
   get draft(): Draft | null {
     return open;
   },
 
+  /** Whether the open draft replaces an Operation rather than appending one. */
+  get editing(): boolean {
+    return open !== null && mode === "edit";
+  },
+
   /** The id is allocated once, here, and never reassigned (§4.3). */
   start(id: string): void {
     open = newDraft(id);
+    mode = "create";
+  },
+
+  /**
+   * Reopen an existing Operation — §4.3's id survives, and with it the
+   * Operation's hash channels, its stack index and its salt.
+   *
+   * The panel is the same one a creation uses. `09` §6.1 already speaks of the
+   * overlay being shown for "the Operation being edited", which is the create
+   * workflow read as one case of editing rather than the other way round.
+   */
+  edit(op: Operation): void {
+    open = fromOperation(op);
+    mode = "edit";
   },
 
   /**

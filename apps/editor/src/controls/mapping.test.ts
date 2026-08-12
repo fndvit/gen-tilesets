@@ -11,10 +11,11 @@ import {
   trackFor,
 } from "./mapping.js";
 
-const ATTRS: AttributeName[] = ["scaleX", "scaleY", "rotation", "opacity"];
+const ATTRS: AttributeName[] = ["scale", "scaleX", "scaleY", "rotation", "opacity"];
 
 describe("authoring ranges — 09 §7.5, resolving 03 Q4", () => {
   it("matches §7.5's table", () => {
+    expect(TRACKS.scale).toMatchObject({ min: 0, max: 4, soft: true });
     expect(TRACKS.scaleX).toMatchObject({ min: -2, max: 2, soft: true });
     expect(TRACKS.scaleY).toMatchObject({ min: -2, max: 2, soft: true });
     expect(TRACKS.rotation).toMatchObject({ min: 0, max: 360, soft: false, wraps: true });
@@ -26,6 +27,15 @@ describe("authoring ranges — 09 §7.5, resolving 03 Q4", () => {
     // the negative half "load-bearing rather than symmetric".
     expect(TRACKS.scaleX.min).toBeLessThan(0);
     expect(TRACKS.scaleY.min).toBeLessThan(0);
+  });
+
+  it("starts the uniform track at 0, where a negative is a rotation — ADR-005", () => {
+    // A negative *uniform* scale flips both axes at once, which is a 180deg
+    // rotation and rotation's job. Soft, so a typed negative still widens it
+    // rather than being refused.
+    expect(TRACKS.scale.min).toBe(0);
+    expect(trackFor("scale", [-1]).min).toBe(-1);
+    expect(admitsTyped("scale", -1)).toBe(true);
   });
 
   it("widens a soft track to contain a typed value, and never clamps it", () => {

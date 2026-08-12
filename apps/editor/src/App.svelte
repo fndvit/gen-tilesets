@@ -41,6 +41,7 @@
   import { parseCellSize, parseReferenceWidth, parseRows, parseYOffset } from "./fields.js";
   import { nextOperationId } from "./ids.js";
   import { atRisk, needsConfirmation, orphans } from "./orphans.js";
+  import ImportPanel from "./lib/ImportPanel.svelte";
   import NumericInput from "./lib/NumericInput.svelte";
   import OperationDraft from "./lib/OperationDraft.svelte";
   import OperationStack from "./lib/OperationStack.svelte";
@@ -219,16 +220,48 @@
    * `null` until the draft has a Selection type — before that there is no
    * predicate to resolve, which is different from a predicate that matches
    * nothing, and §6.1 shows the overlay for the Operation *being edited*.
+   *
+   * ## It replaces where the id is already there, and appends where it is not
+   *
+   * An **edit**-draft's id is in `config.operations` already, so appending would
+   * put two Operations with one id in the same stack. `selection()` resolves *by
+   * id* and would find the first — the unedited one — so the overlay would draw
+   * the Selection the author is in the middle of changing away from, and the
+   * brush would paint against it. Replacing covers both cases in one expression,
+   * because a create-draft's id matches nothing and the append is the fallback.
    */
   const shadow = $derived.by(() => {
     const draft = drafting.draft;
     if (draft === null) return null;
     const operation = toShadowOperation(draft);
     if (operation === null) return null;
-    return {
-      operationId: operation.id,
-      config: { ...config, operations: [...config.operations, operation] },
-    };
+    const present = config.operations.some((op) => op.id === operation.id);
+    const operations = present
+      ? config.operations.map((op) => (op.id === operation.id ? operation : op))
+      : [...config.operations, operation];
+    return { operationId: operation.id, config: { ...config, operations } };
+  });
+
+  /**
+   * §4.4's repair, applied to the draft rather than to the file.
+   *
+   * An edit-draft names an Operation by id, and that Operation can leave the
+   * stack while its panel is open — removed from the stack row, or undone away
+   * (§4.4 restores a whole `TilesetFile`, and the draft is deliberately not
+   * rewound with it — `session.svelte.ts`). Committing then runs
+   * `replaceOperation` against an id that matches nothing: a `.map` over the
+   * stack that changes it in no way, which `session.apply` correctly declines to
+   * push, so the button would appear to work and do nothing.
+   *
+   * Discarding is right rather than merely safe. The alternative — falling back
+   * to `addOperation` — would resurrect an Operation the author deleted, and
+   * §4.4 already refused to guess on the author's behalf once, for the same
+   * reason.
+   */
+  $effect(() => {
+    const draft = drafting.draft;
+    if (draft === null || !drafting.editing) return;
+    if (!config.operations.some((op) => op.id === draft.id)) drafting.discard();
   });
 
   /**
@@ -484,6 +517,7 @@
         <Section title="Operations">
           <OperationStack
             onCreate={() => drafting.start(nextOperationId(config.operations.map((o) => o.id)))}
+            onEdit={(op) => drafting.edit(op)}
           />
 
           <!--
@@ -496,7 +530,7 @@
           -->
           {#if drafting.draft !== null}
             {@const draft = drafting.draft}
-            <OperationDraft {draft} onClose={() => drafting.discard()} />
+            <OperationDraft {draft} editing={drafting.editing} onClose={() => drafting.discard()} />
           {/if}
         </Section>
 
@@ -586,6 +620,17 @@
               <code>random</code> Selection (<code>04</code>&nbsp;§8.2). Only reachable by import.
             </p>
           {/if}
+        </Section>
+
+        <!--
+          **E14**'s inverse, and the last panel because it is the one that
+          discards everything above it. It is an ordinary `<Section>` in the
+          scroller rather than pinned beside the export button: the export is
+          pinned because it is "the one action that ends the session", and an
+          import *starts* one.
+        -->
+        <Section title="Import" open={false} destructive>
+          <ImportPanel />
         </Section>
       </div>
 

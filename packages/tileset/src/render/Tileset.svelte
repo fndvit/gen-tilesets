@@ -23,6 +23,7 @@
   import { generate } from "../generate.js";
   import type { TileState, TilesetFile } from "../types.js";
   import { naturalRatio } from "./geometry.js";
+  import { cssTransform } from "./transform.js";
   import {
     assetKey,
     defaultProvider,
@@ -171,15 +172,20 @@
    *
    * `transform-origin` is the element's own centre (the CSS default), which is the
    * drawable box's centre, as **D11** and **R7** require.
+   *
+   * **The list itself is `cssTransform`'s**, not a second copy of it. This
+   * component used to spell it out inline, which meant the pure function and the
+   * only renderer that ships could disagree — and they would have, the moment
+   * ADR-005 added `scale` to one of them. What is local here is the *placement*:
+   * `leftBase` and `yOffset` are grid geometry (`08` §6.3), which
+   * `cssTransform` takes as an argument precisely because it is not an
+   * attribute.
    */
   function cellTransform(cell: TileState, x: number, y: number): string {
-    const left = (leftBase + x) * 100;
-    const top = (y - layout.yOffset) * 100;
-    return (
-      `translate(${left}%, ${top}%) ` +
-      `rotate(${cell.rotation}deg) ` +
-      `scale(${cell.scaleX}, ${cell.scaleY})`
-    );
+    return cssTransform(cell, {
+      xPercent: (leftBase + x) * 100,
+      yPercent: (y - layout.yOffset) * 100,
+    });
   }
 </script>
 

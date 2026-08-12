@@ -48,6 +48,7 @@ describe("generate — 02 §4, §9", () => {
       expect(cell).toEqual({
         tileId: null,
         assetId: null,
+        scale: 1,
         scaleX: 1,
         scaleY: 1,
         rotation: 0,
@@ -241,6 +242,46 @@ describe("asset resolution — 02 §9 step 3, 02 §10", () => {
       expect(cell.opacity).toBe(0);
       expect(cell.assetId).not.toBeNull();
     }
+  });
+
+  /**
+   * ADR-005. The point of a fifth attribute rather than two Operations: **G3**
+   * keys randomness to `operationId`, so one Operation is the only way one
+   * sampled number reaches both axes. Under a stochastic Source, two Operations
+   * targeting `scaleX` and `scaleY` hash on different channels and disagree cell
+   * by cell — which is what this asserts, in both directions.
+   */
+  it("scales uniformly from one number, where two Operations cannot — ADR-005", () => {
+    const varying = (id: string, target: "scale" | "scaleX" | "scaleY"): Operation => ({
+      id,
+      selection: { type: "all" },
+      source: { type: "random" },
+      target,
+      mapping: { range: [0.5, 1.5] },
+      blend: "set",
+    });
+
+    const uniform = generate(baseConfig({ operations: [varying("op1", "scale")] }), "sunset-3");
+    for (const cell of uniform.cells) {
+      expect(cell.scale).toBeGreaterThanOrEqual(0.5);
+      expect(cell.scale).toBeLessThan(1.5);
+      // The axes are untouched: `scale` composes with them at render, it does
+      // not write them.
+      expect(cell.scaleX).toBe(1);
+      expect(cell.scaleY).toBe(1);
+    }
+
+    const paired = generate(
+      baseConfig({ operations: [varying("op1", "scaleX"), varying("op2", "scaleY")] }),
+      "sunset-3",
+    );
+    expect(paired.cells.some((cell) => cell.scaleX !== cell.scaleY)).toBe(true);
+  });
+
+  /** Nothing already drawn moves — the claim the `schemaVersion` bump rests on. */
+  it("leaves a config that never targets scale at the default — ADR-005", () => {
+    const c = baseConfig({ operations: [paintAll("op1", "leaf")] });
+    for (const cell of generate(c, "sunset-3").cells) expect(cell.scale).toBe(1);
   });
 
   it("distributes assets by weight", () => {

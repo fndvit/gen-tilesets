@@ -206,6 +206,7 @@ describe("Blends and Targets — 04 §7.2, ADR-001", () => {
   it("derives 04 §7.2's accepted-set table, row by row", () => {
     const expected: Record<TargetName, string[]> = {
       tileId: ["set"],
+      scale: ["set", "add", "multiply"],
       scaleX: ["set", "add", "multiply"],
       scaleY: ["set", "add", "multiply"],
       rotation: ["set", "add"],

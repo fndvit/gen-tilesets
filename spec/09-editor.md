@@ -396,6 +396,7 @@ inventing one, would be incoherent. The editor still has to draw a track of fini
 
 | Target     | Track           | Typed entry              |
 | ---------- | --------------- | ------------------------ |
+| `scale`    | `[0, 4]`, soft  | any finite number        |
 | `scaleX`   | `[−2, 2]`, soft | any finite number        |
 | `scaleY`   | `[−2, 2]`, soft | any finite number        |
 | `rotation` | `[0, 360)`      | any finite number, wraps |
@@ -414,6 +415,12 @@ it would be clamped by **D5** on the first write anyway.
 The negative half of the scale track is load-bearing rather than symmetric: `03` §5.4 makes flip
 a negative value rather than a boolean, so the track has to reach there or flip is unreachable by
 dragging.
+
+**`scale`'s track starts at 0 rather than mirroring the axes** — ADR-005. The argument above is
+about the *axes*: a negative `scaleX` is a flip. A negative *uniform* scale flips both axes at
+once, which is a 180° rotation and `rotation`'s job, so the negative half is not load-bearing
+here and the default view of the track spends its length where the author works. Nothing is
+refused: the track is soft, so a typed negative widens it like any other out-of-track value.
 
 ### 7.6 The palette builder
 
@@ -769,7 +776,7 @@ silent hole.
 
 ### 11.3 What else the editor writes
 
-- `schemaVersion: 1` (`06` §4.1). Required; the file is never written without it.
+- `schemaVersion: 2` (`06` §4.1). Required; the file is never written without it.
 - `engineVersion`, naming the pinned package of E2 (`06` §4.4, **C3**).
 - **Every field explicitly, except `steps`** (`06` §5.1). The schema's defaults exist so
   hand-written fixtures stay short, not so saved files can be sparse. `steps` is omitted when the
@@ -869,7 +876,14 @@ parts of an invalid file would produce a document the author did not write, and 
 overwrite the file they did.
 
 `SCHEMA_VERSION_UNKNOWN` deserves its own message: it means the file was written by a newer build
-(`06` §4.1), and the action is to update the editor rather than to fix the file. `06` §4.2's
+(`06` §4.1), and the action is to update the editor rather than to fix the file.
+
+**An older file is migrated, not refused, and never reaches that message.** `06` §4.5's
+`migrate()` runs before `validate()` and returns one of four outcomes; only `newer` takes the
+paragraph above. A migrated file opens with an **advisory** saying it was upgraded and that
+exporting will write the new form — **E16**, so it never blocks. Reading _update the editor_ out
+of the error code instead of out of the outcome is how an author with a current editor and an old
+file came to be told their editor was at fault. `06` §4.2's
 warning belongs on this screen too — a file that loads cleanly is evidence of nothing about what
 it will render, because output stability is the package version's job (**X9**) and no field in
 the file can detect it.
@@ -977,7 +991,7 @@ V1 ships `04` §5.1's behaviour unchanged.
 | #   | Question                                                                                | Status                                                                                                                                                                                                                                                                        |
 | --- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Does the editor ever want `cellAt` bounded? (`07` Q6, `08` Q6)                          | **Resolved** — §7.3. Unbounded, and bounded at the call site per tool: the `rect` drag does not bound, the `cellList` brush does. One comparison either way, as `07` §8.2 predicted.                                                                                          |
-| 2   | What authoring ranges should the editor impose on `scaleX` / `scaleY`? (`03` Q4)        | **Resolved** — §7.5. A soft track of `[−2, 2]` that extends to contain any typed value, and never clamps one. The figure is a UI constant with no authority.                                                                                                                  |
+| 2   | What authoring ranges should the editor impose on `scaleX` / `scaleY`? (`03` Q4)        | **Resolved** — §7.5. A soft track of `[−2, 2]` that extends to contain any typed value, and never clamps one. The figure is a UI constant with no authority. ADR-005's `scale` takes `[0, 4]` on the same terms.                                                                                                                  |
 | 3   | How does the editor present a palette so that order reads as meaningful? (`04` Q3)      | **Resolved** — §7.6. A contiguous weight-segmented bar rather than a list, against the plain unordered list a Tile's assets get under **D3**. The two adjacent lists take opposite rules and the presentation has to say so.                                                  |
 | 4   | Repair of an orphaned `rect` versus an orphaned `cellList`. (`04` Q4)                   | **Resolved — there is no repair.** §9.4. Nothing is migrated; the confirmation names what is at risk, an advisory carries it afterwards, and undo restores the file whole. `04` §4.4's distinction survives in the advisory's wording, not in a repair.                       |
 | 5   | Should a registered type carry a human-readable description? (`05` Q6)                  | **Resolved — yes, and more.** §7.2: an optional `editor` block carrying `label`, `description`, and an affordance hint. Package-internal, never a wire format, never read by the engine, never required.                                                                      |

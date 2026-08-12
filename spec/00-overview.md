@@ -116,8 +116,8 @@ value (`04` §1, §3):
 | **Source**    | `constant`, `random`, `valueNoise`, `gradient`, `vignette`      | `04` §5.2 |
 | **Mapping**   | numeric (`range`, optional `steps`); tile (the palette)         | `04` §6   |
 | **Blend**     | `set`, `add`, `multiply`                                        | `04` §7.1 |
-| **Target**    | `tileId`, `scaleX`, `scaleY`, `rotation`, `opacity`             | `04` §7.2 |
-| **Attribute** | `scaleX`, `scaleY`, `rotation`, `opacity`                       | `03` §5.4 |
+| **Target**    | `tileId`, `scale`, `scaleX`, `scaleY`, `rotation`, `opacity`    | `04` §7.2 |
+| **Attribute** | `scale`, `scaleX`, `scaleY`, `rotation`, `opacity`              | `03` §5.4 |
 
 Blends are **partial**: a Blend declares the Target types it accepts, and a Target declares its
 type, its default Blend, and its vetoes (`04` **O7**, ADR-001). Two Target types exist, numeric
@@ -135,7 +135,7 @@ step is a pure function of `(x, y)`, so cells may be evaluated in any order or i
 
 ```
 TilesetFile {
-  schemaVersion: 1
+  schemaVersion: 2
   engineVersion: string
   config:        TilesetConfig
   layout:        Layout
@@ -147,7 +147,7 @@ TilesetFile {
 and `horizontalAlignment`. `seed` and `loadSalt` are arguments and have no slot in the file
 (`06` §3.3, §3.4).
 
-`schemaVersion` is required, an integer, `1` in V1; absent or unknown is a load failure
+`schemaVersion` is required, an integer — `1` for V1, `2` since ADR-005; absent, or unknown and unreachable by `06` §4.5's migration, is a load failure
 (**C2**). `engineVersion` is required and advisory (**C3**). Validation is strict — unknown keys
 are errors and nothing is ever coerced (**C4**, **C6**) — and produces errors only, each with a
 JSON Pointer path and a stable code (`06` §10). `validate()` is a separate function;
@@ -235,12 +235,12 @@ is `09` §14.
 | Sources                       | 5     | `04` §5.2                      |
 | Mapping kinds                 | 2     | `04` §6                        |
 | Blends                        | 3     | `04` §7.1                      |
-| Targets                       | 5     | `04` §7.2                      |
+| Targets                       | 6     | `04` §7.2                      |
 | Target types                  | 2     | `04` §7.2                      |
-| Attributes                    | 4     | `03` §5.4                      |
+| Attributes                    | 5     | `03` §5.4                      |
 | Top-level file members        | 4     | `06` §3                        |
 | `Layout` fields               | 4     | `02` §7, `06` §3.3             |
-| `schemaVersion`               | 1     | `06` §4.1                      |
+| `schemaVersion`               | 2     | `06` §4.1                      |
 | Renderer components           | 1     | `08` §3                        |
 | Component props               | 5     | `08` §4                        |
 | `Drawable` keys               | 1     | `08` §4.2                      |

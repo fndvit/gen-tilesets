@@ -26,7 +26,7 @@
   import NumericMappingControl from "../controls/NumericMapping.svelte";
   import PaletteBar from "../controls/PaletteBar.svelte";
   import ParamFields from "../controls/ParamFields.svelte";
-  import { addOperation } from "../document.js";
+  import { addOperation, replaceOperation } from "../document.js";
   import {
     defaultParams,
     isComplete,
@@ -46,10 +46,16 @@
      * since `selection()` resolves an Operation by id.
      */
     draft: Draft;
+    /**
+     * Whether this draft replaces an Operation already in the stack rather than
+     * appending a new one. Passed rather than read from `drafting` so the panel
+     * keeps taking props and a callback and nothing else.
+     */
+    editing: boolean;
     onClose: () => void;
   }
 
-  let { draft, onClose }: Props = $props();
+  let { draft, editing, onClose }: Props = $props();
 
   const selectionRegistrations = selections.all();
   const sourceRegistrations = sources.all();
@@ -135,20 +141,31 @@
    * `toOperation` re-checks rather than trusting the disabled button, because a
    * transition is total on its own terms and this is the boundary the file is on
    * the other side of.
+   *
+   * **One `session.apply` either way**, so an edit is one entry on the undo
+   * stack (**E6**) and undoing it restores the Operation as it was — not the
+   * document without it.
+   *
+   * `replaceOperation` preserves the index, so an edited Operation keeps its
+   * place in the stack order. Moving it to the end would change what it composes
+   * over, which is `02` §6.3's "reordering changes output" happening for a
+   * reason the author cannot see.
    */
   function commit(): void {
     const operation = toOperation(draft);
     if (operation === null) return;
-    session.apply(addOperation(operation));
+    session.apply(editing ? replaceOperation(operation) : addOperation(operation));
     onClose();
   }
 </script>
 
 <section class="panel">
   <header>
-    <h2>New operation</h2>
+    <h2>{editing ? "Edit operation" : "New operation"}</h2>
     <code class="id">{draft.id}</code>
-    <button class="close" onclick={onClose} aria-label="Discard draft">×</button>
+    <button class="close" onclick={onClose} aria-label={editing ? "Discard edit" : "Discard draft"}>
+      ×
+    </button>
   </header>
 
   <!--
@@ -156,7 +173,12 @@
     yet and discarding it costs nothing.
   -->
   <p class="note">
-    Not in the file until it is complete — <strong>E5</strong>. The preview is unchanged.
+    {#if editing}
+      Nothing is written until you commit — <strong>E5</strong>. The preview still shows the
+      operation as it stands in the file.
+    {:else}
+      Not in the file until it is complete — <strong>E5</strong>. The preview is unchanged.
+    {/if}
   </p>
 
   <nav class="rail">
@@ -310,13 +332,17 @@
   -->
   <footer>
     <span class="missing">
-      {#if unanswered.length === 0}
-        Appends to the end of the stack, where it runs last (<code>02</code>&nbsp;§9).
-      {:else}
+      {#if unanswered.length > 0}
         Still open: {unanswered.join(", ")}
+      {:else if editing}
+        Keeps its place in the stack, its id and its salt (<code>09</code>&nbsp;§4.3).
+      {:else}
+        Appends to the end of the stack, where it runs last (<code>02</code>&nbsp;§9).
       {/if}
     </span>
-    <button class="commit" disabled={unanswered.length > 0} onclick={commit}>Add operation</button>
+    <button class="commit" disabled={unanswered.length > 0} onclick={commit}>
+      {editing ? "Save changes" : "Add operation"}
+    </button>
   </footer>
 </section>
 

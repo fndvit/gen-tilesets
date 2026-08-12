@@ -33,9 +33,18 @@
   interface Props {
     /** Opens the create-operation workflow. Step 6 supplies it. */
     onCreate: () => void;
+
+    /**
+     * Reopens an existing Operation in the same workflow.
+     *
+     * The whole Operation is passed rather than its id: `fromOperation` needs
+     * the value, and this component already holds it. Looking it up again by id
+     * would be a second read of the same array with a `find` that cannot fail.
+     */
+    onEdit: (op: Operation) => void;
   }
 
-  let { onCreate }: Props = $props();
+  let { onCreate, onEdit }: Props = $props();
 
   const operations = $derived(session.file.config.operations);
 
@@ -89,6 +98,22 @@
           <span class="mapping">{mappingOf(op)}</span>
         </div>
         <code class="id">{op.id}</code>
+
+        <!--
+          §4.3 — the id survives the edit, and with it this Operation's hash
+          channels, its index in the stack and its salt. Changing one parameter
+          moves the picture by that parameter and by nothing else, which is what
+          rebuilding the Operation from scratch could not do: a rebuild gets a
+          new id, and **G3** attaches the randomness to it.
+        -->
+        <button
+          class="edit"
+          onclick={() => onEdit(op)}
+          title="Edit — reopens this operation in the same four-step panel, keeping its id and salt"
+          aria-label="Edit operation {op.id}"
+        >
+          ✎
+        </button>
 
         <!--
           §8.3 — **offered on every Operation**, not only stochastic ones,
@@ -166,7 +191,7 @@
 
   .stack li {
     display: grid;
-    grid-template-columns: 1.4rem 1fr auto auto auto;
+    grid-template-columns: 1.4rem 1fr auto auto auto auto;
     align-items: center;
     gap: 0.5rem;
     background: #f7fafc;
@@ -229,6 +254,9 @@
     margin: 0;
   }
 
+  /* Edit and reroll are the two non-destructive row actions and read as a pair;
+     remove is the destructive one and keeps its own weight (§9.2). */
+  .edit,
   .reroll {
     background: transparent;
     border: 0;
@@ -239,6 +267,7 @@
     padding: 0 0.2rem;
   }
 
+  .edit:hover,
   .reroll:hover {
     color: #3182ce;
   }

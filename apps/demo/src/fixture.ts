@@ -25,7 +25,7 @@ import type { TilesetFile } from "@tileset/core";
  */
 export const fixture: TilesetFile = {
   // Required, and `1` in V1. Absent or unknown is a load failure (`06` **C2**).
-  schemaVersion: 1,
+  schemaVersion: 2,
   // Required, advisory, never validated against anything (`06` **C3**).
   engineVersion: "0.0.0",
 

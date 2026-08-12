@@ -249,6 +249,7 @@ attribute value in an emitted `TileState` is a finite number._
 
 | Attribute  | Domain            | Default | Bounding               |
 | ---------- | ----------------- | ------- | ---------------------- |
+| `scale`    | any finite number | `1`     | `none`                 |
 | `scaleX`   | any finite number | `1`     | `none`                 |
 | `scaleY`   | any finite number | `1`     | `none`                 |
 | `rotation` | degrees           | `0`     | `wrap` over `[0, 360)` |
@@ -277,10 +278,32 @@ per-Target table of accepted Blends.
 scale has no natural maximum, and then inventing one here, would be incoherent. The domain is
 open; the editor constrains what the author can type → `09-editor.md`.
 
+**On `scale` arriving anyway — ADR-005.** The argument above is about `scaleX`/`scaleY`
+replacing a uniform `scale`, and it stands: a uniform scale cannot express a flip, so it cannot
+be the only scale attribute. `scale` is added **beside** the two axes, not in place of them, and
+`07` §10.1 folds all three into one matrix as `S(scaleX · scale, scaleY · scale)`. Flip is still
+a negative `scaleX`, non-uniform scale is still two numbers, and no second type is introduced —
+so the "do not let it become three" reading below is untouched.
+
+What the split cost, and what this returns, is the ability to say _make this bigger_ with one
+number. The engine-level reason it cannot be recovered in the editor: **G3** attaches an
+Operation's randomness to its `operationId`, so an Operation targeting `scaleX` beside one
+targeting `scaleY` hashes on **different channels** and the two axes draw different values under
+any stochastic Source. One attribute is the only construction in which one sampled number
+reaches both.
+
+Its domain, default and bounding are the axes' three answers for the axes' reasons. It shares
+their ordinal in `07` §10.1 rather than taking a new one, because a uniform factor commutes with
+the axis factors and there is no order between them to pin.
+
 ### 5.5 The attribute set is closed
 
 **Invariant D7** — _The attribute set is closed at V1. Attributes cannot be registered at
 runtime._
+
+**D7 has been exercised once, and held.** ADR-005 added `scale` as a schema change carrying
+`schemaVersion` to 2 — through the door this section describes, not around it. Nothing was
+registered at runtime, and the two-document change `07` §10 anticipated is what it cost.
 
 `05-extension-model.md` exists for registries, so symmetry argues for an open attribute
 registry. It loses on a specific asymmetry: a **Source** is pure engine — register one and every
@@ -424,5 +447,5 @@ skipped cell is also an unresolved asset and therefore an unreported resolution 
 | 2   | Is `Tile.name` required to be unique?                                      | **Resolved — no.** `06-config-schema.md` §5.3, **C10**. Unconstrained: not unique, not charset-limited, possibly empty. **D1** means a collision cannot reach output, so the only cost is authoring clarity and disambiguation is `09`'s.                                                                                                                                                            |
 | 3   | Are `TileAsset.id` values unique per Tile or globally?                     | **Resolved** — per Tile, which is all §4.2 needs. Global uniqueness is neither required nor forbidden. Confirmed rather than tightened by `06-config-schema.md` §6; `06` **C10** adds a charset (`[A-Za-z0-9_-]+`) shared by all three identifier kinds.                                                                                                                                             |
 | 4   | What authoring ranges should the editor impose on `scaleX` / `scaleY`?     | **Deferred** → `09-editor.md`. The domain is deliberately open (§5.4).                                                                                                                                                                                                                                                                                                                               |
-| 5   | Is the V1 attribute set final?                                             | **Resolved — final for V1.** §5.4. **D7** makes any addition a schema change, not a runtime one.                                                                                                                                                                                                                                                                                                     |
+| 5   | Is the V1 attribute set final?                                             | **Reopened by ADR-005**, which added `scale` — as a schema change carrying `schemaVersion` to 2, which is exactly what **D7** requires of an addition. The original answer stands as to *mechanism*: the set is never open at runtime.                                                                                                                                                                                                                                                                                                     |
 | 6   | Which renderer-facing metadata fields does a TileAsset carry?              | **Resolved** — `07-render-contract.md` §4.4. V1 carries `src`, `width`, and `height`, the last two measured once at attach time and read by nothing in V1. The block is the asset provider's input, passed verbatim and never interpreted by the renderer, and it is **additive-only** (`07` **R4**) because nothing else versions its contents. The engine treats it as opaque either way (**D2**). |

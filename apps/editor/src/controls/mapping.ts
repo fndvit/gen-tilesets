@@ -35,6 +35,7 @@ export interface Track {
  *
  * | Target     | Track           | Typed entry              |
  * | ---------- | --------------- | ------------------------ |
+ * | `scale`    | `[0, 4]`, soft  | any finite number        |
  * | `scaleX`   | `[−2, 2]`, soft | any finite number        |
  * | `scaleY`   | `[−2, 2]`, soft | any finite number        |
  * | `rotation` | `[0, 360)`      | any finite number, wraps |
@@ -49,8 +50,15 @@ export interface Track {
  * **The negative half of the scale track is load-bearing rather than
  * symmetric:** `03` §5.4 makes flip a negative value rather than a boolean, so
  * the track has to reach there or flip is unreachable by dragging.
+ *
+ * **`scale`'s track starts at 0 rather than mirroring the axes** — ADR-005. The
+ * negative half is load-bearing on `scaleX` because a negative value there is a
+ * flip; on a *uniform* scale it flips both axes at once, which is a 180°
+ * rotation and is `rotation`'s job. Nothing is lost: the track is soft, so a
+ * typed negative widens it rather than being refused.
  */
 export const TRACKS: Readonly<Record<AttributeName, Track>> = {
+  scale: { min: 0, max: 4, soft: true, wraps: false },
   scaleX: { min: -2, max: 2, soft: true, wraps: false },
   scaleY: { min: -2, max: 2, soft: true, wraps: false },
   rotation: { min: 0, max: 360, soft: false, wraps: true },

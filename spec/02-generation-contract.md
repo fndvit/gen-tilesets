@@ -419,7 +419,7 @@ TileState {
 ```
 
 The attribute set is defined in `03-domain-model.md` §5.4 and is **closed at V1** (`03` **D7**):
-`scaleX`, `scaleY`, `rotation`, `opacity`. Nothing in this document depends on which attributes
+`scale`, `scaleX`, `scaleY`, `rotation`, `opacity`. Nothing in this document depends on which attributes
 exist — only on the fact that they are named, carry declared domains, and are interpreted by
 Targets rather than by Sources.
 
@@ -529,10 +529,10 @@ carry its own `minWidth` and that will be the breakpoint.
 | #   | Question                                                           | Status                                                                                                                                                                                                                                                     |
 | --- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Which hash function?                                               | **Resolved** — §6.6. Exact function and test vectors to be fixed at implementation. `mixLoad` (§6.7) is specified the same way and ships its own vector rows.                                                                                              |
-| 2   | Full attribute set on `TileState`, with defaults and valid ranges. | **Resolved** → `03-domain-model.md` §5.4. V1 set is `scaleX`, `scaleY`, `rotation`, `opacity`, each with a declared domain, default, and bounding behaviour (**D4**). `03` **D7** closes the set: an addition is a schema change, not a runtime one.       |
+| 2   | Full attribute set on `TileState`, with defaults and valid ranges. | **Resolved** → `03-domain-model.md` §5.4. The V1 set was `scaleX`, `scaleY`, `rotation`, `opacity`, each with a declared domain, default, and bounding behaviour (**D4**); ADR-005 added `scale` as the schema change **D7** requires. `03` **D7** closes the set: an addition is a schema change, not a runtime one.       |
 | 3   | Do `set` and `override` differ as Blends?                          | **Resolved** — they do not. `04-operations.md` §7.1 keeps `set` and strikes `override`.                                                                                                                                                                    |
 | 4   | Presentation of orphaned manual selections after a resize.         | **Postponed.** V1 behaviour is warn-and-confirm (§7.5); the author-facing detail is not needed yet.                                                                                                                                                        |
-| 5   | Does the config carry `schemaVersion` from V1?                     | **Resolved** — `06-config-schema.md` §4.1, **C2**. Yes: required, an integer, `1` in V1. Absent or unknown is a load failure, and no shape is inferred from which fields happen to be present. The note below is retained as the reasoning that led there. |
+| 5   | Does the config carry `schemaVersion` from V1?                     | **Resolved** — `06-config-schema.md` §4.1, **C2**. Yes: required, an integer — `1` for V1, `2` since ADR-005. Absent, or unknown and unreachable by `06` §4.5's migration, is a load failure, and no shape is inferred from which fields happen to be present. The note below is retained as the reasoning that led there. |
 
 ### Note on `schemaVersion`
 

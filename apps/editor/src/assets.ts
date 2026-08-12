@@ -152,6 +152,72 @@ export function release(tileId: string, assetId: string): void {
   store.delete(key);
 }
 
+/** One asset an import wants attached, under ids the incoming document owns. */
+export interface Incoming {
+  tileId: string;
+  assetId: string;
+  file: File;
+}
+
+/** An attach that failed, so the panel can say which picture is missing. */
+export interface AttachFailure {
+  tileId: string;
+  assetId: string;
+  reason: string;
+}
+
+/**
+ * Replaces the whole store — every attach for a document that is itself being
+ * replaced.
+ *
+ * ## Why this is one call and not `clearAll()` plus `attach()`
+ *
+ * The store is keyed on the `(tileId, assetId)` pair, and an incoming document
+ * may legitimately reuse the ids of the outgoing one — `ids.ts` allocates
+ * `t1`, `t2`, … in every session, so two documents built independently collide
+ * almost by construction. Clearing *after* attaching would therefore revoke the
+ * URLs that were just created; clearing *before* would empty the store behind a
+ * preview that is still mounted, and leave the author with a blank document if
+ * the incoming assets then failed to decode.
+ *
+ * So the new attaches are built to the side and swapped in, and the old URLs are
+ * revoked only once the swap has happened. Until that moment the outgoing
+ * document is intact and drawing, which is what makes attempting an import safe.
+ *
+ * ## A failure is skipped, not fatal
+ *
+ * One undecodable picture does not cost the author their operations, their seed
+ * and their layout. The pair is reported and the cell draws nothing — `07`
+ * **R3**'s honest hole — and §12.3 already surfaces it.
+ */
+export async function replaceAll(incoming: readonly Incoming[]): Promise<AttachFailure[]> {
+  const staged = new Map<string, StoredAsset>();
+  const failures: AttachFailure[] = [];
+
+  for (const { tileId, assetId, file } of incoming) {
+    const url = URL.createObjectURL(file);
+    try {
+      const { width, height } = await measure(url);
+      staged.set(assetKey(tileId, assetId), { url, file, width, height });
+    } catch (cause) {
+      URL.revokeObjectURL(url);
+      failures.push({
+        tileId,
+        assetId,
+        reason: cause instanceof Error ? cause.message : String(cause),
+      });
+    }
+  }
+
+  const outgoing = [...store.values()];
+  store.clear();
+  for (const [key, asset] of staged) store.set(key, asset);
+  // Revoked last, and only URLs the staged set did not just create.
+  for (const asset of outgoing) URL.revokeObjectURL(asset.url);
+
+  return failures;
+}
+
 export function stored(tileId: string, assetId: string): StoredAsset | undefined {
   return store.get(assetKey(tileId, assetId));
 }

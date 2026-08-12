@@ -21,7 +21,7 @@ const run = (...transitions: Transition[]) =>
 describe("newDocument — 08 §3.4's valid skeleton", () => {
   it("is a legal file with nothing in it — 06 §5", () => {
     const file = doc();
-    expect(file.schemaVersion).toBe(1);
+    expect(file.schemaVersion).toBe(2);
     expect(file.engineVersion).toEqual(expect.any(String));
     expect(file.config.tiles).toEqual([]);
     expect(file.config.operations).toEqual([]);

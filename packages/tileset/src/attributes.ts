@@ -34,8 +34,19 @@ export interface AttributeSpec {
  * `scaleX` and `scaleY` are separate so a flip is expressible as a negative
  * value, without introducing a boolean that would make every Blend declare
  * which types it accepts (`03` §5.4).
+ *
+ * `scale` is uniform and **composes with** those two rather than replacing them
+ * — ADR-005. It exists because **G3** keys an Operation's randomness to its
+ * `operationId`, so two Operations targeting the two axes hash on different
+ * channels and disagree cell by cell under any stochastic Source. One attribute
+ * is the only way one number reaches both.
+ *
+ * Its domain, default and bounding are the axes' three answers, for the axes'
+ * reasons: the domain is open because `03` §5.4 refused to invent a maximum
+ * after rejecting the normalized model for not having one.
  */
 export const ATTRIBUTES: Readonly<Record<AttributeName, AttributeSpec>> = {
+  scale: { default: 1, bounding: "none" },
   scaleX: { default: 1, bounding: "none" },
   scaleY: { default: 1, bounding: "none" },
   rotation: { default: 0, bounding: "wrap", min: 0, max: 360 },
@@ -49,6 +60,7 @@ export function initialTileState(): TileState {
   return {
     tileId: null,
     assetId: null,
+    scale: ATTRIBUTES.scale.default,
     scaleX: ATTRIBUTES.scaleX.default,
     scaleY: ATTRIBUTES.scaleY.default,
     rotation: ATTRIBUTES.rotation.default,

@@ -564,3 +564,162 @@ a panel the author had just closed, every time the parent re-rendered.
 thing every sidebar control is judged against, and a document-height page put it off screen
 exactly when the author was editing the Operation that changes it. That is **S2**'s single live
 preview defeated by layout. Nothing in the package depends on the arrangement.
+
+---
+
+### 2026-08-12 — An Operation is edited in place, through the panel that creates one
+
+**Arose in:** the first round of additions after the editor's plan finished. `09` has no §15
+question about editing an existing Operation, and the spec answers none of what follows.
+
+**Answer:** the four-step panel opens on an existing Operation and commits through
+`replaceOperation`. The **id survives** (§4.3 — "assigned at creation and never reassigned"),
+and with it the Operation's hash channels; so do its index in the stack, its `salt` and its
+`reseedOnLoad`.
+
+**Why in place rather than delete-and-rebuild**, which is what the editor forced before: a
+rebuilt Operation gets a *new* id, and **G3** attaches the randomness to the id. Changing one
+parameter of a `random` Operation moved every cell it touched, for a reason invisible from the
+control the author used. The edit is now what it claims to be — the picture moves by the
+parameter that changed and by nothing else.
+
+**Why the same panel, and not a second one.** `09` §6.1 already describes the overlay as
+belonging to "the Operation being edited". Reading the create workflow as one case of editing
+costs a draft constructor and a branch at commit; two panels would be **E8**'s second
+implementation of the same rules, drifting apart from the first parameter added to a registry.
+
+**Salt and `reseedOnLoad` move into `Draft`.** They were literals in `toOperation`. Left as
+literals, every edit would silently reset a reroll the author had just made from the stack row
+— `05` §6.1's complaint, in the one gesture whose whole point is that it changes nothing else.
+They are *carried*, not authored: no step of the workflow offers a control for either, and
+§8.3's reroll stays where it is.
+
+**The shadow config replaces rather than appends.** An edit-draft's id is already in
+`config.operations`, and `selection()` resolves an Operation *by id*, so appending would put
+two Operations with one id in a stack and the overlay would resolve the unedited one — drawing
+the Selection the author is in the middle of changing away from. The same expression serves a
+creation, whose id matches nothing and falls through to the append. `toShadowOperation` carries
+the real salt for the same reason: **O4**'s closure reads it.
+
+**A stale edit-draft is discarded, not converted.** The Operation being edited can leave the
+stack while its panel is open — removed from its row, or undone away, since §4.4 restores a
+whole `TilesetFile` and the draft is deliberately not rewound with it. Committing then runs
+`replaceOperation` against an id matching nothing: a no-op `session.apply` declines to push, so
+the button would appear to work and do nothing. Falling back to `addOperation` would resurrect
+what the author deleted. §4.4 refused to guess on the author's behalf once already.
+
+**Still not in this version:** reordering. `document.ts` notes that `moveOperation(id, index)`
+drops in beside the existing transitions with nothing else to change. Editing does not need it,
+and `replaceOperation` preserving the index is what keeps them separate questions.
+
+---
+
+### 2026-08-12 — What an import reads, and what it refuses
+
+**Arose in:** building import, which `09` §12.4 specifies the *policy* for — validate, refuse on
+any error, no partial import, no preview — while leaving the mechanics open.
+
+**Answer:** the exported `.zip`, or the folder it unzips to. Not a bare `tileset.json`: without
+its pictures the document loads and every cell draws nothing, and the two inputs the author
+actually has after an export are the archive and the folder.
+
+**Assets are matched by reading `meta.src` back, never by parsing the path.** `export.ts` already
+writes each entry at the path it read out of `meta.src`, on the grounds that a rebuilt path would
+be a second implementation of §11.1's layout. Parsing `tiles/leaf/a1.png` back into a pair would
+be a third, and it would be wrong for exactly the file where being wrong is hardest to see — one
+whose `src` a human has edited. The document says where its bytes are.
+
+**The document drives the walk, not the folder.** Iterating `tiles/` would attach files the
+document does not reference: a stale image in a hand-assembled folder would arrive as an asset of
+a Tile that does not claim it, with no way to say which. Walking `config.tiles` gives every entry
+its `(tileId, assetId)` pair by construction.
+
+**A missing or undecodable picture is an advisory, not a refusal.** `06` §10.4's principle applied
+to the archive rather than to the file: such a document is still a legal `TilesetFile`, and one
+the author repairs by dropping the image back in. Refusing would throw away the operations, the
+seed and the layout over a picture. The empty cell is `07` **R3**'s honest hole.
+
+**A JSON syntax error is not a `ValidationError`.** `06` §10 keeps them apart — "JSON syntax
+errors belong to whoever called `JSON.parse`" — so they surface as their own message rather than
+in a list `09` renders against fields.
+
+**The folder path is the one genuinely new mechanic.** `webkitGetAsEntry()` must be called on
+every item *before the first `await`*, because a `DataTransferItem` is invalidated once the
+handler yields; and `readEntries` returns in **batches** and must be called until it yields an
+empty array, or a folder of more than about a hundred files silently truncates. Both would
+present as an import that lost pictures with no error anywhere.
+
+---
+
+### 2026-08-12 — An import replaces the store in one swap, and is undoable
+
+**Arose in:** the same step. `09` §15 Q8 leaves the asset store's home open and says nothing about
+replacing all of it at once.
+
+**Answer:** `session.open(file)` via `replaced`, exactly as `reset()` does, so **E6** covers it —
+an import replaces everything the author had, which makes it the action that most needs to be
+reversible. It is a replacement rather than a transition because there is no function from the
+outgoing file to the incoming one, and writing `() => file` would put something on the stack that
+ignores its argument.
+
+**The asset store is swapped in one call, not cleared and refilled.** The store is keyed on the
+`(tileId, assetId)` pair, and `ids.ts` allocates `t1`, `t2`, … in every session — so two
+independently built documents collide almost by construction. Clearing *after* attaching would
+revoke the URLs just created; clearing *before* would empty the store behind a mounted preview and
+leave the author with a blank document if the incoming assets then failed to decode. So the new
+attaches are built to the side and swapped in, and the old URLs are revoked only once the swap has
+happened. Until that instant the outgoing document is intact and drawing, which is what makes
+attempting an import safe at all.
+
+**Undo restores the previous document but not its bytes.** They lived in the session store outside
+the file and were swapped with it. That is Q8's session-scoped store showing through — the same
+gap a reload has always had — and not a defect in the undo stack.
+
+**Placement:** an ordinary `<Section>` at the end of the sidebar scroller, not pinned beside the
+export button. The export is pinned because it is "the one action that ends the session". An
+import starts one.
+
+---
+
+### 2026-08-12 — Migration is a separate function, and an older file is never refused
+
+**Arose in:** an author trying to open a file exported before ADR-005 and being told
+`SCHEMA_VERSION_UNKNOWN`. `06` §4.3 names "the migration table" while leaving it undefined,
+because until ADR-005 there was nothing to migrate from.
+
+**Answer:** `migrate(file) -> MigrationOutcome` in the engine, run **before** `validate()`, with
+a table whose only row today is v1 → v2 and whose content is *nothing to do*.
+
+**Why not inside `validate()`.** `06` §9.2 is categorical — *validation never coerces* — and
+rewriting a file's `schemaVersion` is a coercion. Putting it there would make that rule a rule
+with an exception, in the one function whose whole value is that it has none. `validate()` is
+untouched by this change and still knows exactly one version.
+
+**Why migration does not validate either.** A migrated file is *shaped for* this schema, not
+proven legal by it. A migration that also validated would make `validate()` reachable by two
+paths with two answers — the second source of truth **C8** rejects one level down. Concretely: a
+v1 file that is invalid for an unrelated reason still migrates, and then fails validation at the
+real problem's own path rather than having the version stand in for it.
+
+**Four outcomes, kept distinct because they take four different actions.** `current`,
+`migrated`, `newer`, `unrecognized`. The last two were the ones being conflated: `09` §12.4
+words its *update the editor, not the file* screen for a file from a **newer** build, and
+inferring that from a `SCHEMA_VERSION_UNKNOWN` in the error list applied it to **older** files
+too — telling an author with a perfectly current editor that the editor was at fault. The editor
+now branches on the outcome, not on the code.
+
+**A no-op row is still a row.** §4.3's own argument about version numbers transfers to the table:
+recording that the answer to *what has to change* is *nothing* is a fact worth carrying, and an
+omitted row is indistinguishable from an oversight. The row also carries the `note` the editor's
+advisory prints.
+
+**The advisory says two things**, and the second is the one the author cannot infer: the document
+now in the editor differs from the file still on their disk, and exporting writes a form older
+builds will not read.
+
+**Correction to ADR-005**, recorded there in full: the bump was justified on the grounds that
+`TileState` gained a field, but `TileState` is `generate()`'s output and is not in a
+`TilesetFile` at all. `06` §4.2 puts it outside `schemaVersion`'s remit and §4.3 assigns an
+output change to `05` **X9**. The bump stands on the correct grounds — `Operation.target`'s
+admissible set widened — and every legal v1 file was always a structurally legal v2 file, which
+is why the migration is a no-op.

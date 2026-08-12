@@ -199,7 +199,7 @@ describe("transforms — 07 §6, D11", () => {
     // "Scale then rotate (D11, correct). The unit square's corner (1, 0) maps to
     //  (0, 2). A leaf stretched to twice its width and then turned on its side is
     //  twice as TALL. The stretch rides with the drawable."
-    const m = transformMatrix({ scaleX: 2, scaleY: 1, rotation: 90 }, unitBox);
+    const m = transformMatrix({ scale: 1, scaleX: 2, scaleY: 1, rotation: 90 }, unitBox);
     const [a, b, c, d] = m;
     // Linear part only, so drop the translation by mapping the direction vector.
     expect(a * 1 + c * 0).toBeCloseTo(0, 10);
@@ -210,7 +210,7 @@ describe("transforms — 07 §6, D11", () => {
     // "Rotate then scale (wrong). The same corner maps to (0, 1), and the stretch
     //  applies along the screen's axes after the turn. Every tile is twice as wide
     //  regardless of which way it points."
-    const m = transformMatrix({ scaleX: 2, scaleY: 1, rotation: 90 }, unitBox);
+    const m = transformMatrix({ scale: 1, scaleX: 2, scaleY: 1, rotation: 90 }, unitBox);
     const [b, d] = [m[1], m[3]];
     expect(b * 1 + d * 0).not.toBeCloseTo(1, 6);
   });
@@ -218,7 +218,7 @@ describe("transforms — 07 §6, D11", () => {
   it("turns clockwise for positive rotation in y-down space — 07 §6.2", () => {
     // 02 §5 puts y increasing downward. Reversing this sign would flip every
     // asymmetric tile in every existing config with no version number moving.
-    const m = transformMatrix({ scaleX: 1, scaleY: 1, rotation: 90 }, unitBox);
+    const m = transformMatrix({ scale: 1, scaleX: 1, scaleY: 1, rotation: 90 }, unitBox);
     // +x maps to +y, which on screen is rightward going downward: clockwise.
     expect(m[0]).toBeCloseTo(0, 10);
     expect(m[1]).toBeCloseTo(1, 10);
@@ -226,7 +226,7 @@ describe("transforms — 07 §6, D11", () => {
 
   it("occupies exactly its cell box at scale 1, rotation 0 — R7", () => {
     const box = cellBox(geo(1280), 3, 2);
-    const m = transformMatrix({ scaleX: 1, scaleY: 1, rotation: 0 }, box);
+    const m = transformMatrix({ scale: 1, scaleX: 1, scaleY: 1, rotation: 0 }, box);
     // `c = -scaleY * sin(0)` is negative zero. Compared numerically rather than
     // with toEqual, which distinguishes -0 from 0 and nothing downstream does.
     expect(m.map((v) => v + 0)).toEqual([1, 0, 0, 1, 0, 0]);
@@ -237,7 +237,7 @@ describe("transforms — 07 §6, D11", () => {
 
   it("rotates about the drawable's centre, not the origin — D11", () => {
     const box = cellBox(geo(1280), 3, 2);
-    const m = transformMatrix({ scaleX: 1, scaleY: 1, rotation: 45 }, box);
+    const m = transformMatrix({ scale: 1, scaleX: 1, scaleY: 1, rotation: 45 }, box);
     const centre = applyMatrix(m, (box.left + box.right) / 2, (box.top + box.bottom) / 2);
     expect(centre.x).toBeCloseTo((box.left + box.right) / 2, 8);
     expect(centre.y).toBeCloseTo((box.top + box.bottom) / 2, 8);
@@ -245,7 +245,7 @@ describe("transforms — 07 §6, D11", () => {
 
   it("mirrors about the centre axis for a negative scaleX — the flip primitive", () => {
     const box = cellBox(geo(1280), 3, 2);
-    const m = transformMatrix({ scaleX: -1, scaleY: 1, rotation: 0 }, box);
+    const m = transformMatrix({ scale: 1, scaleX: -1, scaleY: 1, rotation: 0 }, box);
     const left = applyMatrix(m, box.left, box.top);
     expect(left.x).toBeCloseTo(box.right, 8);
   });
@@ -257,7 +257,7 @@ describe("transforms — 07 §6, D11", () => {
     // no scaling at all -- which is why R9 makes the render box the only clip.
     const g = geo(1280); // s = 1, so render px == design px here
     const box = cellBox(g, 3, 2);
-    const m = transformMatrix({ scaleX: 1, scaleY: 1, rotation: 45 }, box);
+    const m = transformMatrix({ scale: 1, scaleX: 1, scaleY: 1, rotation: 45 }, box);
     const corners = [
       applyMatrix(m, box.left, box.top),
       applyMatrix(m, box.right, box.top),
@@ -273,7 +273,7 @@ describe("transforms — 07 §6, D11", () => {
   it("keeps the CSS list in D11 order, matching the matrix — 07 §6.3, 08 §6.3", () => {
     // The trap both documents warn about: a CSS transform list applies right to
     // left, so the list must read translate(...) rotate(...) scale(...).
-    const css = cssTransform({ scaleX: 2, scaleY: 1, rotation: 90 }, { xPercent: 0, yPercent: 0 });
+    const css = cssTransform({ scale: 1, scaleX: 2, scaleY: 1, rotation: 90 }, { xPercent: 0, yPercent: 0 });
     expect(css).toBe("translate(0%, 0%) rotate(90deg) scale(2, 1)");
     const rotateIndex = css.indexOf("rotate(");
     const scaleIndex = css.indexOf("scale(");
@@ -281,5 +281,59 @@ describe("transforms — 07 §6, D11", () => {
     // Right-to-left evaluation: scale first, then rotate, then translate.
     expect(translateIndex).toBeLessThan(rotateIndex);
     expect(rotateIndex).toBeLessThan(scaleIndex);
+  });
+
+  /**
+   * ADR-005 — `scale` is a third contributor to `07` §10.1's ordinal 1, not a
+   * new ordinal. These are the three properties that claim rests on.
+   */
+  describe("uniform scale — ADR-005, 07 §10.1", () => {
+    it("multiplies into both axes", () => {
+      const m = transformMatrix({ scale: 3, scaleX: 2, scaleY: 1, rotation: 0 }, unitBox);
+      expect(m[0]).toBeCloseTo(6, 10);
+      expect(m[3]).toBeCloseTo(3, 10);
+    });
+
+    /**
+     * The reason it needs no ordinal of its own: a uniform factor commutes with
+     * the axis factors, so there is no order between them to pin. `04` §7.2's
+     * `multiply` on `scale` is only meaningful because of this.
+     */
+    it("commutes with the axis factors", () => {
+      const a = transformMatrix({ scale: 1.5, scaleX: 2, scaleY: 0.5, rotation: 37 }, unitBox);
+      const b = transformMatrix({ scale: 1, scaleX: 3, scaleY: 0.75, rotation: 37 }, unitBox);
+      a.forEach((v, i) => expect(v).toBeCloseTo(b[i]!, 10));
+    });
+
+    /**
+     * **Nothing already drawn moves.** At the default the matrix is
+     * arithmetically the one that existed before the attribute — which is what
+     * lets `07` §11.3's transform table gain rows without any existing row
+     * changing when it is eventually generated (ADR-004).
+     */
+    it("is the identity contributor at its default of 1", () => {
+      const box = cellBox(geo(1280), 3, 2);
+      const withScale = transformMatrix({ scale: 1, scaleX: 2, scaleY: 0.5, rotation: 45 }, box);
+      // The pre-ADR-005 matrix, spelled out rather than derived from the code
+      // under test: T(c) . R(45) . S(2, 0.5) . T(-c).
+      const { cx, cy } = { cx: (box.left + box.right) / 2, cy: (box.top + box.bottom) / 2 };
+      const t = (45 * Math.PI) / 180;
+      const [a, b, c, d] = [
+        2 * Math.cos(t),
+        2 * Math.sin(t),
+        -0.5 * Math.sin(t),
+        0.5 * Math.cos(t),
+      ];
+      const expected = [a, b, c, d, cx - (a * cx + c * cy), cy - (b * cx + d * cy)];
+      withScale.forEach((v, i) => expect(v).toBeCloseTo(expected[i]!, 10));
+    });
+
+    it("reaches the CSS list as one folded pair, still last in the string", () => {
+      const css = cssTransform(
+        { scale: 2, scaleX: 3, scaleY: 1, rotation: 90 },
+        { xPercent: 0, yPercent: 0 },
+      );
+      expect(css).toBe("translate(0%, 0%) rotate(90deg) scale(6, 2)");
+    });
   });
 });

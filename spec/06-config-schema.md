@@ -41,7 +41,7 @@ The following belong elsewhere and must not be specified here:
 
 ```
 TilesetFile {
-  schemaVersion: 1
+  schemaVersion: 2
   engineVersion: string
   config:        TilesetConfig
   layout:        Layout
@@ -138,11 +138,14 @@ bump (§4.3).
 
 ### 4.1 `schemaVersion`
 
-**Required. An integer. `1` in V1.**
+**Required. An integer. `2` since ADR-005**, which widened `Operation.target`'s admissible set
+(§7) and so changed the set of files this schema accepts — §4.3's rule. It was `1` for the whole
+of V1 before that. A `schemaVersion: 1` file is **migrated**, not refused: §4.5 carries the path,
+and its v1 → v2 row is §4.3's *nothing to do*.
 
-Absent, non-integer, or naming a version this build does not know → **load failure**. No shape
-is inferred from which fields happen to be present, and no attempt is made to read an unknown
-version optimistically.
+Absent, non-integer, or naming a version this build does not know **and cannot reach by
+migration** → **load failure**. No shape is inferred from which fields happen to be present, and
+no attempt is made to read an unknown version optimistically.
 
 **Invariant C2** — _`schemaVersion` is required. A file without one, or with one this build does
 not recognize, fails to load. The loader never guesses a version from the fields present._
@@ -156,12 +159,18 @@ file read by an older build is the same situation as a config naming a Source th
 not have, and it takes the same answer: a legible failure beats a plausible-looking wrong
 picture.
 
+**An older file is a different situation and takes a different answer.** This build knows what
+that version was, and §4.5 says how to get from it to this one — so "unknown" is the wrong word
+for it and refusing it would discard a document this build can read perfectly well. The
+distinction is load-bearing in the editor: `09` §12.4's *update the editor, not the file* is
+right for a newer file and exactly backwards for an older one.
+
 ### 4.2 What `schemaVersion` does not do
 
 It versions the file's shape. It says nothing whatever about what that file will render.
 
 `05` §10.1 is emphatic here and it is restated because this is the document a reader would
-check: a file can be shape-perfect — every key present, every type correct, `schemaVersion: 1`
+check: a file can be shape-perfect — every key present, every type correct, `schemaVersion`
 matching exactly — and produce a different picture than it did last year, because the engine's
 `valueNoise` was tidied up in between. _"It loaded fine"_ is evidence of nothing. Output
 stability is the package version's job (`05` **X9**) and there is no field in this file that
@@ -222,11 +231,54 @@ anything in it.
 
 **Never validated**, because there are only two things a check could do and both are wrong. It
 could refuse to load a file written by a newer build — but the file may be perfectly legal
-under `schemaVersion: 1`, and refusing it substitutes a guess for the check that already
+under the `schemaVersion` it declares, and refusing it substitutes a guess for the check that already
 exists. Or it could refuse a file written by an _older_ build — but that is the ordinary case,
 it is the one this package's whole versioning story is built to support, and refusing it would
 make every published site's config a liability. `schemaVersion` gates loads. This field
 gates nothing.
+
+### 4.5 The migration path
+
+§4.3 mentions "the migration table" while defining what bumps the version, and leaves the table
+itself undefined because at the time there was nothing to migrate from. ADR-005 supplied the
+second shape. This section is that table's contract; `06` §12's `[EXTENSION POINT]` — _"
+`schemaVersion: 2` and a migration path"_ — is discharged by it.
+
+```
+migrate(file: unknown) -> MigrationOutcome
+
+MigrationOutcome =
+  | { kind: "current" }
+  | { kind: "migrated",     file: unknown, steps: Migration[] }
+  | { kind: "newer",        declared: integer }
+  | { kind: "unrecognized", declared: unknown }
+
+Migration { from: integer, to: integer, note: string, upgrade: (file) -> file }
+```
+
+**Migration is a separate function from validation, and runs before it.** §9.2 is categorical —
+_validation never coerces_ — and rewriting a file's `schemaVersion` is a coercion. Putting it
+inside `validate()` would make that rule a rule with an exception, in the one function whose
+whole value is that it has none. So `migrate` produces a new value and `validate` sees a file
+already claiming the single version it knows. **C5**'s separation of concerns, one layer out.
+
+**It does not validate either.** A migrated file is _shaped for_ this schema, not proven legal by
+it. A migration that also validated would make `validate()` reachable by two paths with two
+answers, which is the second source of truth **C8** rejects one level down.
+
+**The rows are adjacent and are walked, never indexed.** Each step goes from `n` to `n + 1`, and a
+version with no row is `unrecognized` rather than silently skipped to the next row that happens
+to fit. A future `2 → 3` row appends and composes; nothing existing changes.
+
+**A no-op row is still a row.** §4.3's own argument applies to the table as much as to the
+version number: recording that the answer to _what has to change_ is _nothing_ is a fact worth
+carrying, and an omitted row is indistinguishable from an oversight.
+
+**The four outcomes are distinct because they take four different actions**, and conflating two
+of them is a real defect rather than a tidiness point. `newer` is the only one where §4.1's
+_a legible failure beats a plausible-looking wrong picture_ resolves to **update the build**;
+`09` §12.4 words its import screen on exactly that reading, and applying it to an older file
+tells an author with a current editor that their editor is at fault.
 
 ---
 
@@ -405,7 +457,7 @@ Operation {
   reseedOnLoad: boolean              default false
   selection:    Selection
   source:       Source
-  target:       "tileId" | "scaleX" | "scaleY" | "rotation" | "opacity"
+  target:       "tileId" | "scale" | "scaleX" | "scaleY" | "rotation" | "opacity"
   mapping:      Mapping
   blend:        BlendName
 }
@@ -746,7 +798,7 @@ legal.
 
 | Point                                                                                       | Status                                                                                                                          |
 | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `schemaVersion: 2` and a migration path                                                     | `[EXTENSION POINT]` — the field ships in V1; no migration exists because there is nothing yet to migrate from                   |
+| `schemaVersion: 2` and a migration path                                                     | **Discharged** — ADR-005 supplied the second shape; §4.5 carries the table and the v1 → v2 row is §4.3's _nothing to do_        |
 | Parameterized Blends — `blend` promoted to `{ type, ...params }`                            | `[EXTENSION POINT]` — one bump and one migration (§7.2)                                                                         |
 | `curve` on a numeric mapping                                                                | `[EXTENSION POINT]` — an added key, therefore a bump; not a break (§4.3, `04` §6.2)                                             |
 | Selection-valued parameters in `ParamSchema`                                                | `[EXTENSION POINT]` — required before `and` / `or` / `not` can be registered (§7.4, `05` §7)                                    |
@@ -760,7 +812,7 @@ legal.
 
 | #   | Question                                                                                        | Status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | --- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Does the config carry `schemaVersion`? (`02` Q5)                                                | **Resolved** — §4.1. Required, integer, `1` in V1. Absent or unknown is a load failure.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 1   | Does the config carry `schemaVersion`? (`02` Q5)                                                | **Resolved** — §4.1. Required, an integer; `1` for V1, `2` since ADR-005. Absent, or unknown and unreachable by §4.5's migration, is a load failure.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | 2   | Does the config record the engine version that wrote it? (`05` Q1)                              | **Resolved** — §4.4. Yes, required, and advisory only (**C3**).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | 3   | Does the engine validate, or trust a validated config? (`03` Q1)                                | **Resolved** — §10. A separate `validate()`; `generate()` trusts. Behaviour on an unvalidated config is undefined (**C5**).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | 4   | Should unknown keys be rejected?                                                                | **Resolved — §9.1, and flagged as the decision to revisit.** Rejected. The cost is that every added key is a `schemaVersion` bump (§4.3). If that proves obstructive in implementation, this is the decision to reopen, not `schemaVersion`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |

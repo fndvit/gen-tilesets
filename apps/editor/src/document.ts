@@ -112,8 +112,9 @@ const NEW_ALIGNMENT = "gutter" as const;
 
 export function newDocument(): TilesetFile {
   return {
-    // Required, and `1` in V1. Absent or unknown is a load failure (`06` **C2**).
-    schemaVersion: 1,
+    // Required. Absent or unknown is a load failure (`06` **C2**). 2 since
+    // ADR-005 added the `scale` attribute.
+    schemaVersion: 2,
     // Required, advisory, never validated against anything (`06` **C3**). E2
     // makes it truthful by construction.
     engineVersion: ENGINE_VERSION,
