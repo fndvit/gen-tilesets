@@ -90,6 +90,9 @@
    */
   const HANDLE = 9;
 
+  /** The default backdrop, and the value the reset returns to. See `background`. */
+  const WHITE = "#ffffff";
+
   /** How much room the editor's own column has. Not a limit on `Wpx` — see `zoom`. */
   let available = $state(0);
 
@@ -105,6 +108,22 @@
    * state beside the file, never in it and never in `meta` (**E4**).
    */
   let requested = $state<number | null>(null);
+
+  /**
+   * The colour behind the render box. **Writes no field**, exactly as the width
+   * does (**E11**) — §4.1 puts such state beside the file, never in it and never
+   * in `meta` (**E4**).
+   *
+   * White is the default and stays the right one: `07` §4.5 makes the output
+   * decorative, so a tileset is drawn over whatever a host page puts behind it,
+   * and a tinted preview would have the author judging every tile's edge against
+   * a colour no visitor gets. That argument is also why this control exists — a
+   * tileset destined for a dark page cannot be judged against white either, and
+   * the author is the one who knows which backdrop is the honest one. What the
+   * editor must not do is *decide* on a backdrop; offering the choice and
+   * defaulting to none is not that.
+   */
+  let background = $state(WHITE);
 
   /**
    * `Wpx`. **Not clamped to what the editor can display.**
@@ -216,6 +235,29 @@
       </button>
     {/each}
     <button class:on={requested === null} onclick={() => (requested = null)}>fill</button>
+
+    <!--
+      The backdrop. Beside the width because it is the same kind of control —
+      it changes what the author is looking at and writes nothing (**E11**).
+    -->
+    <span class="divider" aria-hidden="true"></span>
+    <input
+      type="color"
+      class="bg"
+      bind:value={background}
+      aria-label="Preview background colour"
+      title="Preview background — writes no field. The render box is decorative (07 §4.5); a host page supplies the real backdrop."
+    />
+    {#if background !== WHITE}
+      <!--
+        Offered only off the default, the same shape as `controls/BlendControl`'s
+        "back to {fallback}". A colour picker makes returning to exactly white
+        fiddly, and white is the value the rest of the reasoning assumes.
+      -->
+      <button class="reset-bg" onclick={() => (background = WHITE)} title="Back to white">
+        ⟲
+      </button>
+    {/if}
   </div>
 </div>
 
@@ -226,7 +268,10 @@
 -->
 <div class="track" bind:clientWidth={available}>
   <div class="viewport" style="height: {frameHeight * zoom}px;">
-    <div class="frame" style="width: {width}px; transform: scale({zoom}); --zoom: {zoom};">
+    <div
+      class="frame"
+      style="width: {width}px; transform: scale({zoom}); --zoom: {zoom}; background: {background};"
+    >
     <!--
       Two handles, one per edge. They sit outside the render box: `08` **S9**
       gives the component's own element no padding and no border so that `Wpx` is
@@ -299,6 +344,44 @@
     color: #1a202c;
   }
 
+  .divider {
+    width: 1px;
+    align-self: stretch;
+    background: #e2e8f0;
+    margin: 0 0.15rem;
+  }
+
+  /* Sized to sit level with the preset buttons beside it. */
+  .bg {
+    width: 1.7rem;
+    height: 1.45rem;
+    padding: 0;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+  }
+
+  /* Without these the swatch floats inside a wide inset border in Chrome and
+     Safari, and the control stops reading as the colour it holds. */
+  .bg::-webkit-color-swatch-wrapper {
+    padding: 1px;
+  }
+
+  .bg::-webkit-color-swatch {
+    border: 0;
+    border-radius: 2px;
+  }
+
+  .bg::-moz-color-swatch {
+    border: 0;
+    border-radius: 2px;
+  }
+
+  .reset-bg {
+    line-height: 1;
+  }
+
   /* The frame is centred in the track, so dragging either edge keeps the
      render box's centre axis where it was. */
   .track {
@@ -335,14 +418,17 @@
   .frame {
     position: relative;
     /*
-      **White, not the page's off-white.** The render box is the picture, and
-      `07` §4.5 makes the output decorative — a tileset is drawn over whatever a
-      host page puts behind it. A tinted preview would have the author judging
-      every tile's edge against a colour no visitor gets, which is `07` §3's
-      worst outcome in its mildest form. The dashed outline is the editor saying
-      where the box ends; the box itself says nothing.
+      **White by default, not the page's off-white.** The render box is the
+      picture, and `07` §4.5 makes the output decorative — a tileset is drawn
+      over whatever a host page puts behind it. A tinted preview would have the
+      author judging every tile's edge against a colour no visitor gets, which is
+      `07` §3's worst outcome in its mildest form. The dashed outline is the
+      editor saying where the box ends; the box itself says nothing.
+
+      The colour is set inline from `background` above, which starts at white and
+      is the author's to change for the session. The editor still chooses no
+      backdrop; it only stops pretending white is the absence of one.
     */
-    background: #ffffff;
     outline: 1px dashed #cbd5e0;
     /* Scaled about the top centre, so the frame stays centred and the top edge
        stays put as the zoom changes. */

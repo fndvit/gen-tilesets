@@ -46,6 +46,7 @@
   import OperationStack from "./lib/OperationStack.svelte";
   import PaintLayer from "./lib/PaintLayer.svelte";
   import PreviewFrame from "./lib/PreviewFrame.svelte";
+  import Section from "./lib/Section.svelte";
   import SelectionOverlay from "./lib/SelectionOverlay.svelte";
   import TileLibrary from "./lib/TileLibrary.svelte";
   import type { Cell } from "./paint.js";
@@ -344,223 +345,249 @@
   <div class="columns">
     <aside>
       <!--
-        `09` §9.3: "The three controls sit together, away from the preview width
-        handle." The design principle behind that separation is §9.2's: the
-        destructive edit must not be the one that is easy to do by accident. A
-        page edge that can be dragged reads as a viewport, and a viewport does
-        not destroy work — so the destructive control is a numeric field and the
-        harmless one is the drag handle (Step 3).
+        The sidebar scrolls; the preview column beside it does not move. Every
+        control below is reachable without the picture it changes leaving the
+        screen, which is the whole point of **S2**'s single live preview.
       -->
-      <section class="panel">
-        <h2>Grid</h2>
-        <div class="fields">
-          <NumericInput
-            label="rows"
-            step="1"
-            value={config.rows}
-            parse={parseRows}
-            onCommit={(t) => session.apply(setRows(t))}
-          />
-          <NumericInput
-            label="y offset"
-            step="0.05"
-            note="[0, 1) — clips row 0"
-            value={layout.yOffset}
-            parse={parseYOffset}
-            onCommit={(t) => session.apply(setYOffset(t))}
-          />
-        </div>
-      </section>
-
-      <!--
-        `09` §8.2 — the seed field.
-
-        **The author never sees a hash** (`02` §6.6). They type a string, and
-        that is the whole interface. Beside it, a generated *memorable* seed in
-        word-word-number form, because "the value of a seed is that it can be
-        written down and returned to, and random hex defeats that".
-
-        **There is no separate preview seed** (§5, §8.1's table). This writes
-        `config.defaultSeed` and the component falls back to it (`07` §9.2), so
-        the preview always shows what a visitor with no host seed sees. A preview
-        seed would let the author approve a picture the file does not produce.
-      -->
-      <section class="panel">
-        <h2>Seed</h2>
-        <div class="seed">
-          <input
-            type="text"
-            aria-label="seed"
-            value={config.defaultSeed}
-            oninput={(e) => session.apply(setDefaultSeed(e.currentTarget.value))}
-          />
-          <button onclick={() => session.apply(rerollSeed())}>New seed</button>
-        </div>
-        <p class="note small">
-          Writes <code>defaultSeed</code>, and every Operation's picture is a function of it
-          (<code>02</code>&nbsp;§6.6). An empty field is in-flight input and does not reach the
-          file — <strong>E5</strong>.
-        </p>
-
+      <div class="sections">
         <!--
-          §8.4 — the asset reroll. `02` §6.4: it re-rolls which variant each cell
-          shows **without disturbing any Operation**, because the asset channel is
-          separate. Every `tileId` stays where it is.
+          `09` §9.3: "The three controls sit together, away from the preview width
+          handle." The design principle behind that separation is §9.2's: the
+          destructive edit must not be the one that is easy to do by accident. A
+          page edge that can be dragged reads as a viewport, and a viewport does
+          not destroy work — so the destructive control is a numeric field and the
+          harmless one is the drag handle (Step 3).
         -->
-        <div class="reroll-row">
-          <button onclick={() => session.apply(rerollAssets())}>Reroll assets</button>
-          <span class="tag">assetSalt <code>{config.assetSalt ?? 0}</code></span>
-        </div>
+        <Section title="Grid">
+          <div class="fields">
+            <NumericInput
+              label="rows"
+              step="1"
+              value={config.rows}
+              parse={parseRows}
+              onCommit={(t) => session.apply(setRows(t))}
+            />
+            <NumericInput
+              label="y offset"
+              step="0.05"
+              note="[0, 1) — clips row 0"
+              value={layout.yOffset}
+              parse={parseYOffset}
+              onCommit={(t) => session.apply(setYOffset(t))}
+            />
+          </div>
+        </Section>
 
-        <label class="flag">
-          <input
-            type="checkbox"
-            checked={config.reseedAssetsOnLoad === true}
-            onchange={(e) => session.apply(setReseedAssetsOnLoad(e.currentTarget.checked))}
-          />
-          reseed assets on load
-        </label>
+        <Section title="Design" destructive>
+          <div class="fields">
+            <NumericInput
+              label="design width"
+              value={layout.referenceWidth}
+              parse={parseReferenceWidth}
+              onCommit={(t) => destructive(`design width → ${t}`, setReferenceWidth(t))}
+            />
+            <NumericInput
+              label="cell size"
+              value={layout.cellSize}
+              parse={parseCellSize}
+              onCommit={(t) => destructive(`cell size → ${t}`, setCellSize(t))}
+            />
 
-        <!--
-          §8.5 — the load preview. It **writes no field** (§8.1's fourth row): the
-          value is held in editor state and reaches `<Tileset>` as a prop.
-
-          **Disabled where nothing is flagged.** `04` §8.3: a config with the flag
-          false throughout is byte-identical on every load *regardless of*
-          `loadSalt`, and "an enabled button that provably changes nothing is
-          `05` §6.1's complaint arriving one level out".
-
-          **R12** — one value per session, held. The editor gets that structurally
-          from **S7**: the component draws no random number, so there is nothing
-          to redraw on a regeneration.
-        -->
-        <div class="reroll-row">
-          <button disabled={!varies} onclick={() => (loadSalt = drawLoadSalt())}>
-            Preview a fresh load
-          </button>
-          {#if varies}
-            <span class="tag">loadSalt <code>{loadSalt}</code></span>
-          {:else}
-            <span class="tag muted">nothing is flagged</span>
-          {/if}
-        </div>
-
-        {#if inert.length > 0}
-          <!--
-            `06` §10.4's second diagnostic, as **E16**'s advisory: never blocks,
-            never modifies the file, never an error. §8.4 requires this to be
-            *reported* rather than corrected — the flag still moves the
-            Operation's `random` Selection (`04` §8.2), so it is not fully inert
-            and clearing it would change the picture.
-          -->
-          <p class="advisory">
-            {inert.map((op) => op.id).join(", ")} — <code>reseedOnLoad</code> over a
-            non-stochastic Source. Not cleared: the flag still moves a
-            <code>random</code> Selection (<code>04</code>&nbsp;§8.2). Only reachable by import.
-          </p>
-        {/if}
-      </section>
-
-      <section class="panel destructive">
-        <h2>Design width</h2>
-        <div class="fields">
-          <NumericInput
-            label="design width"
-            value={layout.referenceWidth}
-            parse={parseReferenceWidth}
-            onCommit={(t) => destructive(`design width → ${t}`, setReferenceWidth(t))}
-          />
-          <NumericInput
-            label="cell size"
-            value={layout.cellSize}
-            parse={parseCellSize}
-            onCommit={(t) => destructive(`cell size → ${t}`, setCellSize(t))}
-          />
-
-          <!--
-            §9.1's toggle, beside design width. It writes `horizontalAlignment`,
-            which is authoring metadata the renderer never reads (`02` §7.3) —
-            its only function is constraining parity during derivation, and
-            toggling it can move `columns` by one through that alone.
-          -->
-          <div class="field">
-            <span class="label">alignment</span>
-            <div class="segmented">
-              {#each ["column", "gutter"] as const as option (option)}
-                <button
-                  class:on={layout.horizontalAlignment === option}
-                  onclick={() =>
-                    destructive(`alignment → ${option}`, setHorizontalAlignment(option))}
-                >
-                  {option}
-                </button>
-              {/each}
+            <!--
+              §9.1's toggle, beside design width. It writes `horizontalAlignment`,
+              which is authoring metadata the renderer never reads (`02` §7.3) —
+              its only function is constraining parity during derivation, and
+              toggling it can move `columns` by one through that alone.
+            -->
+            <div class="field">
+              <span class="label">alignment</span>
+              <div class="segmented">
+                {#each ["column", "gutter"] as const as option (option)}
+                  <button
+                    class:on={layout.horizontalAlignment === option}
+                    onclick={() =>
+                      destructive(`alignment → ${option}`, setHorizontalAlignment(option))}
+                  >
+                    {option}
+                  </button>
+                {/each}
+              </div>
             </div>
           </div>
-        </div>
 
-        <!--
-          §9.3 — confirmation is required **only where something is at risk**.
-          Procedural Selections survive a resize unharmed, so this says which of
-          the two states the document is in rather than warning unconditionally.
-        -->
-        <p class="warn">
-          These three re-derive <code>columns</code> and are destructive
-          (<strong>E12</strong>).
-          {#if risked.length > 0}
-            {risked.length}
-            {risked.length === 1 ? "Operation is" : "Operations are"} coordinate-bound, so a change
-            asks first.
-          {:else}
-            Every Selection here is procedural and survives a resize
-            (<code>04</code>&nbsp;§4.4), so no confirmation appears.
-          {/if}
-        </p>
-      </section>
-
-      <section class="panel">
-        <h2>Derived</h2>
-        <!--
-          `columns` is **displayed, never edited** (§9.1). The author needs to
-          know it — a `rect` is authored in column indices — and editing it would
-          break `columns * cellSize >= referenceWidth` and produce `06` §10.4's
-          fourth diagnostic from inside the editor, which **E1** forbids.
-        -->
-        <dl>
-          <dt>columns</dt>
-          <dd>{config.columns} <span class="tag">derived</span></dd>
-          <dt>grid width</dt>
-          <dd>{config.columns * layout.cellSize} <span class="unit">design px</span></dd>
           <!--
-            `02` §7.4 — the grid is **top-anchored**, its height is
-            `rows * cellSize` in design px, and only `rows` makes it taller or
-            shorter. There is no vertical counterpart to `horizontalAlignment`,
-            and no vertical bleed here: `07` §7.3 makes that the host's, through
-            the box's height.
+            §9.3 — confirmation is required **only where something is at risk**.
+            Procedural Selections survive a resize unharmed, so this says which of
+            the two states the document is in rather than warning unconditionally.
           -->
-          <dt>grid height</dt>
-          <dd>{config.rows * layout.cellSize} <span class="unit">design px</span></dd>
-          <dt>visible height</dt>
-          <dd>
-            {round(visibleHeight)} <span class="unit">design px</span>
-            {#if clipped > 0}
-              <em>{round(clipped)} clipped off row 0</em>
+          <p class="warn">
+            These three re-derive <code>columns</code> and are destructive
+            (<strong>E12</strong>).
+            {#if risked.length > 0}
+              {risked.length}
+              {risked.length === 1 ? "Operation is" : "Operations are"} coordinate-bound, so a change
+              asks first.
+            {:else}
+              Every Selection here is procedural and survives a resize
+              (<code>04</code>&nbsp;§4.4), so no confirmation appears.
             {/if}
-          </dd>
-          <dt>bleed</dt>
-          <dd>
-            {currentBleed} <span class="unit">design px</span>
-            {#if currentBleed > 0}
-              <em>{currentBleed / 2} each side</em>
+          </p>
+        </Section>
+
+        <Section title="Derived" open={false}>
+          <!--
+            `columns` is **displayed, never edited** (§9.1). The author needs to
+            know it — a `rect` is authored in column indices — and editing it would
+            break `columns * cellSize >= referenceWidth` and produce `06` §10.4's
+            fourth diagnostic from inside the editor, which **E1** forbids.
+          -->
+          <dl>
+            <dt>columns</dt>
+            <dd>{config.columns} <span class="tag">derived</span></dd>
+            <dt>grid width</dt>
+            <dd>{config.columns * layout.cellSize} <span class="unit">design px</span></dd>
+            <!--
+              `02` §7.4 — the grid is **top-anchored**, its height is
+              `rows * cellSize` in design px, and only `rows` makes it taller or
+              shorter. There is no vertical counterpart to `horizontalAlignment`,
+              and no vertical bleed here: `07` §7.3 makes that the host's, through
+              the box's height.
+            -->
+            <dt>grid height</dt>
+            <dd>{config.rows * layout.cellSize} <span class="unit">design px</span></dd>
+            <dt>visible height</dt>
+            <dd>
+              {round(visibleHeight)} <span class="unit">design px</span>
+              {#if clipped > 0}
+                <em>{round(clipped)} clipped off row 0</em>
+              {/if}
+            </dd>
+            <dt>bleed</dt>
+            <dd>
+              {currentBleed} <span class="unit">design px</span>
+              {#if currentBleed > 0}
+                <em>{currentBleed / 2} each side</em>
+              {/if}
+            </dd>
+            <dt>tiles</dt>
+            <dd>{config.tiles.length}</dd>
+            <dt>operations</dt>
+            <dd>{config.operations.length}</dd>
+          </dl>
+          <button onclick={() => session.reset()}>New document</button>
+        </Section>
+
+        <Section title="Tiles">
+          <TileLibrary />
+        </Section>
+
+        <Section title="Operations">
+          <OperationStack
+            onCreate={() => drafting.start(nextOperationId(config.operations.map((o) => o.id)))}
+          />
+
+          <!--
+            The draft opens **inside this section**, under the button that starts
+            it. It is not a section of its own: it is a workflow that is either
+            running or not, and a collapsible one would hide a step the author is
+            mid-way through. Collapsing Operations does hide it, which is right —
+            it belongs to this card — and nothing is lost, since `drafting` holds
+            the draft until it is committed or discarded.
+          -->
+          {#if drafting.draft !== null}
+            {@const draft = drafting.draft}
+            <OperationDraft {draft} onClose={() => drafting.discard()} />
+          {/if}
+        </Section>
+
+        <!--
+          `09` §8.2 — the seed field.
+
+          **The author never sees a hash** (`02` §6.6). They type a string, and
+          that is the whole interface. Beside it, a generated *memorable* seed in
+          word-word-number form, because "the value of a seed is that it can be
+          written down and returned to, and random hex defeats that".
+
+          **There is no separate preview seed** (§5, §8.1's table). This writes
+          `config.defaultSeed` and the component falls back to it (`07` §9.2), so
+          the preview always shows what a visitor with no host seed sees. A preview
+          seed would let the author approve a picture the file does not produce.
+        -->
+        <Section title="Seed" open={false}>
+          <div class="seed">
+            <input
+              type="text"
+              aria-label="seed"
+              value={config.defaultSeed}
+              oninput={(e) => session.apply(setDefaultSeed(e.currentTarget.value))}
+            />
+            <button onclick={() => session.apply(rerollSeed())}>New seed</button>
+          </div>
+          <p class="note small">
+            Writes <code>defaultSeed</code>, and every Operation's picture is a function of it
+            (<code>02</code>&nbsp;§6.6). An empty field is in-flight input and does not reach the
+            file — <strong>E5</strong>.
+          </p>
+
+          <!--
+            §8.4 — the asset reroll. `02` §6.4: it re-rolls which variant each cell
+            shows **without disturbing any Operation**, because the asset channel is
+            separate. Every `tileId` stays where it is.
+          -->
+          <div class="reroll-row">
+            <button onclick={() => session.apply(rerollAssets())}>Reroll assets</button>
+            <span class="tag">assetSalt <code>{config.assetSalt ?? 0}</code></span>
+          </div>
+
+          <label class="flag">
+            <input
+              type="checkbox"
+              checked={config.reseedAssetsOnLoad === true}
+              onchange={(e) => session.apply(setReseedAssetsOnLoad(e.currentTarget.checked))}
+            />
+            reseed assets on load
+          </label>
+
+          <!--
+            §8.5 — the load preview. It **writes no field** (§8.1's fourth row): the
+            value is held in editor state and reaches `<Tileset>` as a prop.
+
+            **Disabled where nothing is flagged.** `04` §8.3: a config with the flag
+            false throughout is byte-identical on every load *regardless of*
+            `loadSalt`, and "an enabled button that provably changes nothing is
+            `05` §6.1's complaint arriving one level out".
+
+            **R12** — one value per session, held. The editor gets that structurally
+            from **S7**: the component draws no random number, so there is nothing
+            to redraw on a regeneration.
+          -->
+          <div class="reroll-row">
+            <button disabled={!varies} onclick={() => (loadSalt = drawLoadSalt())}>
+              Preview a fresh load
+            </button>
+            {#if varies}
+              <span class="tag">loadSalt <code>{loadSalt}</code></span>
+            {:else}
+              <span class="tag muted">nothing is flagged</span>
             {/if}
-          </dd>
-          <dt>tiles</dt>
-          <dd>{config.tiles.length}</dd>
-          <dt>operations</dt>
-          <dd>{config.operations.length}</dd>
-        </dl>
-        <button onclick={() => session.reset()}>New document</button>
-      </section>
+          </div>
+
+          {#if inert.length > 0}
+            <!--
+              `06` §10.4's second diagnostic, as **E16**'s advisory: never blocks,
+              never modifies the file, never an error. §8.4 requires this to be
+              *reported* rather than corrected — the flag still moves the
+              Operation's `random` Selection (`04` §8.2), so it is not fully inert
+              and clearing it would change the picture.
+            -->
+            <p class="advisory">
+              {inert.map((op) => op.id).join(", ")} — <code>reseedOnLoad</code> over a
+              non-stochastic Source. Not cleared: the flag still moves a
+              <code>random</code> Selection (<code>04</code>&nbsp;§8.2). Only reachable by import.
+            </p>
+          {/if}
+        </Section>
+      </div>
 
       <!--
         §11.1 — **E14**: a `TilesetFile` and an asset folder, together, as one
@@ -568,19 +595,20 @@
         file, `src` stops being a string an author typed and becomes a string the
         editor wrote beside a file it just copied", and a file exported without
         its folder reopens the hole that closes.
-      -->
-      <section class="panel">
-        <h2>Export</h2>
-        <button class="export" disabled={exporting} onclick={runExport}>
-          {exporting ? "Building…" : "Export tileset.zip"}
-        </button>
 
-        <p class="note small">
-          <code>tileset.json</code> plus <code>tiles/&lt;tileId&gt;/&lt;assetId&gt;.&lt;ext&gt;</code>
-          — the layout mirrors the asset key, so two Tiles holding <code>a1</code> cannot collide
-          (<code>07</code>&nbsp;§4.1). Paths in <code>meta.src</code> are relative; the host
-          resolves them (§11.2).
-        </p>
+        Pinned below the scrolling sections rather than filed among them: it is
+        the one action that ends the session, and it should not have to be
+        scrolled to.
+      -->
+      <div class="download">
+        <button
+          class="export"
+          disabled={exporting}
+          onclick={runExport}
+          title="tileset.json plus tiles/<tileId>/<assetId>.<ext> — the layout mirrors the asset key, so two Tiles holding a1 cannot collide (07 §4.1). Paths in meta.src are relative; the host resolves them (§11.2)."
+        >
+          {exporting ? "Building…" : "Download tileset.zip"}
+        </button>
 
         {#if empty}
           <!--
@@ -597,18 +625,7 @@
         {#if exportError !== null}
           <p class="failure">{exportError}</p>
         {/if}
-      </section>
-
-      <TileLibrary />
-
-      <OperationStack
-        onCreate={() => drafting.start(nextOperationId(config.operations.map((o) => o.id)))}
-      />
-
-      {#if drafting.draft !== null}
-        {@const draft = drafting.draft}
-        <OperationDraft {draft} onClose={() => drafting.discard()} />
-      {/if}
+      </div>
     </aside>
 
     <section class="panel preview">
@@ -686,17 +703,17 @@
           {/each}
         </ul>
       {/if}
+
+      <details class="debug">
+        <summary>The file</summary>
+        <!--
+          **E3** — the editor's state *is* this. There is no second document model,
+          so what is shown here is what previews above and what Step 11 will export.
+        -->
+        <pre>{JSON.stringify(file, null, 2)}</pre>
+      </details>
     </section>
   </div>
-
-  <details class="debug">
-    <summary>The file</summary>
-    <!--
-      **E3** — the editor's state *is* this. There is no second document model,
-      so what is shown here is what previews above and what Step 11 will export.
-    -->
-    <pre>{JSON.stringify(file, null, 2)}</pre>
-  </details>
 </main>
 
 <style>
@@ -707,17 +724,31 @@
     color: #1a202c;
   }
 
+  /*
+    A full-height shell rather than a document that scrolls. The picture is what
+    every control in the sidebar is judged against, so it must not be able to
+    leave the screen: the page itself does not scroll, and the two columns each
+    scroll their own contents. `09` §2 puts layout outside the spec — this is a
+    usability choice and nothing in the package depends on it.
+  */
+  /*
+    Flex rather than grid rows: the confirmation dialog and the orphan advisory
+    are conditional, so the number of children above `.columns` varies and a
+    fixed row template would put the flexible track under the wrong one.
+  */
   main {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 1.5rem;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 1.25rem 1.25rem;
+    box-sizing: border-box;
   }
 
   header {
     display: flex;
     align-items: baseline;
     gap: 1rem;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
   }
 
   h1 {
@@ -741,11 +772,20 @@
     color: #5a6b80;
   }
 
+  /*
+    The config column is fixed and narrow; the preview takes everything else.
+    `min-height: 0` is what lets the two columns scroll their own contents
+    instead of growing the shell past the viewport — a flex/grid item's
+    automatic minimum size is its content, and it wins over `overflow` without
+    this.
+  */
   .columns {
+    flex: 1;
+    min-height: 0;
     display: grid;
-    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-columns: 320px minmax(0, 1fr);
     gap: 1.25rem;
-    align-items: start;
+    align-items: stretch;
   }
 
   /*
@@ -760,9 +800,42 @@
     min-width: 0;
   }
 
+  /* The sections scroll; the download footer below them does not. */
   aside {
     display: grid;
+    grid-template-rows: 1fr auto;
+    min-height: 0;
     gap: 0.75rem;
+  }
+
+  .sections {
+    overflow-y: auto;
+    display: grid;
+    gap: 0.75rem;
+    align-content: start;
+    /* Room for the scrollbar, so it never sits on a panel's border. */
+    padding-right: 0.35rem;
+  }
+
+  .download {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 0.75rem;
+    padding-right: 0.35rem;
+  }
+
+  .download .advisory,
+  .download .failure {
+    margin-bottom: 0;
+  }
+
+  /*
+    The preview column scrolls on its own, with the frame at the top of it. The
+    notes, the failure list and the file dump sit below and scroll under it, so
+    reading any of them is the only thing that can move the picture — and the
+    sidebar never can.
+  */
+  .preview {
+    overflow-y: auto;
   }
 
   .panel {
@@ -772,10 +845,8 @@
     padding: 1rem;
   }
 
-  /* §9.2's design principle made visible: the destructive control looks it. */
-  .destructive {
-    border-color: #e0b062;
-  }
+  /* §9.2's design principle made visible: the destructive panel looks it. That
+     rule now lives in `lib/Section.svelte`, behind its `destructive` prop. */
 
   .fields {
     display: grid;

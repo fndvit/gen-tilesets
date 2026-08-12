@@ -66,105 +66,88 @@
   }
 </script>
 
-<section class="panel">
-  <h2>Operations</h2>
+{#if operations.length === 0}
+  <p class="empty">
+    Nothing is drawn yet. A fresh document generates a grid of
+    <code>tileId: null</code> — legal, and renders nothing
+    (<code>02</code>&nbsp;§8.1, <strong>G4</strong>).
+  </p>
+{:else}
+  <ol class="stack">
+    {#each operations as op, index (op.id)}
+      <li>
+        <!--
+          The index is shown because the stack runs in this order and later
+          Operations blend onto earlier ones (`02` §9). It is **not** the
+          Operation's identity: `02` §6.3 attaches randomness to `id` and
+          `salt`, never to position, which is what makes a future reorder
+          move the picture only where the author expects.
+        -->
+        <span class="index">{index + 1}</span>
+        <div class="body">
+          <span class="summary">{summarize(op)}</span>
+          <span class="mapping">{mappingOf(op)}</span>
+        </div>
+        <code class="id">{op.id}</code>
 
-  {#if operations.length === 0}
-    <p class="empty">
-      Nothing is drawn yet. A fresh document generates a grid of
-      <code>tileId: null</code> — legal, and renders nothing
-      (<code>02</code>&nbsp;§8.1, <strong>G4</strong>).
-    </p>
-  {:else}
-    <ol class="stack">
-      {#each operations as op, index (op.id)}
-        <li>
+        <!--
+          §8.3 — **offered on every Operation**, not only stochastic ones,
+          because the Operation's `random` Selection consumes the salt even
+          where the Source does not (`04` §4.3). One click moves both channels.
+        -->
+        <button
+          class="reroll"
+          onclick={() => session.apply(rerollOperation(op.id))}
+          title="Reroll — increments salt, moving this Operation's Source and Selection together"
+          aria-label="Reroll operation {op.id}"
+        >
+          ⟳
+        </button>
+
+        <button
+          class="remove"
+          onclick={() => session.apply(removeOperation(op.id))}
+          aria-label="Remove operation"
+        >
+          ×
+        </button>
+
+        <div class="flags">
+          <span class="salt">salt <code>{op.salt ?? 0}</code></span>
+
           <!--
-            The index is shown because the stack runs in this order and later
-            Operations blend onto earlier ones (`02` §9). It is **not** the
-            Operation's identity: `02` §6.3 attaches randomness to `id` and
-            `salt`, never to position, which is what makes a future reorder
-            move the picture only where the author expects.
+            §8.4 — the flag is offered **only where the Source is stochastic**,
+            read from the registry's `stochastic` declaration and never from a
+            list of Source names. `05` §6.1: a reroll control doing nothing
+            "reads as a broken engine rather than a mislabelled Source".
+
+            An imported file carrying the flag over a non-stochastic Source is
+            left alone and reported, never silently cleared — the advisory is
+            in the panel below, not a correction here.
           -->
-          <span class="index">{index + 1}</span>
-          <div class="body">
-            <span class="summary">{summarize(op)}</span>
-            <span class="mapping">{mappingOf(op)}</span>
-          </div>
-          <code class="id">{op.id}</code>
+          {#if offersReseedOnLoad(op)}
+            <label>
+              <input
+                type="checkbox"
+                checked={op.reseedOnLoad === true}
+                onchange={(e) => session.apply(setReseedOnLoad(op.id, e.currentTarget.checked))}
+              />
+              reseed on load
+            </label>
+          {/if}
+        </div>
+      </li>
+    {/each}
+  </ol>
+{/if}
 
-          <!--
-            §8.3 — **offered on every Operation**, not only stochastic ones,
-            because the Operation's `random` Selection consumes the salt even
-            where the Source does not (`04` §4.3). One click moves both channels.
-          -->
-          <button
-            class="reroll"
-            onclick={() => session.apply(rerollOperation(op.id))}
-            title="Reroll — increments salt, moving this Operation's Source and Selection together"
-            aria-label="Reroll operation {op.id}"
-          >
-            ⟳
-          </button>
-
-          <button
-            class="remove"
-            onclick={() => session.apply(removeOperation(op.id))}
-            aria-label="Remove operation"
-          >
-            ×
-          </button>
-
-          <div class="flags">
-            <span class="salt">salt <code>{op.salt ?? 0}</code></span>
-
-            <!--
-              §8.4 — the flag is offered **only where the Source is stochastic**,
-              read from the registry's `stochastic` declaration and never from a
-              list of Source names. `05` §6.1: a reroll control doing nothing
-              "reads as a broken engine rather than a mislabelled Source".
-
-              An imported file carrying the flag over a non-stochastic Source is
-              left alone and reported, never silently cleared — the advisory is
-              in the panel below, not a correction here.
-            -->
-            {#if offersReseedOnLoad(op)}
-              <label>
-                <input
-                  type="checkbox"
-                  checked={op.reseedOnLoad === true}
-                  onchange={(e) => session.apply(setReseedOnLoad(op.id, e.currentTarget.checked))}
-                />
-                reseed on load
-              </label>
-            {/if}
-          </div>
-        </li>
-      {/each}
-    </ol>
-  {/if}
-
-  <button class="create" onclick={onCreate}>
-    {operations.length === 0 ? "Create the first operation" : "Add operation"}
-  </button>
-</section>
+<button class="create" onclick={onCreate}>
+  {operations.length === 0 ? "Create the first operation" : "Add operation"}
+</button>
 
 <style>
-  .panel {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 1rem;
-  }
-
-  h2 {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #5a6b80;
-    margin: 0 0 0.75rem;
-  }
+  /* The panel shell and its heading belong to `lib/Section.svelte`, which wraps
+     this component in the sidebar. */
 
   .empty {
     margin: 0 0 0.75rem;

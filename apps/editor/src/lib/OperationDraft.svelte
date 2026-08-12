@@ -321,11 +321,18 @@
 </section>
 
 <style>
+  /*
+    Nested inside the Operations `<Section>`, under the button that starts it.
+    Inset rather than white, so a card inside a card still reads as one thing
+    inside another — the same off-white the editor uses for every other inset
+    surface, and a border already a shade darker than the sidebar's.
+  */
   .panel {
-    background: #ffffff;
+    background: #f7fafc;
     border: 1px solid #cbd5e0;
     border-radius: 6px;
-    padding: 1rem;
+    padding: 0.85rem;
+    margin-top: 0.75rem;
   }
 
   header {

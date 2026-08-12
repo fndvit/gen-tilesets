@@ -209,172 +209,155 @@
     (duplicated.get(tile.name) ?? 0) > 1 ? `${tile.name} (${tile.id})` : tile.name;
 </script>
 
-<section class="panel">
-  <h2>Tiles</h2>
+<!--
+  The list is **not** a drop target. An earlier version made the library
+  container itself take new-tile drops, and once it filled with cards there was
+  no background left to hit — adding a second Tile became unreachable. The two
+  targets are now disjoint objects rather than a container and its children:
+  a Tile card takes variants of that Tile, and the zone below always takes new
+  Tiles.
 
-  <!--
-    The list is **not** a drop target. An earlier version made the library
-    container itself take new-tile drops, and once it filled with cards there was
-    no background left to hit — adding a second Tile became unreachable. The two
-    targets are now disjoint objects rather than a container and its children:
-    a Tile card takes variants of that Tile, and the zone below always takes new
-    Tiles.
-
-    `09` §3.1: this document specifies affordances and their obligations, not
-    their appearance. The obligation here is E13's.
-  -->
-  <div class="library">
-    {#each tiles as tile (tile.id)}
-      {@const assets = canonicalAssets(tile)}
-      {@const total = assets.reduce((n, a) => n + a.weight, 0)}
-      <article
-        class="tile"
-        class:armed={over === tile.id}
-        ondragover={(e) => onDragOver(e, tile.id)}
-        ondragleave={() => (over = null)}
-        ondrop={(e) => onDrop(e, tile)}
-      >
-        <header>
-          <!--
-            The rename is never blocked, and it commits on every keystroke
-            because `Tile.name` has no illegal value to be mid-way through:
-            `06` **C10** leaves it "not unique, not charset-limited, possibly
-            empty". There is nothing for E5's parse gate to gate.
-          -->
-          <input
-            class="name"
-            value={tile.name}
-            oninput={(e) => session.apply(renameTile(tile.id, e.currentTarget.value))}
-            aria-label="Tile name"
-            spellcheck="false"
-          />
-          <code class="id">{tile.id}</code>
-          <button class="remove" onclick={() => removeTile(tile)} aria-label="Delete tile">
-            ×
-          </button>
-        </header>
-
-        {#if (duplicated.get(tile.name) ?? 0) > 1}
-          <!-- §12.2's sixth advisory. Never blocks, never modifies the file. -->
-          <p class="advisory">
-            Shares a name with another Tile — shown as <code>{displayName(tile)}</code>.
-            Legal: <strong>D1</strong> keeps a name collision out of output.
-          </p>
-        {/if}
-
+  `09` §3.1: this document specifies affordances and their obligations, not
+  their appearance. The obligation here is E13's.
+-->
+<div class="library">
+  {#each tiles as tile (tile.id)}
+    {@const assets = canonicalAssets(tile)}
+    {@const total = assets.reduce((n, a) => n + a.weight, 0)}
+    <article
+      class="tile"
+      class:armed={over === tile.id}
+      ondragover={(e) => onDragOver(e, tile.id)}
+      ondragleave={() => (over = null)}
+      ondrop={(e) => onDrop(e, tile)}
+    >
+      <header>
         <!--
-          A plain list, ordered by id, with **no drag affordance** (D3, §10.1).
-          `canonicalAssets` is the package's own ordering, not a local sort.
+          The rename is never blocked, and it commits on every keystroke
+          because `Tile.name` has no illegal value to be mid-way through:
+          `06` **C10** leaves it "not unique, not charset-limited, possibly
+          empty". There is nothing for E5's parse gate to gate.
         -->
-        <ul class="assets">
-          {#each assets as asset (asset.id)}
-            {@const file = stored(tile.id, asset.id)}
-            <li>
+        <input
+          class="name"
+          value={tile.name}
+          oninput={(e) => session.apply(renameTile(tile.id, e.currentTarget.value))}
+          aria-label="Tile name"
+          spellcheck="false"
+        />
+        <code class="id">{tile.id}</code>
+        <button class="remove" onclick={() => removeTile(tile)} aria-label="Delete tile">
+          ×
+        </button>
+      </header>
+
+      {#if (duplicated.get(tile.name) ?? 0) > 1}
+        <!-- §12.2's sixth advisory. Never blocks, never modifies the file. -->
+        <p class="advisory">
+          Shares a name with another Tile — shown as <code>{displayName(tile)}</code>.
+          Legal: <strong>D1</strong> keeps a name collision out of output.
+        </p>
+      {/if}
+
+      <!--
+        A plain list, ordered by id, with **no drag affordance** (D3, §10.1).
+        `canonicalAssets` is the package's own ordering, not a local sort.
+      -->
+      <ul class="assets">
+        {#each assets as asset (asset.id)}
+          {@const file = stored(tile.id, asset.id)}
+          <li>
+            {#if file}
+              <img src={file.url} alt="" />
+            {:else}
+              <span class="missing" title="No attached file in this session">?</span>
+            {/if}
+
+            <div class="meta">
+              <code>{asset.id}</code>
               {#if file}
-                <img src={file.url} alt="" />
-              {:else}
-                <span class="missing" title="No attached file in this session">?</span>
+                <!-- E13's frozen measurement. Nothing in V1 reads it but §12.2. -->
+                <span class="dims">{file.width}×{file.height}</span>
+                {#if file.width !== file.height}
+                  <span class="advisory-inline" title="07 R8">centre-cropped</span>
+                {/if}
               {/if}
+            </div>
 
-              <div class="meta">
-                <code>{asset.id}</code>
-                {#if file}
-                  <!-- E13's frozen measurement. Nothing in V1 reads it but §12.2. -->
-                  <span class="dims">{file.width}×{file.height}</span>
-                  {#if file.width !== file.height}
-                    <span class="advisory-inline" title="07 R8">centre-cropped</span>
-                  {/if}
-                {/if}
-              </div>
+            <NumericInput
+              label="weight"
+              step="1"
+              value={asset.weight}
+              parse={parseWeight}
+              onCommit={(t) => changeWeight(tile, asset.id, t)}
+            />
 
-              <NumericInput
-                label="weight"
-                step="1"
-                value={asset.weight}
-                parse={parseWeight}
-                onCommit={(t) => changeWeight(tile, asset.id, t)}
-              />
+            <span class="share">
+              {#if asset.weight === 0}
+                <em title="03 §4.1 — legal, and never chosen">never</em>
+              {:else}
+                {Math.round((asset.weight / total) * 100)}%
+              {/if}
+            </span>
 
-              <span class="share">
-                {#if asset.weight === 0}
-                  <em title="03 §4.1 — legal, and never chosen">never</em>
-                {:else}
-                  {Math.round((asset.weight / total) * 100)}%
-                {/if}
-              </span>
+            <button
+              class="remove"
+              onclick={() => removeAsset(tile, asset.id)}
+              aria-label="Delete asset"
+            >
+              ×
+            </button>
+          </li>
+        {/each}
+      </ul>
+    </article>
+  {/each}
+</div>
 
-              <button
-                class="remove"
-                onclick={() => removeAsset(tile, asset.id)}
-                aria-label="Delete asset"
-              >
-                ×
-              </button>
-            </li>
-          {/each}
-        </ul>
-      </article>
+<!--
+  Always present, whether the library is empty or full, so a second Tile is
+  never unreachable. The button is the same code path — dropping is not always
+  the convenient gesture, and neither is specified anywhere: `09` §10.3 fixes
+  what an attach *writes* (**E13**) and leaves what starts one alone.
+-->
+<div
+  class="newzone"
+  class:armed={over === "new"}
+  role="region"
+  aria-label="Drop image files here to create new tiles"
+  ondragover={(e) => onDragOver(e, "new")}
+  ondragleave={() => (over = null)}
+  ondrop={(e) => onDrop(e, null)}
+>
+  <span>
+    {tiles.length === 0 ? "Drop image files here" : "Drop here for more Tiles"}
+    <em>one Tile each · drop onto a Tile to add variants</em>
+  </span>
+  <button onclick={() => picker?.click()}>Add files…</button>
+  <input
+    class="picker"
+    type="file"
+    multiple
+    accept="image/*"
+    bind:this={picker}
+    onchange={onPick}
+    tabindex="-1"
+    aria-hidden="true"
+  />
+</div>
+
+{#if problems.length > 0}
+  <ul class="problems">
+    {#each problems as problem, i (i)}
+      <li>{problem}</li>
     {/each}
-  </div>
-
-  <!--
-    Always present, whether the library is empty or full, so a second Tile is
-    never unreachable. The button is the same code path — dropping is not always
-    the convenient gesture, and neither is specified anywhere: `09` §10.3 fixes
-    what an attach *writes* (**E13**) and leaves what starts one alone.
-  -->
-  <div
-    class="newzone"
-    class:armed={over === "new"}
-    role="region"
-    aria-label="Drop image files here to create new tiles"
-    ondragover={(e) => onDragOver(e, "new")}
-    ondragleave={() => (over = null)}
-    ondrop={(e) => onDrop(e, null)}
-  >
-    <span>
-      {tiles.length === 0 ? "Drop image files here" : "Drop here for more Tiles"}
-      <em>one Tile each · drop onto a Tile to add variants</em>
-    </span>
-    <button onclick={() => picker?.click()}>Add files…</button>
-    <input
-      class="picker"
-      type="file"
-      multiple
-      accept="image/*"
-      bind:this={picker}
-      onchange={onPick}
-      tabindex="-1"
-      aria-hidden="true"
-    />
-  </div>
-
-  {#if problems.length > 0}
-    <ul class="problems">
-      {#each problems as problem, i (i)}
-        <li>{problem}</li>
-      {/each}
-      <li><button onclick={() => (problems = [])}>clear</button></li>
-    </ul>
-  {/if}
-</section>
+    <li><button onclick={() => (problems = [])}>clear</button></li>
+  </ul>
+{/if}
 
 <style>
-  .panel {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 1rem;
-  }
-
-  h2 {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #5a6b80;
-    margin: 0 0 0.75rem;
-  }
+  /* The panel shell and its heading belong to `lib/Section.svelte`, which wraps
+     this component in the sidebar. */
 
   .library {
     display: grid;

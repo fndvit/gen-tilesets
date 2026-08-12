@@ -539,3 +539,28 @@ the picture the preview approved, and `roadmap` §4.4 keeps optimization in the 
 
 **Not refused:** a document that draws nothing. That is legal (**G4**), it is §12.2's fifth
 advisory, and **E16** forbids an advisory from blocking an action.
+
+---
+
+### 2026-08-11 — Collapsed panels are per-session, and the shell is full-height
+
+**Arose in:** the editor layout rework. `09` §2 sends "visual design, layout of panels" to
+*nowhere* and §3.1 repeats it, so the shell itself needs no entry. What does is where the
+collapsed state lives, because `09` §12 has an opinion about it.
+
+**Answer:** a rune in `lib/Section.svelte`, per-session, written nowhere.
+
+§12 lists **persisted editor state — collapsed panels, muted Operations, selection** as
+`[POSTPONED]`, and names all three candidate homes as unavailable: a sidecar file is an
+artifact `06` does not know about, a top-level `editor` block is a `schemaVersion` bump for a
+key no consumer reads, and `meta` is forbidden by **E4** because **R4** makes it permanent. So
+the state is transient by the same reasoning that made §12 postpone it, not by oversight — a
+panel opens where its component says it opens and a reload starts over.
+
+**The `open` prop seeds the state once and is never read again.** A reactive prop would reopen
+a panel the author had just closed, every time the parent re-rendered.
+
+**Why the shell is 100vh with two independently scrolling columns:** the preview is the only
+thing every sidebar control is judged against, and a document-height page put it off screen
+exactly when the author was editing the Operation that changes it. That is **S2**'s single live
+preview defeated by layout. Nothing in the package depends on the arrangement.
