@@ -28,7 +28,7 @@
 
 import type { Grid, TileState } from "../types.js";
 import { originX, originY, scaleFactor, type GridGeometry } from "./geometry.js";
-import { isIdentityTransform, type Matrix } from "./transform.js";
+import { isIdentityTransform, sincos, type Matrix } from "./transform.js";
 
 /**
  * One coordinate, in **whole device pixels**.
@@ -102,6 +102,15 @@ export interface DrawItem {
   dy: number;
   dw: number;
   dh: number;
+  /**
+   * The rect the substrate actually fills, **before** `matrix` is applied —
+   * `blitRect`. Identical to the cell rect for every cell except a quarter-turned
+   * one, where it is the cell rect's pre-image under the rotation.
+   */
+  bx: number;
+  by: number;
+  bw: number;
+  bh: number;
   /** The cell centre — what **D11** and **R7** take every transform about. */
   cx: number;
   cy: number;
@@ -150,6 +159,7 @@ export function drawList(
     const dy = ey[y]!;
     const dw = ex[x + 1]! - dx;
     const dh = ey[y + 1]! - dy;
+    const b = blitRect(cell, dx, dy, dw, dh);
 
     out.push({
       key: keyOf(cell.tileId, cell.assetId),
@@ -159,6 +169,10 @@ export function drawList(
       dy,
       dw,
       dh,
+      bx: b.bx,
+      by: b.by,
+      bw: b.bw,
+      bh: b.bh,
       cx: dx + dw / 2,
       cy: dy + dh / 2,
       matrix: isIdentityTransform(cell) ? null : cellMatrix(cell, dx, dy, dw, dh),
@@ -167,6 +181,53 @@ export function drawList(
   }
 
   return out;
+}
+
+/**
+ * The rect a substrate fills for this cell, **before** its transform is applied.
+ *
+ * For all but one case this is the cell rect, and the transform carries the
+ * drawable off it as far as it likes — `07` §7.1 makes spilling the point of the
+ * attribute set, and a 45deg drawable cannot cover its own cell's corners no
+ * matter what rect it starts from.
+ *
+ * **The exception is a quarter turn, and it is the seam.** `07` **R7** says a
+ * drawable at unit scale occupies exactly its cell box, and a quarter turn is
+ * unit scale. But the rect it is applied to is the *snapped* one, and snapping
+ * the two axes against different fractional origins routinely makes that rect
+ * non-square by one device pixel — 133 x 132 where the ideal cell is square.
+ * Rotating a 133 x 132 rect a quarter turn about its own centre yields a
+ * 132 x 133 rect: half a device pixel of the cell is left uncovered down each
+ * side, and the unrotated neighbour covers exactly its own cell, so the
+ * shortfall shows as a backdrop hairline. That is why a *varying* rotation seams
+ * and a constant 180deg does not — 180deg preserves the extents, 90deg
+ * transposes them.
+ *
+ * So under a quarter turn the substrate fills the cell rect's **pre-image**: the
+ * transposed rect about the same centre, which the rotation maps onto the cell
+ * rect exactly. `cx` and `cy` may be half-integers, but every product here is
+ * exact in binary floating point and `sincos` keeps the matrix exactly
+ * axis-aligned, so the mapped corners are the snapped integer corners rather
+ * than values near them.
+ *
+ * Scale is untouched: `S` is taken about the same centre after the transpose, so
+ * a quarter-turned cell at `scale = 2` covers twice the cell box about its
+ * centre, exactly as an unrotated one does.
+ *
+ * `07` §6.2's matrix is not modified by any of this. What changes is the rect it
+ * is applied to.
+ */
+export function blitRect(
+  attrs: TileState,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+): { bx: number; by: number; bw: number; bh: number } {
+  if (Math.abs(attrs.rotation % 180) !== 90) return { bx: dx, by: dy, bw: dw, bh: dh };
+  const cx = dx + dw / 2;
+  const cy = dy + dh / 2;
+  return { bx: cx - dh / 2, by: cy - dw / 2, bw: dh, bh: dw };
 }
 
 /**
@@ -182,9 +243,7 @@ export function drawList(
 function cellMatrix(attrs: TileState, dx: number, dy: number, dw: number, dh: number): Matrix {
   const cx = dx + dw / 2;
   const cy = dy + dh / 2;
-  const t = (attrs.rotation * Math.PI) / 180;
-  const cos = Math.cos(t);
-  const sin = Math.sin(t);
+  const { sin, cos } = sincos(attrs.rotation);
   const sx = attrs.scaleX * attrs.scale;
   const sy = attrs.scaleY * attrs.scale;
 

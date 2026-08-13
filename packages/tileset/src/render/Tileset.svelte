@@ -24,7 +24,7 @@
   import type { TileState, TilesetFile } from "../types.js";
   import { cellPlacementPercent, naturalRatio, type GridGeometry } from "./geometry.js";
   import { cssTransform, isIdentityTransform } from "./transform.js";
-  import { coverRect, drawList, snappedGrid } from "./edges.js";
+  import { blitRect, coverRect, drawList, snappedGrid } from "./edges.js";
   import { currentDpr, observeDpr, observeWidth } from "./measure.js";
   import { ImageBank } from "./images.js";
   import {
@@ -229,7 +229,7 @@
    * of them.
    */
   function cellStyle(cell: TileState, x: number, y: number): string {
-    let style = domPlacement(x, y);
+    let style = domPlacement(cell, x, y);
     if (!isIdentityTransform(cell)) style += ` transform: ${cssTransform(cell)};`;
     if (cell.opacity < 1) style += ` opacity: ${cell.opacity};`;
     return style;
@@ -252,17 +252,25 @@
    * The swap happens on mount and moves each cell by at most half a device pixel,
    * so there is no visible reflow — and `08` **S8**'s reserved space is the box's,
    * not the cells', so nothing shifts around it either.
+   *
+   * **The box a quarter-turned cell gets is `blitRect`'s, not the cell rect** —
+   * the canvas path's transpose, spent here rather than restated (**S10**,
+   * **R1**). A snapped cell is non-square by up to a device pixel, and `rotate(90deg)`
+   * transposes the border box about its centre, so an untransposed box would
+   * leave half a device pixel of the cell uncovered down each side. `object-fit:
+   * cover` then crops against the same rect the canvas crops against.
    */
-  function domPlacement(x: number, y: number): string {
+  function domPlacement(cell: TileState, x: number, y: number): string {
     const edges = snapped;
     if (edges !== null) {
-      const left = edges.x[x]! / dpr;
-      const top = edges.y[y]! / dpr;
+      const dx = edges.x[x]!;
+      const dy = edges.y[y]!;
+      const { bx, by, bw, bh } = blitRect(cell, dx, dy, edges.x[x + 1]! - dx, edges.y[y + 1]! - dy);
       return (
-        `width: ${edges.x[x + 1]! / dpr - left}px; ` +
-        `height: ${edges.y[y + 1]! / dpr - top}px; ` +
-        `margin-left: ${left}px; ` +
-        `margin-top: ${top}px;`
+        `width: ${bw / dpr}px; ` +
+        `height: ${bh / dpr}px; ` +
+        `margin-left: ${bx / dpr}px; ` +
+        `margin-top: ${by / dpr}px;`
       );
     }
     const { leftPercent, topPercent, sidePercent } = cellPlacementPercent(
@@ -441,7 +449,12 @@
       // exists to make deterministic.
       if (img === undefined) continue;
 
-      const { sx, sy, sw, sh } = coverRect(img.naturalWidth, img.naturalHeight, item.dw, item.dh);
+      // The blit rect, not the cell rect: `blitRect` transposes it under a
+      // quarter turn so the matrix maps it back onto the cell exactly. The crop
+      // follows the rect being filled, or a quarter-turned tile would be
+      // centre-cropped to the wrong aspect and R8 would read differently for a
+      // rotated cell than an unrotated one.
+      const { sx, sy, sw, sh } = coverRect(img.naturalWidth, img.naturalHeight, item.bw, item.bh);
       if (sw <= 0 || sh <= 0) continue;
 
       const alpha = item.alpha;
@@ -449,7 +462,7 @@
 
       if (m === null && alpha >= 1) {
         // The common case: an axis-aligned blit onto whole device pixels.
-        ctx.drawImage(img, sx, sy, sw, sh, item.dx, item.dy, item.dw, item.dh);
+        ctx.drawImage(img, sx, sy, sw, sh, item.bx, item.by, item.bw, item.bh);
         continue;
       }
 
@@ -462,7 +475,7 @@
         // which is the render box, and nothing else clips.
         ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
       }
-      ctx.drawImage(img, sx, sy, sw, sh, item.dx, item.dy, item.dw, item.dh);
+      ctx.drawImage(img, sx, sy, sw, sh, item.bx, item.by, item.bw, item.bh);
       ctx.restore();
     }
   });

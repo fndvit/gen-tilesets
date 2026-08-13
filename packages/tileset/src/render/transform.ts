@@ -46,6 +46,36 @@ function axes(attrs: TransformAttributes): { sx: number; sy: number } {
 }
 
 /**
+ * `sin` and `cos` of an angle in **degrees**, exact on the axes.
+ *
+ * `Math.cos(90 * Math.PI / 180)` is `6.12e-17`, not `0`: the conversion to
+ * radians is inexact, so a quarter turn comes out very slightly off-axis. That
+ * costs nothing on its own — but a quarter-turned cell is meant to land exactly
+ * on its cell box (**R7**), and "exactly" cannot be built on a matrix whose
+ * axis-aligned case is not axis-aligned. Every downstream identity `edges.ts`
+ * relies on (the mapped corner is the snapped integer corner, not a value near
+ * it) needs the `0` to be a real zero.
+ *
+ * Multiples of 90 are read off a table; everything else goes through `Math`
+ * unchanged, so no non-axis angle moves by an ulp.
+ */
+export function sincos(degrees: number): { sin: number; cos: number } {
+  if (Number.isFinite(degrees) && degrees % 90 === 0) {
+    // `%` keeps the sign of the dividend, so a negative angle lands in -3..0;
+    // adding 4 before the second `%` folds it into the quadrant table.
+    const quadrant = ((((degrees / 90) % 4) + 4) % 4) as 0 | 1 | 2 | 3;
+    return [
+      { sin: 0, cos: 1 },
+      { sin: 1, cos: 0 },
+      { sin: 0, cos: -1 },
+      { sin: -1, cos: 0 },
+    ][quadrant]!;
+  }
+  const t = (degrees * Math.PI) / 180;
+  return { sin: Math.sin(t), cos: Math.cos(t) };
+}
+
+/**
  * `M = T(cx, cy) . R(theta) . S(scaleX, scaleY) . T(-cx, -cy)` — `07` §6.2.
  *
  *     a = scaleX * cos t      c = -scaleY * sin t
@@ -61,9 +91,7 @@ function axes(attrs: TransformAttributes): { sx: number; sy: number } {
  */
 export function transformMatrix(attrs: TransformAttributes, box: CellBox): Matrix {
   const { cx, cy } = cellCentre(box);
-  const t = (attrs.rotation * Math.PI) / 180;
-  const cos = Math.cos(t);
-  const sin = Math.sin(t);
+  const { sin, cos } = sincos(attrs.rotation);
   const { sx, sy } = axes(attrs);
 
   const a = sx * cos;

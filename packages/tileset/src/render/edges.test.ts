@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Grid, Layout, TileState } from "../types.js";
 import { cellBox, type GridGeometry } from "./geometry.js";
 import { coverRect, drawList, snap, snappedGrid, xEdges, yEdges } from "./edges.js";
+import { applyMatrix, sincos, type Matrix } from "./transform.js";
 import { assetKey } from "./provider.js";
 
 /** The reported case: design width 1000, cell size 100, render box 827px. */
@@ -241,6 +242,127 @@ describe("drawList — 07 R10, R5, G4", () => {
     const cells = gridOf(1, 1, () => ({ ...identity("t1"), opacity: 0.25 }));
     const list = drawList({ layout, rows: 1, columns: 1, Wpx: 827 }, cells, 2, assetKey);
     expect(list[0]!.alpha).toBe(0.25);
+  });
+});
+
+describe("the quarter turn — R7 on a rect that snapping made non-square", () => {
+  /** The four corners of a rect, mapped through a matrix. */
+  const corners = (m: Matrix, x: number, y: number, w: number, h: number) =>
+    [
+      applyMatrix(m, x, y),
+      applyMatrix(m, x + w, y),
+      applyMatrix(m, x, y + h),
+      applyMatrix(m, x + w, y + h),
+    ] as const;
+
+  /**
+   * A cell whose snapped rect is non-square, which is the condition the bug needs
+   * and which nothing in the test can assume — `offsetLayout`'s fractional
+   * `yOffset` puts the two axes on different fractional origins, but *which* cell
+   * comes out 133 x 132 depends on the width. Found rather than hardcoded, and
+   * asserted below, so this cannot quietly become a square-cell test.
+   */
+  function nonSquare(rotation: number, extra: Partial<TileState> = {}) {
+    const g = offsetGeo(827);
+    const cells = gridOf(g.rows, g.columns, () => ({ ...identity("t1"), rotation, ...extra }));
+    const list = drawList(g, cells, 2, assetKey);
+    const item = list.find((i) => i.dw !== i.dh);
+    expect(item).toBeDefined();
+    return item!;
+  }
+
+  it("has a non-square snapped cell to test against at all", () => {
+    const item = nonSquare(0);
+    expect(Math.abs(item.dw - item.dh)).toBe(1);
+  });
+
+  it("is exactly axis-aligned — 0 and ±1, not 6.12e-17", () => {
+    for (const rotation of [90, 180, 270]) {
+      const m = nonSquare(rotation).matrix!;
+      // `-0` occurs and is harmless — `-scaleY * 0` at 180deg — and contributes
+      // nothing to a sum. What matters is that no entry is 6.12e-17.
+      for (const entry of [m[0], m[1], m[2], m[3]]) expect([0, 1, -1]).toContain(entry);
+    }
+  });
+
+  it("maps the blit rect onto the cell rect EXACTLY — the seam", () => {
+    // The regression. Before `blitRect`, a 133 x 132 cell rotated a quarter turn
+    // covered 132 x 133 about the same centre and left half a device pixel of the
+    // cell bare down each side, which the unrotated neighbour did not fill.
+    for (const rotation of [90, 270]) {
+      const item = nonSquare(rotation);
+      const [tl, tr, bl, br] = corners(item.matrix!, item.bx, item.by, item.bw, item.bh);
+      const got = new Set([tl, tr, bl, br].map((p) => `${p.x},${p.y}`));
+      const want = new Set([
+        `${item.dx},${item.dy}`,
+        `${item.dx + item.dw},${item.dy}`,
+        `${item.dx},${item.dy + item.dh}`,
+        `${item.dx + item.dw},${item.dy + item.dh}`,
+      ]);
+      // Strict equality on integers: `toBeCloseTo` would pass on the bug.
+      expect(got).toEqual(want);
+    }
+  });
+
+  it("transposes the blit rect, and only for a quarter turn", () => {
+    for (const rotation of [90, 270]) {
+      const item = nonSquare(rotation);
+      expect(item.bw).toBe(item.dh);
+      expect(item.bh).toBe(item.dw);
+      // Same centre — the transpose moves no midpoint.
+      expect(item.bx + item.bw / 2).toBe(item.cx);
+      expect(item.by + item.bh / 2).toBe(item.cy);
+    }
+    for (const rotation of [0, 180, 45, 91]) {
+      const item = nonSquare(rotation);
+      expect([item.bx, item.by, item.bw, item.bh]).toEqual([item.dx, item.dy, item.dw, item.dh]);
+    }
+  });
+
+  it("still composes with scale — S is taken about the same centre", () => {
+    const item = nonSquare(90, { scale: 2 });
+    const mapped = corners(item.matrix!, item.bx, item.by, item.bw, item.bh);
+    // The cell rect's own corners, each grown by 2 about (cx, cy). A quarter turn
+    // permutes which corner goes where, so compare the sets, as above.
+    const grow = (v: number, c: number) => c + (v - c) * 2;
+    const got = new Set(mapped.map((p) => `${p.x},${p.y}`));
+    const want = new Set(
+      [
+        [item.dx, item.dy],
+        [item.dx + item.dw, item.dy],
+        [item.dx, item.dy + item.dh],
+        [item.dx + item.dw, item.dy + item.dh],
+      ].map(([x, y]) => `${grow(x!, item.cx)},${grow(y!, item.cy)}`),
+    );
+    expect(got).toEqual(want);
+  });
+
+  it("leaves a free angle free — 07 §7.1, spilling is the point", () => {
+    // A 45deg drawable cannot cover its cell's corners from any rect, and nothing
+    // here should try to make it.
+    const item = nonSquare(45);
+    const [tl] = corners(item.matrix!, item.bx, item.by, item.bw, item.bh);
+    expect(tl.x).not.toBe(item.dx);
+  });
+});
+
+describe("sincos — exact on the axes, Math elsewhere", () => {
+  it("is exact at every multiple of 90, including negative and wrapped", () => {
+    expect(sincos(0)).toEqual({ sin: 0, cos: 1 });
+    expect(sincos(90)).toEqual({ sin: 1, cos: 0 });
+    expect(sincos(180)).toEqual({ sin: 0, cos: -1 });
+    expect(sincos(270)).toEqual({ sin: -1, cos: 0 });
+    expect(sincos(360)).toEqual({ sin: 0, cos: 1 });
+    expect(sincos(-90)).toEqual({ sin: -1, cos: 0 });
+    expect(sincos(-270)).toEqual({ sin: 1, cos: 0 });
+    expect(sincos(450)).toEqual({ sin: 1, cos: 0 });
+  });
+
+  it("hands everything else to Math unchanged, to the ulp", () => {
+    for (const d of [45, 1, -12.5, 359.9, 89.999]) {
+      expect(sincos(d).sin).toBe(Math.sin((d * Math.PI) / 180));
+      expect(sincos(d).cos).toBe(Math.cos((d * Math.PI) / 180));
+    }
   });
 });
 

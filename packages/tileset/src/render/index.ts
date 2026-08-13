@@ -27,12 +27,14 @@ export {
   applyMatrix,
   cssTransform,
   isIdentityTransform,
+  sincos,
   transformMatrix,
   type Matrix,
   type TransformAttributes,
 } from "./transform.js";
 
 export {
+  blitRect,
   coverRect,
   drawList,
   snap,

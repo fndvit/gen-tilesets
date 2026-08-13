@@ -772,3 +772,46 @@ round for that.
 
 **Reversing this is one word** and no data migration: `substrate` writes no field and is not in
 `TilesetFile`. If a consumer turns up for whom SSR is the harder requirement, they set the prop.
+
+---
+
+### 2026-08-13 — a quarter-turned cell is drawn into the cell rect's *pre-image*
+
+**Arose in:** the seams that survived ADR-006, and which appear **only under a rotation that
+varies**. A constant 180deg is clean; deleting the Operation is clean; a stepped random
+0/90/180/270 hairlines. No spec answers this because no spec knows the rect is snapped.
+
+`07` §6.2's matrix is stated about a cell box, and `07` **R7** says a drawable at unit scale
+occupies exactly its cell box. Both are true of the **ideal** cell, which is square. ADR-006
+draws against the **snapped** cell, and snapping the two axes against different fractional
+origins (`originX` centres the grid, `originY` carries `yOffset`) routinely makes that rect
+non-square by one device pixel — 133 x 132 where the ideal cell is square. A quarter turn
+transposes the extents: a 133 x 132 rect rotated 90deg about its own centre is 132 x 133 about
+the same centre, so half a device pixel of the cell is left bare down each side. The unrotated
+neighbour covers exactly its own cell and no more, so the shortfall is backdrop. 180deg
+preserves the extents, which is exactly why the constant case never seamed and the varying one
+did — the failing angles were the two the user could not tell apart from the working ones.
+
+**Answer:** under a quarter turn the substrate fills the cell rect's **pre-image** — the
+transposed rect about the same centre — which the rotation maps back onto the cell rect exactly.
+`blitRect` in `edges.ts`, spent by both substrates (**S10**, **R1**); `DrawItem` carries it as
+`bx/by/bw/bh`, and it equals the cell rect for every other cell. `coverRect` follows it, so
+**R8**'s centre-crop is taken against the rect actually being filled and a quarter-turned tile
+is not cropped to a different aspect than an unrotated one.
+
+`07` §6.2 is **untouched**. The matrix is the same matrix; what changed is the rect it is applied
+to. This is a consequence of ADR-006's snapping and lives with it, not a reversal of anything —
+had `edges.ts` never existed, the ideal square rect would be its own pre-image and `blitRect`
+would be the identity everywhere.
+
+**Non-multiples of 90 are deliberately left alone.** A 45deg drawable cannot cover its own cell's
+corners from any starting rect, and `07` §7.1 makes spilling the point of the attribute set: a
+free rotation is meant to show what is behind it. Only the quarter turns claim to tile, so only
+the quarter turns are made to.
+
+**`sincos` came with it** (`transform.ts`, used by `transformMatrix` too). `Math.cos(90 * PI/180)`
+is `6.12e-17`, so a quarter turn was not exactly axis-aligned and the exactness claim above could
+not be made — the mapped corner has to *be* the snapped integer corner, not sit near it. Multiples
+of 90 are read off a table; every other angle still goes through `Math` to the ulp. No vector table
+exists yet (ADR-004), so nothing was regenerated to accommodate this; the tables will record the
+exact values when they are drawn.
