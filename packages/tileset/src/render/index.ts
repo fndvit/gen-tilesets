@@ -33,6 +33,17 @@ export {
 } from "./transform.js";
 
 export {
+  coverRect,
+  drawList,
+  snap,
+  snappedGrid,
+  xEdges,
+  yEdges,
+  type DrawItem,
+  type SnappedGrid,
+} from "./edges.js";
+
+export {
   assetKey,
   defaultProvider,
   type AssetProvider,

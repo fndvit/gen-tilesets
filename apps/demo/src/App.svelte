@@ -34,6 +34,13 @@
   let width = $state(100);
   let failures = $state<string[]>([]);
 
+  /**
+   * ADR-006. The demo carries the toggle because this is where the two are
+   * comparable: a near-black backdrop, a continuous width slider, and no display
+   * zoom in the way. Sweep the slider on each and the difference is the point.
+   */
+  let substrate = $state<"canvas" | "dom">("canvas");
+
   function onAssetError(ref: AssetRef, cause: unknown): void {
     // `08` **S6** — the host owns the error channel. A host that ignores this
     // gets a silently incomplete background in production.
@@ -60,6 +67,14 @@
       Render box width <code>{width}%</code>
       <input type="range" min="30" max="100" bind:value={width} />
     </label>
+
+    <label>
+      Substrate
+      <select bind:value={substrate}>
+        <option value="canvas">canvas — seamless</option>
+        <option value="dom">dom — one img per cell, SSR-able</option>
+      </select>
+    </label>
   </div>
 
   <p class="note">
@@ -75,7 +90,7 @@
     prop: `07` §5.3 makes every quantity a fixed fraction of Wpx (`08` §4).
   -->
   <div class="frame" style="width: {width}%;">
-    <Tileset file={fixture} {seed} {loadSalt} {onAssetError} />
+    <Tileset file={fixture} {seed} {loadSalt} {substrate} {onAssetError} />
   </div>
 
   {#if failures.length > 0}

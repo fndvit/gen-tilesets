@@ -33,7 +33,7 @@
 -->
 <script lang="ts">
   import { selection, type TilesetConfig } from "@tileset/core";
-  import { cellBox, naturalHeight, type GridGeometry } from "@tileset/core/render";
+  import { naturalHeight, snappedGrid, type GridGeometry } from "@tileset/core/render";
 
   interface Props {
     g: GridGeometry;
@@ -79,15 +79,29 @@
     return out;
   });
 
-  /** Percentages, so the overlay is correct at every `Wpx` with nothing to recompute (`07` §5.3). */
+  /**
+   * Percentages, so the overlay is correct at every `Wpx` with nothing to
+   * recompute (`07` §5.3) — but taken from the **snapped** edges the renderer
+   * draws, not from `cellBox` directly (ADR-006).
+   *
+   * **R1** is the reason. `cellBox` is the ideal fractional geometry; since
+   * ADR-006 the picture is drawn on the device pixel grid, up to half a device
+   * pixel away from it. An overlay drawn from `cellBox` while the tiles are drawn
+   * from `snappedGrid` is exactly §6.1's failure — "the picture is right, the
+   * selection boxes are a few pixels off, and nothing anywhere reports it" —
+   * smaller than before but reintroduced by hand. One mapping, so: the same one.
+   */
   const height = $derived(naturalHeight(g));
+  const dpr = $derived(typeof window === "undefined" ? 1 : window.devicePixelRatio || 1);
+  const edges = $derived(snappedGrid(g, dpr));
 
   function styleOf([x, y]: [number, number]): string {
-    const b = cellBox(g, x, y);
     const pct = (n: number, total: number): number => (total > 0 ? (n / total) * 100 : 0);
+    const left = edges.x[x]! / dpr;
+    const top = edges.y[y]! / dpr;
     return (
-      `left: ${pct(b.left, g.Wpx)}%; width: ${pct(b.right - b.left, g.Wpx)}%; ` +
-      `top: ${pct(b.top, height)}%; height: ${pct(b.bottom - b.top, height)}%;`
+      `left: ${pct(left, g.Wpx)}%; width: ${pct(edges.x[x + 1]! / dpr - left, g.Wpx)}%; ` +
+      `top: ${pct(top, height)}%; height: ${pct(edges.y[y + 1]! / dpr - top, height)}%;`
     );
   }
 </script>

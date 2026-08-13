@@ -130,7 +130,10 @@
    * measuring, and an editor calling `getBoundingClientRect()` on an exposed
    * element is doing something else.
    */
-  let renderBox = $state<HTMLDivElement | null>(null);
+  // `HTMLElement` since ADR-006: under the default `substrate="canvas"` the render
+  // box is the `<canvas>` itself. `paint.ts`'s `metricsOf` already takes the wider
+  // type, because all it does is measure.
+  let renderBox = $state<HTMLElement | null>(null);
 
   /**
    * §8.5's load preview. **Writes no field** — §8.1's fourth row is the one that

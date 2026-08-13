@@ -22,8 +22,11 @@
 <script lang="ts">
   import { generate } from "../generate.js";
   import type { TileState, TilesetFile } from "../types.js";
-  import { cellPlacementPercent, naturalRatio } from "./geometry.js";
+  import { cellPlacementPercent, naturalRatio, type GridGeometry } from "./geometry.js";
   import { cssTransform, isIdentityTransform } from "./transform.js";
+  import { coverRect, drawList, snappedGrid } from "./edges.js";
+  import { currentDpr, observeDpr, observeWidth } from "./measure.js";
+  import { ImageBank } from "./images.js";
   import {
     assetKey,
     defaultProvider,
@@ -44,6 +47,27 @@
     onAssetError?: (ref: AssetRef, cause: unknown) => void;
 
     /**
+     * Which substrate draws the grid — **ADR-006**, `08` §13. Defaults to
+     * `"canvas"`.
+     *
+     * **`"canvas"` is the only one that can promise a seamless grid**, and the
+     * promise is structural rather than careful: adjacent tiles are neighbouring
+     * pixels of one bitmap, so there is no boundary between them for a backdrop
+     * to show through. No host-page CSS can open one — a parent `transform`,
+     * `filter`, `zoom`, or animation re-rasterizes a picture that is already
+     * seamless, and the worst it can do is soften it.
+     *
+     * **`"dom"` is one `<img>` per cell**, which is what `08` §6.3 describes and
+     * what this component did before ADR-006. Its cell edges are snapped to the
+     * same shared device-pixel array, so it is correct on its own — but it is a
+     * grid of separate elements, and any ancestor that re-rasterizes the subtree
+     * re-opens the seam. Take it when SSR or a no-JavaScript render matters more
+     * than that guarantee: it draws complete geometry in the initial HTML, where
+     * `"canvas"` emits an empty box of the right ratio and fills it after mount.
+     */
+    substrate?: "canvas" | "dom";
+
+    /**
      * The render box element — `08` §7, bindable and read-only in practice.
      *
      * **The host measures; the renderer does not.** `07` **R5** forbids the
@@ -57,8 +81,12 @@
      * and `cellAt`. In particular there is **no exported grid**: an overlay shows
      * which cells an Operation *selects*, which `09` derives from the Operation
      * it is editing, never from the drawn output.
+     *
+     * `HTMLElement` rather than `HTMLDivElement` since ADR-006: under
+     * `substrate="canvas"` the render box *is* the `<canvas>`. Every use of it is
+     * `getBoundingClientRect()`, which does not care.
      */
-    box?: HTMLDivElement | null;
+    box?: HTMLElement | null;
   }
 
   // There is no width prop: `07` §5.3 makes every quantity a fixed fraction of
@@ -74,6 +102,7 @@
     loadSalt = 0,
     provider = defaultProvider,
     onAssetError,
+    substrate = "canvas",
     box = $bindable(null),
   }: Props = $props();
 
@@ -200,20 +229,243 @@
    * of them.
    */
   function cellStyle(cell: TileState, x: number, y: number): string {
+    let style = domPlacement(x, y);
+    if (!isIdentityTransform(cell)) style += ` transform: ${cssTransform(cell)};`;
+    if (cell.opacity < 1) style += ` opacity: ${cell.opacity};`;
+    return style;
+  }
+
+  /**
+   * The DOM substrate's placement, in two regimes.
+   *
+   * **Before measurement — and therefore in the server-rendered HTML — this is
+   * percentages**, which is `cellPlacementPercent`: correct at every width with
+   * nothing measured, per `07` §5.3. That is the whole reason the `"dom"`
+   * substrate still exists.
+   *
+   * **After measurement it is px from the same snapped edge array the canvas
+   * draws**, so neighbours share an edge here too rather than each rounding
+   * independently (`07` §5.6, **R6**). It is the best a grid of separate elements
+   * can do; what it cannot do is survive an ancestor that re-rasterizes the
+   * subtree, which is why it is not the default.
+   *
+   * The swap happens on mount and moves each cell by at most half a device pixel,
+   * so there is no visible reflow — and `08` **S8**'s reserved space is the box's,
+   * not the cells', so nothing shifts around it either.
+   */
+  function domPlacement(x: number, y: number): string {
+    const edges = snapped;
+    if (edges !== null) {
+      const left = edges.x[x]! / dpr;
+      const top = edges.y[y]! / dpr;
+      return (
+        `width: ${edges.x[x + 1]! / dpr - left}px; ` +
+        `height: ${edges.y[y + 1]! / dpr - top}px; ` +
+        `margin-left: ${left}px; ` +
+        `margin-top: ${top}px;`
+      );
+    }
     const { leftPercent, topPercent, sidePercent } = cellPlacementPercent(
       layout,
       file.config.columns,
       x,
       y,
     );
-    let style =
-      `width: ${sidePercent}%; ` +
-      `margin-left: ${leftPercent}%; ` +
-      `margin-top: ${topPercent}%;`;
-    if (!isIdentityTransform(cell)) style += ` transform: ${cssTransform(cell)};`;
-    if (cell.opacity < 1) style += ` opacity: ${cell.opacity};`;
-    return style;
+    return (
+      `width: ${sidePercent}%; ` + `margin-left: ${leftPercent}%; ` + `margin-top: ${topPercent}%;`
+    );
   }
+
+  // ---------------------------------------------------------------- canvas ---
+  //
+  // ADR-006. Everything below is inert under `substrate="dom"`.
+
+  /** The two numbers ADR-006 measures. Nothing else about the element is read. */
+  let measuredWidth = $state(0);
+  let dpr = $state(currentDpr());
+
+  let canvas = $state<HTMLCanvasElement | null>(null);
+  const bank = new ImageBank();
+  /** Bumped when a decode lands, so the paint effect re-runs. `bank` is plain. */
+  let bankVersion = $state(0);
+
+  // Both substrates measure, because both snap to the same shared edges. What
+  // differs is only what they do before the first measurement: the DOM path draws
+  // a complete percentage-placed grid, the canvas path draws nothing.
+  $effect(() => observeDpr((next) => (dpr = next)));
+
+  $effect(() => {
+    const el = box;
+    if (el === null) return;
+    return observeWidth(el, (next) => (measuredWidth = next));
+  });
+
+  // `box` is the render box whichever substrate is drawing. The DOM path binds it
+  // directly; the canvas path binds `canvas` and mirrors it here, since one
+  // element cannot carry two `bind:this`.
+  $effect(() => {
+    if (substrate !== "canvas") return;
+    box = canvas;
+    return () => {
+      box = null;
+    };
+  });
+
+  /**
+   * `(tileId, assetId)` -> `src`, for the bank.
+   *
+   * Resolution is still `drawables`', and a provider may be lazy — `AssetProvider`
+   * returns `Drawable | Promise<Drawable>` and the DOM path simply `{#await}`s it.
+   * The canvas path has no template to await in, so a pending provider is awaited
+   * here and lands in this map when it settles. Skipping promises instead would
+   * make every asynchronous provider draw nothing at all, silently.
+   */
+  let sources = $state(new Map<string, string>());
+
+  $effect(() => {
+    if (substrate !== "canvas") return;
+    const seen = drawables;
+    let live = true;
+
+    const settle = (key: string, src: string): void => {
+      if (!live) return;
+      if (sources.get(key) === src) return;
+      const next = new Map(sources);
+      next.set(key, src);
+      sources = next;
+    };
+
+    // Drop keys the config no longer references, so a deleted Tile stops drawing.
+    if ([...sources.keys()].some((key) => !seen.has(key))) {
+      sources = new Map([...sources].filter(([key]) => seen.has(key)));
+    }
+
+    for (const [key, value] of seen) {
+      if (value instanceof Promise) {
+        // A rejection has already been reported through `onAssetError` where the
+        // provider threw, or is reported by the bank if the URL fails to load.
+        void value.then((d) => settle(key, d.src)).catch(() => {});
+      } else {
+        settle(key, value.src);
+      }
+    }
+
+    return () => {
+      live = false;
+    };
+  });
+
+  $effect(() => {
+    if (substrate !== "canvas") return;
+    bank.sync(
+      sources,
+      () => bankVersion++,
+      (key, cause) => {
+        const [tileId, assetId] = key.split(" ");
+        if (tileId === undefined || assetId === undefined) return;
+        onAssetError?.({ tileId, assetId, meta: metaByKey.get(key) ?? {} }, cause);
+      },
+    );
+  });
+
+  const geometry = $derived<GridGeometry>({
+    layout,
+    rows: file.config.rows,
+    columns: file.config.columns,
+    Wpx: measuredWidth,
+  });
+
+  /**
+   * The shared edge array — `edges.ts`, and the substance of the whole fix.
+   *
+   * `null` until the box has been measured. Device px, integral, so cell `x`'s
+   * right edge **is** cell `x+1`'s left edge.
+   */
+  const snapped = $derived(measuredWidth > 0 ? snappedGrid(geometry, dpr) : null);
+
+  /**
+   * The draw list, in render-space CSS px on the device pixel grid.
+   *
+   * Recomputed when the grid, the width, or the DPR changes, and on nothing else
+   * — in particular not when an image finishes decoding. Geometry is committed
+   * before resolution is attempted and never revised as a result of it, which is
+   * `07` **R5**'s substance and the reason a missing asset leaves a hole in a
+   * laid-out grid rather than collapsing it.
+   */
+  const items = $derived(measuredWidth > 0 ? drawList(geometry, grid, dpr, assetKey) : []);
+
+  /**
+   * Paint.
+   *
+   * Reads `items` and `bank.ready`, so it re-runs when either moves — a decode
+   * completing repaints without recomputing geometry.
+   */
+  $effect(() => {
+    if (substrate !== "canvas") return;
+    const el = canvas;
+    const list = items;
+    const ratioNow = dpr;
+    const wpx = measuredWidth;
+    // Read so the effect re-runs when a decode lands. `ImageBank` is a plain
+    // object by design, so its map is not itself reactive.
+    void bankVersion;
+    const ready = bank.ready;
+    if (el === null || wpx <= 0) return;
+
+    // The backing store is the box in device pixels, and the draw list is already
+    // in device px, so the context is left unscaled: every coordinate written
+    // below is an integer in the canvas's own space. Scaling the context by the
+    // DPR and drawing in CSS px would put the arithmetic back into floating point
+    // for no gain.
+    const bw = Math.max(1, Math.round(wpx * ratioNow));
+    const bh = Math.max(1, Math.round((wpx / ratio) * ratioNow));
+    if (el.width !== bw) el.width = bw;
+    if (el.height !== bh) el.height = bh;
+
+    const ctx = el.getContext("2d");
+    if (ctx === null) return;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, bw, bh);
+    // Nearest-neighbour would alias the interior of every downscaled tile; the
+    // seam problem this fixes is about *edges*, which are now integral, so
+    // smoothing costs nothing at the boundary and buys quality inside.
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    for (const item of list) {
+      const img = ready.get(item.key);
+      // R3 — a cell with no drawable draws nothing. No placeholder, and not
+      // another TileAsset from the same Tile: falling back to a sibling would
+      // keep the picture plausible and silently reweight the distribution D3
+      // exists to make deterministic.
+      if (img === undefined) continue;
+
+      const { sx, sy, sw, sh } = coverRect(img.naturalWidth, img.naturalHeight, item.dw, item.dh);
+      if (sw <= 0 || sh <= 0) continue;
+
+      const alpha = item.alpha;
+      const m = item.matrix;
+
+      if (m === null && alpha >= 1) {
+        // The common case: an axis-aligned blit onto whole device pixels.
+        ctx.drawImage(img, sx, sy, sw, sh, item.dx, item.dy, item.dw, item.dh);
+        continue;
+      }
+
+      ctx.save();
+      if (alpha < 1) ctx.globalAlpha = alpha;
+      if (m !== null) {
+        // D11 / R7 — `edges.ts` built this about the cell's own centre, so the
+        // drawable is scaled before it is rotated and both are taken about the
+        // box it is drawn into. R9: whatever spills is clipped by the canvas,
+        // which is the render box, and nothing else clips.
+        ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, item.dx, item.dy, item.dw, item.dh);
+      ctx.restore();
+    }
+  });
 </script>
 
 <!--
@@ -232,7 +484,21 @@
 
   **§4.5** — the output is decorative. The box is `aria-hidden` and every image
   carries `alt=""`. Meaningful content is never a tile.
+
+  **ADR-006** — under `substrate="canvas"` the render box *is* the canvas: one
+  element, no per-cell nodes, and **R9**'s clip for free because a canvas cannot
+  draw outside itself. Everything above still holds of it; a canvas takes
+  `aspect-ratio` and a percentage width like any other element, and its `width` /
+  `height` attributes are the backing store, not the layout size.
 -->
+{#if substrate === "canvas"}
+  <canvas
+    class="tileset"
+    style="aspect-ratio: {ratio};"
+    aria-hidden="true"
+    bind:this={canvas}
+  ></canvas>
+{:else}
 <div class="tileset" style="aspect-ratio: {ratio};" aria-hidden="true" bind:this={box}>
   <!--
     Cells are painted in row-major order — ascending y, then ascending x within a
@@ -275,12 +541,17 @@
     {/if}
   {/each}
 </div>
+{/if}
 
 <style>
   .tileset {
     position: relative;
     display: block;
     width: 100%;
+    /* The canvas's `width`/`height` attributes are its backing store, in device
+       pixels; these two keep the *layout* size the box S8 and S9 describe. */
+    height: auto;
+    max-width: 100%;
     /* S9 — the component owns this element and styles it with no padding and no
        border, so Wpx is unambiguously its width. */
     padding: 0;

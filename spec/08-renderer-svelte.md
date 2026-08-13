@@ -603,3 +603,77 @@ attributes emits no `transform` at all._
 - The drawn picture moves by sub-pixels. Under **R14** that is a major bump after 1.0; before 1.0
   it is a fix. `cellBox`, `cellAt`, and `07` **R15**'s two vector tables are **unaffected** — the
   exact arithmetic did not move, and neither did §5.4's worked example.
+
+---
+
+## 13. The substrate is a choice — ADR-006
+
+§12 moved placement off the transform and the seams got fainter. They did not go. Two causes
+remained that no geometry reaches, and ADR-006 carries the full account; this section records what
+the component now is.
+
+### 13.1 What §12 could not fix
+
+**An asset antialiases its own outer edge.** A tile whose background covers exactly its viewBox —
+which is how a tile is naturally authored — has that edge antialiased into transparency whenever it
+is rasterized into a box that is not a whole number of device pixels. Two neighbours then each
+contribute *partial* coverage to the shared boundary pixel and the backdrop survives between them.
+The renderer cannot legislate this away: in the editor the assets are whatever the author uploaded.
+
+**Any ancestor transform re-rasterizes the subtree.** A parent's `transform`, `filter`, `zoom`, or
+animation defeats every snap below it, and on a host page the component has no say in whether one
+is there.
+
+### 13.2 The shared edge array
+
+`edges.ts` computes one array of **integer device-pixel** edges per axis, from `originX` / `originY`
+/ `s`. Cell `x`'s right edge and cell `x+1`'s left edge are the same array element. Not two
+expressions that agree — one value, so a gap is unrepresentable rather than unlikely. This is
+`07` §5.6's own sentence cashed: _"Any snapping — if a substrate needs it — is applied to the shared
+edge, so that both cells move together and the seam cannot open."_
+
+Device pixels rather than CSS pixels is what also lands the asset's own boundary on the grid, fully
+covered. Integers rather than a snapped float because `round(v * dpr) / dpr` is not exactly
+representable at a DPR of 3 and the identity would degrade to an approximation.
+
+Computing it requires `Wpx` and `devicePixelRatio`, so **the renderer measures**, against `07`
+**R5** and §5.3. ADR-006 carries that reversal.
+
+### 13.3 The prop
+
+**Invariant S12** — _`<Tileset>` takes `substrate?: "canvas" | "dom"`, defaulting to `"canvas"`.
+Both draw the same geometry from the same snapped edges; only the substrate differs._
+
+```
+substrate="canvas"          substrate="dom"
+<canvas class="tileset">    <div class="tileset">
+                              <div class="cell"><img></div>   × rows·columns
+                            </div>
+```
+
+**`"canvas"`** — the render box *is* the canvas. One element, no per-cell nodes, and adjacent tiles
+are neighbouring pixels of one bitmap, so no host-page CSS can open a gap between them. **R9**'s
+clip is free, because a canvas cannot draw outside itself. It emits an empty box of the correct
+ratio before its images decode, so **S8** still reserves the right space and there is still no
+layout shift.
+
+**`"dom"`** — §6.3's substrate, one `<img>` per cell, placed from percentages until the box is
+measured and from the snapped edges after. Correct on its own, and the only path that emits
+complete geometry in server-rendered HTML — which is what it is kept for. It cannot promise what
+canvas promises, because it is a grid of separate elements.
+
+`box` is therefore typed `HTMLElement`, not `HTMLDivElement`. Every use of it is
+`getBoundingClientRect()`, which does not care.
+
+### 13.4 What holds in both
+
+**R10**'s row-major paint order, **R9**'s single clipping boundary, **R7** and **D11**'s
+transform about the drawable's centre, **R3**'s draw-nothing on a failed asset, **S6**'s error
+channel, **S1**–**S4**, **S7**, and **S9**. `cellBox` and `cellAt` are untouched, so `07` §5.4's
+worked example and **R15**'s vector tables are unaffected — the ideal mapping did not move, and a
+substrate snapped to the device grid stays within half a device pixel of it.
+
+**S10** now has a second half: an overlay draws from the *snapped* edges, not from `cellBox`
+directly. `07` **R1** wants one mapping and the drawn one is the snapped one; an overlay taking the
+ideal geometry while the tiles take the snapped would be §6.1's "the picture is right, the
+selection boxes are a few pixels off" reintroduced by hand.

@@ -745,3 +745,30 @@ were being chased that was one more variable that had to be excluded by hand.
 `Wpx` is still unclamped and still exceeds the column freely under the display zoom, and
 `09` §9.2's **E11** still writes no field. Rounding rather than flooring would be equally
 defensible; flooring loses at most one pixel and cannot make the frame overflow its gutter.
+
+---
+
+### 2026-08-12 — `substrate` defaults to `"canvas"`, not to `"dom"`
+
+**Arose in:** the seam fix, after ADR-006 established that both substrates exist. The ADR settles
+*that* there are two and what each costs; which one an unconfigured `<Tileset>` gets is not a
+question any spec answers.
+
+**Answer:** `"canvas"`.
+
+The tie-breaker is who is hurt by a wrong default. A consumer who needs SSR knows they need SSR —
+it is a property of their build, they will read the prop, and `"dom"` is one word away. A consumer
+who gets `"dom"` by default gets a component that is *almost always* seamless, on *their* pages,
+until some ancestor they did not write acquires a `transform` and hairlines appear across a
+background nobody is currently looking at. The first failure is loud at build time; the second is
+silent, intermittent, and attributed to anything but the tileset. `07` §5.6 already says as much
+about this class of bug: "invisible at some widths and obvious at others, and one of the harder
+things to attribute after the fact."
+
+It also matches what the component is for. A generated tileset is decorative background
+(`08` §4.5) — it is not content a crawler needs and not something a no-JavaScript visitor is
+deprived of. Trading a guarantee for the server-rendered version of a picture is the wrong way
+round for that.
+
+**Reversing this is one word** and no data migration: `substrate` writes no field and is not in
+`TilesetFile`. If a consumer turns up for whom SSR is the harder requirement, they set the prop.

@@ -23,13 +23,13 @@
   is (`07` §8.2), and the editor never reimplements it.
 -->
 <script lang="ts">
-  import { cellBox, naturalHeight, type GridGeometry } from "@tileset/core/render";
+  import { naturalHeight, snappedGrid, type GridGeometry } from "@tileset/core/render";
   import { addCell, cellUnder, hasCell, metricsOf, removeCell, type Cell } from "../paint.js";
 
   interface Props {
     g: GridGeometry;
     /** The render box element — `08` §7. Null until `<Tileset>` mounts. */
-    box: HTMLDivElement | null;
+    box: HTMLElement | null;
     cells: Cell[];
     onChange: (cells: Cell[]) => void;
     /** The parameter's name, so the layer says which control it is writing. */
@@ -98,15 +98,23 @@
    * expressed as a percentage of the layer is correct at every width and under
    * the display zoom with nothing to recompute on a resize. The same reason
    * `<Tileset>` places its own cells this way.
+   *
+   * From the **snapped** edges since ADR-006, not from `cellBox` directly — the
+   * hover box has to land on the cell the author is about to paint, and the
+   * renderer now draws on the device pixel grid. `07` **R1** wants one mapping;
+   * `SelectionOverlay` carries the longer note.
    */
   const height = $derived(naturalHeight(g));
+  const dpr = $derived(typeof window === "undefined" ? 1 : window.devicePixelRatio || 1);
+  const edges = $derived(snappedGrid(g, dpr));
 
   function styleOf(cell: Cell): string {
-    const b = cellBox(g, cell[0], cell[1]);
     const pct = (n: number, total: number): number => (total > 0 ? (n / total) * 100 : 0);
+    const left = edges.x[cell[0]]! / dpr;
+    const top = edges.y[cell[1]]! / dpr;
     return (
-      `left: ${pct(b.left, g.Wpx)}%; width: ${pct(b.right - b.left, g.Wpx)}%; ` +
-      `top: ${pct(b.top, height)}%; height: ${pct(b.bottom - b.top, height)}%;`
+      `left: ${pct(left, g.Wpx)}%; width: ${pct(edges.x[cell[0] + 1]! / dpr - left, g.Wpx)}%; ` +
+      `top: ${pct(top, height)}%; height: ${pct(edges.y[cell[1] + 1]! / dpr - top, height)}%;`
     );
   }
 </script>
