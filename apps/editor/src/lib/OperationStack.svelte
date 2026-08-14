@@ -26,6 +26,7 @@
 -->
 <script lang="ts">
   import { TARGETS, type Operation } from "@tileset/core";
+  import type { Snippet } from "svelte";
   import { removeOperation, rerollOperation, setReseedOnLoad } from "../document.js";
   import { offersReseedOnLoad } from "../reseed.js";
   import { session } from "../session.svelte.js";
@@ -42,9 +43,31 @@
      * would be a second read of the same array with a `find` that cannot fail.
      */
     onEdit: (op: Operation) => void;
+
+    /**
+     * The panel the open draft renders into — supplied by the caller, placed by
+     * this component.
+     *
+     * The split is the point: **where** a draft belongs is a fact about the
+     * list, which is here; **what** a draft is remains a fact about `drafting`,
+     * which is not. This component still imports neither the draft state nor the
+     * panel that edits it.
+     */
+    draftPanel?: Snippet;
+
+    /**
+     * The Operation an open **edit**-draft names, or `null` for a create-draft
+     * and for no draft at all.
+     *
+     * A create-draft has no row to sit under — its Operation does not exist yet —
+     * so `null` is what puts the panel under the button that started it. The
+     * caller derives this from `drafting.editing`, never from "is this id in the
+     * stack?", which the mode flag exists to avoid (`drafting.svelte.ts`).
+     */
+    editingId?: string | null;
   }
 
-  let { onCreate, onEdit }: Props = $props();
+  let { onCreate, onEdit, draftPanel, editingId = null }: Props = $props();
 
   const operations = $derived(session.file.config.operations);
 
@@ -161,6 +184,17 @@
             </label>
           {/if}
         </div>
+
+        <!--
+          The edit-draft opens **here**, inside the row it edits, rather than at
+          the foot of the section. The panel names one Operation and changing it
+          moves that Operation's picture and nothing else (§4.3); a panel a
+          scroll away from its subject makes the author hold the pairing in their
+          head, and with a long stack they cannot see both at once at all.
+        -->
+        {#if draftPanel !== undefined && editingId === op.id}
+          <div class="draft-slot">{@render draftPanel()}</div>
+        {/if}
       </li>
     {/each}
   </ol>
@@ -169,6 +203,14 @@
 <button class="create" onclick={onCreate}>
   {operations.length === 0 ? "Create the first operation" : "Add operation"}
 </button>
+
+<!--
+  A create-draft has no row of its own, so it stays under the button that started
+  it — which is its subject, in the same way the row is an edit's.
+-->
+{#if draftPanel !== undefined && editingId === null}
+  <div class="draft-slot">{@render draftPanel()}</div>
+{/if}
 
 <style>
   /* The panel shell and its heading belong to `lib/Section.svelte`, which wraps
@@ -252,6 +294,12 @@
 
   .flags input {
     margin: 0;
+  }
+
+  /* Spans the row for the same reason `.flags` does — the panel is about the
+     whole Operation, not about one of the grid's columns. */
+  .draft-slot {
+    grid-column: 1 / -1;
   }
 
   /* Edit and reroll are the two non-destructive row actions and read as a pair;

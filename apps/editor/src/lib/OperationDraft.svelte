@@ -52,10 +52,17 @@
      * keeps taking props and a callback and nothing else.
      */
     editing: boolean;
+    /**
+     * Whether the panel is rendered inside an operation row rather than under
+     * the section's button. Purely presentational: the row is already the inset
+     * off-white this panel uses, and a card the same colour as what it sits in
+     * stops reading as a card.
+     */
+    nested?: boolean;
     onClose: () => void;
   }
 
-  let { draft, editing, onClose }: Props = $props();
+  let { draft, editing, nested = false, onClose }: Props = $props();
 
   const selectionRegistrations = selections.all();
   const sourceRegistrations = sources.all();
@@ -159,7 +166,7 @@
   }
 </script>
 
-<section class="panel">
+<section class="panel" class:nested>
   <header>
     <h2>{editing ? "Edit operation" : "New operation"}</h2>
     <code class="id">{draft.id}</code>
@@ -359,6 +366,13 @@
     border-radius: 6px;
     padding: 0.85rem;
     margin-top: 0.75rem;
+  }
+
+  /* Inside an operation row, which is that same off-white already. White here is
+     what keeps the card a card — one level further in, not one level flatter. */
+  .panel.nested {
+    background: #fff;
+    margin-top: 0.55rem;
   }
 
   header {

@@ -518,23 +518,36 @@
         </Section>
 
         <Section title="Operations">
-          <OperationStack
-            onCreate={() => drafting.start(nextOperationId(config.operations.map((o) => o.id)))}
-            onEdit={(op) => drafting.edit(op)}
-          />
-
           <!--
-            The draft opens **inside this section**, under the button that starts
-            it. It is not a section of its own: it is a workflow that is either
+            The draft opens **inside this section**, and `OperationStack` places
+            it: under the row it edits, or under the button that starts a new
+            one. It is not a section of its own: it is a workflow that is either
             running or not, and a collapsible one would hide a step the author is
             mid-way through. Collapsing Operations does hide it, which is right —
             it belongs to this card — and nothing is lost, since `drafting` holds
             the draft until it is committed or discarded.
+
+            `editingId` comes from `drafting.editing`, not from looking the id up
+            in the stack: that lookup is exactly the inference `drafting.svelte.ts`
+            records the mode to avoid.
           -->
-          {#if drafting.draft !== null}
-            {@const draft = drafting.draft}
-            <OperationDraft {draft} editing={drafting.editing} onClose={() => drafting.discard()} />
-          {/if}
+          <OperationStack
+            onCreate={() => drafting.start(nextOperationId(config.operations.map((o) => o.id)))}
+            onEdit={(op) => drafting.edit(op)}
+            editingId={drafting.editing ? (drafting.draft?.id ?? null) : null}
+          >
+            {#snippet draftPanel()}
+              {#if drafting.draft !== null}
+                {@const draft = drafting.draft}
+                <OperationDraft
+                  {draft}
+                  editing={drafting.editing}
+                  nested={drafting.editing}
+                  onClose={() => drafting.discard()}
+                />
+              {/if}
+            {/snippet}
+          </OperationStack>
         </Section>
 
         <!--
