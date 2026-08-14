@@ -29,6 +29,9 @@
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import ReferenceControls from "./ReferenceControls.svelte";
+  import ReferenceLayer from "./ReferenceLayer.svelte";
+  import { frameExtent, layerHeight, loadReference, type Reference } from "../reference.js";
 
   interface Props {
     /**
@@ -54,9 +57,17 @@
      * with it at most widths.
      */
     children: Snippet<[number]>;
+
+    /**
+     * `true` while §7.3's brush owns the pointer.
+     *
+     * The reference image's drag surface is not rendered then, so the stroke is
+     * never shadowed by it. The frame knows nothing else about the brush.
+     */
+    painting?: boolean;
   }
 
-  let { ratio, children }: Props = $props();
+  let { ratio, children, painting = false }: Props = $props();
 
   /**
    * The narrowest the frame may be dragged, in px.
@@ -176,6 +187,73 @@
    */
   const frameHeight = $derived(ratio > 0 ? width / ratio : 0);
 
+  /**
+   * The reference image and its three viewing controls — **E11** state, in the
+   * same place and for the same reason as `background`. `reference.ts` carries
+   * the reasoning; none of this reaches the file.
+   */
+  let reference = $state<Reference | null>(null);
+  let referenceError = $state<string | null>(null);
+  let yOffset = $state(0);
+  let opacity = $state(1);
+  let inFront = $state(false);
+
+  /** The image's height at the render box's width, or zero with none loaded. */
+  const imageHeight = $derived(reference === null ? 0 : layerHeight(width, reference));
+
+  /**
+   * What the viewport must reserve, in frame px.
+   *
+   * With no reference this is `{0, frameHeight}` and everything below reduces to
+   * what the frame did before the layer existed — the check that this is inert
+   * when unused.
+   */
+  const extent = $derived(frameExtent(frameHeight, imageHeight, reference === null ? 0 : yOffset));
+
+  async function pickReference(file: File): Promise<void> {
+    let next: Reference;
+    try {
+      next = await loadReference(file);
+    } catch (cause) {
+      // The previous reference, if any, is still drawn. A refusal costs the
+      // author nothing they had.
+      referenceError = cause instanceof Error ? cause.message : String(cause);
+      return;
+    }
+    referenceError = null;
+    reference = next;
+  }
+
+  function clearReference(): void {
+    reference = null;
+    referenceError = null;
+    yOffset = 0;
+  }
+
+  /**
+   * The object URL's whole lifetime, in one place.
+   *
+   * The cleanup runs when `reference` changes and again on unmount, so a
+   * replaced picture and an unmounted editor release identically and neither
+   * `pickReference` nor `clearReference` has to remember to. The store does the
+   * same thing by hand in `replaceAll`, where the ordering matters; here it does
+   * not, because nothing else holds the URL.
+   */
+  $effect(() => {
+    const held = reference;
+    return () => {
+      if (held !== null) URL.revokeObjectURL(held.url);
+    };
+  });
+
+  /** The drop half of the picker. One file; the rest are ignored, not refused. */
+  function onDrop(event: DragEvent): void {
+    const file = event.dataTransfer?.files?.[0];
+    if (file === undefined) return;
+    event.preventDefault();
+    void pickReference(file);
+  }
+
   interface Drag {
     pointerId: number;
     startX: number;
@@ -272,17 +350,67 @@
   </div>
 </div>
 
+<ReferenceControls
+  {reference}
+  error={referenceError}
+  onPick={(file) => void pickReference(file)}
+  onClear={clearReference}
+  onMatchWidth={() => {
+    if (reference !== null) requested = reference.width;
+  }}
+  {width}
+  {opacity}
+  {inFront}
+  {yOffset}
+  onOpacity={(next) => (opacity = next)}
+  onInFront={(next) => (inFront = next)}
+  onOffset={(next) => (yOffset = next)}
+/>
+
 <!--
   The track measures the room available; the viewport reserves the zoomed height
   so the page below does not jump; the frame is laid out at the true `Wpx` and
   scaled down for display only.
+
+  The drop target for a reference image is the track rather than the frame: the
+  frame carries the brush and the overlays, and a drop is not one of their
+  gestures. `dragover` must be prevented or the browser navigates to the file.
 -->
-<div class="track" bind:clientWidth={available}>
-  <div class="viewport" style="height: {frameHeight * zoom}px;">
+<div
+  class="track"
+  bind:clientWidth={available}
+  ondragover={(event) => event.preventDefault()}
+  ondrop={onDrop}
+  role="presentation"
+>
+  <!--
+    The height is the *union* of the render box and the image layer (`extent`),
+    not the render box's own — with no reference the two are the same number.
+  -->
+  <div class="viewport" style="height: {(extent.bottom - extent.top) * zoom}px;">
     <div
       class="frame"
-      style="width: {width}px; transform: scale({zoom}); --zoom: {zoom}; background: {background};"
+      style="width: {width}px; transform: scale({zoom}) translateY({-extent.top}px);
+             --zoom: {zoom}; background: {background};"
     >
+    <!--
+      Before the children so the source order says what the picture is: the page
+      underneath, then the tileset drawn on it. The layer's own `z-index` is what
+      actually decides, and it says why.
+    -->
+    {#if reference !== null}
+      <ReferenceLayer
+        {reference}
+        height={imageHeight}
+        {yOffset}
+        onOffset={(next) => (yOffset = next)}
+        {opacity}
+        {inFront}
+        {zoom}
+        draggable={!painting}
+      />
+    {/if}
+
     <!--
       Two handles, one per edge. They sit outside the render box: `08` **S9**
       gives the component's own element no padding and no border so that `Wpx` is
@@ -459,6 +587,10 @@
     position: absolute;
     top: 0;
     bottom: 0;
+    /* Above every layer inside the frame. They do not overlap the reference
+       image's rect, which stops at the frame's edges, but the width control
+       must not become the one thing a picture can cover. */
+    z-index: 4;
     /*
       Counter-scaled, so the grab target stays the same size on screen whatever
       the display zoom is. Without this a 60% zoom leaves a 5px handle, and at

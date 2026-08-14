@@ -687,7 +687,7 @@
         `PreviewFrame` is that CSS and nothing more — **E11**: it sets `Wpx` and
         writes no field.
       -->
-      <PreviewFrame ratio={naturalRatio(layout, config.rows)}>
+      <PreviewFrame ratio={naturalRatio(layout, config.rows)} painting={painting !== null}>
         {#snippet children(Wpx: number)}
           <!--
             **S2** — one component, drawing the complete stack. The brush layer

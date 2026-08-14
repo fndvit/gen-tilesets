@@ -815,3 +815,49 @@ not be made — the mapped corner has to *be* the snapped integer corner, not si
 of 90 are read off a table; every other angle still goes through `Math` to the ulp. No vector table
 exists yet (ADR-004), so nothing was regenerated to accommodate this; the tables will record the
 exact values when they are drawn.
+
+---
+
+### 2026-08-13 — Where does a reference image of the destination page live?
+
+**Arose in:** after the plan, from using the editor. Judging whether a tileset fits the page
+it decorates cost a full round trip — export the zip, drop it into the design, look, come back.
+
+The author already has a picture of the page at the width they are designing for, and the
+render box at `Wpx = 1440` is already precisely what a 1440px viewport shows (`07` §5.3). The
+question is what the picture *is* to the editor: a document field, or a viewing control.
+
+**Answer:** a viewing control, and the same category as `PreviewFrame`'s backdrop colour —
+**E11**, it changes what the author is looking at and writes no field; `09` §4.1 puts such
+state beside the file, never in it and never in `meta` (**E4**). So `schemaVersion` does not
+move, `validate()`'s strict key set is untouched, nothing joins the export zip, and no
+transition and no undo entry exist for it. It is session-scoped like the asset store
+(`09` §15 Q8) and does not survive a reload. `reference.ts`, `ReferenceLayer.svelte`,
+`ReferenceControls.svelte`, and four pieces of state in `PreviewFrame.svelte`.
+
+Three sub-answers the spec has nothing to say about:
+
+- **The image is drawn at `Wpx`, proportional, and is never cropped or fitted.** Its width is
+  the render box's; its height follows from its own ratio; the viewport reserves the *union* of
+  the two (`frameExtent`) so a tall screenshot scrolls in the panel rather than being clipped
+  to the band. Fitting the whole picture into whatever room the panel has would have been the
+  other option, and it breaks the one thing the feature is for: at `Wpx` = the image's own
+  width, one image px is one design px. A `match 1440` button makes that state reachable in one
+  click. Scaling to fit would put the author back to judging a composition at a size no visitor
+  gets — `07` §3's worst outcome, which the width control already refuses to produce.
+- **The layer names a `z-index`, and it is the only thing in the preview stack that does.**
+  Everything else layers by DOM order, which works because every other overlay belongs *above*
+  the picture — a positioned element paints above the static `<canvas>` whatever the source
+  order says. This is the one layer that may need to go underneath, which DOM order cannot
+  express. `.frame` already carries a `transform` and is therefore a stacking context, so the
+  negative value stays inside the frame and still paints above the frame's backdrop colour.
+- **The drag surface is a separate transparent element, not the image.** Behind the tiles the
+  canvas paints over the picture and hit-testing follows the paint order, so the image itself
+  can never be grabbed there. One surface at the image's rect behaves identically on both
+  sides, and it is simply not rendered while §7.3's brush owns the pointer, so a stroke is
+  never shadowed by it.
+
+`measure()` is reused from `assets.ts` rather than reimplemented: it is the editor's one answer
+to *can this be decoded, and how big is it* (**E13**), and its refusal of an SVG carrying only
+a `viewBox` matters more here than anywhere — such a file would be drawn at whatever width the
+layout gave it and would misreport the alignment silently.
