@@ -179,7 +179,7 @@ describe("the seed — 09 §8.2, 02 §6.6", () => {
 
   it("trims, so two seeds cannot differ by an invisible character", () => {
     // `02` §6.6 hashes the string, so "sunset " and "sunset" are different
-    // pictures with nothing on screen to tell them apart (`DECISIONS.md`).
+    // pictures with nothing on screen to tell them apart (`DECISIONS.md` D23).
     expect(run(setDefaultSeed("  sunset  ")).config.defaultSeed).toBe("sunset");
   });
 

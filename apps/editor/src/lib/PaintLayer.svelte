@@ -50,7 +50,7 @@
    * and make a drag across a half-painted region unpredictable — the author would
    * be inverting rather than painting.
    *
-   * Recorded in `DECISIONS.md`; §7.3 specifies the conversion and the bound and
+   * Recorded in `DECISIONS.md` D25; §7.3 specifies the conversion and the bound and
    * says nothing about the gesture.
    */
   let stroke: { pointerId: number; painting: boolean } | null = null;
@@ -174,7 +174,7 @@
   /*
     The cursor. Solid where the stroke would add, and warm where it would remove,
     so the mode the stroke will take is visible **before** it is committed to —
-    the gesture decides on pointer-down and keeps that mode (`DECISIONS.md`).
+    the gesture decides on pointer-down and keeps that mode (`DECISIONS.md` D25).
   */
   .hover {
     border: 1px dashed rgba(43, 108, 176, 0.8);

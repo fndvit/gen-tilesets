@@ -82,7 +82,7 @@
     };
   }
 
-  /** Drop on the library background: one Tile per file, per `DECISIONS.md`. */
+  /** Drop on the library background: one Tile per file, per `DECISIONS.md` D13. */
   async function dropAsTiles(files: File[]): Promise<void> {
     const ids = nextIds(
       files.length,
@@ -157,7 +157,7 @@
   }
 
   /**
-   * §4.2 / `DECISIONS.md`: refused, with the references named. The check runs
+   * §4.2 / `DECISIONS.md` D15: refused, with the references named. The check runs
    * here so the refusal can be explained; the transition refuses again on its
    * own terms.
    */

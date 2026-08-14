@@ -39,7 +39,7 @@
     g: GridGeometry;
     /**
      * The **shadow** config — `{ ...config, operations: [...operations, draft] }`
-     * where the Operation being edited is a draft (`DECISIONS.md` Q7). A pure
+     * where the Operation being edited is a draft (`DECISIONS.md` D7). A pure
      * local value; it touches nothing.
      */
     config: TilesetConfig;
@@ -64,7 +64,7 @@
    * is what `selection()` is shaped for: it fixes the effective seed and the
    * selection channel outside the closure.
    *
-   * `selection()` **throws** on an unresolvable id (`DECISIONS.md`), which is the
+   * `selection()` **throws** on an unresolvable id (`DECISIONS.md` D11), which is the
    * answer this component wants: the alternative, a predicate answering `false`
    * everywhere, draws an empty overlay indistinguishable from a Selection that
    * legitimately matches nothing — on the one screen where the author is judging

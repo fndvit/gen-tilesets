@@ -71,7 +71,7 @@ import type { Operation, TilesetConfig } from "./types.js";
  * judging exactly that. It is `05` **X7**'s reasoning applied to an id rather
  * than a type name: a plausible-looking wrong answer with no error anywhere is
  * worse than a stack trace. `09` §6.2 does not state this case; it is recorded
- * in `DECISIONS.md`.
+ * in `DECISIONS.md` D11.
  */
 export function selection(
   config: TilesetConfig,

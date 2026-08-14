@@ -92,7 +92,7 @@ export const ENGINE_VERSION: string = __ENGINE_VERSION__;
  *
  * ## The starting numbers
  *
- * **UI constants with no authority anywhere**, recorded in `DECISIONS.md`. No
+ * **UI constants with no authority anywhere**, recorded in `DECISIONS.md` D6. No
  * spec section supplies them; `08` §3.4 only requires that the skeleton be valid.
  *
  * `02` §7.1 derives `ceil(1000 / 100) = 10`, which is already even and so takes
@@ -171,7 +171,7 @@ export function newDocument(): TilesetFile {
  *
  * `yOffset` is not in that table and has a control here anyway — it is a
  * required `Layout` field (`06` §8) that nothing else reaches. Recorded in
- * `DECISIONS.md`.
+ * `DECISIONS.md` D4.
  *
  * ## Three of them re-derive `columns`, and that is destructive
  *
@@ -290,7 +290,7 @@ export function setYOffset(text: string): Transition {
  * control.
  *
  * **Trimmed**, and that is a real decision rather than tidying — recorded in
- * `DECISIONS.md`. `02` §6.6 hashes the string, so `"sunset "` and `"sunset"` are
+ * `DECISIONS.md` D23. `02` §6.6 hashes the string, so `"sunset "` and `"sunset"` are
  * two different pictures separated by an invisible character.
  */
 export function setDefaultSeed(text: string): Transition {
@@ -456,7 +456,7 @@ export function renameTile(tileId: string, name: string): Transition {
 }
 
 /**
- * **Refused where a palette references the Tile** (§4.2, and `DECISIONS.md`).
+ * **Refused where a palette references the Tile** (§4.2, and `DECISIONS.md` D15).
  *
  * §4.2 permits a cascade instead; what it forbids is the deletion landing "as a
  * dangling `tileId` and waiting for validation to notice — `06` §7.3's

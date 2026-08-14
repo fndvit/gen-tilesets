@@ -144,7 +144,7 @@ describe("refusals — E5, and never a dangling reference", () => {
     expect(tileReferences(withNumeric, "t1")).toEqual([]);
   });
 
-  it("refuses to delete a referenced Tile — §4.2, DECISIONS.md", () => {
+  it("refuses to delete a referenced Tile — §4.2, DECISIONS.md D15", () => {
     // What §4.2 forbids either way is the deletion landing "as a dangling
     // `tileId` and waiting for validation to notice".
     const file = referenced();

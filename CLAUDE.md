@@ -11,11 +11,11 @@ to generated output is a versioning problem, not a conformance one (`05` **X9**)
 | Path               | What                                                                           |
 | ------------------ | ------------------------------------------------------------------------------ |
 | `/spec`            | The specification. Read `/spec/README.md` first — not all of it binds equally. |
-| `/adr`             | Reversed or contested decisions. Four files: 001, 002, 004, 005.               |
+| `/adr`             | Reversed or contested decisions. Five files: 001, 002, 004, 005, 006.         |
 | `/attic`           | The authoring-phase audit and its harvests. Historical. **Do not cite it.**    |
 | `DECISIONS.md`     | Append-only. **Only what the spec does not answer.** See below.                |
 | `packages/tileset` | Engine and renderer. `@tileset/core`.                                          |
-| `apps/editor`      | The editor. In progress — dev server on 5174.                                  |
+| `apps/editor`      | The editor. Built — dev server on 5174.                                        |
 | `apps/demo`        | A fixture page for the renderer. Port 5173.                                    |
 
 ## Rules
@@ -47,7 +47,8 @@ Three additions to the package's exported surface, all recorded in `DECISIONS.md
 - **`SelectionRegistration.coordinateBound`** — `04` §4.4, `09` **E12**. Which Selections a
   resize orphans, declared rather than listed in the editor. **X5**'s reasoning transplanted.
 - **`<Tileset>` exposes its render box element** — `08` §7. The editor needs it to convert a
-  pointer event into render space, which `07` §8.2 assigns to the caller. **R5** is untouched.
+  pointer event into render space, which `07` §8.2 assigns to the caller. **R5** was untouched
+  *by this* — ADR-006 is what later contradicted it. See *The seams* below.
 
 **The editor is complete.** All twelve steps of the plan, 0–11, are done:
 
@@ -98,11 +99,56 @@ them. All are done, `pnpm test` and `pnpm typecheck` are green, and the reasonin
    a file from a **newer** build — and the editor branches on `migrate()`'s outcome rather than
    inferring it from an error code.
 
+### The seams, and what they cost — ADR-006 and two decisions after it
+
+Adjacent tiles showed hairlines of the backdrop. Two fixes shipped before the real one and the
+geometry was never wrong: `cellBox` derives both sides of every seam from one expression and has
+a test asserting it. What remained were causes correct arithmetic does not reach — an asset that
+antialiases its own outer edge, and **any ancestor transform**, which re-rasterizes the subtree
+and defeats every snap below it. `PreviewFrame` does that to itself with its display zoom, and on
+a host page it arrives as a parent's `transform`, `filter`, or animation the component has no say
+in. A grid of separate elements cannot promise seamlessness on a page we do not control.
+
+1. **ADR-006 — a canvas substrate, and the renderer measures.** `edges.ts` computes one array of
+   **integer device-pixel** edges per axis, so cell `x`'s right edge and cell `x+1`'s left edge
+   are *the same array element* — a gap is unrepresentable, not merely unlikely. Device pixels
+   rather than CSS pixels, because that also lands the asset's own boundary on the device grid.
+   `<Tileset>` takes `substrate?: "canvas" | "dom"`, and **the render box *is* the `<canvas>`**:
+   one element, no per-cell nodes, no boundary for a backdrop to show through. `"dom"` keeps the
+   `<img>`-per-cell path from the same snapped edges and is what SSR emits.
+   **This contradicts `07` **R5** and §5.3's flat "no measurement is required"** — read the ADR's
+   cost table before citing either, and before citing **S5**, `08` §4.2, or `07` §6.4. Not given
+   up: `cellBox`, `cellAt`, `originX`, `originY`, `scaleFactor`, `naturalRatio`, **R10**, **R9**,
+   **R7**/**D11**, **R3**, **S6**, and **R15**'s two tables.
+2. **`substrate` defaults to `"canvas"`** — `DECISIONS.md`, not the ADR. The tie-breaker is who a
+   wrong default hurts: a consumer needing SSR knows it at build time, where a consumer silently
+   given `"dom"` gets hairlines attributed to anything but the tileset. Reversing it is one word
+   and no migration — `substrate` writes no field and is not in `TilesetFile`.
+3. **A quarter-turned cell is drawn into the cell rect's *pre-image*.** The seams that survived
+   ADR-006 appeared **only under a rotation that varies**: snapping two axes against different
+   fractional origins makes the snapped rect non-square by one device pixel, and a quarter turn
+   transposes its extents. `blitRect` in `edges.ts` supplies the transposed rect, spent by both
+   substrates; `coverRect` follows it. `07` §6.2 is untouched — the same matrix, a different rect.
+   Non-multiples of 90° are deliberately left alone (`07` §7.1 makes spilling the point).
+   `sincos` came with it, so a quarter turn is *exactly* axis-aligned rather than 6.12e-17 off.
+
+**A reference image of the destination page**, added after the plan from using the editor. It is
+a **viewing control** in the same category as the backdrop colour — **E11**, it changes what the
+author looks at and writes no field; `09` §4.1 puts such state beside the file, never in it and
+never in `meta` (**E4**). So `schemaVersion` does not move, `validate()`'s key set is untouched,
+nothing joins the export zip, and there is no transition and no undo entry for it. Drawn at `Wpx`,
+proportional, never cropped or fitted; the viewport reserves the union of it and the render box.
+`reference.ts`, `ReferenceLayer.svelte`, `ReferenceControls.svelte`, and four pieces of state in
+`PreviewFrame.svelte`. It is the only thing in the preview stack that names a `z-index`, because
+it is the only layer that may need to go *underneath* the picture.
+
 ### Next, in order
 
 1. **The five vector tables** — unblocked since units 1–9 passed, and now that the editor
    exercises the engine there are real configs to draw them from. ADR-004 governs. The transform
-   table gains `scale` rows; existing rows must be identical at `scale = 1`.
+   table gains `scale` rows; existing rows must be identical at `scale = 1`. It also records the
+   quarter turns as `sincos` now returns them — exact, not 6.12e-17 off. Nothing was regenerated
+   to accommodate that, because no table exists yet.
 2. **Reference configs** — `05` §11.1, once `vignette` exists to exercise.
 3. **E15's development assertion**, now that `validate()` exists to make it available.
 
@@ -114,10 +160,25 @@ answer.** Where the spec answers a question, the citation belongs in the code in
 Read it before re-deciding anything about the editor — it is where the reasoning lives for the
 brush's stroke gesture, the shadow config the overlay resolves against, the id scheme, the
 refusal on deleting a referenced Tile, the preview-width zoom, what an edit-in-place preserves,
-and what an import reads. Around thirty-five entries.
+what an import reads, why `substrate` defaults to `"canvas"`, and where a reference image lives.
+Forty-three entries, `D1`–`D43`.
 
-`/adr` is the other half: **ADR-005** is the one that reversed a specification decision, adding
-`scale` against `03` §5.4's rejection of it and `03` **D7**'s closure of the attribute set.
+**Every entry has a permanent `D<n>`; cite it by that.** Ids are never reused and never
+renumbered — `01` §11.4's rule, applied here because code cites this file and, before the ids
+existed, some of those citations named a `Q7`/`Q8` numbering it never carried. `Q<n>` in this
+repository always means the **spec's** open-questions list (`09` §15), never a decision.
+
+The header carries two rules worth knowing before appending: a constant with no authority earns
+a **comment at the constant, not an entry** (the rule that said otherwise is retired, and the
+five entries it produced are not a precedent), and an entry **graduates out** — into the spec
+once it is part of the engine's contract, into an ADR if it reverses one, into a code comment if
+it is editor-internal — so the file tracks unsettled reasoning rather than growing without
+bound. There was a second `apps/editor/DECISIONS.md`; its two entries are now D25 and D26.
+
+`/adr` is the other half, and **two of the five reversed a specification decision**: **ADR-005**
+added `scale` against `03` §5.4's rejection of it and `03` **D7**'s closure of the attribute set,
+and **ADR-006** gave up **R5** and `08` **S5**. Each carries its own cost table; that table is
+the thing to read, because both left spec prose standing that is now false in the letter.
 
 ## Deferred on purpose
 

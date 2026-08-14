@@ -15,7 +15,7 @@
  * The word lists are **UI constants with no authority anywhere.** Nothing cites
  * them, no output depends on which words are in them, and adding or removing one
  * moves no picture — a seed is a string and every string hashes (`02` §6.6).
- * Recorded in `DECISIONS.md` because they are constants in editor code that no
+ * Recorded in `DECISIONS.md` D12 because they are constants in editor code that no
  * spec section supplies.
  *
  * Chosen to be short, unambiguous when spoken aloud, and free of characters that

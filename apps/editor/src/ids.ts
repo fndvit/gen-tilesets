@@ -35,7 +35,7 @@
  * This is why the ids here are opaque counters rather than slugs of the author's
  * name. A name-derived id disagrees with its own Tile the first time the author
  * renames it, and §10.1 forbids the editor from ever blocking a rename.
- * Recorded in `DECISIONS.md`.
+ * Recorded in `DECISIONS.md` D14.
  */
 
 /**

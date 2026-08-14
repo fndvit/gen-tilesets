@@ -212,7 +212,7 @@
   });
 
   /**
-   * The **shadow config** the overlay resolves against — `DECISIONS.md` Q7's
+   * The **shadow config** the overlay resolves against — `DECISIONS.md` D7's
    * recorded consequence.
    *
    * `selection()` resolves an Operation **by id** and the draft is not in the
@@ -296,7 +296,7 @@
   /**
    * The brush's write. Straight into the draft's parameters, which are transient
    * UI state — **nothing here touches the file**, and cannot: the whole draft
-   * reaches it as one transition when it is complete (`DECISIONS.md` Q7).
+   * reaches it as one transition when it is complete (`DECISIONS.md` D7).
    */
   function paintCells(name: string, cells: Cell[]): void {
     const draft = drafting.draft;

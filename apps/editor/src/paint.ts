@@ -78,7 +78,7 @@ export function metricsOf(box: HTMLElement): BoxMetrics {
  *
  * `PreviewFrame` lays the frame out at the true `Wpx` and scales the whole thing
  * down with a CSS transform when `Wpx` exceeds the editor's column
- * (`DECISIONS.md`, *A preview width wider than the editor's own column*). A
+ * (`DECISIONS.md` D18). A
  * `getBoundingClientRect()` is post-transform and `offsetWidth` is pre-transform,
  * so their ratio **is** that zoom — recovered from the element rather than passed
  * in, which means no caller can pass the wrong one and a host that scales the

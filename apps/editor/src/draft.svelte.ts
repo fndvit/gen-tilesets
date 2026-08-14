@@ -1,5 +1,5 @@
 /**
- * The create-operation draft — `09-editor.md` §4.1, §4.2; `DECISIONS.md` Q7.
+ * The create-operation draft — `09-editor.md` §4.1, §4.2; `DECISIONS.md` D7.
  *
  * **The draft is transient UI state and is not in the file.** §4.1 puts such
  * state "beside the file, keyed by the identifiers the file already carries",
@@ -53,7 +53,7 @@ import { defaultNumericMapping, isTileTarget } from "./controls/mapping.js";
  * advisory about a reordered palette under `random`, both make the attribute
  * step depend on the **Source**, which comes after it. The steps are therefore
  * navigable in any order once opened rather than being a one-way wizard, and the
- * mapping control re-reads the Source whenever it changes (`DECISIONS.md` Q8).
+ * mapping control re-reads the Source whenever it changes (`DECISIONS.md` D8).
  */
 export type Step = "selection" | "attribute" | "source" | "blend";
 
@@ -77,7 +77,7 @@ export interface Draft {
    */
   salt: number;
   reseedOnLoad: boolean;
-  /** `null` until the author picks one. No default is invented (`DECISIONS.md` Q7). */
+  /** `null` until the author picks one. No default is invented (`DECISIONS.md` D7). */
   selectionType: string | null;
   selectionParams: Record<string, unknown>;
   target: TargetName | null;

@@ -9,7 +9,7 @@
  * ## Why a zip
  *
  * **E14** requires the file and the folder *together*, and a browser cannot write
- * a folder unaided. Recorded in `DECISIONS.md`, with the two rejected
+ * a folder unaided. Recorded in `DECISIONS.md` D9, with the two rejected
  * alternatives:
  *
  * - **The File System Access API** — Chromium only, so a Chrome-only editor.

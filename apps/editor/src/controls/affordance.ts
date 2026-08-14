@@ -65,7 +65,7 @@ export type Affordance =
  *
  * §7.1 says "a slider with integer steps, **or a stepper where narrow**" and
  * does not define narrow. A **UI constant with no authority anywhere**, recorded
- * in `DECISIONS.md`. `octaves` is `1–3` and is the only V1 parameter it decides.
+ * in `DECISIONS.md` D16. `octaves` is `1–3` and is the only V1 parameter it decides.
  */
 const NARROW = 5;
 

@@ -24,7 +24,7 @@
  *
  * In memory, for the session, as a `Blob` behind an object URL. `09` §15 Q8
  * leaves this **open** — "IndexedDB, the file system, a server" — and it is
- * recorded in `DECISIONS.md`. Nothing survives a reload, which is consistent
+ * recorded in `DECISIONS.md` D2. Nothing survives a reload, which is consistent
  * with everything else in this build.
  *
  * **Invariant R2** — for the duration of a render session the same `AssetRef`

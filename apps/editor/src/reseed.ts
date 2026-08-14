@@ -20,7 +20,7 @@ import { sources, type Operation, type TilesetConfig } from "@tileset/core";
 /**
  * `2³²`. `06` **C9** narrows a salt to an integer in `[0, 2³²)`.
  *
- * The literal appears here once. `DECISIONS.md` records it as a constant owing an
+ * The literal appears here once. `DECISIONS.md` D10 records it as a constant owing an
  * entry even though `09` §8.3 answers it outright — "the editor increments by one
  * and wraps at 2³²".
  */

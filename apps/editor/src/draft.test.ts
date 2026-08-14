@@ -1,5 +1,5 @@
 /**
- * The draft's two conversions — `09-editor.md` §4.2, §4.3; `DECISIONS.md` Q7.
+ * The draft's two conversions — `09-editor.md` §4.2, §4.3; `DECISIONS.md` D7.
  *
  * `fromOperation` and `toOperation` are inverses over legal Operations, and that
  * is the property worth testing rather than either one alone: an edit that does

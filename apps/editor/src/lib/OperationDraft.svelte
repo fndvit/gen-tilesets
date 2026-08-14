@@ -17,7 +17,7 @@
   **The steps stay navigable after the fact rather than being a one-way wizard.**
   §7.4's collapse to a single handle under a `constant` Source, and §7.6's
   advisory about a reordered palette under `random`, both make the attribute step
-  depend on the Source that follows it (`DECISIONS.md` Q8).
+  depend on the Source that follows it (`DECISIONS.md` D8).
 -->
 <script lang="ts">
   import { selections, sources, TARGETS, type AttributeName, type TargetName } from "@tileset/core";
@@ -98,7 +98,7 @@
    * undefined what happens when they disagree".
    *
    * Live rather than fixed at the time the attribute step was visited, which is
-   * `DECISIONS.md` Q8's answer: the Source comes *after* the attribute in the
+   * `DECISIONS.md` D8's answer: the Source comes *after* the attribute in the
    * author's order, so this has to re-read it.
    */
   const collapsed = $derived(draft.sourceType === "constant");
@@ -134,7 +134,7 @@
   });
 
   /**
-   * The one transition — **E5**, and `DECISIONS.md` Q7: "the draft lives in
+   * The one transition — **E5**, and `DECISIONS.md` D7: "the draft lives in
    * transient UI state and commits to the file as one `TilesetFile ->
    * TilesetFile` transition when complete."
    *
@@ -328,7 +328,7 @@
   <!--
     **E5** — the draft reaches the file here and nowhere else, as **one**
     `TilesetFile -> TilesetFile` transition, because a half-built Operation is
-    not a legal one (`DECISIONS.md` Q7).
+    not a legal one (`DECISIONS.md` D7).
   -->
   <footer>
     <span class="missing">

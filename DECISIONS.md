@@ -1,14 +1,48 @@
 # Decisions
 
-Append-only. One entry per answer: the date, the question, the answer, and the step it
-arose in. Nothing else references this document.
+Append-only. One entry per answer: an id, the date, the question, the answer, and the step
+it arose in.
 
 It records **only what the specification does not answer.** Where the spec answers a
 question, the citation belongs in the code, not here.
 
+## Ids
+
+**Every entry carries a permanent `D<n>`, assigned at write time.** Ids are never reused and
+never renumbered — `01` §11.4's rule for section numbers, applied here for the same reason. A
+new entry takes the next unused number; a superseded entry keeps its id as a tombstone.
+
+**Code cites this document by id**, and around twenty sites do. Ids exist because they did
+not: `draft.svelte.ts` and `OperationDraft.svelte` cited a `Q7`/`Q8` numbering this file never
+carried, so the citations resolved to nothing. An entry with no address gets cited by
+description, and a description drifts.
+
+Note that **`09` §15 Q8 is the *specification's* numbering, not this file's.** Where an entry
+cites a `Q<n>`, it means the spec's open-questions list. This file's own entries are `D<n>`.
+
+## What does *not* earn an entry
+
+A constant with no authority — a port, a word list, a stack depth — belongs in a comment at
+the constant, where it is read. Entries D6, D10, D12, D20 and D32 were written under a rule
+that *every numeric constant in editor code owes an entry*; D10 records a question `09` §8.3
+already answers, and says so in its own text. **That rule is retired.** The five entries stand
+— the file is append-only — but they are not a precedent.
+
+## How an entry leaves
+
+The file records *unsettled* reasoning, not an archive of everything ever decided. An entry
+graduates when it settles:
+
+- **Into the spec** — when it has become part of the engine's contract. Section numbers are
+  append-only, so it takes the next unused section in the relevant document and the entry
+  shrinks to a stub pointing there.
+- **Into an ADR** — when it reverses a specification decision. Unchanged.
+- **Into a code comment** — when it is an editor-internal choice no contract depends on.
+- **It stays** — while it is live reasoning someone might otherwise re-litigate.
+
 ---
 
-### 2026-08-10 — Build `selection()`, or ship without the overlay?
+### D1 · 2026-08-10 — Build `selection()`, or ship without the overlay?
 
 **Arose in:** planning, before Step 0.
 
@@ -21,7 +55,7 @@ that the alternative would eventually invite.
 
 ---
 
-### 2026-08-10 — Where does a dropped asset live before export?
+### D2 · 2026-08-10 — Where does a dropped asset live before export?
 
 **Arose in:** planning, for Step 4. `09` §15 Q8 leaves it open — "IndexedDB, the file
 system, a server".
@@ -33,7 +67,7 @@ across a reload.
 
 ---
 
-### 2026-08-10 — Does the editor read a file back?
+### D3 · 2026-08-10 — Does the editor read a file back?
 
 **Arose in:** planning, for scope.
 
@@ -45,9 +79,14 @@ one-way in v1: every session starts from a new document.
 — `validate()` run after every transition — is not available, so E5 is held by discipline
 rather than by a check.
 
+> **Superseded by D37 and D38.** `validate()` shipped and import with it, so the round trip
+> is no longer one-way and the consequence above no longer holds — E15's assertion is now
+> available, though still unbuilt. The entry stands as written because the file is
+> append-only; read D37 for what an import actually reads and D38 for how it lands.
+
 ---
 
-### 2026-08-10 — Is there a `yOffset` control?
+### D4 · 2026-08-10 — Is there a `yOffset` control?
 
 **Arose in:** planning, for Step 2.
 
@@ -60,7 +99,7 @@ a new document starts with.
 
 ---
 
-### 2026-08-10 — Undo?
+### D5 · 2026-08-10 — Undo?
 
 **Arose in:** planning, for Step 10.
 
@@ -71,7 +110,7 @@ missing.
 
 ---
 
-### 2026-08-10 — A new document's numbers
+### D6 · 2026-08-10 — A new document's numbers
 
 **Arose in:** planning, for Step 1. `08` §3.4 requires a document to "begin life as a valid
 skeleton"; no spec document supplies the numbers.
@@ -88,7 +127,7 @@ touches the design width.
 
 ---
 
-### 2026-08-10 — When does a half-built Operation reach the file?
+### D7 · 2026-08-10 — When does a half-built Operation reach the file?
 
 **Arose in:** planning, for Step 6. The create-operation workflow has four steps, so
 between them the Operation is incomplete; **E5** forbids an illegal file at any instant,
@@ -107,7 +146,7 @@ nothing.
 
 ---
 
-### 2026-08-10 — Step order inside the create-operation workflow
+### D8 · 2026-08-10 — Step order inside the create-operation workflow
 
 **Arose in:** planning, for Step 6.
 
@@ -122,7 +161,7 @@ wizard.
 
 ---
 
-### 2026-08-10 — How does export produce a folder?
+### D9 · 2026-08-10 — How does export produce a folder?
 
 **Arose in:** planning, for Step 11. **E14** requires a `TilesetFile` and an asset folder
 *together*; a browser cannot write a folder unaided, and `09` §11.1 does not say how.
@@ -133,7 +172,7 @@ author reassembles the folder by hand, which reopens the exact hole §11.1 exist
 
 ---
 
-### 2026-08-10 — Does the reroll button wrap or saturate at 2³²?
+### D10 · 2026-08-10 — Does the reroll button wrap or saturate at 2³²?
 
 **Arose in:** planning, for Step 9.
 
@@ -145,7 +184,7 @@ every numeric constant there owes an entry.
 
 ---
 
-### 2026-08-10 — What does `selection()` do with an unresolvable `operationId`?
+### D11 · 2026-08-10 — What does `selection()` do with an unresolvable `operationId`?
 
 **Arose in:** Step 0. `09` §6.2 gives the signature and says nothing about the case.
 
@@ -161,7 +200,7 @@ Implemented in `packages/tileset/src/selection.ts` and asserted in `selection.te
 
 ---
 
-### 2026-08-10 — The memorable seed's word lists and number range
+### D12 · 2026-08-10 — The memorable seed's word lists and number range
 
 **Arose in:** Step 1. `09` §8.2 requires "a generated memorable seed in
 word-word-number form" and supplies no words and no range.
@@ -175,7 +214,7 @@ a word moves no picture. `06` §5 constrains `defaultSeed` only to length ≥ 1.
 
 ---
 
-### 2026-08-10 — How dropped files group into Tiles
+### D13 · 2026-08-10 — How dropped files group into Tiles
 
 **Arose in:** Step 4. `09` §10 specifies what an attach *writes* (**E13**) and says nothing
 about the gesture that starts one.
@@ -190,7 +229,7 @@ reaches both with one thing to learn.
 
 ---
 
-### 2026-08-10 — The generated id scheme
+### D14 · 2026-08-10 — The generated id scheme
 
 **Arose in:** Step 4. `09` §4.3 requires `Tile.id` and `TileAsset.id` to be generated and
 never authored, matching `[A-Za-z0-9_-]+` and excluding the colon (`06` **C10**). It does
@@ -206,7 +245,7 @@ is meaningless is never wrong.
 
 ---
 
-### 2026-08-10 — Deleting a Tile a palette references
+### D15 · 2026-08-10 — Deleting a Tile a palette references
 
 **Arose in:** Step 4. `09` §4.2 permits **either** behaviour: such a deletion "either
 removes those entries in the same transition or is refused with the references named".
@@ -220,7 +259,7 @@ author was not looking at.
 
 ---
 
-### 2026-08-10 — Where a bounded integer stops being a slider
+### D16 · 2026-08-10 — Where a bounded integer stops being a slider
 
 **Arose in:** Step 6a. `09` §7.1 maps a bounded integer to "a slider with integer steps, **or
 a stepper where narrow**" and does not define *narrow*.
@@ -233,7 +272,7 @@ entry stays exact either way, so the granularity decides feel and nothing else.
 
 ---
 
-### 2026-08-10 — The preview width control's minimum and its presets
+### D17 · 2026-08-10 — The preview width control's minimum and its presets
 
 **Arose in:** Step 3. `09` §9.2 specifies the control's *obligation* — it sets `Wpx` and
 writes no field (**E11**) — and says presets "carry no spec content". It supplies no
@@ -251,7 +290,7 @@ responds to them; a breakpoint would eventually select a `Layout`.
 
 ---
 
-### 2026-08-10 — A preview width wider than the editor's own column
+### D18 · 2026-08-10 — A preview width wider than the editor's own column
 
 **Arose in:** Step 3, corrected during Step 6a. `09` §9.2 requires the control to set `Wpx`
 and says nothing about a `Wpx` larger than the room the editor has.
@@ -277,7 +316,7 @@ divide by the zoom before reaching `cellAt`. The drag handles already do.
 
 ---
 
-### 2026-08-10 — Dragging one edge moves both
+### D19 · 2026-08-10 — Dragging one edge moves both
 
 **Arose in:** Step 3. `09` §9.2 requires a drag handle and says nothing about its geometry.
 
@@ -291,7 +330,7 @@ side would move the axis under the author while they were looking at the alignme
 
 ---
 
-### 2026-08-10 — The editor's dev-server port
+### D20 · 2026-08-10 — The editor's dev-server port
 
 **Arose in:** Step 1.
 
@@ -301,7 +340,7 @@ code.
 
 ---
 
-### 2026-08-10 — What happens to the Blend when the Target changes?
+### D21 · 2026-08-10 — What happens to the Blend when the Target changes?
 
 **Arose in:** Step 6c. `04` §7.2 gives every Target a default Blend and `09` §7.7 requires
 that default to be *shown*, but the accepted set is the **Target's** (**O7**) — so
@@ -317,29 +356,29 @@ choice the author made for no reason — switching `scaleX` to `scaleY` would si
 `add`. Also rejected: leaving the stranded pair and letting the commit gate refuse it, which
 is `06` **C6**'s error vocabulary doing an editing job **E5** assigns to the transition.
 
-**Consequence:** `blend` is the one draft field with a default, and that is not Q7's invented
+**Consequence:** `blend` is the one draft field with a default, and that is not D7's invented
 default reappearing. A Selection type, a Source type and a Target have no default anywhere in
 the spec, so picking one would be the editor deciding what the Operation does; a Blend's
 default is in `04` §7.2's table.
 
 ---
 
-### 2026-08-10 — Where the create-operation workflow commits
+### D22 · 2026-08-10 — Where the create-operation workflow commits
 
 **Arose in:** Step 6c, as the last thing the four steps needed to be worth walking.
 
 **Answer:** a single **Add operation** button in the draft panel's footer, enabled only when
-`isComplete`, applying `addOperation` — one `TilesetFile -> TilesetFile` transition, per Q7
+`isComplete`, applying `addOperation` — one `TilesetFile -> TilesetFile` transition, per D7
 above.
 
-Recorded not because the mechanism was open — Q7 fixed it — but because the *affordance*
+Recorded not because the mechanism was open — D7 fixed it — but because the *affordance*
 was: the panel is a rail of four navigable steps rather than a wizard, so there is no final
 step whose "next" doubles as the commit. The button therefore names what is still open rather
 than being disabled silently.
 
 ---
 
-### 2026-08-10 — Does the seed field trim?
+### D23 · 2026-08-10 — Does the seed field trim?
 
 **Arose in:** Step 9's seed field, pulled forward. `09` §8.2 says the author "types a string"
 and `06` §5 constrains `defaultSeed` only to length ≥ 1. Neither says what to do with
@@ -357,7 +396,7 @@ has not parsed yet, so it stays in the control and the file keeps its previous s
 
 ---
 
-### 2026-08-10 — A light editor, and a white render box
+### D24 · 2026-08-10 — A light editor, and a white render box
 
 **Arose in:** after Step 8, on request.
 
@@ -374,7 +413,51 @@ outline is the editor saying where the box ends; the box itself says nothing.
 
 ---
 
-### 2026-08-10 — The overlay draws the painted cells, not the brush
+### D25 · 2026-08-10 — The brush's gesture
+
+**Arose in:** Step 7. `09` §7.3 specifies the *conversion* — pointer to render space, then
+`cellAt` — and the bound, and says nothing about the gesture that drives them.
+
+**Answer:** a stroke. Pointer-down decides the mode from the cell it lands on — empty adds,
+painted erases — and the **whole stroke keeps that mode**, so a drag paints or erases but
+never both.
+
+Rejected: deciding per cell, which inverts every cell a drag crosses. Over a half-painted
+region that is unpredictable rather than merely different, and the author is holding a brush,
+not a toggle.
+
+`addCell` is idempotent for the same reason. A duplicated entry is legal and invisible —
+`cellList`'s predicate is a membership test, so the second copy changes nothing — which is
+exactly why it must not accumulate: the file would grow on every stroke with nothing to show
+for it and no way to see what to remove.
+
+---
+
+### D26 · 2026-08-10 — `<Tileset>` exposes its render box element
+
+**Arose in:** Step 7. `08` §7 requires it — "the component therefore exposes its render box
+element" — and it had not been built, so this is the same shape as Step 0's `selection()`:
+spec-mandated work, not a new surface.
+
+**Answer:** a bindable `box` prop. `08` §7's reasoning is adopted unchanged: converting a
+pointer event into render space is `07` §8.2's explicitly-assigned *caller* work and requires
+the box's position on screen, and "an editor calling `getBoundingClientRect()` on it is doing
+something **R5** does not touch".
+
+**`Wpx` is not read from the element.** `PreviewFrame` owns that number (**E11**) and passes
+it to its children, because a DOM measurement is not reactive and an overlay whose grid was
+computed from a stale width would disagree with the drawn one at exactly the moment the author
+drags the frame. The element is used for *position*, which is all §8.2 needs it for.
+
+**The display zoom is recovered from the element, not passed in.** `getBoundingClientRect()`
+is post-transform and `offsetWidth` is pre-transform, so their ratio *is* the zoom. No caller
+can pass the wrong one, and this is `05` **X7**'s posture applied to a number: a plausible
+wrong answer with no error anywhere — a click landing one cell off — is the failure mode to
+design out rather than to document.
+
+---
+
+### D27 · 2026-08-10 — The overlay draws the painted cells, not the brush
 
 **Arose in:** Step 8, which subsumed part of Step 7.
 
@@ -393,7 +476,7 @@ made them disagree.
 
 ---
 
-### 2026-08-11 — Where the four reroll affordances live
+### D28 · 2026-08-11 — Where the four reroll affordances live
 
 **Arose in:** Step 9. `09` §8.1 tabulates four controls and says what each writes. It does not
 say where any of them sits.
@@ -410,7 +493,7 @@ has to say so.
 
 ---
 
-### 2026-08-11 — The overlay is drawn at the previewed `loadSalt`
+### D29 · 2026-08-11 — The overlay is drawn at the previewed `loadSalt`
 
 **Arose in:** Step 9, and it is a correction to Step 8 rather than a new question.
 
@@ -429,7 +512,7 @@ through the seed instead of through the geometry.
 
 ---
 
-### 2026-08-11 — A Selection declares whether it is coordinate-bound
+### D30 · 2026-08-11 — A Selection declares whether it is coordinate-bound
 
 **Arose in:** Step 10. **E12** requires confirmation "whenever the config holds a
 coordinate-bound Selection", and `04` §4.4 supplies the table — procedural: `all`,
@@ -454,7 +537,7 @@ registration is in this repository.
 
 ---
 
-### 2026-08-11 — The orphan advisory asks the predicate, not the parameters
+### D31 · 2026-08-11 — The orphan advisory asks the predicate, not the parameters
 
 **Arose in:** Step 10, for §9.4's step 2.
 
@@ -475,7 +558,7 @@ purpose, so overhang is not a defect and only *reaches nothing* is reported.
 
 ---
 
-### 2026-08-11 — The undo stack's depth, and where its logic lives
+### D32 · 2026-08-11 — The undo stack's depth, and where its logic lives
 
 **Arose in:** Step 10.
 
@@ -496,7 +579,7 @@ to leave untested for the sake of one less file.
 
 ---
 
-### 2026-08-11 — The export path comes from `meta.src`, not from a second construction
+### D33 · 2026-08-11 — The export path comes from `meta.src`, not from a second construction
 
 **Arose in:** Step 11. **E14** requires every `meta.src` to be "a path relative to that folder's
 root", and `assets.ts` already builds that path at attach time. The obvious move when writing
@@ -515,7 +598,7 @@ agreeing.
 
 ---
 
-### 2026-08-11 — Export refuses rather than shipping an incomplete folder
+### D34 · 2026-08-11 — Export refuses rather than shipping an incomplete folder
 
 **Arose in:** Step 11. `09` §11 says what the export contains and not what to do when it
 cannot be assembled.
@@ -542,7 +625,7 @@ advisory, and **E16** forbids an advisory from blocking an action.
 
 ---
 
-### 2026-08-11 — Collapsed panels are per-session, and the shell is full-height
+### D35 · 2026-08-11 — Collapsed panels are per-session, and the shell is full-height
 
 **Arose in:** the editor layout rework. `09` §2 sends "visual design, layout of panels" to
 *nowhere* and §3.1 repeats it, so the shell itself needs no entry. What does is where the
@@ -567,7 +650,7 @@ preview defeated by layout. Nothing in the package depends on the arrangement.
 
 ---
 
-### 2026-08-12 — An Operation is edited in place, through the panel that creates one
+### D36 · 2026-08-12 — An Operation is edited in place, through the panel that creates one
 
 **Arose in:** the first round of additions after the editor's plan finished. `09` has no §15
 question about editing an existing Operation, and the spec answers none of what follows.
@@ -614,7 +697,7 @@ and `replaceOperation` preserving the index is what keeps them separate question
 
 ---
 
-### 2026-08-12 — What an import reads, and what it refuses
+### D37 · 2026-08-12 — What an import reads, and what it refuses
 
 **Arose in:** building import, which `09` §12.4 specifies the *policy* for — validate, refuse on
 any error, no partial import, no preview — while leaving the mechanics open.
@@ -651,7 +734,7 @@ present as an import that lost pictures with no error anywhere.
 
 ---
 
-### 2026-08-12 — An import replaces the store in one swap, and is undoable
+### D38 · 2026-08-12 — An import replaces the store in one swap, and is undoable
 
 **Arose in:** the same step. `09` §15 Q8 leaves the asset store's home open and says nothing about
 replacing all of it at once.
@@ -681,7 +764,7 @@ import starts one.
 
 ---
 
-### 2026-08-12 — Migration is a separate function, and an older file is never refused
+### D39 · 2026-08-12 — Migration is a separate function, and an older file is never refused
 
 **Arose in:** an author trying to open a file exported before ADR-005 and being told
 `SCHEMA_VERSION_UNKNOWN`. `06` §4.3 names "the migration table" while leaving it undefined,
@@ -726,7 +809,7 @@ is why the migration is a no-op.
 
 ---
 
-### 2026-08-12 — The *fill* preview width is floored to a whole pixel
+### D40 · 2026-08-12 — The *fill* preview width is floored to a whole pixel
 
 **Arose in:** the seam fix. The renderer's half is `08` §12 and is cited from the code, not
 here — this entry is only the editor's half, which no spec answers.
@@ -748,7 +831,7 @@ defensible; flooring loses at most one pixel and cannot make the frame overflow 
 
 ---
 
-### 2026-08-12 — `substrate` defaults to `"canvas"`, not to `"dom"`
+### D41 · 2026-08-12 — `substrate` defaults to `"canvas"`, not to `"dom"`
 
 **Arose in:** the seam fix, after ADR-006 established that both substrates exist. The ADR settles
 *that* there are two and what each costs; which one an unconfigured `<Tileset>` gets is not a
@@ -775,7 +858,7 @@ round for that.
 
 ---
 
-### 2026-08-13 — a quarter-turned cell is drawn into the cell rect's *pre-image*
+### D42 · 2026-08-13 — a quarter-turned cell is drawn into the cell rect's *pre-image*
 
 **Arose in:** the seams that survived ADR-006, and which appear **only under a rotation that
 varies**. A constant 180deg is clean; deleting the Operation is clean; a stepped random
@@ -818,7 +901,7 @@ exact values when they are drawn.
 
 ---
 
-### 2026-08-13 — Where does a reference image of the destination page live?
+### D43 · 2026-08-13 — Where does a reference image of the destination page live?
 
 **Arose in:** after the plan, from using the editor. Judging whether a tileset fits the page
 it decorates cost a full round trip — export the zip, drop it into the design, look, come back.

@@ -72,7 +72,7 @@
   /**
    * The narrowest the frame may be dragged, in px.
    *
-   * A **UI constant with no authority anywhere**, recorded in `DECISIONS.md`. It
+   * A **UI constant with no authority anywhere**, recorded in `DECISIONS.md` D17. It
    * exists so the handles cannot be dragged past each other, not because any
    * width is illegal: `07` §5.3 makes the layout correct at *every* `Wpx`, with
    * no minimum anywhere in the contract.
@@ -86,7 +86,7 @@
    * `06` §12's `layouts` extension point and is not used for them** — these
    * select a preview width and nothing in the file responds to them, where a
    * breakpoint would eventually select a `Layout`. UI constants; see
-   * `DECISIONS.md`.
+   * `DECISIONS.md` D17.
    */
   const PRESETS = [375, 768, 1024, 1440];
 

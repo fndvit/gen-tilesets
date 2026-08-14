@@ -19,7 +19,7 @@
 /**
  * How many files to keep.
  *
- * A **UI constant with no authority anywhere**, recorded in `DECISIONS.md`. It
+ * A **UI constant with no authority anywhere**, recorded in `DECISIONS.md` D32. It
  * exists because §5 notes that a slider dragged across a frame changes `file` on
  * every frame, so an unbounded stack holds every intermediate value of every
  * drag for the session.

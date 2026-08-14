@@ -52,7 +52,7 @@ describe("client coordinates to render space — 07 §8.2", () => {
 
   it("undoes the display zoom, because a rect is post-transform and offsetWidth is not", () => {
     // The frame is laid out at Wpx = 1000 and scaled to 60% to fit the column
-    // (`DECISIONS.md`, *A preview width wider than the editor's own column*).
+    // (`DECISIONS.md` D18).
     const metrics = box({ clientWidth: 600 });
     expect(toRenderSpace(metrics, 300, 150)).toEqual({ px: 500, py: 250 });
   });
