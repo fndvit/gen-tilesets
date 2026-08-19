@@ -7,6 +7,7 @@ import {
   addTiles,
   deleteAsset,
   deleteTile,
+  moveOperation,
   newDocument,
   removeOperation,
   renameTile,
@@ -244,5 +245,59 @@ describe("the operation stack — 09 §4.1, 02 §9, 06 §7", () => {
     // one is a bump." Muting is removal held in session state.
     const file = run(newDocument(), addOperation(op("op1")));
     expect(Object.keys(file.config.operations[0]!)).not.toContain("disabled");
+  });
+
+  describe("moveOperation — D44, 02 G3", () => {
+    const three = () =>
+      run(newDocument(), addOperation(op("op1")), addOperation(op("op2")), addOperation(op("op3")));
+    const ids = (file: TilesetFile) => file.config.operations.map((o) => o.id);
+
+    it("moves later, sliding the rest", () => {
+      expect(ids(run(three(), moveOperation("op1", 1)))).toEqual(["op2", "op1", "op3"]);
+    });
+
+    it("moves earlier, sliding the rest", () => {
+      expect(ids(run(three(), moveOperation("op3", 1)))).toEqual(["op1", "op3", "op2"]);
+    });
+
+    it("reaches both ends", () => {
+      expect(ids(run(three(), moveOperation("op3", 0)))).toEqual(["op3", "op1", "op2"]);
+      expect(ids(run(three(), moveOperation("op1", 2)))).toEqual(["op2", "op3", "op1"]);
+    });
+
+    it("is its own inverse when the move is undone by hand", () => {
+      const file = three();
+      expect(ids(run(file, moveOperation("op1", 2), moveOperation("op1", 0)))).toEqual(ids(file));
+    });
+
+    /**
+     * **G3** at the transition level — "each operation retains its own randomness
+     * as it moves". Randomness is keyed by `operationId` and `salt` (`02` §6.3),
+     * so a move that touched either would move the picture where the author only
+     * asked to change the composition.
+     */
+    it("changes no Operation, only their order", () => {
+      const file = three();
+      const after = run(file, moveOperation("op1", 2));
+      for (const before of file.config.operations) {
+        // The same object, not merely an equal one: nothing was rebuilt.
+        expect(after.config.operations).toContain(before);
+      }
+    });
+
+    /** The refusal contract (§4.2): an identity, so `session.apply` pushes nothing. */
+    const refusals: [why: string, id: string, index: number][] = [
+      ["the id matches nothing", "nope", 0],
+      ["it is already there", "op2", 1],
+      ["the destination is below the stack", "op1", -1],
+      ["the destination is past the end", "op1", 3],
+    ];
+
+    for (const [why, id, index] of refusals) {
+      it(`returns the file unchanged when ${why}`, () => {
+        const file = three();
+        expect(moveOperation(id, index)(file)).toBe(file);
+      });
+    }
   });
 });

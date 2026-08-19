@@ -65,11 +65,11 @@ Three additions to the package's exported surface, all recorded in `DECISIONS.md
 `fflate` is the repo's only runtime dependency, taken on at Step 11 because a browser cannot
 write a folder unaided — and cannot read one back unaided either, which is what import uses it for.
 
-### Four additions after the plan
+### Five additions after the plan
 
-The first three were planned together and sorted by difficulty; the fourth came out of using
-them. All are done, `pnpm test` and `pnpm typecheck` are green, and the reasoning for each is in
-`DECISIONS.md` or `/adr`.
+The first three were planned together and sorted by difficulty; the fourth and fifth came out of
+using them. All are done, `pnpm test` and `pnpm typecheck` are green, and the reasoning for each is
+in `DECISIONS.md` or `/adr`.
 
 1. **Operations are editable in place.** The four-step panel reopens an existing Operation and
    commits through `replaceOperation`, preserving its id, index, `salt` and `reseedOnLoad`.
@@ -98,6 +98,15 @@ them. All are done, `pnpm test` and `pnpm typecheck` are green, and the reasonin
    exports open with an advisory. `SCHEMA_VERSION_UNKNOWN` means what `09` §12.4 says it means —
    a file from a **newer** build — and the editor branches on `migrate()`'s outcome rather than
    inferring it from an error code.
+5. **The operation stack is re-sortable — `moveOperation(id, index)` and ▲/▼ on each row, D44.**
+   Order *is* the program (`02` §9) and there was no way to change it; getting it wrong meant the
+   delete-and-rebuild that addition 1 removed, with the same **G3** cost. The transition touches no
+   field of any Operation — G3 already guarantees each "retains its own randomness as it moves", so
+   only the composition changes. **Arrows rather than a drag**, against `09` §7.6's preference for
+   the palette bar: that argument is about fixed-height segments, and a stack row varies in height
+   (`.flags`, and addition 1's panel renders *inside* the row), is dense with controls a pointer
+   capture would swallow, and needs the arrows anyway as its keyboard path. One click is also one
+   undo entry, where a drag pushes one per boundary crossed.
 
 ### The seams, and what they cost — ADR-006 and two decisions after it
 
@@ -160,8 +169,8 @@ answer.** Where the spec answers a question, the citation belongs in the code in
 Read it before re-deciding anything about the editor — it is where the reasoning lives for the
 brush's stroke gesture, the shadow config the overlay resolves against, the id scheme, the
 refusal on deleting a referenced Tile, the preview-width zoom, what an edit-in-place preserves,
-what an import reads, why `substrate` defaults to `"canvas"`, and where a reference image lives.
-Forty-three entries, `D1`–`D43`.
+what an import reads, why `substrate` defaults to `"canvas"`, where a reference image lives, and
+why the stack reorders by arrows rather than by a drag. Forty-four entries, `D1`–`D44`.
 
 **Every entry has a permanent `D<n>`; cite it by that.** Ids are never reused and never
 renumbered — `01` §11.4's rule, applied here because code cites this file and, before the ids
@@ -192,9 +201,6 @@ Not open questions. Do not rediscover them as such.
   source rect. It must ship with a default equal to the centre square or its arrival breaks
   **R14**. *(Transforms, centre-crop under **R8**, and `onAssetError` are built — this bullet
   used to claim otherwise.)*
-- **Reordering the operation stack** — `document.ts` notes that `moveOperation(id, index)` drops
-  in beside the existing transitions with nothing else to change. Editing did not need it, and
-  `replaceOperation` preserving the index is what keeps the two separate questions.
 - **The invariant census and `pnpm invariants`** — at 1.0 planning, not before.
 
 Two gaps found while building, flagged rather than worked around:

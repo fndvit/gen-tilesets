@@ -541,9 +541,17 @@ export function setAssetWeight(tileId: string, assetId: string, text: string): T
  * in this version at all; only its absence is, which is a field that does not
  * exist rather than a feature that is missing.
  *
- * **No reordering in this version.** The shape already permits it: an array is
- * reorderable, and a `moveOperation(id, index)` transition drops in beside these
- * with nothing else to change.
+ * **Reordering ships as `moveOperation`** (**D44**). It was deferred rather than
+ * refused, and the shape always permitted it: an array is reorderable, and the
+ * transition drops in beside these with nothing else to change.
+ *
+ * **G3** is what makes it safe — "reordering the operation stack changes
+ * composition only. Each operation retains its own randomness as it moves."
+ * Both of an Operation's hash channels take its `operationId` and `salt`, and
+ * `02` §6.3 is explicit that the id is "never derived from stack position", so a
+ * moved Operation draws exactly what it drew before and the picture changes only
+ * where the blend order changed. That is `02` §6.3's *for a reason the author can
+ * see*.
  */
 
 /** Appends to the end of the stack, which is where a new Operation runs last. */
@@ -586,4 +594,35 @@ export function replaceOperation(operation: Operation): Transition {
       operations: file.config.operations.map((op) => (op.id === operation.id ? operation : op)),
     },
   });
+}
+
+/**
+ * Moves one Operation to `index`, sliding the rest — **D44**.
+ *
+ * **The subject is named by id and the destination by index**, which is not an
+ * inconsistency: `02` §6.3 attaches an Operation's identity to its id and never
+ * to its position, but a *destination* has no identity to name it by. It is the
+ * one place in this file where an index is an argument.
+ *
+ * Nothing about the Operation itself changes — not its id, not its `salt`, not a
+ * parameter. **G3**: it retains its own randomness as it moves, so what moves is
+ * the composition and nothing else.
+ *
+ * **Refuses by identity**, in the manner of every transition here (§4.2): an
+ * unknown id, a destination outside the stack, and a move to where the Operation
+ * already is all return the file unchanged, so `session.apply` declines to push
+ * an undo entry that would undo to the state it is already in.
+ */
+export function moveOperation(operationId: string, index: number): Transition {
+  return (file) => {
+    const operations = file.config.operations;
+    const from = operations.findIndex((op) => op.id === operationId);
+    if (from === -1) return file;
+    if (index < 0 || index >= operations.length || index === from) return file;
+
+    const next = [...operations];
+    const [operation] = next.splice(from, 1);
+    next.splice(index, 0, operation!);
+    return { ...file, config: { ...file.config, operations: next } };
+  };
 }

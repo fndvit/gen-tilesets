@@ -18,16 +18,32 @@
   ships neither — so what is here is a field that does not exist, rather than a
   feature that is missing.
 
-  **No drag to reorder** in this version. Unlike a Tile's asset list, where a
-  drag would be a gesture with *no* effect (**D3**), a drag here would have a
-  very real one — `02` §6.3 makes reordering change output "for a reason the
-  author can see". It is left out because it is not in this version's scope, not
-  because it is meaningless.
+  ## Reordering, and why it is arrows — **D44**
+
+  Order is what the stack *is* (`02` §9), so a row carries ▲ and ▼. **G3** is the
+  licence: an Operation "retains its own randomness as it moves", so the picture
+  changes by composition and by nothing else — `02` §6.3's *for a reason the
+  author can see*. Contrast a Tile's asset list, which has no order affordance at
+  all because **D3** sorts it by id and a drag there would be a gesture with *no*
+  effect.
+
+  **Not a drag**, though `09` §7.6 prefers one for the palette bar. That argument
+  holds on a bar of fixed-height segments, where the drop index is arithmetic on
+  one rect. This row is the other shape: its height varies with `.flags` and with
+  an entire draft panel rendered inside it, and it is dense with controls a
+  pointer capture would swallow. Arrows also make one gesture one transition, and
+  therefore one undo entry, where a pointer drag pushes one per boundary crossed
+  (**D32**).
 -->
 <script lang="ts">
   import { TARGETS, type Operation } from "@tileset/core";
   import type { Snippet } from "svelte";
-  import { removeOperation, rerollOperation, setReseedOnLoad } from "../document.js";
+  import {
+    moveOperation,
+    removeOperation,
+    rerollOperation,
+    setReseedOnLoad,
+  } from "../document.js";
   import { offersReseedOnLoad } from "../reseed.js";
   import { session } from "../session.svelte.js";
 
@@ -112,7 +128,7 @@
           The index is shown because the stack runs in this order and later
           Operations blend onto earlier ones (`02` §9). It is **not** the
           Operation's identity: `02` §6.3 attaches randomness to `id` and
-          `salt`, never to position, which is what makes a future reorder
+          `salt`, never to position, which is what makes the reorder below
           move the picture only where the author expects.
         -->
         <span class="index">{index + 1}</span>
@@ -121,6 +137,35 @@
           <span class="mapping">{mappingOf(op)}</span>
         </div>
         <code class="id">{op.id}</code>
+
+        <!--
+          **D44** — the two movement controls, kept together and ahead of the
+          three that act on the Operation itself. These change where it runs;
+          those change what it is.
+
+          Disabled at the ends rather than hidden: a control that vanishes at the
+          boundary moves the two beside it under the pointer, and the author
+          clicking ▼ down a stack would hit ✎ on the last row.
+        -->
+        <button
+          class="move"
+          disabled={index === 0}
+          onclick={() => session.apply(moveOperation(op.id, index - 1))}
+          title="Move earlier — this Operation then blends before the one above it (02 §9). Its own randomness does not move (G3)."
+          aria-label="Move operation {op.id} earlier"
+        >
+          ▲
+        </button>
+
+        <button
+          class="move"
+          disabled={index === operations.length - 1}
+          onclick={() => session.apply(moveOperation(op.id, index + 1))}
+          title="Move later — this Operation then blends onto the one below it (02 §9). Its own randomness does not move (G3)."
+          aria-label="Move operation {op.id} later"
+        >
+          ▼
+        </button>
 
         <!--
           §4.3 — the id survives the edit, and with it this Operation's hash
@@ -233,7 +278,8 @@
 
   .stack li {
     display: grid;
-    grid-template-columns: 1.4rem 1fr auto auto auto auto;
+    /* index · body · id · ▲ · ▼ · ✎ · ⟳ · × */
+    grid-template-columns: 1.4rem 1fr auto auto auto auto auto auto;
     align-items: center;
     gap: 0.5rem;
     background: #f7fafc;
@@ -300,6 +346,32 @@
      whole Operation, not about one of the grid's columns. */
   .draft-slot {
     grid-column: 1 / -1;
+  }
+
+  /* The movement pair (**D44**). Smaller than the action glyphs and set tighter
+     together, so ▲▼ reads as one two-way control rather than as two more of the
+     row's buttons. */
+  .move {
+    background: transparent;
+    border: 0;
+    color: #5a6b80;
+    cursor: pointer;
+    font-size: 0.65rem;
+    line-height: 1;
+    padding: 0.15rem;
+    /* Cancels half the grid's 0.5rem gap on each side of the pair. */
+    margin: 0 -0.15rem;
+  }
+
+  .move:hover:not(:disabled) {
+    color: #3182ce;
+  }
+
+  /* Disabled at the ends, and it has to *look* disabled — an arrow that is
+     present and inert reads as a broken control otherwise (`05` §6.1). */
+  .move:disabled {
+    color: #e2e8f0;
+    cursor: default;
   }
 
   /* Edit and reroll are the two non-destructive row actions and read as a pair;

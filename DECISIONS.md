@@ -944,3 +944,51 @@ Three sub-answers the spec has nothing to say about:
 to *can this be decoded, and how big is it* (**E13**), and its refusal of an SVG carrying only
 a `viewBox` matters more here than anywhere — such a file would be drawn at whatever width the
 layout gave it and would misreport the alignment silently.
+
+---
+
+### D44 · 2026-08-14 — How is the operation stack reordered?
+
+**Arose in:** after the plan, from using the editor. The stack's order *is* the program (`02` §9),
+and there was no way to change it. Getting the order wrong meant delete-and-rebuild, which is
+exactly what **D36** removed for a parameter change and for the same reason: **G3** keys an
+Operation's randomness to its `operationId`, so a rebuilt Operation draws different values
+everywhere it touches, for a reason invisible from the control the author used.
+
+This **supersedes D36's closing paragraph** and `CLAUDE.md`'s *Deferred on purpose* bullet, both of
+which recorded reordering as out of scope. The file is append-only, so D36 stands as written.
+
+**Answer:** a `moveOperation(id, index)` transition, and **▲/▼ buttons on each row — not a drag.**
+
+**The semantics were never in question.** **G3** pre-authorizes this: "reordering the operation
+stack changes composition only. Each operation retains its own randomness as it moves." The
+transition therefore touches no field of any Operation — no id, no `salt`, no parameter — and the
+test asserts the moved Operations are the *same objects*, not merely equal ones. What moves is the
+blend order, which `02` §6.3 calls changing the output "for a reason the author can see".
+
+**Why not a drag, when `09` §7.6 chose one for the palette.** §7.6's argument is about a bar of
+fixed-height segments, where adjacency is the meaning and the drop index is arithmetic on one rect;
+`PaletteBar.svelte` implements exactly that with `setPointerCapture`. The stack row is the other
+shape and the argument does not transfer:
+
+- Its height is not known statically — `.flags` is conditional on `offersReseedOnLoad`, and **D36**
+  put an entire four-step draft panel *inside* the row it edits. A drop target means measuring
+  every row's live rect on every pointer move.
+- It is dense with controls — ✎, ⟳, ×, a checkbox — that a row-level pointer capture swallows.
+- An arrow pair is needed anyway as the keyboard path, which is why `PaletteBar` ships ←/→ beside
+  its drag. The drag would have bought a second way to do what the arrows already do.
+
+**One click is one transition, and therefore one undo entry.** This is the part a drag would have
+got wrong rather than merely made expensive: `PaletteBar`'s pointer drag calls the transition on
+every boundary it crosses, so one gesture fills the stack — **D32**'s acknowledged cost, accepted
+there because a slider has no discrete alternative. A stack move does.
+
+**The subject is named by id, the destination by index.** `02` §6.3 attaches identity to the id and
+never to stack position, and every other transition here obeys that. A destination has no identity
+to name it by, so this is the one argument in `document.ts` that is an index. It refuses by
+identity in the usual way (§4.2) — unknown id, out-of-range destination, or a move to where the
+Operation already is — so a click that cannot move anything pushes no undo entry.
+
+**Nothing guards an open draft.** The Operation being edited can be moved while its panel is open:
+the panel rides its row because the `{#each}` is keyed by id, `replaceOperation` matches by id, and
+`App.svelte`'s shadow config replaces by id (**D36**). Index never enters any of the three.
