@@ -8,7 +8,7 @@ import { defineConfig } from "vite";
  *
  * `09` §3.1: `engineVersion` is truthful only if they are the same package. "An
  * editor previewing with engine 1.5 while stamping 1.4 shows the author a
- * picture no consumer of that file will get." This is `00` §8.2 applied to the
+ * picture no consumer of that file will get." This is the *one implementation* principle (`CLAUDE.md`) applied to the
  * editor's own build, and the cheapest instance of it in the package: one
  * dependency entry rather than two.
  *

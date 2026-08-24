@@ -541,7 +541,7 @@ export function setAssetWeight(tileId: string, assetId: string, text: string): T
  * in this version at all; only its absence is, which is a field that does not
  * exist rather than a feature that is missing.
  *
- * **Reordering ships as `moveOperation`** (**D44**). It was deferred rather than
+ * **Reordering ships as `moveOperation`** (`DECISIONS.md` D44). It was deferred rather than
  * refused, and the shape always permitted it: an array is reorderable, and the
  * transition drops in beside these with nothing else to change.
  *
@@ -597,7 +597,7 @@ export function replaceOperation(operation: Operation): Transition {
 }
 
 /**
- * Moves one Operation to `index`, sliding the rest — **D44**.
+ * Moves one Operation to `index`, sliding the rest — `DECISIONS.md` D44.
  *
  * **The subject is named by id and the destination by index**, which is not an
  * inconsistency: `02` §6.3 attaches an Operation's identity to its id and never

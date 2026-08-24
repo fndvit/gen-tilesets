@@ -2,7 +2,7 @@
  * The nouns. Key names are `06-config-schema.md` §3, §5, §6, §7, §8 verbatim;
  * `TileState` is `03-domain-model.md` §6.
  *
- * Terminology is fixed (`01` §10.1): `TileState` not `CellState`, `Tile` not
+ * Terminology is fixed (`CONVENTIONS.md` §10.1): `TileState` not `CellState`, `Tile` not
  * `TileType`, `TileAsset` not `Variant`.
  */
 

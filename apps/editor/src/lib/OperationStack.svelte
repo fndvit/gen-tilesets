@@ -18,7 +18,7 @@
   ships neither — so what is here is a field that does not exist, rather than a
   feature that is missing.
 
-  ## Reordering, and why it is arrows — **D44**
+  ## Reordering, and why it is arrows — `DECISIONS.md` D44
 
   Order is what the stack *is* (`02` §9), so a row carries ▲ and ▼. **G3** is the
   licence: an Operation "retains its own randomness as it moves", so the picture
@@ -33,7 +33,7 @@
   an entire draft panel rendered inside it, and it is dense with controls a
   pointer capture would swallow. Arrows also make one gesture one transition, and
   therefore one undo entry, where a pointer drag pushes one per boundary crossed
-  (**D32**).
+  (`DECISIONS.md` D32).
 -->
 <script lang="ts">
   import { TARGETS, type Operation } from "@tileset/core";
@@ -139,7 +139,7 @@
         <code class="id">{op.id}</code>
 
         <!--
-          **D44** — the two movement controls, kept together and ahead of the
+          `DECISIONS.md` D44 — the two movement controls, kept together and ahead of the
           three that act on the Operation itself. These change where it runs;
           those change what it is.
 
@@ -348,7 +348,7 @@
     grid-column: 1 / -1;
   }
 
-  /* The movement pair (**D44**). Smaller than the action glyphs and set tighter
+  /* The movement pair (`DECISIONS.md` D44). Smaller than the action glyphs and set tighter
      together, so ▲▼ reads as one two-way control rather than as two more of the
      row's buttons. */
   .move {

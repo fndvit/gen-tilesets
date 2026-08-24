@@ -27,7 +27,7 @@ export interface Registration<Impl> {
 /**
  * Names are unique **within a kind**, not globally. `random` is deliberately both
  * a Selection and a Source (`04` §4.2, §5.2); they are namespaced by slot and
- * take different parameters. `01` §10.3 records this collision as tolerated.
+ * take different parameters. `CONVENTIONS.md` §10.3 records this collision as tolerated.
  */
 export class Registry<Entry extends { name: string }> {
   readonly #entries = new Map<string, Entry>();
