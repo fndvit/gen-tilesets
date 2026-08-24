@@ -12,7 +12,7 @@ import { defineConfig } from "vite";
  * editor's own build, and the cheapest instance of it in the package: one
  * dependency entry rather than two.
  *
- * Read from the workspace package that `@tileset/core` resolves to, so the
+ * Read from the workspace package that `@fndvit/gen-tilesets` resolves to, so the
  * number the editor stamps and the code it previews with cannot diverge. Writing
  * it by hand anywhere would create the second source of truth E2 exists to
  * prevent.

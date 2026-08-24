@@ -24,7 +24,7 @@
  * is `06` §9.2's coercion applied to the thing the author cares about most."
  */
 
-import { selection, selections, type Operation, type TilesetConfig } from "@tileset/core";
+import { selection, selections, type Operation, type TilesetConfig } from "@fndvit/gen-tilesets";
 
 /**
  * The Operations a design-width change puts at risk — E12's "names the

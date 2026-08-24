@@ -12,7 +12,7 @@
  * lives in `draft.svelte.ts` and this file can reach it.
  */
 
-import type { Operation } from "@tileset/core";
+import type { Operation } from "@fndvit/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { fromOperation, isComplete, newDraft, toOperation, toShadowOperation } from "./draft.svelte.js";
 

@@ -1,5 +1,5 @@
 {
-  "name": "@tileset/core",
+  "name": "@fndvit/gen-tilesets",
   "version": "0.0.0",
   "type": "module",
   "exports": {

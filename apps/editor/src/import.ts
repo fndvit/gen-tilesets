@@ -31,7 +31,7 @@
  * **C5**, and §12.4's rule that a non-empty `ValidationError[]` opens nothing.
  */
 
-import type { TileAsset, TilesetFile } from "@tileset/core";
+import type { TileAsset, TilesetFile } from "@fndvit/gen-tilesets";
 import { FILE_NAME } from "./export.js";
 
 /** What an archive reader hands over: every file it found, keyed by path. */

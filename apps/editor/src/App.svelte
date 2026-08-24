@@ -16,9 +16,9 @@
   what the comments record.
 -->
 <script lang="ts">
-  import { selections } from "@tileset/core";
-  import Tileset from "@tileset/core/Tileset.svelte";
-  import { naturalHeight, naturalRatio, type AssetRef } from "@tileset/core/render";
+  import { selections } from "@fndvit/gen-tilesets";
+  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
+  import { naturalHeight, naturalRatio, type AssetRef } from "@fndvit/gen-tilesets/render";
   import { editorProvider } from "./assets.js";
   import { bleed } from "./derive.js";
   import { exportZip } from "./download.js";

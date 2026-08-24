@@ -48,7 +48,7 @@
  * unknown widget hint cannot change the picture.
  */
 
-import type { ParamSpec } from "@tileset/core";
+import type { ParamSpec } from "@fndvit/gen-tilesets";
 
 export type Affordance =
   /** A slider over both bounds. `step` is `1` for an integer. */

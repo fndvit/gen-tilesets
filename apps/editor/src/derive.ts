@@ -23,7 +23,7 @@
  * guarantee from inside the editor, which E1 forbids.
  */
 
-import type { Layout } from "@tileset/core";
+import type { Layout } from "@fndvit/gen-tilesets";
 
 /**
  * **Parity is always corrected upward.** Rounding down would leave gaps at the

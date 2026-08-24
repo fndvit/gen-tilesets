@@ -8,7 +8,7 @@
  * prevent.
  */
 
-import { migrate, validate, type TilesetFile } from "@tileset/core";
+import { migrate, validate, type TilesetFile } from "@fndvit/gen-tilesets";
 import { unzipSync, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { newDocument } from "./document.js";

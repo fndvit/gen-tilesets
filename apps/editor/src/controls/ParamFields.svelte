@@ -8,7 +8,7 @@
   wearing one name.
 -->
 <script lang="ts">
-  import type { ParamSchema } from "@tileset/core";
+  import type { ParamSchema } from "@fndvit/gen-tilesets";
   import { affordanceFor } from "./affordance.js";
   import ParamControl from "./ParamControl.svelte";
 

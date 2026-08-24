@@ -1,10 +1,10 @@
 /**
- * `@tileset/core` — the engine.
+ * `@fndvit/gen-tilesets` — the engine.
  *
  * `generate(config, seed, loadSalt) -> Grid<TileState>` is a pure function, and
  * nothing exported from this entry point touches the DOM, a pixel measurement, or
  * a graphical resource (`02` **G1**, **G5**). The renderer lives behind
- * `@tileset/core/render`.
+ * `@fndvit/gen-tilesets/render`.
  */
 
 export { generate } from "./generate.js";

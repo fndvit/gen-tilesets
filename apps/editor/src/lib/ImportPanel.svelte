@@ -32,7 +32,7 @@
   that take files from the author should take them the same way.
 -->
 <script lang="ts">
-  import { migrate, validate, type TilesetFile, type ValidationError } from "@tileset/core";
+  import { migrate, validate, type TilesetFile, type ValidationError } from "@fndvit/gen-tilesets";
   import { unzipSync } from "fflate";
   import { replaceAll, type Incoming } from "../assets.js";
   import { drafting } from "../drafting.svelte.js";

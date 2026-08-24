@@ -1,4 +1,4 @@
-import { selections, sources, type ParamSpec } from "@tileset/core";
+import { selections, sources, type ParamSpec } from "@fndvit/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { defaultParams } from "../draft.svelte.js";
 import { admits, affordanceFor, defaultFor } from "./affordance.js";

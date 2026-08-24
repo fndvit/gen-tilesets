@@ -11,7 +11,7 @@
  *    is **O7** held by **E5** rather than by validation.
  */
 
-import { acceptedBlends, blends, TARGETS, type TargetName } from "@tileset/core";
+import { acceptedBlends, blends, TARGETS, type TargetName } from "@fndvit/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { isComplete, newDraft, retarget, toOperation } from "./draft.svelte.js";
 

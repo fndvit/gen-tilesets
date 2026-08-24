@@ -32,8 +32,8 @@
   acts on. It also costs two generations per frame where one suffices.
 -->
 <script lang="ts">
-  import { selection, type TilesetConfig } from "@tileset/core";
-  import { naturalHeight, snappedGrid, type GridGeometry } from "@tileset/core/render";
+  import { selection, type TilesetConfig } from "@fndvit/gen-tilesets";
+  import { naturalHeight, snappedGrid, type GridGeometry } from "@fndvit/gen-tilesets/render";
 
   interface Props {
     g: GridGeometry;

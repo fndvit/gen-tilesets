@@ -1,4 +1,4 @@
-import type { Operation, Tile, TilesetFile } from "@tileset/core";
+import type { Operation, Tile, TilesetFile } from "@fndvit/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { exportPath, extensionOf, tileNameOf } from "./assets.js";
 import {

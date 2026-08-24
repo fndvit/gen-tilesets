@@ -7,7 +7,7 @@
  * names (`04` §4.4's table is the registry's, not the editor's).
  */
 
-import { selections, type Operation, type TilesetConfig } from "@tileset/core";
+import { selections, type Operation, type TilesetConfig } from "@fndvit/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { newDocument } from "./document.js";
 import { atRisk, needsConfirmation, orphans } from "./orphans.js";

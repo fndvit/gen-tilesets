@@ -7,7 +7,7 @@
   coercion performed in the one place the author is watching").
 -->
 <script lang="ts">
-  import type { ParamSpec } from "@tileset/core";
+  import type { ParamSpec } from "@fndvit/gen-tilesets";
   import { admits, type Affordance } from "./affordance.js";
 
   interface Props {

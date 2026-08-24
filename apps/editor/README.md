@@ -1,8 +1,8 @@
-# `@tileset/editor`
+# `@fndvit/tileset-editor`
 
 The authoring tool. Svelte 5 + Vite. `pnpm dev` → port **5174**.
 
-It is an ordinary consumer of `@tileset/core`: the preview is a plain `<Tileset>`, and the
+It is an ordinary consumer of `@fndvit/gen-tilesets`: the preview is a plain `<Tileset>`, and the
 editor implements no Selection test, no coordinate mapping, and no second renderer. Where it
 needs the engine's answer it imports the engine's export — `selection()` exists for exactly
 that reason (**E8**).

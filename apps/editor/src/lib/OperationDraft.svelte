@@ -20,7 +20,7 @@
   depend on the Source that follows it (`DECISIONS.md` D8).
 -->
 <script lang="ts">
-  import { selections, sources, TARGETS, type AttributeName, type TargetName } from "@tileset/core";
+  import { selections, sources, TARGETS, type AttributeName, type TargetName } from "@fndvit/gen-tilesets";
   import BlendControl from "../controls/BlendControl.svelte";
   import { isTileTarget } from "../controls/mapping.js";
   import NumericMappingControl from "../controls/NumericMapping.svelte";

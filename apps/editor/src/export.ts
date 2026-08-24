@@ -31,7 +31,7 @@
  * directory structure is the pair, for the same reason the key is."
  */
 
-import type { TileAsset, TilesetFile } from "@tileset/core";
+import type { TileAsset, TilesetFile } from "@fndvit/gen-tilesets";
 
 /** One file in the zip. Bytes, so the writer needs no knowledge of where they came from. */
 export interface ExportEntry {

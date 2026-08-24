@@ -10,8 +10,8 @@
   only the flagged Operation.
 -->
 <script lang="ts">
-  import Tileset from "@tileset/core/Tileset.svelte";
-  import type { AssetRef } from "@tileset/core/render";
+  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
+  import type { AssetRef } from "@fndvit/gen-tilesets/render";
   import { fixture } from "./fixture.js";
 
   let seed = $state(fixture.config.defaultSeed);
@@ -49,7 +49,7 @@
 </script>
 
 <main>
-  <h1>@tileset/core — first drawn output</h1>
+  <h1>@fndvit/gen-tilesets — first drawn output</h1>
 
   <div class="controls">
     <label>

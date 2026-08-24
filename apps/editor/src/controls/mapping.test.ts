@@ -1,4 +1,4 @@
-import { applyNumericMapping, ATTRIBUTES, type AttributeName } from "@tileset/core";
+import { applyNumericMapping, ATTRIBUTES, type AttributeName } from "@fndvit/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { isComplete, mappingOf, newDraft, retarget, toOperation } from "../draft.svelte.js";
 import {

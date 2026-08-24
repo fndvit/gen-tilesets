@@ -11,8 +11,8 @@
  * §7.3's bound on its output.
  */
 
-import type { GridGeometry } from "@tileset/core/render";
-import type { Layout } from "@tileset/core";
+import type { GridGeometry } from "@fndvit/gen-tilesets/render";
+import type { Layout } from "@fndvit/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import {
   addCell,

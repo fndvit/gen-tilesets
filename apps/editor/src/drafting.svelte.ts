@@ -23,7 +23,7 @@
  * logic in it is what keeps the logic testable.
  */
 
-import type { Operation } from "@tileset/core";
+import type { Operation } from "@fndvit/gen-tilesets";
 import { fromOperation, newDraft, type Draft } from "./draft.svelte.js";
 
 let open = $state<Draft | null>(null);

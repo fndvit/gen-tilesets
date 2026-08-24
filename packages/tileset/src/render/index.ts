@@ -1,5 +1,5 @@
 /**
- * `@tileset/core/render` — the renderer's public surface.
+ * `@fndvit/gen-tilesets/render` — the renderer's public surface.
  *
  * **Invariant S10** — `cellBox` and `cellAt` are exported pure functions,
  * independent of the component. The component computes placement from them, and

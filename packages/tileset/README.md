@@ -1,11 +1,11 @@
-# `@tileset/core`
+# `@fndvit/gen-tilesets`
 
 The engine and the renderer. Ships unbuilt TypeScript through `exports` — consumers compile it.
 
 ```ts
-import { generate, selection, validate, migrate } from "@tileset/core";
-import { cellBox, cellAt } from "@tileset/core/render";
-import Tileset from "@tileset/core/Tileset.svelte";
+import { generate, selection, validate, migrate } from "@fndvit/gen-tilesets";
+import { cellBox, cellAt } from "@fndvit/gen-tilesets/render";
+import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
 ```
 
 ## The engine

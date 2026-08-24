@@ -36,7 +36,7 @@
  * session-scoped and does not survive a reload.
  */
 
-import type { Layout, Operation, Tile, TileAsset, TilesetFile } from "@tileset/core";
+import type { Layout, Operation, Tile, TileAsset, TilesetFile } from "@fndvit/gen-tilesets";
 import { deriveColumns } from "./derive.js";
 import {
   parseCellSize,

@@ -15,7 +15,7 @@
  * lives in editor state and reaches `<Tileset>` as a prop.
  */
 
-import { sources, type Operation, type TilesetConfig } from "@tileset/core";
+import { sources, type Operation, type TilesetConfig } from "@fndvit/gen-tilesets";
 
 /**
  * `2³²`. `06` **C9** narrows a salt to an integer in `[0, 2³²)`.

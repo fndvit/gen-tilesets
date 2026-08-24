@@ -33,7 +33,7 @@
  * rather than a source of variation.
  */
 
-import { assetKey, type AssetProvider, type AssetRef, type Drawable } from "@tileset/core/render";
+import { assetKey, type AssetProvider, type AssetRef, type Drawable } from "@fndvit/gen-tilesets/render";
 
 /** What one attach produced. `width`/`height` are E13's frozen measurement. */
 export interface StoredAsset {

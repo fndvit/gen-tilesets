@@ -22,7 +22,7 @@
      thing".
 -->
 <script lang="ts">
-  import type { AttributeName, NumericMapping } from "@tileset/core";
+  import type { AttributeName, NumericMapping } from "@fndvit/gen-tilesets";
   import { admitsTyped, endpointsCoincide, MIN_STEPS, trackFor } from "./mapping.js";
 
   interface Props {

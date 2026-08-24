@@ -23,7 +23,7 @@
   is (`07` §8.2), and the editor never reimplements it.
 -->
 <script lang="ts">
-  import { naturalHeight, snappedGrid, type GridGeometry } from "@tileset/core/render";
+  import { naturalHeight, snappedGrid, type GridGeometry } from "@fndvit/gen-tilesets/render";
   import { addCell, cellUnder, hasCell, metricsOf, removeCell, type Cell } from "../paint.js";
 
   interface Props {

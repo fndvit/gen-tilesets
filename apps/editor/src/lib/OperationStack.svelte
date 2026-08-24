@@ -36,7 +36,7 @@
   (`DECISIONS.md` D32).
 -->
 <script lang="ts">
-  import { TARGETS, type Operation } from "@tileset/core";
+  import { TARGETS, type Operation } from "@fndvit/gen-tilesets";
   import type { Snippet } from "svelte";
   import {
     moveOperation,

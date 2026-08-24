@@ -1,5 +1,5 @@
 {
-  "name": "@tileset/editor",
+  "name": "@fndvit/tileset-editor",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@tileset/core": "workspace:*",
+    "@fndvit/gen-tilesets": "workspace:*",
     "fflate": "^0.8.3"
   },
   "devDependencies": {

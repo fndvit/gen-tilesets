@@ -1,4 +1,4 @@
-import type { TilesetFile } from "@tileset/core";
+import type { TilesetFile } from "@fndvit/gen-tilesets";
 
 /**
  * A hand-written `TilesetFile` — `06-config-schema.md` §3.

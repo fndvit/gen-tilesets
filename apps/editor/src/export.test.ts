@@ -10,7 +10,7 @@
  * in*, because that is where E14 is either held or quietly broken.
  */
 
-import type { Operation, Tile, TilesetFile } from "@tileset/core";
+import type { Operation, Tile, TilesetFile } from "@fndvit/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { newDocument } from "./document.js";
 import { drawsNothing, entries, FILE_NAME, serialize } from "./export.js";

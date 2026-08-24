@@ -30,7 +30,7 @@
  * diagnostic describes, arrived at by painting instead of by resizing.
  */
 
-import { cellAt, type GridGeometry } from "@tileset/core/render";
+import { cellAt, type GridGeometry } from "@fndvit/gen-tilesets/render";
 
 /** A painted cell. The wire shape `04` §4.4 gives `cellList`, and a tuple in the file. */
 export type Cell = [number, number];

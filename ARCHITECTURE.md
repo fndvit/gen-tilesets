@@ -5,7 +5,7 @@ authoritative and this document restates nothing normative.
 
 ## The shape of it
 
-One pure engine and one renderer, published together as `@tileset/core`. The editor is a
+One pure engine and one renderer, published together as `@fndvit/gen-tilesets`. The editor is a
 consumer of that package with no privileged access: its preview is an ordinary `<Tileset>`.
 
 ```
@@ -31,14 +31,14 @@ place they meet.
 
 | Path | Package | What |
 | --- | --- | --- |
-| `packages/tileset` | `@tileset/core` | Engine and renderer. Ships unbuilt TypeScript through `exports`. |
-| `apps/editor` | `@tileset/editor` | The authoring tool. Svelte 5, Vite, `fflate`. Dev server 5174. |
-| `apps/demo` | `@tileset/demo` | A fixture page for the renderer. Port 5173. |
+| `packages/tileset` | `@fndvit/gen-tilesets` | Engine and renderer. Ships unbuilt TypeScript through `exports`. |
+| `apps/editor` | `@fndvit/tileset-editor` | The authoring tool. Svelte 5, Vite, `fflate`. Dev server 5174. |
+| `apps/demo` | `@fndvit/tileset-demo` | A fixture page for the renderer. Port 5173. |
 
 pnpm workspace. Root scripts: `pnpm test`, `pnpm typecheck`, `pnpm citations` — all recursive
 except the last.
 
-`@tileset/core` is at `0.0.0`. Everything `05` §10 says about version bumps describes a
+`@fndvit/gen-tilesets` is at `0.0.0`. Everything `05` §10 says about version bumps describes a
 future state; `05` §10.3 puts all of V1 at `0.x`, where no bump kind binds. **ADR-004 is the
 release valve that makes vector tables generatable before then, and it expires at 1.0.0.**
 

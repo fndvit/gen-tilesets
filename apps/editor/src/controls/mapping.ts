@@ -17,7 +17,7 @@
  * never clamps one".
  */
 
-import { ATTRIBUTES, TARGETS, type AttributeName, type NumericMapping, type TargetName } from "@tileset/core";
+import { ATTRIBUTES, TARGETS, type AttributeName, type NumericMapping, type TargetName } from "@fndvit/gen-tilesets";
 
 export interface Track {
   min: number;
