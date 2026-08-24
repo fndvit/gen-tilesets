@@ -12,7 +12,7 @@ ordinary consumer of that package — its preview is a plain `<Tileset>`.
 | --------------------- | ----------------------------------------------------------------- |
 | `ARCHITECTURE.md`     | Module map, data flow, the two substrates, the testing situation. |
 | `CHANGELOG.md`        | What was built, per version.                                      |
-| `packages/tileset`    | Engine and renderer. **The only published package.**              |
+| `packages/tileset`    | `@fndvit/gen-tilesets` — engine and renderer. **The only published package.** |
 | `apps/editor`         | The editor. Private, unpublished. Dev server on 5174.             |
 | `apps/demo`           | A fixture page for the renderer. Private, unpublished. Port 5173.  |
 
@@ -57,12 +57,27 @@ went the way it did.
 
 ## Versioning
 
-`packages/tileset` is published; the two apps are not. Consumers pin an **exact** version.
+`packages/tileset` is published as `@fndvit/gen-tilesets`; the two apps are not. Consumers pin an
+**exact** version.
 
 We are at `0.x`, and `0.x` promises nothing about output stability — that is deliberate, and it is
 what substitutes for the frozen regression tables that do not exist yet. Before declaring `1.0.0`,
 generated and drawn output must be pinned by real vector tables; until then, an output change is a
 version bump and a changelog line, not a crisis.
+
+**Releasing** is `git tag vX.Y.Z && git push --tags`. That runs `.github/workflows/publish.yml`,
+which tests, typechecks, builds and publishes to GitHub Packages under the `fndvit` org. Bump
+`packages/tileset/package.json` first — the tag does not set the version, and a tag whose version
+is already published fails.
+
+**Never edit the version in two places.** `apps/editor/vite.config.ts` derives
+`__ENGINE_VERSION__` from `packages/tileset/package.json`; that is Invariant **E2**, and writing
+the number by hand anywhere is the failure it exists to prevent.
+
+The workspace consumes the package's **source** and the tarball carries **built `dist`**, via
+`publishConfig.exports`. So a change is visible in `pnpm dev` with no build step — and a
+publishing mistake is invisible there. Verify a release by packing and installing the tarball into
+a throwaway app, not by trusting the apps. `packages/tileset/README.md` has the procedure.
 
 ## Testing
 

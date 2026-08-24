@@ -1,0 +1,24 @@
+# The gate CLAUDE.md describes: `pnpm test` and `pnpm typecheck` from the root,
+# both green, on every branch and pull request.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm typecheck
+      # Proves the published tarball still builds, which no test covers.
+      - run: pnpm --filter @fndvit/gen-tilesets build

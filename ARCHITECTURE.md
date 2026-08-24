@@ -31,16 +31,35 @@ place they meet.
 
 | Path | Package | What |
 | --- | --- | --- |
-| `packages/tileset` | `@fndvit/gen-tilesets` | Engine and renderer. Ships unbuilt TypeScript through `exports`. |
+| `packages/tileset` | `@fndvit/gen-tilesets` | Engine and renderer. **The only published package.** |
 | `apps/editor` | `@fndvit/tileset-editor` | The authoring tool. Svelte 5, Vite, `fflate`. Dev server 5174. |
 | `apps/demo` | `@fndvit/tileset-demo` | A fixture page for the renderer. Port 5173. |
 
 pnpm workspace. Root scripts: `pnpm test`, `pnpm typecheck`, `pnpm citations` — all recursive
-except the last.
+except the last. CI runs the first two on every push; a `v*` tag publishes the package
+(`.github/workflows/`).
 
-`@fndvit/gen-tilesets` is at `0.0.0`. Everything `05` §10 says about version bumps describes a
+`@fndvit/gen-tilesets` is at `0.1.0`. Everything `05` §10 says about version bumps describes a
 future state; `05` §10.3 puts all of V1 at `0.x`, where no bump kind binds. **ADR-004 is the
 release valve that makes vector tables generatable before then, and it expires at 1.0.0.**
+
+The version is not written down twice: `apps/editor/vite.config.ts` reads it out of
+`packages/tileset/package.json` and defines `__ENGINE_VERSION__` from it, which is Invariant
+**E2** — the editor stamps the version of the engine it previews with, or it stamps a lie.
+
+### Two export maps, on purpose
+
+`packages/tileset` resolves **two different ways**, and which one you get depends on whether you
+are inside this workspace:
+
+| Consumer | `exports` in force | Resolves to |
+| --- | --- | --- |
+| `apps/editor`, `apps/demo` | top-level `exports` | `src/**/*.ts`, `src/render/Tileset.svelte` — unbuilt |
+| anyone installing the tarball | `publishConfig.exports` | `dist/**/*.js` + `.d.ts` — built by `svelte-package` |
+
+pnpm replaces `exports` and `types` at publish time, so the two apps never need a build step and
+the tarball never ships TypeScript. `packages/tileset/README.md` records why, and what was
+rejected.
 
 ## `packages/tileset/src` — the engine
 

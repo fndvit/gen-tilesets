@@ -8,6 +8,50 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.1.0 — the package becomes installable
+
+The engine and renderer stopped being a workspace-internal package and became one another fndvit
+project can install. Four things changed; the generated output is byte-identical, because nothing
+under `src/` moved.
+
+**Renamed `@tileset/core` → `@fndvit/gen-tilesets`.** Not a preference. GitHub Packages resolves a
+package by its scope and requires the scope to equal the org, so the org name is the package name.
+61 references across ~48 files, almost all editor imports. The two private apps followed
+(`@fndvit/tileset-editor`, `@fndvit/tileset-demo`) for consistency only.
+
+**A build step, and two export maps.** `svelte-package` emits `dist/` — `.js`, `.d.ts`, and a
+`Tileset.svelte` with its `.d.ts`. The top-level `exports` still point at `src`, and
+`publishConfig.exports` overrides them at publish time, so the workspace keeps compiling source
+with no build step while consumers get built output. The alternative — `exports` pointing straight
+at `dist` — publishes the identical tarball and costs a build before every `pnpm dev`.
+
+Two things fell out of this that are worth knowing:
+
+- **Svelte 5 needs no preprocessor for `lang="ts"`.** `vitePreprocess()` returns the script
+  unchanged; the compiler strips the types itself. So this package has no `svelte.config.js`, and
+  the published component ships `lang="ts"` — verified by building a throwaway consumer with a
+  bare `svelte()` plugin and no config of its own.
+- **`svelte-check` now runs in the package**, not just the two apps — the first type coverage
+  `Tileset.svelte` has ever had inside its own package. It needed `src/**/*.svelte` added to
+  `tsconfig.json`'s `include`, without which it finds no input and `--fail-on-warnings` fails on
+  that warning alone.
+- **The build was quietly doubling the test run.** `svelte-package` stages a compiled copy of the
+  package in `.svelte-kit/__package__/` and leaves it there, and Vitest's default `include`
+  matched its `.test.js` files: after any build, 11 test files ran as 22 and 284 tests as 568,
+  the second half against an artifact that goes stale as soon as a source file changes. They
+  passed, so nothing went red — the failure mode was a green run covering code nobody edited.
+  `vitest.config.ts` now excludes the directory and `build:prune` deletes it.
+
+**CI, where there was none.** `.github/workflows/ci.yml` runs `pnpm test`, `pnpm typecheck` and the
+package build on every push. `.github/workflows/publish.yml` publishes on a `v*` tag using the
+Actions `GITHUB_TOKEN` — `packages: write` is already granted for its own repo, so there is no
+personal token to mint or rotate.
+
+Version moved `0.0.0` → `0.1.0`, which also moves what the editor stamps into `engineVersion`;
+`apps/editor/vite.config.ts` reads it from the manifest (**E2**), so that followed on its own.
+
+---
+
 ## V1 — the engine, the renderer, and the editor
 
 **The engine and the renderer are built.** All nine engine units pass — hash core, attribute

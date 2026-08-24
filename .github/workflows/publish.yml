@@ -1,0 +1,44 @@
+# Publish `@fndvit/gen-tilesets` to GitHub Packages on a version tag.
+#
+# `GITHUB_TOKEN` already carries `packages: write` for this repository, so there
+# is no personal token to mint, rotate, or leak into a secret. The release
+# gesture is therefore just `git tag v0.1.0 && git push --tags`.
+#
+# `actions/setup-node` writes the `.npmrc` that `pnpm publish` reads; the scope
+# must match the org, because GitHub Packages resolves a package by its scope.
+name: publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: "@fndvit"
+
+      - run: pnpm install --frozen-lockfile
+
+      # Both must be green — CLAUDE.md. `prepublishOnly` runs them again for a
+      # local publish; here they run before the tarball is built so a red tag
+      # fails loudly rather than shipping.
+      - run: pnpm test
+      - run: pnpm typecheck
+
+      - run: pnpm --filter @fndvit/gen-tilesets publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
