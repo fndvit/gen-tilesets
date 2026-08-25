@@ -8,6 +8,45 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.1.1 — the README the package page shows
+
+Documentation only. Nothing under `packages/tileset/src/` moved, so generated output is
+byte-identical to `0.1.0` and no consumer's picture changes.
+
+Published anyway, because **the package page renders the README from the published tarball**.
+`v0.1.0` was tagged at `87153f9`; the README that explains how to render an exported tileset
+landed in `d6687ce`, one commit later. Everyone reading
+`github.com/fndvit/gen-tilesets/pkgs/npm/gen-tilesets` was therefore being shown a first snippet
+that imported `cellBox` and `cellAt` — a pairing with, between them, exactly one runtime caller in
+this repository, and that one the editor's brush. A consumer following it imports machinery they
+will never call, from a subpath the snippet gets right only by accident.
+
+**The opening snippet is now the two imports the demo actually uses**, and the surface behind it is
+split by subpath rather than listed as one: `generate`/`selection`/`validate`/`migrate` on the root
+entry, `cellBox`/`cellAt` on `/render`. `## The renderer` said "exported as pure functions" without
+saying from where, which sends a reader to the root entry and a resolution error.
+
+**`How to use it` is six numbered steps**, from creating the token to tiles on screen. The step
+that was missing entirely is the one in the middle: press **"Download tileset.zip"** in the editor.
+The guide described the archive's shape without ever saying where the archive comes from.
+
+Two things the steps now state that the prose only implied:
+
+- **`tiles/` moves as one folder.** Showing a single asset's destination reads as an instruction to
+  place files individually, which is the one thing that must not happen — the export writes each
+  file at the path it read back out of `meta.src`, so flattening the folder breaks the JSON's
+  pointers silently.
+- **The editor's asset store is session-scoped.** After a reload the export throws rather than
+  shipping an incomplete folder. That is correct behaviour and it looks like a bug, so it is
+  documented where the author meets it.
+
+**A plain Vite + Svelte variant**, derived from `apps/demo` — the only working consumer in this
+repository, and not a SvelteKit app. It differs in three places, and one of them is a slash:
+SvelteKit's `base` carries no trailing slash while `import.meta.env.BASE_URL` does, so the two
+providers concatenate differently and copying one into the other yields `//tiles/…`.
+
+---
+
 ## 0.1.0 — the package becomes installable
 
 The engine and renderer stopped being a workspace-internal package and became one another fndvit

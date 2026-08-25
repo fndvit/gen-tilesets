@@ -9,15 +9,41 @@ import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
 import type { AssetRef } from "@fndvit/gen-tilesets/render";
 ```
 
-`<Tileset>` calls `generate()` itself. The rest of the surface — `generate`, `selection`,
-`validate`, `migrate`, `cellBox`, `cellAt` — is for a host that builds *tooling* on top: an
-overlay, a brush, a validator. `cellAt`'s only caller in this repository is the editor's brush.
-Reach for them when you are building an editor, not to draw a picture.
+`<Tileset>` calls `generate()` itself. The rest of the surface is for a host that builds *tooling*
+on top — an overlay, a brush, a validator — and it lives on two different subpaths:
 
-## Install
+- `@fndvit/gen-tilesets` — the engine: `generate`, `selection`, `validate`, `migrate`.
+- `@fndvit/gen-tilesets/render` — the geometry: `cellBox`, `cellAt`.
 
-Published privately to **GitHub Packages** under the `fndvit` org. Add this to the consuming
-project's `.npmrc` — commit it; the token comes from the environment, never from the file:
+`cellAt`'s only caller in this repository is the editor's brush, and `cellBox` has no caller
+outside this package at all. Reach for them when you are building an editor, not to draw a
+picture.
+
+## How to use it
+
+Six steps, from nothing to tiles on screen. Every snippet in steps 5 and 6 is copied out of a
+working app — see *Verified* at the end.
+
+### 1. Get a token
+
+The package is published privately to **GitHub Packages** under the `fndvit` org, so installing it
+needs a token.
+
+On GitHub: **Settings → Developer settings → Personal access tokens → Tokens (classic)**, with the
+`read:packages` scope. It must be a **classic** token — GitHub Packages' npm registry does not
+accept fine-grained ones. Then put it in your shell profile:
+
+```sh
+export GITHUB_TOKEN=ghp_…
+```
+
+Org members with read access to this repository get read access to the package automatically, so
+there is no per-person grant to request.
+
+### 2. Install the package
+
+Add this to the consuming project's `.npmrc` — **commit it**; the token comes from the
+environment, never from the file:
 
 ```ini
 @fndvit:registry=https://npm.pkg.github.com
@@ -25,29 +51,27 @@ project's `.npmrc` — commit it; the token comes from the environment, never fr
 ```
 
 ```sh
-pnpm add @fndvit/gen-tilesets@0.1.0 svelte
+pnpm add @fndvit/gen-tilesets@0.1.1 svelte
 ```
 
-- **The token.** Each person needs a **classic** personal access token with the `read:packages`
-  scope, exported as `GITHUB_TOKEN`. GitHub Packages' npm registry does not accept fine-grained
-  tokens. Org members with read access to this repository get read access to the package
-  automatically — no per-person grant.
+- **Pin the exact version.** `0.x` promises nothing about output stability (`/CLAUDE.md`), so a
+  range is a promise this package does not make.
 - **Peers.** `svelte@^5` is a peer dependency, and the consuming app needs
   `@sveltejs/vite-plugin-svelte`. Nothing further: the published `exports` declare the `svelte`
   condition, so a bare `svelte()` plugin with **no `svelte.config.js` at all** resolves and
   compiles `Tileset.svelte`. This is verified, not assumed — see *Publishing* below.
-- **Pin the exact version.** `0.x` promises nothing about output stability (`/CLAUDE.md`), so a
-  range is a promise this package does not make.
 - **CI in the consuming repo** needs the same `.npmrc` plus a token in its secrets.
 
-## How to use it
+### 3. Export the tileset from the editor
 
-Rendering a tileset the editor exported, in SvelteKit. Every snippet here is copied out of a
-working app — see *Verified* at the end of this section.
+In the editor, the export button is pinned below the sidebar's sections, labelled
+**"Download tileset.zip"**. Press it and you get `tileset.zip` — always that name.
 
-### What the export gives you
+One thing to know before you press it: the editor's asset store is **session-scoped**. If you
+reloaded the page since attaching your images, the export throws rather than shipping a folder
+that is quietly missing files; re-import your last zip first, then export.
 
-The editor's export is one archive holding two things:
+The archive holds two things:
 
 ```
 tileset.json
@@ -60,19 +84,36 @@ each hold an asset called `a1`, and a flat folder would silently overwrite one w
 **Every `meta.src` in the JSON is a path relative to the archive root**, with no leading slash:
 `tiles/water/a1.svg`. That one detail drives everything below.
 
-### Where the two halves go
+### 4. Unzip it and move the two halves into your project
 
-They go to different places, and only one of them is served:
+They go to different places, and only one of them is served. **`tiles/` moves whole, as a single
+folder — you never place assets one by one:**
 
-| From the archive | Goes to | Why |
+```
+tileset.zip
+├── tileset.json   →  move the file    →  <your-app>/src/lib/tileset.json
+└── tiles/         →  move the folder  →  <your-app>/static/tiles/
+```
+
+So the archive's `tiles/water/a1.svg` ends up at `<your-app>/static/tiles/water/a1.svg`, and the
+browser fetches it from `/tiles/water/a1.svg`.
+
+| Half | Where | Why |
 | --- | --- | --- |
-| `tiles/…` | `static/tiles/…` | must be fetchable by the browser at `/tiles/…` |
+| `tiles/` | `static/tiles/` | must be fetchable by the browser at `/tiles/…` |
 | `tileset.json` | `src/lib/tileset.json` | **not** served — you `import` it, so it is bundled, needs no fetch, and cannot 404 |
 
-### Parse it — `migrate()`, then `validate()`
+Keep the folder's internal structure exactly as it came. The export writes each file at the path
+it read out of `meta.src`, so the JSON points at `tiles/water/a1.svg`; flattening or renaming
+anything inside breaks that silently. Moving the folder as-is is what keeps it true without your
+having to think about it.
 
-`TilesetFile.schemaVersion` is the literal type `2`, so a JSON import (which widens it to
-`number`) never assigns to `TilesetFile` directly. Validation is what earns the cast:
+### 5. Parse it — `migrate()`, then `validate()`
+
+You cannot skip this. `<Tileset>` imports no validator, so a file `validate()` would reject is
+**undefined behaviour** (**S3**, as **C5**) — the component will not tell you. The types push you
+the same way: `TilesetFile.schemaVersion` is the literal type `2`, so a JSON import (which widens
+it to `number`) never assigns to `TilesetFile` directly. Validation is what earns the cast:
 
 ```ts
 // src/lib/tileset-file.ts
@@ -107,7 +148,7 @@ export function parseTilesetFile(raw: unknown): TilesetFile {
 }
 ```
 
-### Anchor the asset paths — the one thing that will bite you
+### 6. Anchor the asset paths, and render
 
 `meta.src` is **relative**, and the renderer hands it to an `<img>` verbatim. So the browser
 resolves it against the *current page URL*. On `/` that happens to be right. On `/deep/page` the
@@ -138,7 +179,7 @@ under a sub-path deployment. It **throws** rather than substituting a placeholde
 resolution never substitutes — a missing picture must reach you through `onAssetError`, not become
 a wrong picture.
 
-### The page
+Then the page:
 
 ```svelte
 <!-- src/routes/+page.svelte -->
@@ -175,6 +216,45 @@ a wrong picture.
 
 That is the whole integration.
 
+### If you are not using SvelteKit
+
+Plain Vite + Svelte 5 works with the same six steps and no aliases, no `optimizeDeps` entries and
+no extra plugins. Three things differ.
+
+**Where the two halves go** — `public/` instead of `static/`, and `tileset.json` anywhere under
+`src/`:
+
+```
+tileset.json   →  move the file    →  <your-app>/src/tileset.json
+tiles/         →  move the folder  →  <your-app>/public/tiles/
+```
+
+Again `tiles/` moves whole, so `tiles/water/a1.svg` lands at
+`<your-app>/public/tiles/water/a1.svg` and is served at `/tiles/water/a1.svg`.
+
+**The provider** prefixes `import.meta.env.BASE_URL` instead of `base`:
+
+```ts
+// src/provider.ts
+import type { AssetProvider } from "@fndvit/gen-tilesets/render";
+
+export const tilesetProvider: AssetProvider = (ref) => {
+  const src = ref.meta.src;
+  if (typeof src !== "string" || src === "") {
+    throw new Error(
+      `asset ${ref.tileId}/${ref.assetId} has no string meta.src, so it cannot be resolved`,
+    );
+  }
+  // `BASE_URL` ends in a slash ("/" by default) and `meta.src` has none, so these
+  // concatenate directly. SvelteKit's `base` is the opposite — no trailing slash,
+  // hence the `/` in the snippet above. Adding one here yields `//tiles/…`.
+  return { src: `${import.meta.env.BASE_URL}${src}` };
+};
+```
+
+**The import** is a relative path rather than `$lib`: `import raw from "./tileset.json"`. Vite
+handles JSON imports natively, so steps 5 and 6 are otherwise unchanged.
+
 ### Four things worth knowing
 
 - **It is deterministic by default.** With no `seed` and no `loadSalt` you get
@@ -192,12 +272,19 @@ That is the whole integration.
 
 ### Verified
 
-The snippets above were extracted from a SvelteKit 2 app built for the purpose, installing
-`@fndvit/gen-tilesets@0.1.0` **from the registry**: `svelte-check` reports 0 errors and 0
+The SvelteKit snippets above were extracted from a SvelteKit 2 app built for the purpose,
+installing `@fndvit/gen-tilesets` **from the registry**: `svelte-check` reports 0 errors and 0
 warnings, and `vite build` succeeds. The path trap is not hypothetical — the same page on
 `/deep/…` with the default provider server-renders `src="tiles/water/a1.svg"` and 404s, and with
 `tilesetProvider` renders `src="../tiles/water/a1.svg"`, which resolves to `/tiles/water/a1.svg`
 and returns 200.
+
+The **plain Vite variant** was checked separately, against a throwaway Vite 8 + Svelte 5 app
+installing the packed tarball with no `svelte.config.js` and no aliases: `vite build` succeeds and
+`svelte-check` reports 0 errors and 0 warnings, over a `tileset.json` and a `tiles/` folder in the
+export's own layout. The slash claim is measured, not reasoned — under `--base=/deep/`,
+`import.meta.env.BASE_URL` is `/deep/`, so `` `${import.meta.env.BASE_URL}${src}` `` evaluates to
+`/deep/tiles/water/a1.svg`, and inserting a `/` would make it `/deep//tiles/…`.
 
 `parseTilesetFile` is yours to copy for now. If enough consumers write the same twenty lines it
 belongs in the package, but adding it is a feature and a version bump, not a doc change.
@@ -226,8 +313,9 @@ here accepts a bare grid.
 per-cell nodes, so no host-page CSS can open a seam between adjacent tiles. `"dom"` keeps one
 `<img>` per cell from the same snapped edges and is what SSR emits. See ADR-006.
 
-`cellBox` and `cellAt` are exported as pure functions rather than component methods, because
-there is exactly one coordinate mapping and every overlay shares it (**R1**).
+`cellBox` and `cellAt` are exported from `@fndvit/gen-tilesets/render` — not from the root entry,
+which is engine-only — as pure functions rather than component methods, because there is exactly
+one coordinate mapping and every overlay shares it (**R1**).
 
 ## Layout
 
@@ -241,9 +329,13 @@ bound this package when it was built.
 
 ## Publishing
 
-`git tag v0.1.0 && git push --tags` — `.github/workflows/publish.yml` runs the tests, the
+`git tag v0.1.1 && git push --tags` — `.github/workflows/publish.yml` runs the tests, the
 typecheck, `svelte-package`, and `pnpm publish` against `npm.pkg.github.com` using the Actions
 `GITHUB_TOKEN`. No personal token, no secret to rotate.
+
+Bump the version in `package.json` first: the tag does not set it, and a tag whose version is
+already published fails. Note that **the package page's README is the one in the published
+tarball** — a README fix reaches nobody until a new version ships.
 
 Two decisions here are not obvious from the manifest:
 

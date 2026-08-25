@@ -39,7 +39,7 @@ pnpm workspace. Root scripts: `pnpm test`, `pnpm typecheck`, `pnpm citations` �
 except the last. CI runs the first two on every push; a `v*` tag publishes the package
 (`.github/workflows/`).
 
-`@fndvit/gen-tilesets` is at `0.1.0`. Everything `05` §10 says about version bumps describes a
+`@fndvit/gen-tilesets` is at `0.1.1`. Everything `05` §10 says about version bumps describes a
 future state; `05` §10.3 puts all of V1 at `0.x`, where no bump kind binds. **ADR-004 is the
 release valve that makes vector tables generatable before then, and it expires at 1.0.0.**
 
