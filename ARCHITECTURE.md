@@ -22,6 +22,11 @@ cellBox / edges ─────────────────────�
                                     <canvas> or one <img> per cell
 ```
 
+`loadTilesetFile()` is the first two boxes, in that order, throwing on either — the plain
+consumer's door. A host that needs the migration steps or the structured errors (the editor needs
+both) calls `migrate()` and `validate()` itself. `<Tileset>` re-runs `validate()` on its `file` in
+a development build only; in production it trusts it (**S3**).
+
 `generate()` is a pure function of `(config, seed, loadSalt)` and nothing else (`02` **G1**).
 It never sees a pixel, a viewport, or an asset (`02` §4.2, **G5**). Everything on the left of
 the arrow is design-space; everything on the right is render-space, and `07` §5 is the only
@@ -35,11 +40,12 @@ place they meet.
 | `apps/editor` | `@fndvit/tileset-editor` | The authoring tool. Svelte 5, Vite, `fflate`. Dev server 5174. |
 | `apps/demo` | `@fndvit/tileset-demo` | A fixture page for the renderer. Port 5173. |
 
-pnpm workspace. Root scripts: `pnpm test`, `pnpm typecheck`, `pnpm citations` — all recursive
-except the last. CI runs the first two on every push; a `v*` tag publishes the package
-(`.github/workflows/`).
+pnpm workspace. Root scripts: `pnpm test` and `pnpm typecheck`, both recursive. CI runs both on
+every push; a `v*` tag publishes the package (`.github/workflows/`). There is no `pnpm citations`
+here — `citations.mjs` went with the spec to `../gen-tileset-spec-archive/scripts/`, and the
+citations in the source are no longer checked by anything.
 
-`@fndvit/gen-tilesets` is at `0.1.1`. Everything `05` §10 says about version bumps describes a
+`@fndvit/gen-tilesets` is at `0.2.0`. Everything `05` §10 says about version bumps describes a
 future state; `05` §10.3 puts all of V1 at `0.x`, where no bump kind binds. **ADR-004 is the
 release valve that makes vector tables generatable before then, and it expires at 1.0.0.**
 

@@ -85,6 +85,16 @@ export {
   type ValidationError,
 } from "./validate.js";
 
+/**
+ * The two-in-one door for a plain consumer: `migrate()` then `validate()`, in
+ * that order, throwing on either. It is the sequence that is the value — see
+ * `./load.ts`. A host that needs the migration steps or the structured errors
+ * (the editor does) keeps using the two functions above directly.
+ *
+ * `assertValidFile` is exported because `<Tileset>` asserts with it under `DEV`.
+ */
+export { assertValidFile, loadTilesetFile } from "./load.js";
+
 export { tileStateAt } from "./types.js";
 export type {
   AttributeName,

@@ -8,6 +8,92 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.2.0 — one call to load a file, and a development build that tells you when you didn't
+
+Setup was three hand-written files and roughly eighty lines before the README's "two imports, and
+no more" bought anything. Two of those files were boilerplate this package should have owned.
+
+**`loadTilesetFile(raw)` replaces the twenty lines every consumer copied.** `0.1.1`'s README told
+the reader to write a `parseTilesetFile` and closed by admitting it: "yours to copy for now. If
+enough consumers write the same twenty lines it belongs in the package, but adding it is a feature
+and a version bump, not a doc change." This is that version bump.
+
+The sequence is the value, not the saved keystrokes. `migrate()` runs **before** `validate()`,
+because rewriting a `schemaVersion` is a coercion and `06` §9.2 forbids `validate()` from coercing
+— and left in a README that ordering is unenforceable. Reverse the two calls and nothing complains:
+the file is validated against a version it does not yet claim, and the failure is silent. Inside a
+function it is a property of the package.
+
+It corrects the snippet it replaces in one respect. The README threw a bespoke error on `migrate()`'s
+`"unrecognized"` outcome; `loadTilesetFile` falls through to `validate()`, which reports it at
+`/schemaVersion` as `SCHEMA_VERSION_MISSING` or `SCHEMA_VERSION_UNKNOWN` like any other error. That
+is what `migrate.ts` always said should happen and what the editor already did — one error format
+instead of two. `"newer"` still gets its own throw, because it is the one case where the advice is
+*update the code, not the file*.
+
+`assertValidFile` is exported alongside it, and `migrate()`/`validate()` are untouched. A host that
+needs the migration steps or the structured `ValidationError[]` — the editor wants both, for `09`'s
+**E16** advisory and for reporting each error at its path — keeps using them directly.
+
+**`<Tileset>` now validates its `file` in a development build, and throws.** This softens
+**S3**, which said the component validates nothing, full stop. `08` §3.4 gave the reason: "a
+component that validated would be doing at sixty frames per second what belongs at load, once."
+That is an argument against validating **per frame**, and a `$derived` keyed on `file` does not —
+it runs when the file changes, at the same cadence as `generate()`. The cost the objection names is
+not the cost this pays.
+
+**C5** is untouched: `generate()` still trusts its input, and validation is still a separate
+function. What it buys is that skipping the loader stops being silent. Undefined behaviour was the
+one failure in this package that reported nothing, which sits badly next to *failure is loud* — and
+the throw names the offending paths and the fix, so it teaches the API instead of just refusing.
+In production the posture is unchanged: an invalid file is still undefined behaviour.
+
+Every derived in the component reads the checked file rather than the prop, which makes
+"assert before generating" structural. The alternative — a `$derived` existing only for its throw,
+read back with a discarded `void` — is the line a later refactor deletes as dead.
+
+**`src/dev.ts` was rewritten, because its central claim was false.** Its comment said both branches
+were "statically analysable, so a bundler can eliminate the assertions from a production build."
+They were not: `DEV` was computed in a `try`/`catch` IIFE, which no bundler folds. That cost nothing
+while `DEV`'s only consumer was one inline comparison in `registry/sources.ts`. It stopped being
+free the moment `<Tileset>` imported `assertValidFile`, which reaches the whole of `validate.ts`.
+
+Measured on `apps/demo` built for production: **68.77 kB before, 58.56 kB after**, 3.2 kB of it
+gzipped — ten kilobytes of validator that could never run. The fix is that both reads of
+`import.meta.env` are inline. Hoisting them into a `const` costs the entire ten kilobytes back,
+because the substitution puts an object *literal* there and esbuild folds the expression it can see
+rather than propagating through a binding. `dev.ts` records that, and how to re-measure: build
+`apps/demo` and grep the output for `SCHEMA_VERSION_MISSING`. If it is there, the fold broke.
+
+`08` **open question 3** now has its component half, but is **not** closed — the detection is still
+two sniffed bundler signals, defaulting to off, and still the provisional answer it says it is.
+
+**`prefixedProvider(prefix)` retires the second copied file.** `defaultProvider` already shipped
+with identical logic and was already the component's default, so the README's provider snippet was
+a re-typing of it that changed one thing: the base path. Both now share one `meta.src` read and one
+throw site.
+
+Its join is normalised, which is the part worth having. SvelteKit's `base` carries no trailing
+slash and Vite's `import.meta.env.BASE_URL` always does, a difference `0.1.1` explained twice in
+prose and left to the caller to get right. Writing a test for it caught a bug in the first
+implementation: treating an empty prefix as *no* prefix returned the bare relative path for
+`prefixedProvider("/")` — reintroducing the 404 the function exists to prevent, in Vite's default
+configuration. The separator is now always emitted.
+
+**Cost.** Two new exports on the root entry, one on `/render`, and no removals. `packages/tileset/src/`
+changed, but nothing in the generation path did: no hash, no channel, no attribute. Generated
+output is byte-identical to `0.1.1`. Steps 5 and 6 of the README lose about seventy lines of
+copy-paste between them, and the walkthrough is still six steps.
+
+`src/load.test.ts` and `src/render/provider.test.ts` are new — the latter covering
+`defaultProvider`, which had shipped with no test at all. The component's branch cannot be
+unit-tested here (Vitest 2 bundles Vite 5, the Svelte plugin needs Vite 8), which is why the
+assertion lives in a `.ts`. `apps/editor`'s `newDocument` gained the `validate()` assertion it
+never had: the starting document being legal is now load-bearing at runtime, since an invalid one
+would throw on the editor's first paint rather than drawing `08` §3.4's blank preview.
+
+---
+
 ## 0.1.1 — the README the package page shows
 
 Documentation only. Nothing under `packages/tileset/src/` moved, so generated output is

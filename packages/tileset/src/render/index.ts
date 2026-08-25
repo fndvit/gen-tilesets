@@ -48,6 +48,7 @@ export {
 export {
   assetKey,
   defaultProvider,
+  prefixedProvider,
   type AssetProvider,
   type AssetRef,
   type Drawable,

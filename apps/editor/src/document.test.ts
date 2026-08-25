@@ -11,6 +11,7 @@ import {
   type Transition,
 } from "./document.js";
 import { parseCellSize, parseReferenceWidth, parseRows, parseYOffset } from "./fields.js";
+import { validate } from "@fndvit/gen-tilesets";
 
 const doc = () => newDocument();
 
@@ -28,6 +29,17 @@ describe("newDocument — 08 §3.4's valid skeleton", () => {
     // "Rejecting it would mean the editor cannot save a document until it is
     // finished."
     expect(file.config.defaultSeed.length).toBeGreaterThanOrEqual(1);
+  });
+
+  /**
+   * The field-by-field assertions above are a description of the skeleton; this
+   * is the test of it. It matters more since v0.2.0: `<Tileset>` asserts
+   * `validate()` on its `file` prop in a development build (**S3**), so an
+   * invalid starting document would no longer draw a blank preview — it would
+   * throw on the editor's first paint, before the author touched anything.
+   */
+  it("actually validates, which the DEV-build preview now depends on", () => {
+    expect(validate(doc())).toEqual([]);
   });
 
   it("derives `columns` rather than hardcoding it — E1", () => {

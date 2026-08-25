@@ -5,14 +5,21 @@ The engine and the renderer. The **only published package** in this repository.
 To **render** a tileset you need two imports, and no more:
 
 ```ts
+import { loadTilesetFile } from "@fndvit/gen-tilesets";
 import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
-import type { AssetRef } from "@fndvit/gen-tilesets/render";
 ```
 
-`<Tileset>` calls `generate()` itself. The rest of the surface is for a host that builds *tooling*
-on top — an overlay, a brush, a validator — and it lives on two different subpaths:
+```svelte
+<Tileset file={loadTilesetFile(raw)} />
+```
 
-- `@fndvit/gen-tilesets` — the engine: `generate`, `selection`, `validate`, `migrate`.
+That is the whole of it at the site root. `<Tileset>` calls `generate()` itself and resolves assets
+through a default provider; off the root you add one more import, `prefixedProvider`, and that is
+still the whole of it. The rest of the surface is for a host that builds *tooling* on top — an
+overlay, a brush, a validator — and it lives on two different subpaths:
+
+- `@fndvit/gen-tilesets` — the engine: `generate`, `selection`, `loadTilesetFile`, and the
+  `validate`/`migrate` pair it is built from.
 - `@fndvit/gen-tilesets/render` — the geometry: `cellBox`, `cellAt`.
 
 `cellAt`'s only caller in this repository is the editor's brush, and `cellBox` has no caller
@@ -108,90 +115,71 @@ it read out of `meta.src`, so the JSON points at `tiles/water/a1.svg`; flattenin
 anything inside breaks that silently. Moving the folder as-is is what keeps it true without your
 having to think about it.
 
-### 5. Parse it — `migrate()`, then `validate()`
+### 5. Load it — one call
 
-You cannot skip this. `<Tileset>` imports no validator, so a file `validate()` would reject is
-**undefined behaviour** (**S3**, as **C5**) — the component will not tell you. The types push you
-the same way: `TilesetFile.schemaVersion` is the literal type `2`, so a JSON import (which widens
-it to `number`) never assigns to `TilesetFile` directly. Validation is what earns the cast:
+You cannot skip this. `<Tileset>` imports no validator, so in a production build a file
+`validate()` would reject is **undefined behaviour** (**S3**, as **C5**). The types push you the
+same way: `TilesetFile.schemaVersion` is the literal type `2`, so a JSON import (which widens it to
+`number`) never assigns to `TilesetFile` directly. Validation is what earns the cast, and
+`loadTilesetFile` is what performs it:
 
 ```ts
-// src/lib/tileset-file.ts
-import { migrate, validate, type TilesetFile } from "@fndvit/gen-tilesets";
+// src/routes/+page.svelte — or wherever you hold the file
+import { loadTilesetFile } from "@fndvit/gen-tilesets";
+import raw from "$lib/tileset.json";
 
-/**
- * `migrate()` runs before `validate()`: rewriting a version is a coercion, and
- * `validate()` never coerces.
- */
-export function parseTilesetFile(raw: unknown): TilesetFile {
-  const outcome = migrate(raw);
+const file = loadTilesetFile(raw);
+```
 
-  if (outcome.kind === "newer") {
-    throw new Error(
-      `tileset.json declares schemaVersion ${outcome.declared}, which is newer than this ` +
-        `version of @fndvit/gen-tilesets understands. Upgrade the package.`,
-    );
-  }
-  if (outcome.kind === "unrecognized") {
-    throw new Error(`tileset.json has no usable schemaVersion (got ${String(outcome.declared)}).`);
-  }
+It runs `06`'s `migrate()` and then `validate()` — in that order, because rewriting a
+`schemaVersion` is a coercion and `validate()` never coerces — and **throws** on either failing. A
+file from a newer build of the package gets its own message telling you to upgrade rather than a
+list of shape errors against a schema it was not written for.
 
-  const candidate: unknown = outcome.kind === "migrated" ? outcome.file : raw;
+*In a development build, `<Tileset>` now checks this for you and throws if you skipped it*, naming
+the offending paths. In production it does not: the check compiles out entirely, so the cost is
+paid where the mistake is made and nowhere else.
 
-  const errors = validate(candidate);
-  if (errors.length > 0) {
-    const detail = errors.map((e) => `  ${e.path || "/"} [${e.code}] ${e.message}`).join("\n");
-    throw new Error(`tileset.json is not a valid TilesetFile:\n${detail}`);
-  }
+**If you need more than a throw**, use the two functions underneath directly. `loadTilesetFile`
+discards the migration steps and the structured `ValidationError[]`, which is exactly what an
+editing host cannot afford — it wants to show *"upgraded from schemaVersion 1"* as an advisory and
+report each error at its own path. That is what `apps/editor` does, and nothing about that path
+changed:
 
-  return candidate as TilesetFile;
-}
+```ts
+import { migrate, validate } from "@fndvit/gen-tilesets";
 ```
 
 ### 6. Anchor the asset paths, and render
 
-`meta.src` is **relative**, and the renderer hands it to an `<img>` verbatim. So the browser
-resolves it against the *current page URL*. On `/` that happens to be right. On `/deep/page` the
-browser asks for `/deep/tiles/water/a1.svg` and gets a 404 — with no build error and no type
-error, because nothing here is wrong at compile time.
+**`provider` is optional.** It defaults to `defaultProvider`, which reads `meta.src` and hands it
+to an `<img>`. If your assets are served at exactly the paths `meta.src` names *and* your page is
+at the site root, pass nothing — `apps/demo` in this repository does precisely that.
 
-A `provider` fixes it, and is what the extension point exists for:
+Everywhere else you need a prefix, and the reason is worth knowing because nothing reports it.
+`meta.src` is **relative**, so the browser resolves it against the *current page URL*. On `/` that
+happens to be right. On `/deep/page` the browser asks for `/deep/tiles/water/a1.svg` and gets a
+404 — with no build error and no type error, because nothing here is wrong at compile time.
 
-```ts
-// src/lib/provider.ts
-import { base } from "$app/paths";
-import type { AssetProvider } from "@fndvit/gen-tilesets/render";
-
-export const tilesetProvider: AssetProvider = (ref) => {
-  const src = ref.meta.src;
-  if (typeof src !== "string" || src === "") {
-    throw new Error(
-      `asset ${ref.tileId}/${ref.assetId} has no string meta.src, so it cannot be resolved`,
-    );
-  }
-  return { src: `${base}/${src}` };
-};
-```
-
-Use `base` from `$app/paths` rather than a hardcoded `/`. SvelteKit computes it **per route**
-(`paths.relative` defaults to `true`), so the same provider is correct at any route depth *and*
-under a sub-path deployment. It **throws** rather than substituting a placeholder, because
-resolution never substitutes — a missing picture must reach you through `onAssetError`, not become
-a wrong picture.
-
-Then the page:
+`prefixedProvider` anchors it:
 
 ```svelte
 <!-- src/routes/+page.svelte -->
 <script lang="ts">
+  import { loadTilesetFile } from "@fndvit/gen-tilesets";
   import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
-  import type { AssetRef } from "@fndvit/gen-tilesets/render";
+  // `AssetRef` is only for the optional `onAssetError` below.
+  import { prefixedProvider, type AssetRef } from "@fndvit/gen-tilesets/render";
+  import { base } from "$app/paths";
   import raw from "$lib/tileset.json";
-  import { parseTilesetFile } from "$lib/tileset-file";
-  import { tilesetProvider } from "$lib/provider";
 
-  const file = parseTilesetFile(raw);
+  const file = loadTilesetFile(raw);
+  const provider = prefixedProvider(base);
 
+  // `onAssetError` is OPTIONAL — everything below is. Drop it and the render is
+  // still correct; you just get no report when a picture is missing, because
+  // nothing is substituted and nothing returns null. `<Tileset {file}
+  // {provider} />` is the whole of the required form.
   let failures = $state<string[]>([]);
 
   function onAssetError(ref: AssetRef, cause: unknown): void {
@@ -200,9 +188,10 @@ Then the page:
 </script>
 
 <div class="frame">
-  <Tileset {file} provider={tilesetProvider} {onAssetError} />
+  <Tileset {file} {provider} {onAssetError} />
 </div>
 
+<!-- Optional, with the handler above: somewhere to show what failed. -->
 {#if failures.length > 0}
   <ul>{#each failures as f (f)}<li>{f}</li>{/each}</ul>
 {/if}
@@ -214,12 +203,21 @@ Then the page:
 </style>
 ```
 
+Use `base` from `$app/paths` rather than a hardcoded `/`. SvelteKit computes it **per route**
+(`paths.relative` defaults to `true`), so the same call is correct at any route depth *and* under a
+sub-path deployment. You do not need to special-case the root: at `/`, `base` is `""`, and
+`prefixedProvider` still anchors to `/tiles/…` rather than handing back the relative path.
+
+Like `defaultProvider`, it **throws** on an absent or non-string `meta.src` rather than
+substituting a placeholder, because resolution never substitutes — a missing picture must reach you
+through `onAssetError`, not become a wrong picture.
+
 That is the whole integration.
 
 ### If you are not using SvelteKit
 
 Plain Vite + Svelte 5 works with the same six steps and no aliases, no `optimizeDeps` entries and
-no extra plugins. Three things differ.
+no extra plugins. Two things differ.
 
 **Where the two halves go** — `public/` instead of `static/`, and `tileset.json` anywhere under
 `src/`:
@@ -232,30 +230,19 @@ tiles/         →  move the folder  →  <your-app>/public/tiles/
 Again `tiles/` moves whole, so `tiles/water/a1.svg` lands at
 `<your-app>/public/tiles/water/a1.svg` and is served at `/tiles/water/a1.svg`.
 
-**The provider** prefixes `import.meta.env.BASE_URL` instead of `base`:
+**The prefix and the import.** Pass Vite's base instead of SvelteKit's, and import the JSON by
+relative path rather than through `$lib`:
 
 ```ts
-// src/provider.ts
-import type { AssetProvider } from "@fndvit/gen-tilesets/render";
-
-export const tilesetProvider: AssetProvider = (ref) => {
-  const src = ref.meta.src;
-  if (typeof src !== "string" || src === "") {
-    throw new Error(
-      `asset ${ref.tileId}/${ref.assetId} has no string meta.src, so it cannot be resolved`,
-    );
-  }
-  // `BASE_URL` ends in a slash ("/" by default) and `meta.src` has none, so these
-  // concatenate directly. SvelteKit's `base` is the opposite — no trailing slash,
-  // hence the `/` in the snippet above. Adding one here yields `//tiles/…`.
-  return { src: `${import.meta.env.BASE_URL}${src}` };
-};
+const provider = prefixedProvider(import.meta.env.BASE_URL);
+import raw from "./tileset.json";
 ```
 
-**The import** is a relative path rather than `$lib`: `import raw from "./tileset.json"`. Vite
-handles JSON imports natively, so steps 5 and 6 are otherwise unchanged.
+The two bases differ by a slash — SvelteKit's `base` carries none, `BASE_URL` always does (`"/"` by
+default) — and `prefixedProvider` normalises both, so this is the only change. Vite handles JSON
+imports natively, so steps 5 and 6 are otherwise unchanged.
 
-### Four things worth knowing
+### Five things worth knowing
 
 - **It is deterministic by default.** With no `seed` and no `loadSalt` you get
   `seed = file.config.defaultSeed` and `loadSalt = 0` — the same picture on every load, every
@@ -269,6 +256,10 @@ handles JSON imports natively, so steps 5 and 6 are otherwise unchanged.
   per cell, snapped to the same edges.
 - **`onAssetError` is the only report of a missing picture.** Nothing is substituted and nothing
   returns null, so a tile whose file is absent draws an empty cell silently unless you wire this.
+- **`<Tileset>` validates its `file` in a development build, and throws.** It is keyed on the file,
+  so it runs when the file changes rather than per frame, and it compiles out of a production build
+  along with the validator itself. If it fires, the fix is `loadTilesetFile` — the message says so.
+  The production posture is unchanged: there, an invalid file is still undefined behaviour.
 
 ### Verified
 
@@ -276,18 +267,23 @@ The SvelteKit snippets above were extracted from a SvelteKit 2 app built for the
 installing `@fndvit/gen-tilesets` **from the registry**: `svelte-check` reports 0 errors and 0
 warnings, and `vite build` succeeds. The path trap is not hypothetical — the same page on
 `/deep/…` with the default provider server-renders `src="tiles/water/a1.svg"` and 404s, and with
-`tilesetProvider` renders `src="../tiles/water/a1.svg"`, which resolves to `/tiles/water/a1.svg`
-and returns 200.
+`prefixedProvider(base)` renders `src="../tiles/water/a1.svg"`, which resolves to
+`/tiles/water/a1.svg` and returns 200.
 
 The **plain Vite variant** was checked separately, against a throwaway Vite 8 + Svelte 5 app
 installing the packed tarball with no `svelte.config.js` and no aliases: `vite build` succeeds and
 `svelte-check` reports 0 errors and 0 warnings, over a `tileset.json` and a `tiles/` folder in the
 export's own layout. The slash claim is measured, not reasoned — under `--base=/deep/`,
-`import.meta.env.BASE_URL` is `/deep/`, so `` `${import.meta.env.BASE_URL}${src}` `` evaluates to
-`/deep/tiles/water/a1.svg`, and inserting a `/` would make it `/deep//tiles/…`.
+`import.meta.env.BASE_URL` is `/deep/`, and `prefixedProvider` trims the trailing slash before
+joining, so the result is `/deep/tiles/water/a1.svg` and not `/deep//tiles/…`.
 
-`parseTilesetFile` is yours to copy for now. If enough consumers write the same twenty lines it
-belongs in the package, but adding it is a feature and a version bump, not a doc change.
+**The development check is measured too, in both directions.** `prefixedProvider`'s join is
+covered across `""`, `"/"`, `"/app"` and `"/app/"` by `src/render/provider.test.ts`, and the
+`loadTilesetFile` sequence by `src/load.test.ts`. That the check *leaves* a production build is a
+build-output assertion rather than a claim: `apps/demo` compiled for production contains no string
+from `validate.ts` at all, and the bundle is 58.56 kB where the same build with an unfoldable
+`DEV` was 68.77 kB. `src/dev.ts` records how to re-measure it, and why the expression is shaped
+the way it is.
 
 ## The engine
 

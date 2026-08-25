@@ -9,10 +9,28 @@
   drawing the complete operation stack. Overlays draw *over* it, never instead of
   it. There is no preview mode and no second component.
 
-  **Invariant S3** — it performs no validation. It reads `schemaVersion` and
-  `engineVersion` for nothing and has undefined behaviour on a file `06`'s
-  `validate()` would reject. A host must never hold an invalid file, not even
-  between keystrokes.
+  **Invariant S3** — it performs no validation *on the draw path*. It reads
+  `schemaVersion` and `engineVersion` for nothing, substitutes nothing, and in a
+  production build has undefined behaviour on a file `06`'s `validate()` would
+  reject. A host must never hold an invalid file, not even between keystrokes.
+
+  **In a development build it asserts that, once per file** — see `checked`
+  below. S3 as originally written forbade this outright, and `08` §3.4 gave the
+  reason: "a component that validated would be doing at sixty frames per second
+  what belongs at load, once." That rules out validating **per frame**, which a
+  `$derived` keyed on `file` does not do — it runs when the file changes, at the
+  same cadence as `generate()` itself. The cost the objection names is not the
+  cost this pays.
+
+  **C5** is untouched. `generate()` still trusts its input, and validation is
+  still a separate function living in `../load.ts`; this only calls it. What it
+  buys is that skipping `loadTilesetFile()` stops being silent: undefined
+  behaviour was the one failure in this package that reported nothing, which
+  sits badly beside *failure is loud*.
+
+  This is the component half of `08` **open question 3**. It does not close it —
+  `../dev.ts` still detects a development build by sniffing two bundler signals,
+  and that detection remains the provisional answer it says it is.
 
   **Invariant S7** — it draws no random number and reads no ambient state.
   `Math.random()` does not appear here. That makes **R12** structural rather than
@@ -21,6 +39,8 @@
 -->
 <script lang="ts">
   import { generate } from "../generate.js";
+  import { DEV } from "../dev.js";
+  import { assertValidFile } from "../load.js";
   import type { TileState, TilesetFile } from "../types.js";
   import { cellPlacementPercent, naturalRatio, type GridGeometry } from "./geometry.js";
   import { cssTransform, isIdentityTransform } from "./transform.js";
@@ -106,20 +126,42 @@
     box = $bindable(null),
   }: Props = $props();
 
+  // **S3's development assertion.** Keyed on `file` alone: a `seed` or
+  // `loadSalt` change moves no config, so re-validating on one would be work
+  // with no question attached. In a production build this is `file` itself, by
+  // identity, and costs a boolean test.
+  //
+  // Every derived below reads `checked`, never `file`, and that is deliberate —
+  // it makes "assert before generating" structural. A `$derived` that existed
+  // only for its throw would have to be read back for its side effect, and a
+  // read whose value is discarded is the line a later refactor deletes as dead.
+  // Here the assertion cannot be dropped without also dropping the data.
+  const checked = $derived(
+    DEV
+      ? assertValidFile(
+          file,
+          "`<Tileset>`'s `file` prop",
+          "Pass the file through `loadTilesetFile()` before handing it to `<Tileset>`. " +
+            "This check runs in development builds only; in production the same file is " +
+            "undefined behaviour (S3).",
+        )
+      : file,
+  );
+
   // **Invariant S4** — with no optional props the picture is fixed:
   // seed = defaultSeed, loadSalt = 0. Variation between loads is always an
   // explicit act by the host. The reverse default would make every page
   // nondeterministic by accident, including under SSR.
-  const effectiveSeed = $derived(seed ?? file.config.defaultSeed);
+  const effectiveSeed = $derived(seed ?? checked.config.defaultSeed);
 
   // Regenerates when `file.config`, `seed`, or `loadSalt` changes, and on nothing
   // else — not a `provider` change, not a viewport resize, not hydration
   // (`08` §5.2, `07` §9.1). A viewport resize changes `s` and nothing else, so
   // every cell keeps its TileState and moves to a new rect.
-  const grid = $derived(generate(file.config, effectiveSeed, loadSalt));
+  const grid = $derived(generate(checked.config, effectiveSeed, loadSalt));
 
-  const layout = $derived(file.layout);
-  const ratio = $derived(naturalRatio(layout, file.config.rows));
+  const layout = $derived(checked.layout);
+  const ratio = $derived(naturalRatio(layout, checked.config.rows));
 
   // Placement is `cellPlacementPercent`'s, not a second copy of it (**S10**).
   // This component used to open-code `sidePercent` and `leftBase` here, which
@@ -132,7 +174,7 @@
   // `meta` lookup, keyed by the (tileId, assetId) pair per `07` §4.1.
   const metaByKey = $derived.by(() => {
     const map = new Map<string, Record<string, unknown>>();
-    for (const tile of file.config.tiles) {
+    for (const tile of checked.config.tiles) {
       for (const asset of tile.assets) {
         map.set(assetKey(tile.id, asset.id), asset.meta ?? {});
       }
@@ -275,7 +317,7 @@
     }
     const { leftPercent, topPercent, sidePercent } = cellPlacementPercent(
       layout,
-      file.config.columns,
+      checked.config.columns,
       x,
       y,
     );
@@ -378,8 +420,8 @@
 
   const geometry = $derived<GridGeometry>({
     layout,
-    rows: file.config.rows,
-    columns: file.config.columns,
+    rows: checked.config.rows,
+    columns: checked.config.columns,
     Wpx: measuredWidth,
   });
 
