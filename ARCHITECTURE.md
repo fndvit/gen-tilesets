@@ -45,7 +45,7 @@ every push; a `v*` tag publishes the package (`.github/workflows/`). There is no
 here — `citations.mjs` went with the spec to `../gen-tileset-spec-archive/scripts/`, and the
 citations in the source are no longer checked by anything.
 
-`@fndvit/gen-tilesets` is at `0.2.0`. Everything `05` §10 says about version bumps describes a
+`@fndvit/gen-tilesets` is at `0.3.0`. Everything `05` §10 says about version bumps describes a
 future state; `05` §10.3 puts all of V1 at `0.x`, where no bump kind binds. **ADR-004 is the
 release valve that makes vector tables generatable before then, and it expires at 1.0.0.**
 
@@ -95,24 +95,84 @@ header of `registry/sources.ts` and `spec/FREEZE.md` A-5.
 | --- | --- |
 | `Tileset.svelte` | The one entry point (**S1**). Takes a `TilesetFile` and calls `generate()` itself — nothing accepts a bare grid. |
 | `geometry.ts` | The ideal fractional mapping: `cellBox`, `cellAt`, `originX/Y`, `scaleFactor`. Pure, no measurement. |
-| `edges.ts` | ADR-006. One array of **integer device-pixel** edges per axis, so a seam between two cells is *the same array element* and a gap is unrepresentable. Also `blitRect` for quarter turns. |
+| `uniform.ts` | **The uniform square cell.** One integer side on both axes, plus the split between raster and presentation, and the draw list. `uniformGeometry` quantises with `round` for `"canvas"` and `"svg"`; `domGeometry` quantises with `ceil` for `"dom"` so its side residual is always a clip and never a gutter, and reports `gridHeightDev` so that box can take its height from the grid instead of cutting the bottom row. Every substrate draws from this module. |
+| `edges.ts` | What survives of ADR-006: `snap` and `coverRect`. The per-edge snapping it was built around is gone — see `SUBPIXEL-GEOMETRY.md` attempt 1 before reintroducing it. |
+| `warn.ts` | The two asset rules, as development-build warnings. Silent in production. |
 | `transform.ts` | Scale-then-rotate about the centre (**D11**). `sincos` makes quarter turns exact rather than `6.12e-17` off. |
 | `measure.ts` | `ResizeObserver` width and DPR. **This is ADR-006's concession** — `07` **R5** says the renderer never measures. Read the ADR's cost table before touching it. |
 | `images.ts` | Decoded bitmaps for the canvas substrate. |
 | `provider.ts` | Resolves `(tileId, assetId)` → `Drawable`. Keyed on the **pair**, never on `assetId` alone. |
 
-### Two substrates
+### Three substrates
 
-`substrate?: "canvas" | "dom"`, defaulting to `"canvas"`.
+`substrate?: "canvas" | "dom" | "svg"`, defaulting to `"canvas"`.
 
-- **canvas** — the render box *is* the `<canvas>`. One element, no per-cell nodes, so no
-  boundary exists for a backdrop to show through. No host-page CSS can open a gap.
-- **dom** — one `<img>` per cell, placed from the same snapped edges. Correct on its own, and
-  it is what SSR emits.
+**One geometry, three presentations.** All three compute the *same* uniform square cell —
+`scaleFactor * cellSize * dpr`, quantised to one integer on both axes, so a cell is square by
+construction and **R8**'s crop has nothing left to remove. `coverRect` and `object-fit: cover` are
+unchanged and still crop; against a square destination they crop by nothing. The substrates differ
+only in where the quantisation residual goes, which is a property of the *geometry* and not of the
+painter — every substrate faces it.
 
-The default is `"canvas"` because of who a wrong default hurts: a consumer needing SSR knows
-it at build time, where a consumer silently given `"dom"` gets hairlines attributed to
-anything but the tileset (`DECISIONS.md` D41).
+They also differ in **which way the cell is quantised**, and that is the one thing that is not
+shared. `"canvas"` and `"svg"` read `uniformGeometry`, which takes `round`: the presentation cancels
+the quantisation exactly, so what is left to minimise is the residual's *magnitude*. `"dom"` reads
+`domGeometry`, which takes `ceil` — see its bullet.
+
+- **canvas** — the raster is exactly `columns * cellDev` device px, so the canvas *is* the grid: no
+  origin to round, no box to centre in. It is then presented at the **ideal fractional** width, which
+  turns the whole residual into one isotropic resample of a single bitmap, where no internal edge
+  exists to seam. **The choice for proportion**, and the default. It is also the only substrate that
+  can promise seamlessness structurally rather than carefully — adjacent tiles are neighbouring
+  pixels of one bitmap, so no host-page CSS can open a boundary. It requires assets carrying at least
+  as many pixels as the largest cell they are drawn into.
+- **dom** — one `<img>` per cell, from `domGeometry`'s cell. **The choice for interactivity**,
+  because a canvas is one element and cannot be hit-tested per cell, and it is what SSR emits: before
+  measurement it places cells by percentage, so the initial HTML carries complete geometry. Its cost
+  is that the residual goes to the *box*: the grid does not fit it exactly, so the tileset does not
+  start on exactly the right cell. The full-bleed case — exact box, every column present — is served
+  by no substrate here.
+
+  **What it does guarantee is the direction of the misfit, on the axis the host owns.** Its cell is
+  `ceil(idealCell)`, so the grid always covers its box horizontally and **R9** clips the overhang: the
+  outer columns are cut, by an amount that varies with width, and no gutter of page backdrop can open
+  at the sides. `round` left the residual's sign free, and about half of all widths guttered instead —
+  up to 19 device px down each side of a zero-bleed design, which is what made this substrate look
+  like it was padding the grid at some widths and cutting it at others. Fixing the sign doubles the
+  worst-case side cut, and that trade is the reason `domGeometry` is a second function rather than a
+  change to the shared one.
+
+  **Vertically it cuts nothing, because that box is the component's.** After measurement the box drops
+  its declared ratio and takes its height from `domGeometry.gridHeightDev` — the last horizontal edge,
+  the same expression the cells are placed by — through one in-flow child, exactly as the canvas
+  wrapper takes its height from its canvas. Declaring `naturalRatio` while the grid was quantised put
+  the *whole* vertical residual on the bottom edge (the grid is top-anchored, so unlike the horizontal
+  one it is not split between two edges), which shaved up to `rows` device px off the bottom row. The
+  box is now up to `rows` device px taller than `naturalHeight`, which **S8** makes a default rather
+  than a constraint; a host that overrides the height gets **R9** back by its own choice.
+- **svg** — one inline `<svg>` in design coordinates under a single `viewBox`. One affine transform,
+  no per-cell layout rounding, so there is no residual to assign at all, and nothing is measured,
+  which makes it the most SSR-complete of the three. **The choice for crispness, if seams are
+  acceptable** — and they are the cost: **+52%** backdrop leak through `<image>` edges, the worst
+  measured, and plainly visible rather than marginal: in a flat one-colour field the
+  other two substrates show no boundary anywhere and this one shows a hairline at every shared edge.
+
+The default is `"canvas"` because of who a wrong default hurts: a consumer needing SSR knows it at
+build time, where a consumer silently given `"dom"` or `"svg"` gets a fit that is off by a cell, or
+hairlines, attributed to anything but the tileset (`DECISIONS.md` D41).
+
+**Overlays read `cellPlacementPercent`, not `uniform.ts`.** Under the canvas presentation the scale
+exactly cancels the quantisation, so a cell lands at `originX + k * s * cellSize` — the ideal
+fractional geometry. That is why the editor's two overlays reverted from the snapped edges they read
+under ADR-006, and `uniform.test.ts` asserts the identity so the claim is checked rather than
+believed.
+
+`SUBPIXEL-GEOMETRY.md` is the investigation record and carries the reasoning, the fifteen attempts,
+and the two laws worth knowing before touching any of this: the residual is geometry rather than
+paint, and apparent crispness of a curve goes as `1 / cellDev` rather than as the asset-to-cell
+ratio. Read it before changing `uniform.ts`, a crop policy, or the substrate default — several
+plausible-looking fixes there are measured dead ends, and four of them were confident claims about
+browser mechanisms that turned out to be false.
 
 ## `apps/editor/src` — the editor
 

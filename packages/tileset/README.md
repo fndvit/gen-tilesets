@@ -250,10 +250,18 @@ imports natively, so steps 5 and 6 are otherwise unchanged.
 - **If you want per-load variation, draw `loadSalt` in a `load` function.** Never at module scope
   or in component init: both run twice under SSR and give you two different pictures for one page.
   A `load` return value is serialized to the client, so server and hydration agree.
-- **`substrate` defaults to `"canvas"`**, which is the only one that can promise a seamless grid —
-  but it emits an empty box of the right ratio during SSR and fills it after mount. Pass
-  `substrate="dom"` if you need the tiles present in the server-rendered HTML; it is one `<img>`
-  per cell, snapped to the same edges.
+- **`substrate` defaults to `"canvas"`.** All three substrates compute the same uniform square cell,
+  so a cell is square by construction, neighbours share an edge, and the centre-crop has nothing to
+  remove. Take `"canvas"` unless you need something it cannot do: it is one element with no per-cell
+  nodes, so no host-page CSS can reopen a seam, and the residual becomes one isotropic resample of
+  one bitmap. Its cost is that it emits an empty box of the right ratio during SSR and fills it after
+  mount. Pass `substrate="dom"` if you need the tiles present in the server-rendered HTML or need to
+  hit-test individual cells — its cost is that the grid does not fit its box exactly, so it always
+  overhangs slightly at the sides and the outer columns are cut; its box is also a few pixels taller
+  than the natural height, because it sizes itself to the grid rather than cutting the bottom row.
+  Pass
+  `substrate="svg"` only if you want maximum crispness and can accept visible seams at every cell
+  boundary; it is measured as the seamiest of the three by a wide margin.
 - **`onAssetError` is the only report of a missing picture.** Nothing is substituted and nothing
   returns null, so a tile whose file is absent draws an empty cell silently unless you wire this.
 - **`<Tileset>` validates its `file` in a development build, and throws.** It is keyed on the file,
@@ -305,9 +313,36 @@ coercion and `validate()` never coerces.
 entry point (**S1**). It takes a parsed `TilesetFile` and calls `generate()` itself; nothing
 here accepts a bare grid.
 
-`substrate` defaults to `"canvas"`, where the render box **is** the `<canvas>` — one element, no
-per-cell nodes, so no host-page CSS can open a seam between adjacent tiles. `"dom"` keeps one
-`<img>` per cell from the same snapped edges and is what SSR emits. See ADR-006.
+**One geometry, three presentations.** All three substrates compute the same uniform square cell —
+`scaleFactor * cellSize * dpr`, quantised to one integer on both axes. That is what makes the
+picture correct: a cell is square by construction, so the centre-crop of **R8** has nothing left to
+remove, and neighbours share an edge, so a gap is unrepresentable. They differ only in where the
+quantisation residual goes.
+
+| `substrate` | Residual goes to | Take it for |
+| --- | --- | --- |
+| `"canvas"` (default) | one isotropic resample of one bitmap, where no internal edge exists to seam | **proportion.** No chord, exact quarter turns, no gaps at any cell size, and seamlessness no host CSS can undo |
+| `"dom"` | the **box** — sideways the grid overhangs and is clipped, so the outer columns are cut; vertically the box takes its height from the grid, so nothing is | **interactivity**, and SSR. The only one you can hit-test per cell |
+| `"svg"` | nowhere — there is no per-cell layout rounding to distribute | **crispness**, if you can accept a backdrop hairline at every shared edge |
+
+`"canvas"` and `"svg"` round the cell to nearest, because the presentation cancels the quantisation
+and only its magnitude is left to minimise. `"dom"` rounds **up**: it has no presentation to cancel
+anything, so the grid always covers its box and the cut is the whole residual. Rounding to nearest
+there left the sign free, and about half of all widths came out a band of page backdrop down each
+side instead.
+
+Vertically `"dom"` cuts nothing at all: after measuring, its box takes its height from the grid it
+contains rather than from the declared ratio, so the bottom row is always flush. The box can end up
+to `rows` device px taller than the natural height — which `naturalHeight` has always called a
+default rather than a constraint, and which host CSS can still override.
+
+Two rules about assets follow from the geometry rather than from this package, and both are real:
+an asset must carry **at least as many pixels as the largest cell it is drawn into** (upscaling
+cannot invent detail), and a curve needs a cell of roughly **40 device pixels or more** before its
+antialiased edge stops being a large fraction of the shape. A development build warns about both.
+[`SUBPIXEL-GEOMETRY.md`](https://github.com/fndvit/gen-tilesets/blob/main/SUBPIXEL-GEOMETRY.md)
+records the whole investigation, including four theories about browser rendering that turned out to
+be false.
 
 `cellBox` and `cellAt` are exported from `@fndvit/gen-tilesets/render` — not from the root entry,
 which is engine-only — as pure functions rather than component methods, because there is exactly

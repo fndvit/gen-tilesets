@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { assetKey, defaultProvider, prefixedProvider, type AssetRef } from "./provider.js";
+import { assetKey, parseAssetKey, defaultProvider, prefixedProvider, type AssetRef } from "./provider.js";
 
 const ref = (meta: Record<string, unknown>, tileId = "water", assetId = "a1"): AssetRef => ({
   tileId,
@@ -103,5 +103,34 @@ describe("prefixedProvider", () => {
 describe("assetKey", () => {
   it("keys on the pair", () => {
     expect(assetKey("water", "a1")).not.toBe(assetKey("grass", "a1"));
+  });
+});
+
+describe("parseAssetKey — assetKey's inverse", () => {
+  /**
+   * This exists because the open-coded version was wrong *and silent*. Two call
+   * sites split the key on `" "`, which it has never contained, so `assetId` came
+   * back `undefined` and the guard after it returned early — a failed image decode
+   * reported nothing through `onAssetError`. Nothing typechecked wrong and nothing
+   * threw. A round-trip assertion is what makes that unrepeatable.
+   */
+  it("round-trips every identifier 06 C10 permits", () => {
+    for (const tileId of ["a", "grass", "TILE_1", "a-b-c", "0", "x".repeat(64)]) {
+      for (const assetId of ["a1", "A", "_", "v-2", "9"]) {
+        expect(parseAssetKey(assetKey(tileId, assetId))).toEqual({ tileId, assetId });
+      }
+    }
+  });
+
+  it("does not split on a space, which is what the bug did", () => {
+    expect(assetKey("grass", "a1")).not.toContain(" ");
+    expect(assetKey("grass", "a1").split(" ")).toHaveLength(1);
+  });
+
+  it("returns null rather than half a pair for a non-key", () => {
+    // A caller that got `{ tileId, assetId: undefined }` proceeded silently. Null
+    // is the one shape that cannot be used by accident.
+    expect(parseAssetKey("grass a1")).toBeNull();
+    expect(parseAssetKey("")).toBeNull();
   });
 });

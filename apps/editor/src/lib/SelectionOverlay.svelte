@@ -33,7 +33,11 @@
 -->
 <script lang="ts">
   import { selection, type TilesetConfig } from "@fndvit/gen-tilesets";
-  import { naturalHeight, snappedGrid, type GridGeometry } from "@fndvit/gen-tilesets/render";
+  import {
+    cellPlacementPercent,
+    naturalHeight,
+    type GridGeometry,
+  } from "@fndvit/gen-tilesets/render";
 
   interface Props {
     g: GridGeometry;
@@ -81,27 +85,57 @@
 
   /**
    * Percentages, so the overlay is correct at every `Wpx` with nothing to
-   * recompute (`07` §5.3) — but taken from the **snapped** edges the renderer
-   * draws, not from `cellBox` directly (ADR-006).
+   * recompute (`07` §5.3), and taken from **`cellPlacementPercent`** — the ideal
+   * fractional geometry, which is where the cells actually land.
    *
-   * **R1** is the reason. `cellBox` is the ideal fractional geometry; since
-   * ADR-006 the picture is drawn on the device pixel grid, up to half a device
-   * pixel away from it. An overlay drawn from `cellBox` while the tiles are drawn
-   * from `snappedGrid` is exactly §6.1's failure — "the picture is right, the
-   * selection boxes are a few pixels off, and nothing anywhere reports it" —
-   * smaller than before but reintroduced by hand. One mapping, so: the same one.
+   * **This reverted, and the reason is arithmetic rather than taste.** ADR-006
+   * made the picture land on the device pixel grid, so an overlay drawn from
+   * `cellBox` while the tiles were drawn from `snappedGrid` was §6.1's failure —
+   * "the picture is right, the selection boxes are a few pixels off, and nothing
+   * anywhere reports it" — and this file read the snapped edges to avoid it.
+   *
+   * The canvas substrate no longer presents its raster at the snapped width. It
+   * presents it at the **ideal** one, and that scale cancels the quantisation
+   * exactly. Presented edge `k`, in CSS px:
+   *
+   *     originX + (k * cellDev / dpr) * presentScale
+   *       = originX + (k * cellDev / dpr) * (idealCell / cellDev)
+   *       = originX + k * idealCell / dpr
+   *       = originX + k * s * cellSize          === cellBox(g, k, .).left
+   *
+   * The snapping lives entirely inside the raster. So the ideal geometry is once
+   * again where the cells are, `dpr` stops being something this file has to track,
+   * and **R1** holds with one mapping rather than two that agree.
+   *
+   * `uniform.test.ts` asserts that identity directly, which is what keeps this
+   * comment from becoming a claim nobody checks.
+   *
+   * **It holds for `substrate="canvas"`, which is what the editor mounts.** The
+   * `"dom"` substrate quantises with `ceil` and has no presentation to undo it, so
+   * an overlay over *that* would be off by the clip. Nothing here reads the
+   * substrate; if the preview ever stops being a canvas, this is the line that
+   * breaks.
+   *
+   * ## `vScale`
+   *
+   * `topPercent` and `sidePercent` are fractions of the box's **width**, not its
+   * height (`07` §5.3) — cells are square, so the vertical pitch is the same
+   * quantity as the horizontal one, and a percentage resolved against a height
+   * would stretch every cell the moment a host overrode that height (**S8**).
+   *
+   * This overlay is `inset: 0` on a box whose height is the render box's, so a
+   * vertical percentage here resolves against *that* height. `vScale` restates
+   * the width fraction as the height fraction it has to become. Zero before the
+   * box has a size, which collapses the overlay rather than dividing by zero.
    */
   const height = $derived(naturalHeight(g));
-  const dpr = $derived(typeof window === "undefined" ? 1 : window.devicePixelRatio || 1);
-  const edges = $derived(snappedGrid(g, dpr));
+  const vScale = $derived(g.Wpx > 0 && height > 0 ? g.Wpx / height : 0);
 
   function styleOf([x, y]: [number, number]): string {
-    const pct = (n: number, total: number): number => (total > 0 ? (n / total) * 100 : 0);
-    const left = edges.x[x]! / dpr;
-    const top = edges.y[y]! / dpr;
+    const p = cellPlacementPercent(g.layout, g.columns, x, y);
     return (
-      `left: ${pct(left, g.Wpx)}%; width: ${pct(edges.x[x + 1]! / dpr - left, g.Wpx)}%; ` +
-      `top: ${pct(top, height)}%; height: ${pct(edges.y[y + 1]! / dpr - top, height)}%;`
+      `left: ${p.leftPercent}%; width: ${p.sidePercent}%; ` +
+      `top: ${p.topPercent * vScale}%; height: ${p.sidePercent * vScale}%;`
     );
   }
 </script>
