@@ -8,6 +8,78 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.3.0 — one uniform square cell, and a third substrate
+
+**The bug.** `edges.ts` snapped every grid line to a whole device pixel independently. Seams
+measured 0%, and that half was right. But a *cell* pairs `xEdges[x]` with `yEdges[y]` — two members
+of two independently snapped sequences — so it came out 133x132 where the ideal cell is square, and
+**R8**'s centre-crop answered that half pixel with a flat chord tangent to the curve: up to
+**19.5px on a 190px cell, a 39x amplification**.
+
+**The fix**, in `render/uniform.ts`, and it changes no crop code:
+
+    cellDev = round(scaleFactor * cellSize * dpr)      // one integer, both axes
+
+A cell is square by construction, so `coverRect` and `object-fit: cover` crop a square asset by
+nothing. The crop was never wrong — the rect it was handed was.
+
+**`substrate` gains `"svg"`**, and all three now draw from the same cell. `"canvas"` (default)
+rasterises at exactly `columns * cellDev` and presents at the ideal fractional width, so the residual
+becomes one isotropic resample where no internal edge can seam; `"dom"` gives the residual to the
+box; `"svg"` has no residual and pays at every shared edge instead — visibly, so it is documented
+rather than defaulted.
+
+**`"dom"` cuts at the sides, and never gutters.** `round` leaves the residual's *sign* free, and that substrate is
+the one that can feel it: it has no presentation to cancel the quantisation with, so at some widths
+the grid overhung its box and was clipped (wanted) and at others it fell short and showed the page
+backdrop down each side (not). Swept over 3,000 widths of the 76-column zero-bleed footer preset,
+**about half of them guttered** — up to 19 device px per side. `domGeometry` rounds the cell **up**
+and floors the `y` origin, so the grid always covers its box and **R9** clips the overhang: 0 of
+3,000 widths gutter at every DPR. The cost is a shift rather than a saving — the clip's range goes
+from a signed `[-19, +19]` device px per side to `[0, 38]`, so the worst-case cut doubles. A second
+function rather than a parameter on `uniformGeometry`, because the difference belongs to the
+presentation and not to the caller; `"canvas"` and `"svg"` are byte-for-byte unchanged.
+
+**And `"dom"` no longer cuts the bottom row**, which `ceil` exposed rather than caused. The box
+declared its height from `naturalRatio` — the *ideal*, unquantised height — while the grid inside it
+was quantised, and because the grid is top-anchored the whole vertical disagreement landed on one
+edge: up to `rows` device px off the bottom row, **60% of it** at 1000px and DPR 1. Horizontally the
+same residual is centred and each side gets half; vertically there is no second edge to share with.
+So after measurement the box drops the declared ratio and takes its height from
+`domGeometry.gridHeightDev` — the last horizontal edge — through one in-flow child, exactly as the
+canvas wrapper takes its height from its canvas. **Layout change:** a `"dom"` box is now up to `rows`
+device px taller than `naturalHeight` (and at a fractional `yOffset`, up to half a device pixel
+shorter). `08` **S8** has always made `naturalHeight` a default rather than a constraint, and host
+CSS still overrides the height, but a host that measured the old number will see a different one.
+
+**Breaking:** `xEdges`, `yEdges`, `snappedGrid`, `drawList`, `blitRect`, `DrawItem` and
+`SnappedGrid` are removed from `@fndvit/gen-tilesets/render`. `snap` and `coverRect` stay. Added:
+`uniformGeometry`, `uniformDrawList`, `domGeometry`, `parseAssetKey`, and the asset-rule checks in
+`render/warn.ts`.
+`blitRect` has no successor — it transposed the fill rect under a quarter turn, and a square rect
+quarter-turned is the same rect.
+
+**`apps/demo` gains a second fixture**, `Square2x2.svelte`: 2x2 solid-colour square tiles at a
+~350 device px cell, in an absolutely-positioned box, with a substrate selector and a 0.1px width
+control. It is the opposite regime from the footer preset — a sub-pixel error costs *more* as cells
+grow, so this is where geometry shows and the footer is where softness and seams do. Its readout
+prints the package's own exported geometry beside the **measured** rect of the render box, because
+the last instrument was wrong in half its panels while it was being trusted (`SUBPIXEL-GEOMETRY.md`,
+attempt 12) and **R1** forbids a second copy of the mapping.
+
+**And the host draws a real export.** `apps/demo/public/atlas/` is a committed export of the footer
+preset, fetched and passed through `loadTilesetFile` exactly as a consumer's would be, so the demo
+now exercises the documented loading path rather than an object literal. The inline `fixture.ts` and
+its five tiles are gone with it — nothing imported them once both fixtures read the archive.
+
+**Fixed, and unrelated to the above:** `assetKey` joins with `\0`, but two call sites split on
+`" "`. `assetId` came back `undefined`, the guard returned, and **a failed image decode reported
+nothing through `onAssetError`**. `parseAssetKey` is now its inverse, with a round-trip test.
+
+This changes drawn output for every config, which at `0.x` is a bump and a line here.
+
+---
+
 ## 0.2.0 — one call to load a file, and a development build that tells you when you didn't
 
 Setup was three hand-written files and roughly eighty lines before the README's "two imports, and

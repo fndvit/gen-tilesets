@@ -1,20 +1,56 @@
 <!--
-  The demo host.
+  The demo host, and a **seam and softness instrument**.
 
   `08` §3.2 splits the two roles: `<Tileset>` is the **caller** (it invokes
   `generate()`), and whatever mounts it is the **host**. The host supplies a valid
   file and a provider, owns the render box's width, and decides the seed.
 
-  This host also serves as the end-to-end check: three viewport widths with no
-  layout shift, a fixed `loadSalt` reproducing one picture, and a fresh one moving
-  only the flagged Operation.
+  It draws `public/atlas/` — a committed export of the footer preset
+  `SUBPIXEL-GEOMETRY.md` was written about: 76x10, zero bleed, 12px assets, full
+  bleed here, so the cell lands at roughly 15 device px. That is a real design and
+  the small-cell end of the range, which is where a hairline between two cells and
+  a soft upscaled edge are visible and where the substrate toggle is worth reading.
+  It is loaded rather than inlined because a served archive is what a consumer has
+  (`README.md`, *How to use it*), so this page exercises that path.
+
+  The other fixture in this app, `Square2x2.svelte`, is the opposite regime: a
+  ~350 device px cell, where geometry shows instead.
 -->
 <script lang="ts">
+  import { loadTilesetFile, type TilesetFile } from "@fndvit/gen-tilesets";
   import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
-  import type { AssetRef } from "@fndvit/gen-tilesets/render";
-  import { fixture } from "./fixture.js";
+  import { prefixedProvider, type AssetRef } from "@fndvit/gen-tilesets/render";
+  import Square2x2 from "./Square2x2.svelte";
 
-  let seed = $state(fixture.config.defaultSeed);
+  /**
+   * The archive root, served statically. `meta.src` is written relative to it
+   * with no leading slash (`07` §4.4), so the provider is what anchors it — the
+   * file itself is handed to `<Tileset>` unrewritten.
+   */
+  const ARCHIVE = "/atlas";
+  const provider = prefixedProvider(ARCHIVE);
+
+  let file = $state<TilesetFile | null>(null);
+  let loadError = $state<string | null>(null);
+  let seed = $state("");
+
+  // One call, and it throws: `migrate()` before `validate()`, because rewriting a
+  // version is a coercion and `validate()` never coerces. A load failure is loud.
+  void fetch(`${ARCHIVE}/tileset.json`)
+    .then((r) => {
+      if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+      return r.json() as Promise<unknown>;
+    })
+    .then((raw) => {
+      const loaded = loadTilesetFile(raw, "atlas.zip");
+      seed = loaded.config.defaultSeed;
+      // Assigned last: the `file` prop must be a stable reference (**S3**), and
+      // `<Tileset>` is keyed on it under DEV.
+      file = loaded;
+    })
+    .catch((cause: unknown) => {
+      loadError = String(cause);
+    });
 
   /**
    * `07` **R12** — `loadSalt` is a `uint32` drawn **once per render session** and
@@ -35,11 +71,18 @@
   let failures = $state<string[]>([]);
 
   /**
-   * ADR-006. The demo carries the toggle because this is where the two are
-   * comparable: a near-black backdrop, a continuous width slider, and no display
-   * zoom in the way. Sweep the slider on each and the difference is the point.
+   * ADR-006, and now three of them. The demo carries the toggle because this is
+   * where they are comparable: a near-black backdrop, a continuous width slider,
+   * and no display zoom in the way. Sweep the slider on each and the difference
+   * is the point.
+   *
+   * The initial value is read from `?substrate=`, so a headless capture can
+   * select one without clicking. The `<select>` still drives it thereafter.
    */
-  let substrate = $state<"canvas" | "dom">("canvas");
+  const fromQuery = new URLSearchParams(location.search).get("substrate");
+  let substrate = $state<"canvas" | "dom" | "svg">(
+    fromQuery === "dom" || fromQuery === "svg" ? fromQuery : "canvas",
+  );
 
   function onAssetError(ref: AssetRef, cause: unknown): void {
     // `08` **S6** — the host owns the error channel. A host that ignores this
@@ -49,7 +92,7 @@
 </script>
 
 <main>
-  <h1>@fndvit/gen-tilesets — first drawn output</h1>
+  <h1>atlas.zip — 76&times;10, 12px assets, full bleed</h1>
 
   <div class="controls">
     <label>
@@ -64,7 +107,7 @@
     </label>
 
     <label>
-      Render box width <code>{width}%</code>
+      Render box width <code>{width}vw</code>
       <input type="range" min="30" max="100" bind:value={width} />
     </label>
 
@@ -73,25 +116,34 @@
       <select bind:value={substrate}>
         <option value="canvas">canvas — seamless</option>
         <option value="dom">dom — one img per cell, SSR-able</option>
+        <option value="svg">svg — crispest, seams at every edge</option>
       </select>
     </label>
   </div>
+</main>
 
-  <p class="note">
-    Only <code>breathe</code> carries <code>reseedOnLoad</code>, so a new load salt moves the
-    vertical scale and nothing else. Changing the seed moves everything. The first and last
-    columns run off the edges — that is the 80&nbsp;design&nbsp;px of intentional bleed
-    (<code>02</code>&nbsp;§7.2), and the top of row&nbsp;0 is clipped by
-    <code>yOffset</code>.
-  </p>
+<!--
+  Full bleed: the host owns the render box's width through ordinary CSS, and here
+  that width is the viewport. There is no width prop — `07` §5.3 makes every
+  quantity a fixed fraction of Wpx (`08` §4).
+-->
+<div class="frame" style="width: {width}vw;">
+  {#if file !== null}
+    <Tileset {file} {seed} {loadSalt} {substrate} {provider} {onAssetError} />
+  {/if}
+</div>
 
-  <!--
-    The host owns the render box's width, through ordinary CSS. There is no width
-    prop: `07` §5.3 makes every quantity a fixed fraction of Wpx (`08` §4).
-  -->
-  <div class="frame" style="width: {width}%;">
-    <Tileset file={fixture} {seed} {loadSalt} {substrate} {onAssetError} />
-  </div>
+<!--
+  A second fixture, and the opposite regime: 2x2 at a ~350 device px cell in an
+  absolutely-positioned box, where one device pixel of misplacement is largest. The
+  footer preset above is where softness and seams show; this is where geometry does.
+-->
+<Square2x2 />
+
+<main>
+  {#if loadError !== null}
+    <p class="failures">atlas.zip failed to load: {loadError}</p>
+  {/if}
 
   {#if failures.length > 0}
     <ul class="failures">
@@ -113,7 +165,7 @@
   main {
     max-width: 1100px;
     margin: 0 auto;
-    padding: 2rem 1.5rem 4rem;
+    padding: 1.5rem 1.5rem 1rem;
   }
 
   h1 {
@@ -169,21 +221,14 @@
     color: #90cdf4;
   }
 
-  .note {
-    font-size: 0.85rem;
-    color: #718096;
-    max-width: 62ch;
-    margin: 0 0 1.5rem;
-  }
-
   /*
-    A plain block that gives the component its width. The component declares its
-    own aspect ratio and no height (**S8**), so nothing here sets one, and there
-    is no layout shift at any width.
+    A plain block that gives the component its width, centred in the viewport so
+    a sub-100vw reading is still symmetric. The component declares its own aspect
+    ratio and no height (**S8**), so nothing here sets one.
   */
   .frame {
     background: #0b0e13;
-    transition: width 120ms ease;
+    margin: 0 auto;
   }
 
   .failures {

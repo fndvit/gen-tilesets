@@ -1,0 +1,366 @@
+{
+  "schemaVersion": 2,
+  "engineVersion": "0.0.0",
+  "config": {
+    "rows": 10,
+    "columns": 76,
+    "defaultSeed": "opal-ridge-80",
+    "assetSalt": 7,
+    "reseedAssetsOnLoad": true,
+    "tiles": [
+      {
+        "id": "t1",
+        "name": "circle2Beige",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a3",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t1/a3.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a4",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a4.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a5",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a5.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a6",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a6.svg",
+              "width": 12,
+              "height": 12
+            }
+          }
+        ]
+      },
+      {
+        "id": "t2",
+        "name": "circle4Beige",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t2/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a3",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t2/a3.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a4",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t2/a4.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a5",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t2/a5.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a6",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t2/a6.svg",
+              "width": 12,
+              "height": 12
+            }
+          }
+        ]
+      },
+      {
+        "id": "t3",
+        "name": "circle05Beige",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a3",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t3/a3.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a4",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a4.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a5",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a5.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a6",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a6.svg",
+              "width": 12,
+              "height": 12
+            }
+          }
+        ]
+      },
+      {
+        "id": "t4",
+        "name": "circleSolidBeige",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t4/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a3",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t4/a3.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a4",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t4/a4.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a5",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t4/a5.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a6",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t4/a6.svg",
+              "width": 12,
+              "height": 12
+            }
+          }
+        ]
+      },
+      {
+        "id": "t5",
+        "name": "solidPink",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t5/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a2",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t5/a2.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a3",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t5/a3.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a4",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t5/a4.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a5",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t5/a5.svg",
+              "width": 12,
+              "height": 12
+            }
+          }
+        ]
+      }
+    ],
+    "operations": [
+      {
+        "id": "op1",
+        "salt": 0,
+        "reseedOnLoad": false,
+        "selection": {
+          "type": "all"
+        },
+        "source": {
+          "type": "random"
+        },
+        "target": "tileId",
+        "mapping": {
+          "palette": [
+            {
+              "tileId": "t4",
+              "weight": 1
+            },
+            {
+              "tileId": "t5",
+              "weight": 0.5
+            }
+          ]
+        },
+        "blend": "set"
+      },
+      {
+        "id": "op2",
+        "salt": 0,
+        "reseedOnLoad": false,
+        "selection": {
+          "type": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 76,
+          "height": 7
+        },
+        "source": {
+          "type": "gradient",
+          "angle": 90
+        },
+        "target": "opacity",
+        "mapping": {
+          "range": [
+            0.3,
+            1
+          ],
+          "steps": 7
+        },
+        "blend": "set"
+      },
+      {
+        "id": "op3",
+        "salt": 0,
+        "reseedOnLoad": false,
+        "selection": {
+          "type": "all"
+        },
+        "source": {
+          "type": "gradient",
+          "angle": 90
+        },
+        "target": "scale",
+        "mapping": {
+          "range": [
+            0.2,
+            0.95
+          ]
+        },
+        "blend": "set"
+      },
+      {
+        "id": "op4",
+        "salt": 6,
+        "reseedOnLoad": false,
+        "selection": {
+          "type": "random",
+          "density": 0.1
+        },
+        "source": {
+          "type": "constant"
+        },
+        "target": "opacity",
+        "mapping": {
+          "range": [
+            0,
+            0
+          ]
+        },
+        "blend": "set"
+      }
+    ]
+  },
+  "layout": {
+    "cellSize": 15,
+    "referenceWidth": 1140,
+    "yOffset": 0,
+    "horizontalAlignment": "gutter"
+  }
+}
