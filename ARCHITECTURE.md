@@ -45,7 +45,7 @@ every push; a `v*` tag publishes the package (`.github/workflows/`). There is no
 here — `citations.mjs` went with the spec to `../gen-tileset-spec-archive/scripts/`, and the
 citations in the source are no longer checked by anything.
 
-`@fndvit/gen-tilesets` is at `0.3.0`. Everything `05` §10 says about version bumps describes a
+`@fndvit/gen-tilesets` is at `0.4.0`. Everything `05` §10 says about version bumps describes a
 future state; `05` §10.3 puts all of V1 at `0.x`, where no bump kind binds. **ADR-004 is the
 release valve that makes vector tables generatable before then, and it expires at 1.0.0.**
 
@@ -75,15 +75,16 @@ rejected.
 | `types.ts` | Every noun. Key names transcribed verbatim from `06` §3, §5–§8. |
 | `generate.ts` | `generate(config, seed, loadSalt) → Grid<TileState>`. Per cell, in stack order, asset resolution last (`02` §9). |
 | `hash.ts` | Positional hashing — `hash`, `hashU32`, `mixLoad`, `stage1`, `selectionChannel`. Portability rules in `02` §6.6 are the contract, not the function choice. |
-| `ctx.ts` | The closed `EvalCtx` a Source receives (**O4**). Deliberately narrow — it is the doorway a pixel measurement would enter through. |
+| `ctx.ts` | The closed `EvalCtx` a Source receives (**O4**). Deliberately narrow — it is the doorway a pixel measurement would enter through. Carries `extent`, the Selection rectangle a *spanning* Source normalizes over; `rows`/`columns` are the grid and are not interchangeable with it. |
 | `attributes.ts` | The attribute table: domain, default, bounding. `bound`, `writeAttribute`. |
+| `angle.ts` | `sincos` — degrees, exact on the axes. Shared, because `gradient` needs the same exactness the render matrix does and the engine cannot import from `render/`. `render/transform.ts` re-exports it. |
 | `assets.ts` | The weight walk — resolves a cell's `assetId`. Order-independent (`03` §4.2). |
-| `mapping.ts` | Numeric and tile mapping — gives units to a Source's bare `[0,1)`. |
+| `mapping.ts` | Numeric and tile mapping — gives units to a Source's bare `[0,1]`. Both branches return `max` exactly at the top, and both have a `t = 1` boundary case since **X6** closed. |
 | `selection.ts` | `selection(config, operationId, …) → (x,y) => boolean`. Exists so the editor implements no Selection test (**E8**). |
 | `validate.ts` | Fifteen error codes, strict at every depth, never coerces. Separate from `generate()`, which trusts its input (**C5**). |
 | `migrate.ts` | The v1 → v2 table and its walk. Runs **before** `validate()`, because rewriting a version is a coercion (`06` §9.2). |
 | `dev.ts` | Development-build detection. A **provisional** answer to `08` Q3, which is still open. |
-| `registry/` | `registry.ts` (name → type, no public registration API), `sources.ts`, `selections.ts`, `blends.ts`. |
+| `registry/` | `registry.ts` (name → type, no public registration API), `sources.ts`, `selections.ts`, `blends.ts`. A Selection declares its `extent` here, beside `stochastic` and `coordinateBound`. |
 
 **`vignette` is registered nowhere on purpose.** `04` §5.2 lists five Sources and specifies
 four; implementing it would mean coining a formula in code, which `04` §5.3 rejects. See the

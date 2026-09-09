@@ -122,6 +122,27 @@ export interface Selection {
   [param: string]: unknown;
 }
 
+/**
+ * A half-open rectangle of grid coordinates, in cell units — the same discipline
+ * as `07` **R11**'s cell boxes and the `rect` Selection's own bounds.
+ *
+ * **What it is for.** A spanning Source normalizes over an extent rather than
+ * over the grid, so that a gradient confined to a Selection sweeps its full
+ * range inside it. A Selection declares its extent; `operationCtx` resolves it
+ * once per Operation. See `EvalCtx.extent`.
+ *
+ * **It may lie outside the grid**, because `rect` may (`04` §4.2) and clamping it
+ * would silently resize an author's rectangle. That is also what keeps **G2**:
+ * an overhanging rect still sweeps its whole declared width, so its midpoint does
+ * not drift by the bleed.
+ */
+export interface Extent {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /** Same shape, same reasoning — `06` §7.1. */
 export interface Source {
   type: string;

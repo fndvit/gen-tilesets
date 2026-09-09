@@ -53,12 +53,27 @@ describe("numeric mapping — 04 §6.2", () => {
     expect(applyNumericMapping(m, 0.99)).toBe(270);
   });
 
-  it("keeps index <= steps - 1, which depends on t < 1 strictly — X6", () => {
+  it("keeps index <= steps - 1 at t = 1, by clamping — X6 closed", () => {
     const m = { range: [0, 270] as [number, number], steps: 4 };
-    // 05 §6.2: t = 1.0 would give index 4 -> 360deg, wrapping to 0deg -- a fifth
-    // outcome the author's steps: 4 said would not exist.
     expect(applyNumericMapping(m, 0xffffffff / 2 ** 32)).toBe(270);
-    expect(applyNumericMapping(m, 1.0)).toBe(360); // why X6 forbids 1.0
+    // X6 admits t = 1 now that `gradient` reaches the far corner of its extent.
+    // Unclamped, `floor(1 * 4)` is 4 and this returns 360deg -- which `rotation`
+    // wraps to 0deg, a fifth outcome the author's `steps: 4` said would not
+    // exist, and the lowest value in the set rather than the highest. The clamp
+    // is what keeps the stepped map inside the range it was given.
+    expect(applyNumericMapping(m, 1.0)).toBe(270);
+  });
+
+  it("never overshoots max at t = 1, for any steps", () => {
+    // The general form of the case above: index `steps` would put the result one
+    // whole step past `max`, which is off the end of the authored range rather
+    // than merely surprising.
+    for (const steps of [2, 3, 4, 7, 10]) {
+      const m = { range: [0, 1] as [number, number], steps };
+      expect(applyNumericMapping(m, 1)).toBe(1);
+    }
+    // And with a reversed range, where overshooting goes the other way.
+    expect(applyNumericMapping({ range: [1, 0], steps: 4 }, 1)).toBe(0);
   });
 
   it("attains max when stepped, unlike continuous", () => {
@@ -115,8 +130,46 @@ describe("tile mapping — 04 §6.3", () => {
     for (let i = 0; i < 1000; i++) expect(applyTileMapping(withZero, i / 1000)).toBe("on");
   });
 
-  it("is total for every t in [0, 1)", () => {
-    for (let i = 0; i < 10000; i++) {
+  it("selects the last entry at t = 1, rather than clearing the cell", () => {
+    // The walk is `cumulative > target`, and at t = 1 target is the whole total,
+    // which no running sum exceeds -- so it used to fall out of the loop and
+    // return null. null is a legal palette entry meaning *clear this cell*
+    // (02 §8.1), so the top row of every palette gradient would have been
+    // blanked rather than taking the last entry. Silent, and a wrong picture.
+    expect(applyTileMapping(palette, 1)).toBe("grass");
+  });
+
+  it("never selects a zero-weight entry, at t = 1 either", () => {
+    // The fallback tracks the last *positive-weight* entry, so a trailing
+    // zero-weight entry cannot win by being last.
+    const trailingZero = {
+      palette: [{ tileId: "on", weight: 1 }, { tileId: "off", weight: 0 }],
+    };
+    expect(applyTileMapping(trailingZero, 1)).toBe("on");
+    // Several of them, and one in the middle for good measure.
+    const many = {
+      palette: [
+        { tileId: "a", weight: 1 },
+        { tileId: "b", weight: 0 },
+        { tileId: "c", weight: 2 },
+        { tileId: "d", weight: 0 },
+        { tileId: "e", weight: 0 },
+      ],
+    };
+    expect(applyTileMapping(many, 1)).toBe("c");
+  });
+
+  it("returns null at t = 1 for a null last entry, which is a real answer", () => {
+    // null means clear the cell, so a palette ending in one legitimately clears
+    // at the top of its range -- distinct from the fall-through it replaced.
+    const endsNull = {
+      palette: [{ tileId: "leaf", weight: 1 }, { tileId: null, weight: 1 }],
+    };
+    expect(applyTileMapping(endsNull, 1)).toBeNull();
+  });
+
+  it("is total for every t in [0, 1] closed", () => {
+    for (let i = 0; i <= 10000; i++) {
       expect(["water", "sand", "grass"]).toContain(applyTileMapping(palette, i / 10000));
     }
   });

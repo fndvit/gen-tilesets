@@ -8,6 +8,108 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.4.0 — a gradient that reaches both ends of its range
+
+**The bug**, found in the demo fixture. A `gradient` at `angle: 90` over ten rows, mapped
+continuously onto `scale` with `range: [0, 1]`, produced this:
+
+| row | 0 | 1 | 2 | ... | 8 | 9 |
+| --- | --- | --- | --- | --- | --- | --- |
+| scale | 0.05 | 0.15 | 0.25 | | 0.85 | 0.95 |
+
+Row 0 was not 0, so its tiles were visible when they should have vanished; row 9 was not 1, so
+adjacent tiles missed touching by five percent of a cell. **R7** makes `scale = 1` occupy exactly
+the cell box, so 1 is the value at which neighbours meet — and it was unreachable.
+
+**Two independent causes.**
+
+*It measured the grid's outer edges while sampling cells.* The domain was the projection of
+`(0, 0) .. (columns, rows)` and the sample was a cell centre, `(x + 0.5, y + 0.5)` — so
+`t = (y + 0.5) / rows`. Ten rows have ten cells but only **nine gaps** between their indexes;
+dividing by ten left exactly half a cell unreachable at each end. The inset went as `0.5 / N`, worst
+on the small grids where it shows most.
+
+*The domain was the whole grid, never the Selection.* `EvalCtx` carried only `rows`/`columns`, so a
+Source structurally could not see the Selection. A seven-row `rect` band inside that ten-row grid
+received only the slice `t` in `[0.05, 0.65]` of a grid-wide sweep, so `range: [0.3, 1]` with
+`steps: 7` came out as five distinct bands — two of them duplicated — topping out at **0.767**
+instead of 1.
+
+**The fix.** `gradient` now projects plain **cell indexes**, and takes its domain from the first and
+last cell index of `ctx.extent`:
+
+    xs = [ex, ex + ew - 1]        // not [0, columns]
+    p0 = project(x, y)            // not project(x + 0.5, y + 0.5)
+
+The half-cell offset was not merely unnecessary but counterproductive: it is a constant added to the
+sample and to both ends of the domain, where it cancels — so carrying it bought nothing and lost
+last bits, since it added the constant only to subtract it again.
+
+**It holds at every angle, not just the axis-aligned ones.** The sampled cells form a lattice inside
+the domain box, a linear functional attains its extremes over a box at the box's corners, and those
+corners *are* lattice points — real cells that really get sampled. Pinned over fifteen angles
+including diagonals, with strict equality rather than `toBeCloseTo`.
+
+**`sincos` moved down to `src/angle.ts`**, out of `render/transform.ts`, because the engine cannot
+import from `render/` and copying the quadrant table would leave two to drift. It is not a
+tidy-up: `cos(90deg)` is `6.12e-17`, and with `Math.cos` a vertical sweep's endpoints come out
+`2.47e-17` and `0.9999999999999994` — the same defect two decimal orders down — while a single-row
+extent gets a spurious non-zero span and sweeps a band with nothing to sweep across.
+`render/transform.ts` re-exports it, so no import site changed.
+
+**Selections declare an extent.** A third declaration on `SelectionRegistration` beside
+`stochastic` and `coordinateBound`, for the reason those two already give: the registry is open, so
+a table of names in the editor would silently misclassify anything registered later. `rect` returns
+its own four numbers **unclamped**; `cellList` returns the bounding box of the painted cells; the
+four procedural Selections declare nothing and get the grid — which is the split `04` §4.4's
+`coordinateBound` table already draws, arrived at independently. `operationCtx` resolves it once per
+Operation, so `generate()` and `selection()` cannot disagree about it.
+
+**G2 is intact, and the distinction is the point.** G2's argument is that a gradient normalized over
+*the visible region* would drift its midpoint off the viewport centre by exactly the bleed. A
+Selection is not a viewport — it is something the author drew. Because `rect`'s extent is unclamped,
+a rect dragged past the grid edge still sweeps its whole declared width, its midpoint stays put, and
+the clipped columns still consume their share of the range; the visible part of such a rect
+deliberately does *not* reach the ends. A gradient over `selection: {type: "all"}` is unchanged in
+domain and moves only by the endpoint fix.
+
+**X6 opened from `[0, 1)` to `[0, 1]`**, which is the real cost and was paid rather than dodged. The
+two ways round it are worse: nudging the endpoint to just under 1 leaves `scale` at
+`0.9999999999999999`, which is not 1 for `isIdentityTransform`'s exact comparison and so silently
+reintroduces seams on a whole row; and normalizing over cell edges to keep `t < 1` is the defect
+being fixed. Two sites in `mapping.ts` relied on the strictness:
+
+- the stepped `index = floor(t * steps)` reached `steps` at `t = 1` and overshot `max` by a whole
+  step — `[0, 270]` with `steps: 4` would emit 360deg, which `rotation` wraps to 0deg, the *lowest*
+  value in the set. Clamped.
+- the palette walk's `cumulative > target` was never strictly true for the last entry at `t = 1`, so
+  it fell out of the loop and returned `null` — which means *clear this cell*. The top row of every
+  palette gradient would have been blanked rather than taking its last entry. It now falls back to
+  the last **positive-weight** entry, so a trailing zero-weight entry still cannot win.
+
+`random` and `valueNoise` still return `[0, 1)`; a closed interval is a superset, so neither moved.
+
+**Both mapping branches now return `max` exactly at the top**, rather than the arithmetic that
+should equal it. `min + (steps - 1) * (max - min) / (steps - 1)` is `max` algebraically and is not
+`max` in floating point — over `[0.3, 1]` with `steps: 7` it comes out `0.9999999999999998`. That is
+invisible for most Targets and is not invisible for `scale`, where a value one ulp short takes the
+matrix path instead of the pixel-snapped box, and the matrix path is where seams come from.
+
+**The demo fixture needed no edits** and becomes the regression case: its `op3` now yields
+`0, 1/9, ... , 1` and its `op2` yields `0.3, 0.4167, 0.5333, 0.65, 0.7667, 0.8833, 1.0` — one band
+per row, reaching 1.
+
+**One public-API note.** `operationCtx` now resolves the Selection registration, so it throws
+**X7**'s unknown-type error where it previously could not. Neither in-tree caller changes behaviour
+— `generate()` and `selection()` both resolve the same registration a line earlier and already threw
+first — but a consumer calling `operationCtx` directly on an unvalidated config sees the throw move
+one call earlier.
+
+**This is an output change for every gradient config**, not only the ones with a `rect`. At `0.x`
+that is a version bump and this entry, per `CLAUDE.md`.
+
+---
+
 ## 0.3.0 — one uniform square cell, and a third substrate
 
 **The bug.** `edges.ts` snapped every grid line to a whole device pixel independently. Seams

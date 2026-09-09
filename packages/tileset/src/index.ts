@@ -30,6 +30,13 @@ export { canonicalAssets, prepareTile, walkWeights, type PreparedTile } from "./
 
 export { operationCtx, type EvalCtx } from "./ctx.js";
 
+/**
+ * Exact-on-the-axes trigonometry, shared by `gradient` and the renderer's
+ * matrix. Exported here as well as from `/render` because it is engine code now
+ * — see `./angle.ts` for why it moved.
+ */
+export { sincos } from "./angle.js";
+
 export {
   ASSET_CHANNEL,
   channelU32,
@@ -101,6 +108,7 @@ export type {
   BlendName,
   Grid,
   Identifier,
+  Extent,
   Layout,
   Mapping,
   NumericMapping,

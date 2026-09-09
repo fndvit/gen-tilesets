@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { operationCtx } from "./ctx.js";
 import { generate } from "./generate.js";
+import { effectiveSeeds } from "./hash.js";
 import { selection } from "./selection.js";
 import { tileStateAt, type Operation, type Selection, type TilesetConfig } from "./types.js";
 
@@ -213,5 +215,84 @@ describe("selection — purity and lookup", () => {
   it("throws on an unknown Selection type name — 05 X7", () => {
     const config = configWith(paint("op1", { type: "spiral" }));
     expect(() => selection(config, "op1", "sunset-3")).toThrow(/spiral/);
+  });
+});
+
+describe("operationCtx — the Selection extent, O4", () => {
+  const config = (sel: Selection): TilesetConfig => ({
+    rows: 10,
+    columns: 76,
+    defaultSeed: "opal-ridge-80",
+    tiles: [],
+    operations: [
+      {
+        id: "op1",
+        selection: sel,
+        source: { type: "gradient", angle: 90 },
+        target: "scale",
+        mapping: { range: [0, 1] },
+        blend: "set",
+      },
+    ],
+  });
+
+  const extentOf = (sel: Selection) => {
+    const c = config(sel);
+    return operationCtx(c, c.operations[0]!, effectiveSeeds("opal-ridge-80", 0)).extent;
+  };
+
+  it("defaults to the grid where the Selection declares none", () => {
+    // The default belongs here because a Selection is handed no dimensions.
+    expect(extentOf({ type: "all" })).toEqual({ x: 0, y: 0, width: 76, height: 10 });
+    expect(extentOf({ type: "checkerboard", parity: 0 })).toEqual({
+      x: 0,
+      y: 0,
+      width: 76,
+      height: 10,
+    });
+    expect(extentOf({ type: "random", density: 0.1 })).toEqual({
+      x: 0,
+      y: 0,
+      width: 76,
+      height: 10,
+    });
+  });
+
+  it("takes a rect's own bounds, unclamped", () => {
+    expect(extentOf({ type: "rect", x: 0, y: 0, width: 76, height: 7 })).toEqual({
+      x: 0,
+      y: 0,
+      width: 76,
+      height: 7,
+    });
+    // Past the grid on both axes and in both directions -- G2 keeps it whole.
+    expect(extentOf({ type: "rect", x: -4, y: -1, width: 200, height: 50 })).toEqual({
+      x: -4,
+      y: -1,
+      width: 200,
+      height: 50,
+    });
+  });
+
+  it("resolves identically for generate() and selection(), which share it — R1", () => {
+    // The reason `operationCtx` exists at all: two constructions of this object
+    // could disagree while both looking correct, and the visible symptom would be
+    // an editor overlay that no longer matches the preview beside it. Asserted
+    // because the extent is now one more field that could drift.
+    const sel: Selection = { type: "cellList", cells: [[2, 3], [4, 7]] };
+    const c = config(sel);
+    const seeds = effectiveSeeds("opal-ridge-80", 0);
+    expect(operationCtx(c, c.operations[0]!, seeds).extent).toEqual({
+      x: 2,
+      y: 3,
+      width: 3,
+      height: 5,
+    });
+    // And the predicate that `selection()` returns still agrees with the cells
+    // the extent was derived from.
+    const test = selection(c, "op1", "opal-ridge-80");
+    expect(test(2, 3)).toBe(true);
+    expect(test(4, 7)).toBe(true);
+    expect(test(3, 5)).toBe(false); // inside the box, outside the brush
   });
 });

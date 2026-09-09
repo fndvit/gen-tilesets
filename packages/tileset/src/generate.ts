@@ -119,10 +119,11 @@ function generateCell(
     // (a) Is this cell in the Operation's Selection?
     if (!selection.impl(op.selection as Record<string, unknown>, x, y, ctx)) continue;
 
-    // (b) The Source's number, in [0, 1). Asserted against X6 in dev builds.
+    // (b) The Source's number, in [0, 1] closed. Asserted against X6 in dev
+    // builds -- `gradient` reaches both ends, every other Source stays under 1.
     const t = evalSource(source, op.source as Record<string, unknown>, x, y, ctx);
 
-    // (b') Mapping. O1: a Blend never sees a raw [0, 1) value, and a Target never
+    // (b') Mapping. O1: a Blend never sees a raw [0, 1] value, and a Target never
     // receives an unmapped one. The shape is discriminated by `target` (C8).
     if (op.target === "tileId") {
       if (!isTileMapping(op.mapping)) continue; // undefined behaviour under C5

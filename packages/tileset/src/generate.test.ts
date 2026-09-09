@@ -443,3 +443,160 @@ describe("a config that draws — the end-to-end shape", () => {
     expect(performance.now() - start).toBeLessThan(500);
   });
 });
+
+describe("gradient Operations reach both ends of their range", () => {
+  // The demo fixture's own shape, which is where the defect was found: a ten-row
+  // grid with a vertical `scale` gradient over the whole of it, and a seven-row
+  // opacity band inside it.
+  const gradientConfig = (ops: Operation[]): TilesetConfig =>
+    baseConfig({ rows: 10, columns: 8, operations: [paintAll("paint", "leaf"), ...ops] });
+
+  const column = (g: ReturnType<typeof generate>, attr: "scale" | "opacity", x = 3) =>
+    Array.from({ length: g.rows }, (_, y) => tileStateAt(g, x, y)![attr]);
+
+  it("a continuous scale gradient over the grid runs 0 to 1 exactly", () => {
+    const g = generate(
+      gradientConfig([
+        {
+          id: "grad",
+          selection: { type: "all" },
+          source: { type: "gradient", angle: 90 },
+          target: "scale",
+          mapping: { range: [0, 1] },
+          blend: "set",
+        },
+      ]),
+      "sunset-3",
+    );
+    const scales = column(g, "scale");
+    // Exactly, not nearly: R7 makes scale 1 occupy exactly the cell box, so at 1
+    // adjacent tiles touch and at 0.95 they miss by five percent of a cell --
+    // which is precisely what the old half-cell inset produced.
+    expect(scales[0]).toBe(0);
+    expect(scales[9]).toBe(1);
+    expect(scales).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((k) => k / 9));
+  });
+
+  it("a stepped opacity gradient over a rect fills its own range, one band per row", () => {
+    const g = generate(
+      gradientConfig([
+        {
+          id: "band",
+          selection: { type: "rect", x: 0, y: 0, width: 8, height: 7 },
+          source: { type: "gradient", angle: 90 },
+          target: "opacity",
+          mapping: { range: [0.3, 1], steps: 7 },
+          blend: "set",
+        },
+      ]),
+      "sunset-3",
+    );
+    const inBand = column(g, "opacity").slice(0, 7);
+    // Was 0.3, 0.417, 0.417, 0.533, 0.65, 0.65, 0.767 -- five distinct values
+    // with two duplicated bands, topping out well short of 1, because the sweep
+    // was normalized over ten rows and only seven of them were selected.
+    expect(new Set(inBand).size).toBe(7);
+    expect(inBand[0]).toBe(0.3);
+    expect(inBand[6]).toBe(1);
+    // Rows below the rect are untouched, at the attribute default.
+    expect(column(g, "opacity").slice(7)).toEqual([1, 1, 1]);
+  });
+
+  it("a diagonal gradient reaches both ends too, at the extent's corners", () => {
+    const g = generate(
+      gradientConfig([
+        {
+          id: "diag",
+          selection: { type: "all" },
+          source: { type: "gradient", angle: 45 },
+          target: "scale",
+          mapping: { range: [0, 1] },
+          blend: "set",
+        },
+      ]),
+      "sunset-3",
+    );
+    // The corner cells are lattice points of the projection's domain box, which
+    // is why this holds off-axis and not only at multiples of 90.
+    expect(tileStateAt(g, 0, 0)!.scale).toBe(0);
+    expect(tileStateAt(g, 7, 9)!.scale).toBe(1);
+  });
+
+  it("a palette gradient takes its last entry at the far corner, not null", () => {
+    // t = 1 used to fall out of the palette walk and clear the cell.
+    const g = generate(
+      baseConfig({
+        rows: 4,
+        columns: 4,
+        operations: [
+          {
+            id: "terrain",
+            selection: { type: "all" },
+            source: { type: "gradient", angle: 90 },
+            target: "tileId",
+            mapping: {
+              palette: [{ tileId: "leaf", weight: 1 }, { tileId: "stone", weight: 1 }],
+            },
+            blend: "set",
+          },
+        ],
+      }),
+      "sunset-3",
+    );
+    for (let x = 0; x < 4; x++) {
+      expect(tileStateAt(g, x, 3)!.tileId, `column ${x}`).toBe("stone");
+      // And an asset really resolved, which a cleared cell would not have.
+      expect(tileStateAt(g, x, 3)!.assetId).not.toBeNull();
+    }
+  });
+
+  it("a gradient over a cellList sweeps the brush's bounding box", () => {
+    const cells: [number, number][] = [[1, 1], [1, 2], [2, 2], [3, 2], [3, 3]];
+    const g = generate(
+      baseConfig({
+        rows: 8,
+        columns: 8,
+        operations: [
+          paintAll("paint", "leaf"),
+          {
+            id: "brush",
+            selection: { type: "cellList", cells },
+            source: { type: "gradient", angle: 90 },
+            target: "scale",
+            mapping: { range: [0, 1] },
+            blend: "set",
+          },
+        ],
+      }),
+      "sunset-3",
+    );
+    // The box spans rows 1..3, so those are the three stops of the sweep.
+    expect(tileStateAt(g, 1, 1)!.scale).toBe(0);
+    expect(tileStateAt(g, 2, 2)!.scale).toBe(0.5);
+    expect(tileStateAt(g, 3, 3)!.scale).toBe(1);
+    // A cell inside the box but outside the brush is never selected.
+    expect(tileStateAt(g, 2, 1)!.scale).toBe(1);
+  });
+
+  it("a rect past the grid edge keeps its midpoint where the author put it — G2", () => {
+    // G2 is about clipped cells and it is untouched. The rect is 20 wide over an
+    // 8-column grid, so the visible columns get columns 0..7 of a 20-wide sweep
+    // and deliberately do NOT reach the ends.
+    const g = generate(
+      gradientConfig([
+        {
+          id: "bleed",
+          selection: { type: "rect", x: 0, y: 0, width: 20, height: 10 },
+          source: { type: "gradient", angle: 0 },
+          target: "scale",
+          mapping: { range: [0, 1] },
+          blend: "set",
+        },
+      ]),
+      "sunset-3",
+    );
+    expect(tileStateAt(g, 0, 0)!.scale).toBe(0);
+    expect(tileStateAt(g, 7, 0)!.scale).toBeCloseTo(7 / 19, 12);
+    expect(tileStateAt(g, 7, 0)!.scale).toBeLessThan(1);
+  });
+});
