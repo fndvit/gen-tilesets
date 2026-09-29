@@ -63,7 +63,13 @@
  */
 
 import type { Grid, TileState } from "../types.js";
-import { originX, scaleFactor, type GridGeometry } from "./geometry.js";
+import {
+  alignFraction,
+  originX,
+  scaleFactor,
+  type GridGeometry,
+  type Lattice,
+} from "./geometry.js";
 import { isIdentityTransform, sincos, type Matrix } from "./transform.js";
 
 /**
@@ -175,7 +181,113 @@ export function uniformGeometry(g: GridGeometry, dpr: number): UniformGeometry {
     presentScale: idealCell / cellDev,
     presentedWidthCss: s * g.columns * g.layout.cellSize,
     originXCss: originX(g),
-    originXDev: Math.round((g.Wpx * dpr - gridWidthDev) / 2),
+    originXDev: pinnedOriginXDev(g, cellDev, dpr),
+  };
+}
+
+/**
+ * The grid's left edge at an integer device pixel, pinned the way `alignX` says.
+ *
+ * **Fluid always centres**, whatever `alignX` is. In exact arithmetic the design
+ * box is the render box and every pin agrees, but a quantised cell makes the grid
+ * a few device px wider or narrower than its ideal, and centring is the one pin
+ * that splits that residual between the two sides instead of handing it all to
+ * one — `domGeometry`'s comment is about why a one-edged residual is the worse
+ * defect.
+ *
+ * Fixed pins the **design box** (`referenceWidth / cellSize` cells) and then
+ * places the grid inside it with its designed bleed. At `"center"` that is the
+ * original expression, kept verbatim so an unchanged host moves by nothing.
+ */
+function pinnedOriginXDev(g: GridGeometry, cellDev: number, dpr: number): number {
+  const b = g.sizing === "fixed" ? alignFraction(g.alignX, 0.5) : 0.5;
+  if (b === 0.5) return Math.round((g.Wpx * dpr - g.columns * cellDev) / 2);
+  const refCells = g.layout.referenceWidth / g.layout.cellSize;
+  return Math.round(b * (g.Wpx * dpr - refCells * cellDev) + ((refCells - g.columns) * cellDev) / 2);
+}
+
+/**
+ * The vertical counterpart: shift a top-anchored origin so the grid's
+ * `heightDev` sits in the render box the way `alignY` says.
+ *
+ * Against the **quantised** height, not `naturalHeight`: when the host sets no
+ * height the box is exactly `heightDev` tall (it takes its height from it), so the
+ * shift is exactly zero and there is no feedback between the height a substrate
+ * reports and the shift it is given.
+ */
+function alignedOriginYDev(
+  g: GridGeometry,
+  topDev: number,
+  heightDev: number,
+  dpr: number,
+): number {
+  const b = alignFraction(g.alignY, 0);
+  if (b === 0 || g.Hpx === undefined) return topDev;
+  const shift = Math.round(b * (g.Hpx * dpr - heightDev));
+  // A zero shift returns `topDev` itself: `-0 + 0` is `+0`, and a box at its own
+  // height should place its cells by exactly the numbers a top-aligned one does.
+  return shift === 0 ? topDev : topDev + shift;
+}
+
+/**
+ * How the canvas is presented once it rasterises only the columns that can be
+ * seen — the split, restricted to a column range.
+ *
+ * "The canvas *is* the grid" becomes "the canvas is the grid's visible columns".
+ * Everything the split argued still holds of it: the raster is an exact multiple
+ * of `cellDev` wide, it is presented at the ideal fractional width of those
+ * columns, and so the residual is still one isotropic resample of one bitmap. What
+ * changes is the size of the bitmap. Under `"fixed"` a 76-column grid on a phone
+ * shows about eight of them, and rasterising the rest would put a 10k-device-px
+ * canvas behind a 375 px box — past iOS's canvas area budget at DPR 3.
+ *
+ * With the full range this is `UniformGeometry`'s presentation exactly:
+ * `widthCss` is `presentedWidthCss` and `leftCss` is `originXCss`, by the same
+ * expressions.
+ */
+export interface CanvasPresentation {
+  x0: number;
+  x1: number;
+  /** `(x1 - x0) * cellDev`, at least 1. */
+  rasterWidthDev: number;
+  /** The CSS width the canvas is given: the ideal width of its columns. */
+  widthCss: number;
+  /** The canvas's left edge in the box: `originX` plus the culled columns. */
+  leftCss: number;
+  /**
+   * The vertical alignment shift, in CSS px. Applied with `position: relative;
+   * top`, which moves the canvas **without changing the height its wrapper takes
+   * from it** — a margin would, and a bottom-aligned margin is then a fixed point
+   * at any value.
+   */
+  topCss: number;
+  /** The lattice these cells are presented on — what the keep-out mask reads. */
+  lattice: Lattice;
+}
+
+export function canvasPresentation(
+  g: GridGeometry,
+  u: UniformGeometry,
+  dpr: number,
+  range: { x0: number; x1: number },
+): CanvasPresentation {
+  const s = scaleFactor(g);
+  const pitch = s * g.layout.cellSize;
+  const n = range.x1 - range.x0;
+  const ox = originX(g);
+  // `height: auto` from the intrinsic ratio: widthCss * rasterHeight / rasterWidth,
+  // which reduces to this with no dependence on the range.
+  const heightCss = (u.rasterHeightDev * u.presentScale) / dpr;
+  const b = alignFraction(g.alignY, 0);
+  const topCss = b === 0 || g.Hpx === undefined ? 0 : b * (g.Hpx - heightCss);
+  return {
+    x0: range.x0,
+    x1: range.x1,
+    rasterWidthDev: Math.max(1, n * u.cellDev),
+    widthCss: s * n * g.layout.cellSize,
+    leftCss: range.x0 === 0 ? ox : ox + range.x0 * pitch,
+    topCss,
+    lattice: { originX: ox, originY: topCss + (u.originYDev * u.presentScale) / dpr, pitch },
   };
 }
 
@@ -211,8 +323,11 @@ export interface DomGeometry {
    */
   originYDev: number;
   /**
-   * The **last horizontal edge**, `rows * cellDev + originYDev`, and therefore the
-   * height of the visible grid. This is what the DOM box takes its height from.
+   * The **last horizontal edge** of the top-anchored grid, `rows * cellDev +
+   * originYDev` before any `alignY` shift, and therefore the height of the visible
+   * grid. This is what the DOM box takes its height from — which is why it ignores
+   * `alignY`: the shift is measured against the box, so a height that moved with
+   * the shift would feed back into it.
    *
    * Read off the edge arithmetic rather than from `yOffset`, for the reason
    * `UniformGeometry.rasterHeightDev`'s comment gives at length: `originYDev` is
@@ -304,14 +419,21 @@ export function domGeometry(g: GridGeometry, dpr: number): DomGeometry {
 
   const originYDev = -Math.round(g.layout.yOffset * cellDev);
 
+  // The last horizontal edge of the *top-anchored* grid, and the height the box is
+  // given. Not `(rows - yOffset) * cellDev` -- see the field's comment.
+  const gridHeightDev = g.rows * cellDev + originYDev;
+
   return {
     cellDev,
-    originXDev: Math.round((g.Wpx * dpr - g.columns * cellDev) / 2),
-    originYDev,
-    // The last horizontal edge, and the height the box is given. Not
-    // `(rows - yOffset) * cellDev` -- see the field's comment.
-    gridHeightDev: g.rows * cellDev + originYDev,
+    originXDev: pinnedOriginXDev(g, cellDev, dpr),
+    originYDev: alignedOriginYDev(g, originYDev, gridHeightDev, dpr),
+    gridHeightDev,
   };
+}
+
+/** The DOM substrate's lattice in CSS px — every cell is placed on exactly this. */
+export function domLattice(d: DomGeometry, dpr: number): Lattice {
+  return { originX: d.originXDev / dpr, originY: d.originYDev / dpr, pitch: d.cellDev / dpr };
 }
 
 /**
@@ -331,6 +453,8 @@ export function domGeometry(g: GridGeometry, dpr: number): DomGeometry {
 export interface UniformItem {
   /** `(tileId, assetId)` per `07` §4.1 — `assetKey`'s output. */
   key: string;
+  /** `y * columns + x`, the cell's index in `grid.cells` — what the keep-out mask is indexed by. */
+  index: number;
   x: number;
   y: number;
   /** The cell's top-left in the raster. Integral, a multiple of `cellDev` off the origin. */
@@ -375,21 +499,27 @@ export function uniformDrawList(
   dpr: number,
   originXDev: number,
   keyOf: (tileId: string, assetId: string) => string,
+  range: { x0: number; x1: number } = { x0: 0, x1: grid.columns },
 ): UniformItem[] {
   const { cellDev, originYDev } = uniformGeometry(g, dpr);
   const out: UniformItem[] = [];
 
+  // `range` culls columns (`canvasPresentation`): cell `x0` is drawn at the
+  // raster's left edge, so `dx` counts from there. The default is every column,
+  // which makes this the list it was before culling existed.
   for (let i = 0; i < grid.cells.length; i++) {
     const cell = grid.cells[i]!;
     if (cell.tileId === null || cell.assetId === null) continue;
 
     const x = i % grid.columns;
+    if (x < range.x0 || x >= range.x1) continue;
     const y = Math.floor(i / grid.columns);
-    const dx = originXDev + x * cellDev;
+    const dx = originXDev + (x - range.x0) * cellDev;
     const dy = originYDev + y * cellDev;
 
     out.push({
       key: keyOf(cell.tileId, cell.assetId),
+      index: i,
       x,
       y,
       dx,

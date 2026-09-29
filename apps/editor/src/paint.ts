@@ -30,80 +30,24 @@
  * diagnostic describes, arrived at by painting instead of by resizing.
  */
 
-import { cellAt, type GridGeometry } from "@fndvit/gen-tilesets/render";
+import {
+  cellAt,
+  toRenderSpace,
+  type BoxMetrics,
+  type GridGeometry,
+} from "@fndvit/gen-tilesets/render";
 
 /** A painted cell. The wire shape `04` §4.4 gives `cellList`, and a tuple in the file. */
 export type Cell = [number, number];
 
 /**
- * What the conversion needs from the render box, and nothing more.
- *
- * A plain record rather than the element, so the arithmetic `07` §8.2 calls the
- * most likely thing to get wrong is testable with no DOM. `metricsOf` below is
- * the only part that touches one.
+ * The conversion into render space — `BoxMetrics`, `metricsOf`, `toRenderSpace` —
+ * lived here until 0.6.0 and now lives in the package's `render/space.ts`, with its
+ * reasoning. The keep-out tracker became its second caller, and two copies of
+ * `07` §8.2's "single most likely place to get this wrong" is **R1**'s failure. It
+ * is re-exported so this module's callers and tests are unchanged.
  */
-export interface BoxMetrics {
-  /** `getBoundingClientRect()` — **on screen**, so it includes any display zoom. */
-  clientLeft: number;
-  clientTop: number;
-  clientWidth: number;
-  /** `offsetWidth` — the **laid-out** width, which a CSS transform does not affect. */
-  layoutWidth: number;
-}
-
-/**
- * The render box's metrics.
- *
- * `08` **S9** is what makes this unambiguous: the component owns the element and
- * styles it with no padding and no border, so its content box and border box
- * coincide and `offsetWidth` **is** `Wpx`.
- */
-export function metricsOf(box: HTMLElement): BoxMetrics {
-  const rect = box.getBoundingClientRect();
-  return {
-    clientLeft: rect.left,
-    clientTop: rect.top,
-    clientWidth: rect.width,
-    layoutWidth: box.offsetWidth,
-  };
-}
-
-/**
- * Client coordinates to **render space** — `07` §8.2's caller work.
- *
- * Render space is "rendered pixels, relative to the render box's top-left corner.
- * Not design px, not client or page coordinates."
- *
- * ## The ratio is the display zoom, and it is not `s`
- *
- * `PreviewFrame` lays the frame out at the true `Wpx` and scales the whole thing
- * down with a CSS transform when `Wpx` exceeds the editor's column
- * (`DECISIONS.md` D18). A
- * `getBoundingClientRect()` is post-transform and `offsetWidth` is pre-transform,
- * so their ratio **is** that zoom — recovered from the element rather than passed
- * in, which means no caller can pass the wrong one and a host that scales the
- * preview by some other means is handled by the same line.
- *
- * `s = Wpx / referenceWidth` is a different scaling entirely and lives inside the
- * component. Conflating the two is how a click lands on the wrong cell at every
- * width but one.
- *
- * The vertical uses the same ratio deliberately: `08` **S8** gives the box an
- * aspect ratio and no height, and the zoom is uniform, so a separate vertical
- * ratio would be the same number computed twice — and would divide by zero on a
- * zero-height box, which is the state the frame is in for one frame at startup.
- */
-export function toRenderSpace(
-  box: BoxMetrics,
-  clientX: number,
-  clientY: number,
-): { px: number; py: number } {
-  const zoom = box.clientWidth > 0 && box.layoutWidth > 0 ? box.clientWidth / box.layoutWidth : 1;
-  return {
-    px: (clientX - box.clientLeft) / zoom,
-    py: (clientY - box.clientTop) / zoom,
-  };
-}
+export { metricsOf, toRenderSpace, type BoxMetrics } from "@fndvit/gen-tilesets/render";
 
 /**
  * The cell under a pointer, or `null` outside the grid.

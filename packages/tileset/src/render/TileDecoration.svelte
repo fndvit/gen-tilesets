@@ -24,7 +24,7 @@
   import { DEV } from "../dev.js";
   import { decorationFile, decorationStyleErrors } from "../decoration.js";
   import type { TilesetFile } from "../types.js";
-  import type { AssetProvider, AssetRef } from "./provider.js";
+  import type { TilesetOptions } from "./options.js";
   import Tileset from "./Tileset.svelte";
 
   interface Props {
@@ -39,32 +39,26 @@
     /** CSS px per tile. See the box comment below for why it is also the width. */
     cellSize: number;
     /**
-     * **This is what makes two decorations of the same size differ.** `generate()`
-     * is pure in `(config, seed, loadSalt)`, so a distinct seed per spot re-rolls
-     * every Operation and the asset walk alike. Omitted, every spot of a given
-     * size draws the identical picture, which is occasionally what you want.
+     * `<Tileset>`'s options, passed straight through — `TilesetOptions`.
+     *
+     * **`options.seed` is what makes two decorations of the same size differ.**
+     * `generate()` is pure in `(config, seed, loadSalt)`, so a distinct seed per
+     * spot re-rolls every Operation and the asset walk alike. Omitted, every spot
+     * of a given size draws the identical picture, which is occasionally what you
+     * want.
      */
-    seed?: string;
-    loadSalt?: number;
-    provider?: AssetProvider;
-    onAssetError?: (ref: AssetRef, cause: unknown) => void;
-    substrate?: "canvas" | "dom" | "svg";
+    options?: TilesetOptions | undefined;
   }
 
   // No `box` prop, unlike `<Tileset>`. That exists so an editor can convert a
   // pointer event into render space (`07` §8.2); a decoration is `aria-hidden`
   // ornament that nothing points at. A host that needs the element can wrap this.
-  let {
-    style,
-    rows,
-    columns,
-    cellSize,
-    seed,
-    loadSalt = 0,
-    provider,
-    onAssetError,
-    substrate,
-  }: Props = $props();
+  //
+  // `options` is forwarded as it is. Before 0.6.0 this component re-spread five
+  // optional props one by one, because `exactOptionalPropertyTypes` rejects a
+  // present-but-`undefined` value; `<Tileset>`'s `options` accepts `undefined`, so
+  // the whole workaround is gone.
+  let { style, rows, columns, cellSize, options }: Props = $props();
 
   /**
    * **Development-loud, production-trusting** — the same arrangement `<Tileset>`
@@ -91,21 +85,6 @@
   });
 
   const file = $derived(decorationFile(checked, { rows, columns, cellSize }));
-
-  /**
-   * **Forwarded by spread, and that is a type requirement rather than a style.**
-   * The package compiles under `exactOptionalPropertyTypes`, where `seed?: string`
-   * accepts *absent* but not *present-and-`undefined`* — so `seed={seed}` on an
-   * unset prop is an error, and passing one through means omitting the key rather
-   * than passing the value. `loadSalt` needs no such treatment because it has a
-   * default here, as it does in `<Tileset>`.
-   */
-  const forwarded = $derived({
-    ...(seed !== undefined ? { seed } : {}),
-    ...(provider !== undefined ? { provider } : {}),
-    ...(onAssetError !== undefined ? { onAssetError } : {}),
-    ...(substrate !== undefined ? { substrate } : {}),
-  });
 </script>
 
 <!--
@@ -130,7 +109,7 @@
   from its own child.
 -->
 <div class="decoration" style="width: {columns * cellSize}px;">
-  <Tileset {file} {loadSalt} {...forwarded} />
+  <Tileset {file} {options} />
 </div>
 
 <style>

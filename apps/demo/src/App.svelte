@@ -22,6 +22,7 @@
   import { prefixedProvider, type AssetRef } from "@fndvit/gen-tilesets/render";
   import Square2x2 from "./Square2x2.svelte";
   import Decorations from "./Decorations.svelte";
+  import Hosting from "./Hosting.svelte";
 
   /**
    * The archive root, served statically. `meta.src` is written relative to it
@@ -80,18 +81,16 @@
   let failures = $state<string[]>([]);
 
   /**
-   * ADR-006, and now three of them. The demo carries the toggle because this is
-   * where they are comparable: a near-black backdrop, a continuous width slider,
-   * and no display zoom in the way. Sweep the slider on each and the difference
-   * is the point.
+   * ADR-006's substrates — two since 0.6.0, when `"svg"` was removed. The demo
+   * carries the toggle because this is where they are comparable: a near-black
+   * backdrop, a continuous width slider, and no display zoom in the way. Sweep
+   * the slider on each and the difference is the point.
    *
    * The initial value is read from `?substrate=`, so a headless capture can
    * select one without clicking. The `<select>` still drives it thereafter.
    */
   const fromQuery = new URLSearchParams(location.search).get("substrate");
-  let substrate = $state<"canvas" | "dom" | "svg">(
-    fromQuery === "dom" || fromQuery === "svg" ? fromQuery : "canvas",
-  );
+  let substrate = $state<"canvas" | "dom">(fromQuery === "dom" ? "dom" : "canvas");
 
   function onAssetError(ref: AssetRef, cause: unknown): void {
     // `08` **S6** — the host owns the error channel. A host that ignores this
@@ -130,7 +129,6 @@
       <select bind:value={substrate}>
         <option value="canvas">canvas — seamless</option>
         <option value="dom">dom — one img per cell, SSR-able</option>
-        <option value="svg">svg — crispest, seams at every edge</option>
       </select>
     </label>
   </div>
@@ -143,7 +141,7 @@
 -->
 <div class="frame" style="width: {width}vw;">
   {#if file !== null}
-    <Tileset {file} {seed} {loadSalt} {substrate} {provider} {onAssetError} />
+    <Tileset {file} options={{ seed, loadSalt, substrate, provider, onAssetError }} />
   {/if}
 </div>
 
@@ -160,6 +158,12 @@
   the decorations feature is judged on — see its header.
 -->
 <Decorations loadSalt={decorationSalt} />
+
+<!--
+  A fourth, and the 0.6.0 one: a tileset behind a hero's copy, keeping clear of it
+  as it rewraps — `options.avoid`, `sizing` and `align`. See its header.
+-->
+<Hosting />
 
 <main>
   {#if loadError !== null}

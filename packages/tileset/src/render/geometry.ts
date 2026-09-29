@@ -27,6 +27,43 @@ export interface CellBox {
   bottom: number;
 }
 
+/**
+ * How a cell's size responds to the render box.
+ *
+ * - `"fluid"` — `07` §5.3's model and the only one before 0.6.0: every quantity is
+ *   a fixed fraction of `Wpx`, so the picture is one design scaled.
+ * - `"fixed"` — a design px **is** a CSS px (`s = 1`). Cells keep `layout.cellSize`
+ *   at every width and the box crops the grid instead, on the side `align` says.
+ *
+ * A **host** choice rather than a `Layout` field: the same file can be hosted
+ * either way, and keeping it out of the file keeps the file size-independent and
+ * needs no `schemaVersion` bump. Rejected: growing `columns` to fill a wide box in
+ * fixed mode — that is `RESPONSIVE-HOSTING.md`'s Route D, refuted there for three
+ * reasons that still hold.
+ */
+export type Sizing = "fluid" | "fixed";
+
+/**
+ * Which edge of the **design box** is pinned to the render box.
+ *
+ * The design box is `referenceWidth` wide and `(rows - yOffset) * cellSize` tall,
+ * scaled by `s`. Under `"fluid"` it *is* the render box horizontally, so all three
+ * horizontal values give identical geometry — a consequence of the definition, not
+ * a special case. Under `"fixed"` they choose what gets cropped: `"left"` keeps
+ * the design's left edge and crops from the right, `"right"` the reverse, and
+ * `"center"` crops both sides equally.
+ */
+export type AlignX = "left" | "center" | "right";
+
+/**
+ * The vertical counterpart of {@link AlignX}. Only matters when the render box is
+ * a different height from the design box — which the component never causes on
+ * its own (**S8**: the box takes its height from the grid) and a host causes by
+ * setting one, `07` §7.3's vertical bleed. `"top"` is `07` §7.3's top anchoring
+ * and the default.
+ */
+export type AlignY = "top" | "center" | "bottom";
+
 /** Everything `07` §5 needs. `rows` and `columns` come from `config`, `Wpx` from the host. */
 export interface GridGeometry {
   layout: Layout;
@@ -34,6 +71,36 @@ export interface GridGeometry {
   columns: number;
   /** The render box's width, in rendered px. */
   Wpx: number;
+  /** Default `"fluid"`. See {@link Sizing}. */
+  sizing?: Sizing | undefined;
+  /** Default `"center"`. See {@link AlignX}. */
+  alignX?: AlignX | undefined;
+  /** Default `"top"`. See {@link AlignY}. */
+  alignY?: AlignY | undefined;
+  /**
+   * The render box's height, in rendered px. Read only when `alignY` is not
+   * `"top"`; absent means "the design box's own height", which shifts nothing.
+   */
+  Hpx?: number | undefined;
+}
+
+/**
+ * `0`, `0.5` or `1`: how much of the difference between the render box and the
+ * design box lands *before* the design box. One coefficient serves both axes.
+ */
+export function alignFraction(align: AlignX | AlignY | undefined, fallback: 0 | 0.5): number {
+  switch (align) {
+    case "left":
+    case "top":
+      return 0;
+    case "center":
+      return 0.5;
+    case "right":
+    case "bottom":
+      return 1;
+    default:
+      return fallback;
+  }
 }
 
 /**
@@ -47,6 +114,9 @@ export interface GridGeometry {
  * neatly — the outcome the design marks as wrong.
  */
 export function scaleFactor(g: GridGeometry): number {
+  // Fixed sizing is `s = 1` and nothing else: every expression below is written
+  // in `s`, so the whole of the mode lives in this line and in `originX`'s pin.
+  if (g.sizing === "fixed") return 1;
   return g.Wpx / g.layout.referenceWidth;
 }
 
@@ -69,7 +139,16 @@ export function gridWidth(g: GridGeometry): number {
  * that an advisory diagnostic rather than an error.
  */
 export function originX(g: GridGeometry): number {
-  return (g.Wpx - scaleFactor(g) * gridWidth(g)) / 2;
+  // Fluid keeps its original expression, not the general one below: they are
+  // equal in exact arithmetic (the design box is the render box, so the pin term
+  // is zero), but not always to the last bit, and 0.x's drawn output for an
+  // unchanged host must not move because a mode was added beside it.
+  if (g.sizing !== "fixed") return (g.Wpx - scaleFactor(g) * gridWidth(g)) / 2;
+  // Pin the design box by `alignX`, then place the grid inside it with the
+  // designed bleed. At "center" this is `(Wpx - gridWidth) / 2` again.
+  const s = scaleFactor(g);
+  const ref = g.layout.referenceWidth;
+  return alignFraction(g.alignX, 0.5) * (g.Wpx - s * ref) + (s * (ref - gridWidth(g))) / 2;
 }
 
 /**
@@ -81,7 +160,11 @@ export function originX(g: GridGeometry): number {
  * to a negative origin.
  */
 export function originY(g: GridGeometry): number {
-  return -scaleFactor(g) * g.layout.yOffset * g.layout.cellSize;
+  const top = -scaleFactor(g) * g.layout.yOffset * g.layout.cellSize;
+  const b = alignFraction(g.alignY, 0);
+  // No `Hpx`, or top-aligned: exactly the original expression.
+  if (b === 0 || g.Hpx === undefined) return top;
+  return top + b * (g.Hpx - naturalHeight(g));
 }
 
 /**
@@ -167,6 +250,156 @@ export function cellPlacementPercent(
     topPercent: (y - layout.yOffset) * sidePercent,
     sidePercent,
   };
+}
+
+/**
+ * One length as `pct% of a basis + px` — the shape every placement quantity has
+ * once `sizing` and `align` are in play. `pct` is a percentage (0–100), not a
+ * fraction, because that is what a stylesheet is handed.
+ */
+export interface Affine {
+  pct: number;
+  px: number;
+}
+
+/**
+ * A cell's placement as affine lengths, so it can be written into CSS **before
+ * anything is measured** — `cellPlacementPercent` generalised to every
+ * `(sizing, alignX, alignY)`.
+ *
+ * `side`, `left` and `marginTop` are against the render box's **width** (a
+ * percentage margin resolves against the containing block's width, which is the
+ * trick `Tileset.svelte`'s `cellStyle` comment explains). `topPct` is against its
+ * **height**: it is what a non-top `alignY` needs, and a percentage `top` is the
+ * one CSS length that resolves against height.
+ *
+ * Under `"fluid"` with top alignment this is `cellPlacementPercent` exactly —
+ * the same numbers, by the same expressions — so the server-rendered HTML of an
+ * unchanged host is byte-identical to 0.5.0's.
+ */
+export interface CellPlacementAffine {
+  side: Affine;
+  left: Affine;
+  marginTop: Affine;
+  topPct: number;
+}
+
+export function cellPlacementAffine(
+  g: Omit<GridGeometry, "Wpx" | "Hpx">,
+  x: number,
+  y: number,
+): CellPlacementAffine {
+  const { layout, rows, columns } = g;
+  const bY = alignFraction(g.alignY, 0);
+  const topPct = bY * 100;
+
+  if (g.sizing !== "fixed") {
+    const p = cellPlacementPercent(layout, columns, x, y);
+    // The design box is `(rows - yOffset)` cells tall, in the same width-relative
+    // percentage every other vertical quantity here is in.
+    const shift = bY === 0 ? 0 : bY * (rows - layout.yOffset) * p.sidePercent;
+    return {
+      side: { pct: p.sidePercent, px: 0 },
+      left: { pct: p.leftPercent, px: 0 },
+      marginTop: { pct: bY === 0 ? p.topPercent : p.topPercent - shift, px: 0 },
+      topPct,
+    };
+  }
+
+  const { cellSize, referenceWidth: ref, yOffset } = layout;
+  const bX = alignFraction(g.alignX, 0.5);
+  return {
+    side: { pct: 0, px: cellSize },
+    left: { pct: bX * 100, px: (ref - columns * cellSize) / 2 - bX * ref + x * cellSize },
+    marginTop: { pct: 0, px: (y - yOffset) * cellSize - bY * (rows - yOffset) * cellSize },
+    topPct,
+  };
+}
+
+/**
+ * An {@link Affine} as a CSS length. `px === 0` is tested first so a fluid
+ * placement comes out as a bare percentage, exactly the string 0.5.0 wrote.
+ */
+export function cssLength(a: Affine): string {
+  if (a.px === 0) return `${a.pct}%`;
+  if (a.pct === 0) return `${a.px}px`;
+  return `calc(${a.pct}% + ${a.px}px)`;
+}
+
+/**
+ * A square lattice in render space: the cell grid **as a substrate actually
+ * draws it**, in CSS px relative to the render box's top-left.
+ *
+ * Not `cellBox` under another name. Each substrate quantises the ideal mapping
+ * differently (`uniform.ts`), and anything that must agree with the picture to
+ * the pixel — the keep-out mask, culling — has to ask the substrate for the
+ * lattice it painted rather than recompute the ideal one. Canvas's lattice is the
+ * ideal one (its presentation cancels the quantisation); DOM's is `domGeometry`'s.
+ */
+export interface Lattice {
+  originX: number;
+  originY: number;
+  pitch: number;
+}
+
+/** A half-open cell range, clamped to the grid: `[x0, x1) x [y0, y1)`. */
+export interface CellRange {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+}
+
+/**
+ * The cells whose lattice square intersects `rect` with **positive area**,
+ * clamped to the grid.
+ *
+ * Positive area rather than closed intersection, so a rect that only touches a
+ * cell's edge does not claim it. Cell `x` spans `[ox + x*p, ox + (x+1)*p)`; it
+ * meets `(left, right)` with positive area exactly when
+ * `floor((left - ox) / p) <= x < ceil((right - ox) / p)`, and likewise for `y`.
+ *
+ * O(1): the range is arithmetic, so a caller pays for the cells it then visits
+ * and never for the grid.
+ */
+export function latticeRange(
+  lattice: Lattice,
+  columns: number,
+  rows: number,
+  rect: CellBox,
+): CellRange {
+  const { originX: ox, originY: oy, pitch: p } = lattice;
+  const clamp = (v: number, hi: number): number => Math.min(hi, Math.max(0, v));
+  return {
+    x0: clamp(Math.floor((rect.left - ox) / p), columns),
+    x1: clamp(Math.ceil((rect.right - ox) / p), columns),
+    y0: clamp(Math.floor((rect.top - oy) / p), rows),
+    y1: clamp(Math.ceil((rect.bottom - oy) / p), rows),
+  };
+}
+
+/**
+ * The columns worth drawing: those whose lattice square meets the box's width,
+ * widened by `margin` cells each side for drawables that spill (`maxSpill`).
+ *
+ * **Columns only.** A substrate culls horizontally and keeps every row, because
+ * the box's height is taken *from* the grid (**S8**), and a grid that culled its
+ * own rows would change the height it is measured by.
+ */
+export function visibleColumns(
+  lattice: Lattice,
+  columns: number,
+  Wpx: number,
+  margin: number,
+): { x0: number; x1: number } {
+  const pad = margin * lattice.pitch;
+  const r = latticeRange(lattice, columns, 1, {
+    left: -pad,
+    right: Wpx + pad,
+    top: -Infinity,
+    bottom: Infinity,
+  });
+  return { x0: r.x0, x1: Math.max(r.x0, r.x1) };
 }
 
 /** The cell box's centre in render space — what every transform is taken about (**R7**). */

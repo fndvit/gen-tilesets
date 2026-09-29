@@ -14,13 +14,21 @@ TilesetFile ──migrate()──> validate() ──> generate(config, seed, loa
    │  layout                                    ▼
    │                                    Grid<TileState>
    ▼                                            │
-cellBox / edges ────────────────────────────────┤
-                                                ▼
+placement: sizing, align ───────────────────────┤  geometry.ts / uniform.ts
+   ▲ box size, dpr                              │
+keep-out rects ──> occlusion mask ──────────────┤  occlusion.ts (options.avoid only)
+   ▲ measure.ts                                 ▼
                           AssetProvider: (tileId, assetId) -> Drawable
                                                 │
                                                 ▼
                                     <canvas> or one <img> per cell
 ```
+
+**Four stages, and only the last is a substrate.** The engine makes the grid; the geometry places
+it for the box, the sizing and the alignment; the keep-out mask hides the cells under page content
+the host named; and a substrate paints. The mask is render space: it never reaches the config, so
+the grid is generated exactly as often with it as without it. See `occlusion.ts`'s header for the
+route it replaced (`RESPONSIVE-HOSTING.md` Route B, which rewrote the config instead).
 
 `loadTilesetFile()` is the first two boxes, in that order, throwing on either — the plain
 consumer's door. A host that needs the migration steps or the structured errors (the editor needs
@@ -45,7 +53,7 @@ every push; a `v*` tag publishes the package (`.github/workflows/`). There is no
 here — `citations.mjs` went with the spec to `../gen-tileset-spec-archive/scripts/`, and the
 citations in the source are no longer checked by anything.
 
-`@fndvit/gen-tilesets` is at `0.5.0`. Everything `05` §10 says about version bumps describes a
+`@fndvit/gen-tilesets` is at `0.6.0`. Everything `05` §10 says about version bumps describes a
 future state; `05` §10.3 puts all of V1 at `0.x`, where no bump kind binds. **ADR-004 is the
 release valve that makes vector tables generatable before then, and it expires at 1.0.0.**
 
@@ -95,34 +103,38 @@ header of `registry/sources.ts` and `spec/FREEZE.md` A-5.
 
 | Module | What |
 | --- | --- |
-| `Tileset.svelte` | The one entry point (**S1**). Takes a `TilesetFile` and calls `generate()` itself — nothing accepts a bare grid. |
+| `Tileset.svelte` | The one entry point (**S1**). Takes a `TilesetFile` and calls `generate()` itself — nothing accepts a bare grid. Three props: `file`, `options`, and the bindable `box`. |
+| `options.ts` | **`TilesetOptions`** — every setting in one typed object, each field documented. `resolveOptions` is the only place a default is written; `optionErrors` and `legacyPropErrors` are the development-build checks. Named `options` because `file.config` already owns `config`. |
 | `TileDecoration.svelte` | One placement of a decoration style. **Not a second entry point** — it derives a `TilesetFile` above `<Tileset>` and renders it, exactly as the editor's preview does, so **S1** is intact. What it owns is the box: `columns * cellSize` px, the same product `decorationFile` writes into `referenceWidth`. |
-| `geometry.ts` | The ideal fractional mapping: `cellBox`, `cellAt`, `originX/Y`, `scaleFactor`. Pure, no measurement. |
-| `uniform.ts` | **The uniform square cell.** One integer side on both axes, plus the split between raster and presentation, and the draw list. `uniformGeometry` quantises with `round` for `"canvas"` and `"svg"`; `domGeometry` quantises with `ceil` for `"dom"` so its side residual is always a clip and never a gutter, and reports `gridHeightDev` so that box can take its height from the grid instead of cutting the bottom row. Every substrate draws from this module. |
+| `geometry.ts` | The ideal fractional mapping: `cellBox`, `cellAt`, `originX/Y`, `scaleFactor`. Pure, no measurement. Carries **sizing and alignment** — `"fixed"` is `s = 1` plus a pinned origin, and the fluid defaults are the 0.5.0 expressions verbatim. Also `cellPlacementAffine` (pre-measurement CSS in every mode), and `Lattice`/`latticeRange`/`visibleColumns`, which the mask and culling share. |
+| `uniform.ts` | **The uniform square cell.** One integer side on both axes, plus the split between raster and presentation, and the draw list. `canvasPresentation` restricts the raster to the visible columns; `domLattice` is where the DOM actually places cells. `uniformGeometry` quantises with `round` for `"canvas"`; `domGeometry` quantises with `ceil` for `"dom"` so its side residual is always a clip and never a gutter, and reports `gridHeightDev` so that box can take its height from the grid instead of cutting the bottom row. Every substrate draws from this module. |
 | `edges.ts` | What survives of ADR-006: `snap` and `coverRect`. The per-edge snapping it was built around is gone — see `SUBPIXEL-GEOMETRY.md` attempt 1 before reintroducing it. |
 | `warn.ts` | The two asset rules, as development-build warnings. Silent in production. |
-| `transform.ts` | Scale-then-rotate about the centre (**D11**). `sincos` makes quarter turns exact rather than `6.12e-17` off. |
-| `measure.ts` | `ResizeObserver` width and DPR. **This is ADR-006's concession** — `07` **R5** says the renderer never measures. Read the ADR's cost table before touching it. |
+| `transform.ts` | Scale-then-rotate about the centre (**D11**). `sincos` makes quarter turns exact rather than `6.12e-17` off. `maxSpill` is how far any drawable reaches past its cell, which culling widens by. |
+| `occlusion.ts` | **The keep-out mask.** Measured rects → one byte per cell, on the lattice the substrate paints. The lattice cell is the test, not the drawn tile. `stableMask` keeps an unchanged mask's identity, which is what makes a resize touch nothing. |
+| `space.ts` | Client → render space, including an ancestor's CSS zoom. Moved here from the editor's `paint.ts` when the tracker became its second caller (**R1**). |
+| `measure.ts` | **One scheduler for the page**: one `ResizeObserver` (flushed inside its own callback, so geometry and mask land in the frame that caused them), one `MutationObserver` and `document.fonts` (batched to one `requestAnimationFrame`), one `IntersectionObserver` (off-screen tilesets skip their reads). Reads every tracker before writing any. **This is ADR-006's concession, extended** — `07` **R5** says the renderer never measures, and with `options.avoid` it now measures other elements too. |
 | `images.ts` | Decoded bitmaps for the canvas substrate. |
 | `provider.ts` | Resolves `(tileId, assetId)` → `Drawable`. Keyed on the **pair**, never on `assetId` alone. |
 
-### Three substrates
+### Two substrates
 
-`substrate?: "canvas" | "dom" | "svg"`, defaulting to `"canvas"`.
+`options.substrate: "canvas" | "dom"`, defaulting to `"canvas"`. There were three until 0.6.0 — see the end of this section.
 
-**One geometry, three presentations.** All three compute the *same* uniform square cell —
+**One geometry, two presentations.** Both compute the *same* uniform square cell —
 `scaleFactor * cellSize * dpr`, quantised to one integer on both axes, so a cell is square by
 construction and **R8**'s crop has nothing left to remove. `coverRect` and `object-fit: cover` are
 unchanged and still crop; against a square destination they crop by nothing. The substrates differ
 only in where the quantisation residual goes, which is a property of the *geometry* and not of the
 painter — every substrate faces it.
 
-They also differ in **which way the cell is quantised**, and that is the one thing that is not
-shared. `"canvas"` and `"svg"` read `uniformGeometry`, which takes `round`: the presentation cancels
+They differ in **which way the cell is quantised**, and that is the one thing that is not
+shared. `"canvas"` reads `uniformGeometry`, which takes `round`: the presentation cancels
 the quantisation exactly, so what is left to minimise is the residual's *magnitude*. `"dom"` reads
 `domGeometry`, which takes `ceil` — see its bullet.
 
-- **canvas** — the raster is exactly `columns * cellDev` device px, so the canvas *is* the grid: no
+- **canvas** — the raster is exactly `columns * cellDev` device px (since 0.6.0, the *visible*
+  columns' worth — `canvasPresentation`), so the canvas *is* the grid: no
   origin to round, no box to centre in. It is then presented at the **ideal fractional** width, which
   turns the whole residual into one isotropic resample of a single bitmap, where no internal edge
   exists to seam. **The choice for proportion**, and the default. It is also the only substrate that
@@ -153,16 +165,26 @@ the quantisation exactly, so what is left to minimise is the residual's *magnitu
   one it is not split between two edges), which shaved up to `rows` device px off the bottom row. The
   box is now up to `rows` device px taller than `naturalHeight`, which **S8** makes a default rather
   than a constraint; a host that overrides the height gets **R9** back by its own choice.
-- **svg** — one inline `<svg>` in design coordinates under a single `viewBox`. One affine transform,
-  no per-cell layout rounding, so there is no residual to assign at all, and nothing is measured,
-  which makes it the most SSR-complete of the three. **The choice for crispness, if seams are
-  acceptable** — and they are the cost: **+52%** backdrop leak through `<image>` edges, the worst
-  measured, and plainly visible rather than marginal: in a flat one-colour field the
-  other two substrates show no boundary anywhere and this one shows a hairline at every shared edge.
 
 The default is `"canvas"` because of who a wrong default hurts: a consumer needing SSR knows it at
-build time, where a consumer silently given `"dom"` or `"svg"` gets a fit that is off by a cell, or
-hairlines, attributed to anything but the tileset (`DECISIONS.md` D41).
+build time, where a consumer silently given `"dom"` gets a fit that is off by a cell, attributed to anything but the
+tileset (`DECISIONS.md` D41).
+
+**Everything added in 0.6.0 works on both**, and that was the condition for keeping two: fixed
+sizing and alignment are geometry, so both substrates read them from the same functions, and the
+keep-out mask is applied when painting — the canvas skips a masked cell, the DOM hides it with
+`data-masked`. Canvas masking was admitted on one condition, that it never shows a frame of tiles
+over the text while a page resizes; `apps/demo`'s Hosting fixture was driven through 120 frames of
+continuous resize at DPR 1 and 2 on both substrates and found none.
+
+**`"svg"` was removed in 0.6.0.** One inline `<svg>` under a single `viewBox`: no per-cell layout
+rounding, nothing measured, the most SSR-complete of the three — and **+52%** backdrop leak, a
+hairline at every shared edge in a flat field. It was never going to be the default, and sizing,
+alignment and masking would each have had to be built a third time for it; leaving it behind at a
+lower feature level would have made "which options work on which substrate" a question for every
+user. `SUBPIXEL-GEOMETRY.md` keeps its measurements.
+
+
 
 **Overlays read `cellPlacementPercent`, not `uniform.ts`.** Under the canvas presentation the scale
 exactly cancels the quantisation, so a cell lands at `originX + k * s * cellSize` — the ideal
@@ -226,7 +248,7 @@ unit-tested at all**, which is why logic is pulled into plain `.ts` wherever it 
 
 ## Testing
 
-20 test files, all Vitest. They assert **properties**, never fixed expected values — the five
+Test files are all Vitest. They assert **properties**, never fixed expected values — the five
 vector tables of `05` §11 and `07` §11.3 do not exist yet. Do not mistake `geometry.test.ts`
 or `hash.test.ts` for them; see `spec/FREEZE.md` before generating any.
 

@@ -6,8 +6,10 @@ stay under that heading, and what the four available answers cost.
 This is an **investigation record**, not a contract, and it follows `SUBPIXEL-GEOMETRY.md`'s
 convention: `ARCHITECTURE.md` says how the renderer is built, the source comments carry the
 rationale at each point of use, and this document carries the part that belongs to no single point
-of use. Nothing here is normative. **Nothing here is built** — Sections 3 and 4 describe designs
+of use. Nothing here is normative. **Sections 3 and 4 are not built** — they describe designs
 that were reasoned through and deliberately not implemented, and the reasoning is the payload.
+**Section 7 is built** (0.6.0): it is what replaced Route B, and it says why. **Section 8 is not
+built**: it applies the same questions to `<TileDecoration>`.
 
 Every claim about the code below was made with the file open, and cites where.
 
@@ -278,3 +280,165 @@ One constraint outranks the choice of route. Because the grid is top-anchored an
 the only clipping boundary (**R9**, `07` §7.3), **the hero must take its height from the tileset
 rather than impose one on it.** A hero with an independent height either cuts the bottom rows or
 opens dead space beneath them, and no substrate covers, centres, or stretches to hide it.
+
+---
+
+## 7. Route E — render-space masking. **Built, in 0.6.0.**
+
+`options.avoid` is Route B's measurement with none of Route B's costs, because it moves the result
+to a different place. Route B turned the measured rects into clearing *Operations* and appended
+them to a copy of the config; Route E turns them into a **per-cell mask** that the substrate reads
+when it paints (`packages/tileset/src/render/occlusion.ts`). The grid is generated once, exactly as
+without it.
+
+Taking Route B's cost list in order:
+
+- **Regeneration on resize — gone.** Nothing reaches `generate()`, so **R12**'s property, and not
+  only its letter, survives: a resize is still a pure rescale, plus a mask recomputed in
+  O(rects + cells covered). Route B's lattice hysteresis is still collected, one level further down:
+  `stableMask` keeps an unchanged mask's identity, so a resize that moves no rect across a cell edge
+  touches no attribute and repaints nothing extra.
+- **Rounding with a fixed sign — answered differently.** The mask is computed on the lattice the
+  substrate actually painted (`Lattice`: the ideal one for canvas, `domGeometry`'s for DOM), and a
+  cell is claimed when its square meets a rect with positive area. There is no second rounding to
+  get the sign of, so nothing can fall a cell short at some widths. `avoid.padding` is the outward
+  margin §3 asked for, as a host choice rather than a fixed cell.
+- **SSR — answered by not drawing.** With `avoid` set, the DOM box is `visibility: hidden` until the
+  first mask, and the canvas draws nothing until then, which it already did. An authored fallback
+  gap is no longer needed, because nothing is shown that a gap would have to be correct for.
+- **The conceptual cost — gone.** The file plus `(seed, loadSalt)` still determine the grid
+  completely, and the vector tables `05` §11 needs still pin a scale-invariant grid. What depends on
+  the viewport is which cells are *drawn*, which is render space and was always viewport-dependent.
+- **Render → engine — gone.** The one function §3 feared would flow against every arrow does not
+  exist. `space.ts` converts client rects into render space; `occlusion.ts` turns render space into
+  a mask; neither produces a config.
+
+Two decisions that §3 did not have to make:
+
+- **The lattice cell, not the drawn tile.** A tile scaled past its cell can still reach over the
+  text from a neighbour. Testing the painted bounds would catch that, and was declined for the
+  predictable rule: the hidden region is the cells under the element and does not change when an
+  attribute does, which is also what keeps a future animated transform from turning a per-layout
+  mask into a per-frame one.
+- **Both substrates.** The mask is applied at paint, so the canvas skips masked cells as cheaply as
+  the DOM hides them. That was conditional on the canvas never showing a frame of tiles over the
+  text during a resize. It holds because `measure.ts` flushes inside the `ResizeObserver` callback,
+  after layout and before paint, and reports the width and the rects together. Checked by driving
+  `apps/demo`'s Hosting fixture through 120 frames of continuous resize at DPR 1 and 2.
+
+**§6's recommendation, revisited.** Route A is still the cheapest exact answer for copy you control,
+and C2 is still the answer to "a phone hero is a different design". But Route B's reserve case —
+copy that is CMS-driven, user-generated or translated — no longer waits on anything: it is
+`options.avoid`. And because `sizing: "fixed"` now exists (cells at a constant CSS size, cropped by
+`align.x` instead of scaled), §1's density complaint about tiles going five pixels wide on a phone
+has an answer that does not need C1 either.
+
+§5 still stands. `sizing: "fixed"` crops a grid authored for the widest box; it never adds columns.
+
+---
+
+## 8. Decorations. **Not built.**
+
+What the two questions above — how a picture responds to width, and whether it can see the page —
+come to for `<TileDecoration>` (`packages/tileset/src/decoration.ts`,
+`packages/tileset/src/render/TileDecoration.svelte`). Nothing in this section is implemented; it
+records what the code does today, one silent failure found on the way, and the one design the
+reasoning favours.
+
+### 8.1 What a decoration does on resize today
+
+The box is `width: {columns * cellSize}px` with `max-width: 100%` (`TileDecoration.svelte:111`),
+and `decorationFile` writes the same product into `referenceWidth` (`decoration.ts:133`), so
+`s = 1` whenever the box gets the width it asked for. That gives two regimes and nothing between:
+
+- **The slot is at least `columns * cellSize` wide: nothing happens.** The box's width is a
+  constant, so its `ResizeObserver` entry never fires and the picture never changes. The page
+  moves the decoration around; the decoration does not notice.
+- **The slot is narrower: the whole decoration scales down.** `max-width` lowers `Wpx`, `s` falls
+  below 1, and every tile shrinks in proportion — the ordinary fluid model, with the same cells and
+  the same tiles, only smaller. The component's own comment calls this degrading gracefully, and
+  geometrically it is. It costs two things the feature was built for:
+  - **The page stops reading as one grid.** Only the spots too wide for their slot shrink. In
+    `apps/demo/src/Decorations.svelte` at a 375px viewport, the 820px breakpoint's two tracks are
+    about 147px each (375 − 2 × 24px `.page` padding − a 32px gap, halved; `<Decorations>` sits
+    outside `App.svelte`'s `<main>`, so nothing else pads it). Spots `f` and `g` are 4 × 44 =
+    176px, so they draw at about 37px tiles beside 44px neighbours. That is exactly the mismatch
+    `CELL`'s comment says one tile size exists to prevent.
+  - **The subpixel residual comes back.** `decoration.ts`'s header says `SUBPIXEL-GEOMETRY.md`'s
+    whole subject is *absent* from a decoration at integer DPR, which holds only at `s = 1`. A
+    shrunk spot is an ordinary fluid tileset at a fractional scale.
+
+`options.sizing: "fixed"` is forwarded like every other option and would crop instead of scale,
+but it crops at a pixel. A decoration's edge is visible against the page's backdrop (that is why
+the demo's background is light), so the crop shows up as a half tile.
+
+### 8.2 `options.avoid` through `<TileDecoration>`
+
+`options` goes through untouched, so `avoid` reaches `<Tileset>`. Two things are wrong with the
+result.
+
+**The selector form silently matches nothing.** `Scheduler.track` sets `scope: box.parentElement`
+(`measure.ts:199`), and a selector is resolved inside that scope, excluding the box and anything
+in it (`measure.ts:368`). Inside `<TileDecoration>` the box's parent is the `.decoration` wrapper,
+and the only thing in the wrapper is the box. So `avoid: { targets: "h2" }` resolves to an empty
+list, and the MutationObserver watches a subtree that can never change. Nothing throws and the
+picture looks plausible, which is the failure CLAUDE.md says this package refuses to have. The
+element form (`targets: el` or a list) is used as given and works.
+
+**It is rarely meaningful anyway.** A decoration normally sits *beside* copy, in its own slot, so
+no lattice square meets a target and the mask is all zeros. It only does something when a
+decoration overlaps content: an ornament absolutely positioned behind a card title, or a cluster
+set behind a pull quote. For those, hiding the tiles under the text as it rewraps is the same win
+§7 describes for a hero.
+
+*The fix, sketched.* Let `track` take an explicit scope, defaulting to `box.parentElement`, and have
+`<TileDecoration>` pass its wrapper's parent through an internal prop of `<Tileset>` — not a
+`TilesetOptions` field, because no host needs it and every option is a thing a host can get wrong.
+A `measure.test.ts` case with the existing fake observers would pin it: a selector resolves in the
+given scope and still never matches inside the box.
+
+### 8.3 Fit to the slot — Route D, in the one place it is right
+
+A decoration that keeps its tile size and **gains or loses whole columns** with the slot's width
+would fix both costs in §8.1 at once. That is Route D, which §5 refutes. But §5 refutes it for a
+page-scale tileset, and none of its three reasons carries over:
+
+| §5's reason | For a decoration |
+| --- | --- |
+| 1. It discards `07` §5.3, "every quantity is a fixed fraction of `Wpx`". | A decoration already declares its tile in CSS px (`s = 1`). Fluid scaling is not its model, only the fallback it degrades into (§8.1). |
+| 2. It contradicts **R12**: regeneration on a width change with no config change. | `rows` and `columns` are props, and `decorationFile` builds a new config from them, so R12's letter holds, as it did for Route B. The cost of the property is small: quantise to `floor(W / cellSize)`, so it regenerates only when a whole column starts or stops fitting, over a grid of tens of cells. |
+| 3. `coordinateBound` Selections have no anchoring story. | A decoration style may not contain one. `decorationStyleErrors` is exactly that check, and `<TileDecoration>` throws on it under `DEV`. |
+
+The positional-hashing dividend of §3 applies again. Randomness is addressed by `(x, y)`
+(`hash.test.ts:64`), and a decoration grows and shrinks on the right with x = 0 fixed, so every
+cell that survives a change of width keeps its TileState and its asset. **The exception is
+`gradient`**, which takes its domain from `ctx.extent` and so renormalizes when the extent changes.
+`decoration.ts` already documents that it renormalizes per decoration; here it would also
+renormalize per width step.
+
+*The shape, if built.*
+
+- A pure `fitCells(available, cellSize, { min, max })` in `decoration.ts`, returning
+  `clamp(floor(available / cellSize), min, max)`. It treats a zero or negative `available` (the one
+  frame a box has at startup) as `max`, so the first frame never shows a zero-column decoration.
+- `columns` (and `rows`) on `<TileDecoration>` accept either a number, which behaves exactly as
+  today, or a `{ min, max }` range. With a range, a slot element at `width: 100%` is observed with
+  the exported `track(el, null, …)` (`measure.ts:471`). That puts it on the page's one scheduler,
+  which flushes inside the `ResizeObserver` callback, so the new column count is painted in the
+  same frame as the resize.
+- SSR renders `max`, with today's `max-width` shrink as the fallback until the client measures.
+  The shrink is a correction the client makes, not a wrong picture that would need hiding.
+- Fitting rows needs a slot with a definite height, for §1's reason: vertically the host is on its
+  own.
+- The tests it would need: a `fitCells` table, and `generate()` at `n` and `n + 1` columns agreeing
+  on every shared `(x, y)` for the demo style. That asserts the stability claim above rather than
+  believing it, the way `decoration.test.ts` asserts zero bleed.
+
+### 8.4 When each is worth building
+
+- **Fit to the slot**, when decorations must keep one tile size down to phone widths — the first
+  time §8.1's worked example shows up on a real page and is judged a defect rather than an
+  acceptable shrink.
+- **The `avoid` scope fix**, when the first decoration overlaps copy. Or sooner, because the
+  failure is silent: the first time someone passes a selector and gets nothing, this section is
+  the diagnosis.

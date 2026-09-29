@@ -211,10 +211,7 @@
           rows={spot.rows}
           columns={spot.columns}
           cellSize={CELL}
-          seed={spot.seed}
-          {provider}
-          {loadSalt}
-          {onAssetError}
+          options={{ seed: spot.seed, provider, loadSalt, onAssetError }}
         />
         <span class="label">{spot.columns}&times;{spot.rows} &middot; {spot.seed}</span>
       </div>
