@@ -28,7 +28,30 @@ export {
 
 export { canonicalAssets, prepareTile, walkWeights, type PreparedTile } from "./assets.js";
 
+/**
+ * Decorations — one authored style, many placements of it. `decorationFile` is a
+ * pure `(TilesetFile, Decoration) -> TilesetFile`, so it belongs here rather
+ * than behind `/render` despite writing a `Layout`: it reads the `selections`
+ * registry and nothing in `render/`.
+ *
+ * `decorationStyleErrors` is separate from it for **C5**'s reason — the
+ * transform trusts its input exactly as `generate()` does, and the check is what
+ * makes that trust earned. `<TileDecoration>` runs it under `DEV`.
+ */
+export {
+  decorationFile,
+  decorationStyleErrors,
+  type Decoration,
+} from "./decoration.js";
+
 export { operationCtx, type EvalCtx } from "./ctx.js";
+
+/**
+ * Exact-on-the-axes trigonometry, shared by `gradient` and the renderer's
+ * matrix. Exported here as well as from `/render` because it is engine code now
+ * — see `./angle.ts` for why it moved.
+ */
+export { sincos } from "./angle.js";
 
 export {
   ASSET_CHANNEL,
@@ -101,6 +124,7 @@ export type {
   BlendName,
   Grid,
   Identifier,
+  Extent,
   Layout,
   Mapping,
   NumericMapping,

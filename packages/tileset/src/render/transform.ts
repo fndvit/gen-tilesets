@@ -16,6 +16,7 @@
  * about what the number `1` means.
  */
 
+import { sincos } from "../angle.js";
 import type { CellBox } from "./geometry.js";
 import { cellCentre } from "./geometry.js";
 
@@ -46,34 +47,12 @@ function axes(attrs: TransformAttributes): { sx: number; sy: number } {
 }
 
 /**
- * `sin` and `cos` of an angle in **degrees**, exact on the axes.
- *
- * `Math.cos(90 * Math.PI / 180)` is `6.12e-17`, not `0`: the conversion to
- * radians is inexact, so a quarter turn comes out very slightly off-axis. That
- * costs nothing on its own — but a quarter-turned cell is meant to land exactly
- * on its cell box (**R7**), and "exactly" cannot be built on a matrix whose
- * axis-aligned case is not axis-aligned. Every downstream identity `edges.ts`
- * relies on (the mapped corner is the snapped integer corner, not a value near
- * it) needs the `0` to be a real zero.
- *
- * Multiples of 90 are read off a table; everything else goes through `Math`
- * unchanged, so no non-axis angle moves by an ulp.
+ * `sincos` lives in `../angle.ts` now, because the `gradient` Source needs the
+ * same exact-on-the-axes guarantee and the engine cannot import from `render/`.
+ * Re-exported here so every existing import site is unchanged — and because this
+ * is still where a reader looking for the matrix's trigonometry will come first.
  */
-export function sincos(degrees: number): { sin: number; cos: number } {
-  if (Number.isFinite(degrees) && degrees % 90 === 0) {
-    // `%` keeps the sign of the dividend, so a negative angle lands in -3..0;
-    // adding 4 before the second `%` folds it into the quadrant table.
-    const quadrant = ((((degrees / 90) % 4) + 4) % 4) as 0 | 1 | 2 | 3;
-    return [
-      { sin: 0, cos: 1 },
-      { sin: 1, cos: 0 },
-      { sin: 0, cos: -1 },
-      { sin: -1, cos: 0 },
-    ][quadrant]!;
-  }
-  const t = (degrees * Math.PI) / 180;
-  return { sin: Math.sin(t), cos: Math.cos(t) };
-}
+export { sincos } from "../angle.js";
 
 /**
  * `M = T(cx, cy) . R(theta) . S(scaleX, scaleY) . T(-cx, -cy)` — `07` §6.2.

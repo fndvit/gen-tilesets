@@ -21,6 +21,7 @@
   import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
   import { prefixedProvider, type AssetRef } from "@fndvit/gen-tilesets/render";
   import Square2x2 from "./Square2x2.svelte";
+  import Decorations from "./Decorations.svelte";
 
   /**
    * The archive root, served statically. `meta.src` is written relative to it
@@ -67,6 +68,14 @@
   // mistake -- both run twice under SSR and produce two pictures for one page.
   let loadSalt = $state(0);
 
+  /**
+   * The decorations fixture's salt: drawn **once per page load**, so every reload
+   * is a new picture there while the atlas above stays pinned at 0 for comparing
+   * substrates. A plain script-init draw is the SSR mistake described above, and
+   * is correct here only because this app is client-rendered and runs it once.
+   */
+  const decorationSalt = drawLoadSalt();
+
   let width = $state(100);
   let failures = $state<string[]>([]);
 
@@ -87,7 +96,12 @@
   function onAssetError(ref: AssetRef, cause: unknown): void {
     // `08` **S6** — the host owns the error channel. A host that ignores this
     // gets a silently incomplete background in production.
-    failures = [...failures, `${ref.tileId}/${ref.assetId}: ${String(cause)}`];
+    //
+    // Deduplicated because it fires once per *cell*: one missing asset arrives
+    // dozens of times, and the `{#each}` below is keyed on the message, so a
+    // duplicate throws `each_key_duplicate` and takes the page down.
+    const line = `${ref.tileId}/${ref.assetId}: ${String(cause)}`;
+    if (!failures.includes(line)) failures = [...failures, line];
   }
 </script>
 
@@ -139,6 +153,13 @@
   footer preset above is where softness and seams show; this is where geometry does.
 -->
 <Square2x2 />
+
+<!--
+  A third fixture, and a *use case* rather than an instrument: nine decorations
+  off one style, differing only in `rows`, `columns` and a seed. It is the page
+  the decorations feature is judged on — see its header.
+-->
+<Decorations loadSalt={decorationSalt} />
 
 <main>
   {#if loadError !== null}

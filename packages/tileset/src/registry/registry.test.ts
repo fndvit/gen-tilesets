@@ -6,14 +6,23 @@ import { Registry } from "./registry.js";
 import { selections } from "./selections.js";
 import { evalSource, sources } from "./sources.js";
 
-const ctx = (over: Partial<EvalCtx> = {}): EvalCtx => ({
-  rows: 12,
-  columns: 16,
-  effectiveSeed: stage1("sunset-3"),
-  operationId: "op1",
-  salt: 0,
-  ...over,
-});
+// `extent` defaults to the grid, derived from whatever `rows`/`columns` end up
+// being, so an override of the grid moves the extent with it -- the same default
+// `operationCtx` applies for a Selection that declares no extent. Pass `extent`
+// explicitly to test a Selection-confined sweep.
+const ctx = (over: Partial<EvalCtx> = {}): EvalCtx => {
+  const rows = over.rows ?? 12;
+  const columns = over.columns ?? 16;
+  return {
+    rows,
+    columns,
+    extent: { x: 0, y: 0, width: columns, height: rows },
+    effectiveSeed: stage1("sunset-3"),
+    operationId: "op1",
+    salt: 0,
+    ...over,
+  };
+};
 
 describe("the registry — 05 §5", () => {
   it("errors rather than silently overwriting an occupied name — X4", () => {
@@ -167,6 +176,59 @@ describe("Selection presets — 04 §4.2", () => {
       expect(s.impl.length).toBeLessThanOrEqual(4);
     }
   });
+
+  it("rect: declares its own four numbers as its extent, verbatim", () => {
+    const p = { x: 2, y: 3, width: 4, height: 2 };
+    expect(selections.get("rect").extent!(p)).toEqual(p);
+  });
+
+  it("rect: does not clamp its extent to the grid — 04 §4.2, G2", () => {
+    // An author dragging a rectangle past the edge should not have it silently
+    // resized, and the extent is where resizing it would be invisible.
+    const p = { x: -5, y: -2, width: 100, height: 100 };
+    expect(selections.get("rect").extent!(p)).toEqual(p);
+  });
+
+  it("cellList: declares the bounding box of the painted cells", () => {
+    const e = selections.get("cellList").extent!;
+    // An L, so the box is strictly larger than the cells -- what a spanning
+    // Source projects a direction onto is the hull, not the set.
+    expect(e({ cells: [[1, 1], [1, 2], [1, 3], [2, 3], [3, 3]] })).toEqual({
+      x: 1,
+      y: 1,
+      width: 3,
+      height: 3,
+    });
+    // A single cell is a 1x1 extent, not a zero one.
+    expect(e({ cells: [[4, 7]] })).toEqual({ x: 4, y: 7, width: 1, height: 1 });
+    // Order-independent, and negative coordinates survive.
+    expect(e({ cells: [[5, 5], [-1, 2]] })).toEqual({ x: -1, y: 2, width: 7, height: 4 });
+  });
+
+  it("cellList: an empty list is a zero-area extent, not the grid", () => {
+    // Returning the grid would make a gradient over an empty brush sweep the
+    // whole canvas -- a wrong picture rather than a missing one.
+    expect(selections.get("cellList").extent!({ cells: [] })).toEqual({
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+    });
+  });
+
+  it("the procedural Selections declare no extent, so they get the grid", () => {
+    // This is the claim that their output moves only by the endpoint fix, never
+    // by the selection-relative domain. A Selection defined by a rule has no
+    // bounds to declare.
+    for (const name of ["all", "checkerboard", "everyNth", "random"]) {
+      expect(selections.get(name).extent, name).toBeUndefined();
+    }
+    // And the coordinate-bound ones do declare one -- the same split 04 §4.4's
+    // table draws, arrived at independently.
+    for (const name of ["rect", "cellList"]) {
+      expect(selections.get(name).extent, name).toBeTypeOf("function");
+    }
+  });
 });
 
 describe("Source presets — 04 §5.2", () => {
@@ -202,19 +264,74 @@ describe("Source presets — 04 §5.2", () => {
     expect(bottom).toBeGreaterThan(top);
   });
 
-  it("gradient: spans the whole grid including clipped cells — G2", () => {
-    // Normalization is over rows x columns, not over a visible region.
+  it("gradient: reaches both ends of the range, at every angle", () => {
+    // The defect this replaced: the domain was the grid's outer *edges* while the
+    // sample was a cell *centre*, so t ran 0.5/N .. 1 - 0.5/N and a continuous
+    // `range: [0, 1]` reached neither end. Strict equality, not toBeCloseTo --
+    // `sincos` exists so the axis-aligned cases are exact rather than near.
     const g = sources.get("gradient");
     const c = ctx();
-    const p = { angle: 0 };
-    // Column 0 and the last column bracket the full range.
-    expect(g.impl(p, 0, 0, c)).toBeGreaterThan(0);
-    expect(g.impl(p, c.columns - 1, 0, c)).toBeLessThan(1);
+    for (const angle of [0, 0.5, 17, 37, 45, 89.999, 90, 133, 180, 225, 270, 315, 360, -450, 1e6]) {
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let y = 0; y < c.rows; y++) {
+        for (let x = 0; x < c.columns; x++) {
+          const t = g.impl({ angle }, x, y, c);
+          if (t < lo) lo = t;
+          if (t > hi) hi = t;
+        }
+      }
+      expect(lo, `angle ${angle} never reaches 0`).toBe(0);
+      expect(hi, `angle ${angle} never reaches 1`).toBe(1);
+    }
   });
 
-  it("gradient: guards a degenerate grid", () => {
+  it("gradient: normalizes over the Selection extent, not the grid", () => {
+    // The second half of the same defect: a seven-row band of a ten-row grid
+    // received only the slice of a grid-wide sweep that fell across it, so
+    // `range: [0.3, 1]` topped out at 0.767 and `steps: 7` collapsed to five
+    // distinct bands.
     const g = sources.get("gradient");
-    expect(g.impl({ angle: 0 }, 0, 0, ctx({ columns: 0, rows: 0 }))).toBe(0);
+    const c = ctx({ rows: 10, columns: 76, extent: { x: 0, y: 0, width: 76, height: 7 } });
+    const p = { angle: 90 };
+    expect(g.impl(p, 3, 0, c)).toBe(0);
+    expect(g.impl(p, 3, 6, c)).toBe(1);
+    // Rows below the extent are never selected, so a Source is never asked for
+    // them -- but were it asked, the value runs past the end rather than
+    // clamping, which is what the dev X6 assertion is there to catch.
+    expect(g.impl(p, 3, 9, c)).toBeGreaterThan(1);
+  });
+
+  it("gradient: an extent past the grid edge still sweeps its whole width — G2", () => {
+    // G2's argument is about *clipped* cells, and it is untouched: a rect the
+    // author dragged past the edge is not trimmed, so its midpoint stays where
+    // they put it and the clipped columns still consume their share of the range.
+    // The visible part therefore does NOT reach the ends, and that is correct.
+    const g = sources.get("gradient");
+    const c = ctx({ rows: 4, columns: 10, extent: { x: -5, y: 0, width: 20, height: 4 } });
+    const p = { angle: 0 };
+    // Column 0 sits 5 cells into a 20-wide sweep; column 9 sits 14 in.
+    expect(g.impl(p, 0, 0, c)).toBeCloseTo(5 / 19, 12);
+    expect(g.impl(p, 9, 0, c)).toBeCloseTo(14 / 19, 12);
+  });
+
+  it("gradient: guards every zero-span extent", () => {
+    const g = sources.get("gradient");
+    const p = { angle: 0 };
+    // A degenerate grid.
+    expect(g.impl(p, 0, 0, ctx({ columns: 0, rows: 0 }))).toBe(0);
+    // An empty cellList's extent -- zero area, so there is no last cell to
+    // project and `ex + ew - 1` would fall behind `ex`.
+    expect(g.impl(p, 0, 0, ctx({ extent: { x: 0, y: 0, width: 0, height: 0 } }))).toBe(0);
+    // A single cell, and a single column swept across it: first cell and last
+    // cell are the same cell, so the span is genuinely zero.
+    expect(g.impl(p, 4, 4, ctx({ extent: { x: 4, y: 4, width: 1, height: 1 } }))).toBe(0);
+    expect(g.impl(p, 4, 4, ctx({ extent: { x: 4, y: 0, width: 1, height: 9 } }))).toBe(0);
+    // The same, vertically -- this one needs `sincos`: with Math.cos(90deg) the
+    // stray column term gives the row a spurious non-zero span.
+    expect(
+      g.impl({ angle: 90 }, 4, 4, ctx({ extent: { x: 0, y: 4, width: 9, height: 1 } })),
+    ).toBe(0);
   });
 
   it("valueNoise: nearby cells receive nearby values", () => {
@@ -337,7 +454,10 @@ describe("Source presets — 04 §5.2", () => {
               const t = registration.impl(params, x, y, c);
               expect(Number.isFinite(t)).toBe(true);
               expect(t).toBeGreaterThanOrEqual(0);
-              expect(t).toBeLessThan(1);
+              // X6 is closed: `gradient` attains 1 at the far corner of its
+              // extent, by design. Every other Source stays strictly under.
+              expect(t).toBeLessThanOrEqual(1);
+              if (registration.name !== "gradient") expect(t).toBeLessThan(1);
             }
           }
         }
@@ -346,12 +466,23 @@ describe("Source presets — 04 §5.2", () => {
   });
 
   it("evalSource throws on an X6 violation in dev builds — 05 §6.3", () => {
-    const bad = { name: "bad", params: {}, stochastic: false, impl: () => 1.0 };
-    // Only asserted when DEV; the production posture is deliberately silent.
-    if (DEV) {
-      expect(() => evalSource(bad, {}, 0, 0, ctx())).toThrow(/X6/);
-    } else {
-      expect(evalSource(bad, {}, 0, 0, ctx())).toBe(1.0);
+    // Just past the closed bound, on both sides, plus non-finite.
+    for (const value of [1.0000000000000002, -1e-9, NaN, Infinity]) {
+      const bad = { name: "bad", params: {}, stochastic: false, impl: () => value };
+      // Only asserted when DEV; the production posture is deliberately silent.
+      if (DEV) {
+        expect(() => evalSource(bad, {}, 0, 0, ctx())).toThrow(/X6/);
+      } else {
+        expect(evalSource(bad, {}, 0, 0, ctx())).toBe(value);
+      }
     }
+  });
+
+  it("evalSource admits exactly 1, because gradient reaches it — X6 closed", () => {
+    // The bound was `[0, 1)` and this threw. `gradient` was changed to reach both
+    // ends of its extent, which makes 1 a legal return value; `mapping.ts` clamps
+    // the stepped index and falls back in the palette walk to cope with it.
+    const edge = { name: "edge", params: {}, stochastic: false, impl: () => 1 };
+    expect(evalSource(edge, {}, 0, 0, ctx())).toBe(1);
   });
 });

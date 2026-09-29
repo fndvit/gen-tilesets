@@ -8,6 +8,223 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.5.0 — one style, many decorations
+
+**The case.** A page wants more than one tileset: a couple of tailor-made ones, plus a dozen small
+tile blocks scattered around it — a 2x2 in a corner, a stepped 3x4 beside a heading. They are one
+visual language and differ only in **how many cells they occupy**.
+
+Each of those needed its own file, because `rows`/`columns` are `TilesetConfig` fields and
+`cellSize`/`referenceWidth` are `Layout` fields. A dozen decorations was a dozen copies of one
+`tiles` array and one set of assets, which drift apart the first time one is edited — the same
+duplicated-payload pain `RESPONSIVE-HOSTING.md` §4 names as C2's gate, arriving from a different
+direction.
+
+**What was already true.** The data model is size-independent everywhere except two Selections.
+`rect` and `cellList` are declared `coordinateBound` and are orphaned by a resize; `all`,
+`checkerboard`, `everyNth` and `random` are rule-based and survive one. Everything else — `tiles`,
+every `TileAsset`, `defaultSeed`, `assetSalt`, every mapping, blend and target — needs no rewrite
+at another size. So "the same Operations at another size" was expressible in the *model* all
+along; it was not expressible in the *file*, because the size sits inside the thing being shared.
+
+**What was added is that expression and nothing more.** `decorationFile(style, {rows, columns,
+cellSize})` overrides four numbers and passes every other field through **by reference** — twelve
+decorations hold one `tiles` array between them, which is the whole point and is asserted by
+identity rather than by deep equality, so a later `structuredClone` added for tidiness cannot
+quietly cost it.
+
+**No engine change, no schema change, and no output change for any existing file.** `generate()`,
+`hash.ts`, every registry and `validate.ts` are untouched. This is additive.
+
+### Variation is the `seed` prop, which already existed
+
+Two spots of the same size differ because they are generated under different seeds — `generate()`
+is pure in `(config, seed, loadSalt)`, so one string re-rolls every Operation *and* the asset walk
+through `effectiveSeeds`. Nothing in `decoration.ts` touches a salt, and there is no per-spot mask:
+emptiness comes from a `{tileId: null}` palette entry, so a spot's **silhouette** is a function of
+its seed. That is what replaces a hand-painted `cellList` per decoration, and it is only affordable
+because the hashing is positional — a bigger spot *extends* the picture instead of reshuffling it,
+which `decoration.test.ts` pins cell by cell.
+
+### It lands on the zero-bleed case on purpose
+
+`referenceWidth` is derived as `columns * cellSize` and `yOffset` is forced to 0. In a page-scale
+tileset `referenceWidth` is stored precisely *because* it differs from `columns * cellSize` — `02`
+§7.2 calls the difference the intentional bleed — but a small block of whole cells in a margin has
+no design for a bleed to belong to, and `yOffset` would shave the top of an edge the page can see.
+
+Three exactnesses follow by construction: `originX` is exactly 0, `s` is exactly 1, and
+`presentScale` is exactly 1 at integer DPR. **`SUBPIXEL-GEOMETRY.md`'s subject is absent here
+rather than minimised** — the full-bleed case `ARCHITECTURE.md` says "is served by no substrate
+here" is served by there being no bleed to fit. Asserted with strict equality in
+`decoration.test.ts` and measured in Chromium at DPR 1 and 2, where every box came out
+`columns * 44` by `rows * 44` CSS px with a backing store exactly `dpr` times that.
+
+### The check is separate, and loud in the right build
+
+`decorationStyleErrors(style)` returns one message per Operation whose Selection is
+`coordinateBound`. It is a **separate function** for exactly `06` **C5**'s reason: `decorationFile`
+trusts its input as `generate()` does, and the check is what makes that trust earned.
+`<TileDecoration>` runs it under `DEV` and throws, the same development-loud / production-trusting
+arrangement `<Tileset>` has with `assertValidFile` — verified to fold out of a production build,
+where the message string is absent from the bundle.
+
+It reads the **registry flag**, never a list of names, for the reason `selections.ts` gives on the
+declaration itself: the registry is open, so a name table here would misclassify anything
+registered later, and in the safe-looking direction. It returns `string[]` rather than
+`ValidationError[]` because `ErrorCode` is a closed union and a coordinate-bound Selection is
+perfectly valid in a *tileset* — the failure belongs to the decoration contract, not to the schema,
+so it stays out of the schema's vocabulary.
+
+### `<TileDecoration>` is not a second entry point
+
+**S1** is intact: `<Tileset>` remains the one thing that draws and the one thing that calls
+`generate()`. `<TileDecoration>` derives a file above it and renders it, exactly as the editor's
+preview does. What it earns its place with is the **box** — `columns * cellSize` px, the same
+product written into `referenceWidth`. That is one number in two places, and a host that gets them
+to disagree reintroduces a bleed silently: the grid still draws, just not at the tile size the
+author asked for. `max-width: 100%` is on it deliberately, because a 6-column decoration at 96px
+overflows a phone and a sideways-scrolling page is a worse failure than smaller tiles.
+
+`decorationFile` is exported for a host that would rather own the box itself.
+
+### The fixture, and what it caught
+
+`apps/demo/src/Decorations.svelte` is a third fixture and the first that is a **use case** rather
+than a geometry instrument: nine decorations off one style, on a light backdrop because a
+decoration in a margin is the case where the page's own background shows on all four sides of the
+grid.
+
+Two things were found by looking at it in a browser rather than by reasoning:
+
+- **The atlas's asset ids are not the obvious sequence.** `t1`–`t4` run `a1, a3, a4, a5, a6` — there
+  is no `a2` — and only `t5` runs `a1..a5`. Assuming otherwise produced four 404s and an
+  `EncodingError` per spot, reported through `onAssetError` and visible **nowhere else**, because
+  **R3** substitutes nothing and the cell simply drew empty. That is the asset rules working as
+  designed, and a good argument for wiring `onAssetError` in anything real.
+- **`onAssetError` fires once per cell, so a failure list keyed on the message throws.** The same
+  missing asset arrives dozens of times across nine decorations, and `{#each failures as f (f)}`
+  then dies with `each_key_duplicate`, taking the page with it. The fixture dedupes: the fact is
+  *which* asset failed, not how many cells noticed. `apps/demo/src/App.svelte` had the same
+  latent bug, hidden only because its assets all resolve, and now dedupes the same way.
+
+The fixture is **a new picture on every reload**. `App.svelte` draws a `loadSalt` once per page
+load and hands it to the fixture, and the style sets `reseedOnLoad` on both Operations and
+`reseedAssetsOnLoad` — without those flags the salt reaches nothing (`hash.ts` `pickSeed`). The
+per-spot seeds still separate spots within a load. This is the existing **R12** mechanism used as
+intended; `<TileDecoration>` still defaults `loadSalt` to 0 and the package is unchanged.
+
+Verified by packing the tarball with `pnpm pack` and installing it into a throwaway Vite 8 +
+Svelte 5 app: `svelte-check` reports 0 errors and 0 warnings and `vite build` succeeds over
+`@fndvit/gen-tilesets/TileDecoration.svelte`. Worth recording that **`npm pack` is the wrong tool**
+for that check — it does not apply pnpm's `publishConfig` substitution, so its tarball carries the
+workspace's source-pointing export map and *every* subpath fails to resolve, including the ones
+that were already correct.
+
+---
+
+## 0.4.0 — a gradient that reaches both ends of its range
+
+**The bug**, found in the demo fixture. A `gradient` at `angle: 90` over ten rows, mapped
+continuously onto `scale` with `range: [0, 1]`, produced this:
+
+| row | 0 | 1 | 2 | ... | 8 | 9 |
+| --- | --- | --- | --- | --- | --- | --- |
+| scale | 0.05 | 0.15 | 0.25 | | 0.85 | 0.95 |
+
+Row 0 was not 0, so its tiles were visible when they should have vanished; row 9 was not 1, so
+adjacent tiles missed touching by five percent of a cell. **R7** makes `scale = 1` occupy exactly
+the cell box, so 1 is the value at which neighbours meet — and it was unreachable.
+
+**Two independent causes.**
+
+*It measured the grid's outer edges while sampling cells.* The domain was the projection of
+`(0, 0) .. (columns, rows)` and the sample was a cell centre, `(x + 0.5, y + 0.5)` — so
+`t = (y + 0.5) / rows`. Ten rows have ten cells but only **nine gaps** between their indexes;
+dividing by ten left exactly half a cell unreachable at each end. The inset went as `0.5 / N`, worst
+on the small grids where it shows most.
+
+*The domain was the whole grid, never the Selection.* `EvalCtx` carried only `rows`/`columns`, so a
+Source structurally could not see the Selection. A seven-row `rect` band inside that ten-row grid
+received only the slice `t` in `[0.05, 0.65]` of a grid-wide sweep, so `range: [0.3, 1]` with
+`steps: 7` came out as five distinct bands — two of them duplicated — topping out at **0.767**
+instead of 1.
+
+**The fix.** `gradient` now projects plain **cell indexes**, and takes its domain from the first and
+last cell index of `ctx.extent`:
+
+    xs = [ex, ex + ew - 1]        // not [0, columns]
+    p0 = project(x, y)            // not project(x + 0.5, y + 0.5)
+
+The half-cell offset was not merely unnecessary but counterproductive: it is a constant added to the
+sample and to both ends of the domain, where it cancels — so carrying it bought nothing and lost
+last bits, since it added the constant only to subtract it again.
+
+**It holds at every angle, not just the axis-aligned ones.** The sampled cells form a lattice inside
+the domain box, a linear functional attains its extremes over a box at the box's corners, and those
+corners *are* lattice points — real cells that really get sampled. Pinned over fifteen angles
+including diagonals, with strict equality rather than `toBeCloseTo`.
+
+**`sincos` moved down to `src/angle.ts`**, out of `render/transform.ts`, because the engine cannot
+import from `render/` and copying the quadrant table would leave two to drift. It is not a
+tidy-up: `cos(90deg)` is `6.12e-17`, and with `Math.cos` a vertical sweep's endpoints come out
+`2.47e-17` and `0.9999999999999994` — the same defect two decimal orders down — while a single-row
+extent gets a spurious non-zero span and sweeps a band with nothing to sweep across.
+`render/transform.ts` re-exports it, so no import site changed.
+
+**Selections declare an extent.** A third declaration on `SelectionRegistration` beside
+`stochastic` and `coordinateBound`, for the reason those two already give: the registry is open, so
+a table of names in the editor would silently misclassify anything registered later. `rect` returns
+its own four numbers **unclamped**; `cellList` returns the bounding box of the painted cells; the
+four procedural Selections declare nothing and get the grid — which is the split `04` §4.4's
+`coordinateBound` table already draws, arrived at independently. `operationCtx` resolves it once per
+Operation, so `generate()` and `selection()` cannot disagree about it.
+
+**G2 is intact, and the distinction is the point.** G2's argument is that a gradient normalized over
+*the visible region* would drift its midpoint off the viewport centre by exactly the bleed. A
+Selection is not a viewport — it is something the author drew. Because `rect`'s extent is unclamped,
+a rect dragged past the grid edge still sweeps its whole declared width, its midpoint stays put, and
+the clipped columns still consume their share of the range; the visible part of such a rect
+deliberately does *not* reach the ends. A gradient over `selection: {type: "all"}` is unchanged in
+domain and moves only by the endpoint fix.
+
+**X6 opened from `[0, 1)` to `[0, 1]`**, which is the real cost and was paid rather than dodged. The
+two ways round it are worse: nudging the endpoint to just under 1 leaves `scale` at
+`0.9999999999999999`, which is not 1 for `isIdentityTransform`'s exact comparison and so silently
+reintroduces seams on a whole row; and normalizing over cell edges to keep `t < 1` is the defect
+being fixed. Two sites in `mapping.ts` relied on the strictness:
+
+- the stepped `index = floor(t * steps)` reached `steps` at `t = 1` and overshot `max` by a whole
+  step — `[0, 270]` with `steps: 4` would emit 360deg, which `rotation` wraps to 0deg, the *lowest*
+  value in the set. Clamped.
+- the palette walk's `cumulative > target` was never strictly true for the last entry at `t = 1`, so
+  it fell out of the loop and returned `null` — which means *clear this cell*. The top row of every
+  palette gradient would have been blanked rather than taking its last entry. It now falls back to
+  the last **positive-weight** entry, so a trailing zero-weight entry still cannot win.
+
+`random` and `valueNoise` still return `[0, 1)`; a closed interval is a superset, so neither moved.
+
+**Both mapping branches now return `max` exactly at the top**, rather than the arithmetic that
+should equal it. `min + (steps - 1) * (max - min) / (steps - 1)` is `max` algebraically and is not
+`max` in floating point — over `[0.3, 1]` with `steps: 7` it comes out `0.9999999999999998`. That is
+invisible for most Targets and is not invisible for `scale`, where a value one ulp short takes the
+matrix path instead of the pixel-snapped box, and the matrix path is where seams come from.
+
+**The demo fixture needed no edits** and becomes the regression case: its `op3` now yields
+`0, 1/9, ... , 1` and its `op2` yields `0.3, 0.4167, 0.5333, 0.65, 0.7667, 0.8833, 1.0` — one band
+per row, reaching 1.
+
+**One public-API note.** `operationCtx` now resolves the Selection registration, so it throws
+**X7**'s unknown-type error where it previously could not. Neither in-tree caller changes behaviour
+— `generate()` and `selection()` both resolve the same registration a line earlier and already threw
+first — but a consumer calling `operationCtx` directly on an unvalidated config sees the throw move
+one call earlier.
+
+**This is an output change for every gradient config**, not only the ones with a `rect`. At `0.x`
+that is a version bump and this entry, per `CLAUDE.md`.
+
+---
+
 ## 0.3.0 — one uniform square cell, and a third substrate
 
 **The bug.** `edges.ts` snapped every grid line to a whole device pixel independently. Seams

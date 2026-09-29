@@ -1,6 +1,6 @@
 {
   "name": "@fndvit/gen-tilesets",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "description": "Procedural tileset generator: a pure, deterministic engine and a Svelte renderer.",
   "license": "MIT",
   "repository": {
@@ -28,6 +28,11 @@
       "types": "./src/render/Tileset.svelte",
       "svelte": "./src/render/Tileset.svelte",
       "default": "./src/render/Tileset.svelte"
+    },
+    "./TileDecoration.svelte": {
+      "types": "./src/render/TileDecoration.svelte",
+      "svelte": "./src/render/TileDecoration.svelte",
+      "default": "./src/render/TileDecoration.svelte"
     }
   },
   "publishConfig": {
@@ -49,6 +54,11 @@
         "types": "./dist/render/Tileset.svelte.d.ts",
         "svelte": "./dist/render/Tileset.svelte",
         "default": "./dist/render/Tileset.svelte"
+      },
+      "./TileDecoration.svelte": {
+        "types": "./dist/render/TileDecoration.svelte.d.ts",
+        "svelte": "./dist/render/TileDecoration.svelte",
+        "default": "./dist/render/TileDecoration.svelte"
       }
     }
   },

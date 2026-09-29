@@ -18,6 +18,7 @@
  */
 
 import type { EvalCtx } from "../ctx.js";
+import type { Extent } from "../types.js";
 import { hash, selectionChannel } from "../hash.js";
 import { Registry, type ParamSchema } from "./registry.js";
 
@@ -58,6 +59,32 @@ export interface SelectionRegistration {
    */
   coordinateBound: boolean;
 
+  /**
+   * The rectangle of grid coordinates this Selection can match — or **absent**
+   * for *"the whole grid"*.
+   *
+   * **What reads it.** A *spanning* Source normalizes over this rather than over
+   * `rows x columns`, so a `gradient` confined to a Selection sweeps its full
+   * range inside it instead of receiving whatever slice of a grid-wide sweep
+   * happens to fall there. `operationCtx` resolves it once per Operation into
+   * `EvalCtx.extent`; a Source never calls this function itself.
+   *
+   * **A declaration rather than a table of names**, on exactly the reasoning
+   * `coordinateBound` above and **X5**'s `stochastic` already give: the registry
+   * is open, so a Selection registered later would be classified by a list that
+   * had never heard of it — here, silently normalized over the whole grid, which
+   * is the bug this field exists to remove.
+   *
+   * **Absent, not `null`, for the grid.** The default belongs to the resolver,
+   * which is the only place that knows `rows` and `columns`; a Selection cannot
+   * name the grid without being handed the dimensions it is not otherwise given.
+   *
+   * **A pure function of the Selection's own parameters**, and of nothing else.
+   * Not of `ctx`, and emphatically not of a measurement — see the note on
+   * **O4** at `EvalCtx.extent`.
+   */
+  extent?: (params: Record<string, unknown>) => Extent;
+
   impl: SelectionImpl;
 }
 
@@ -96,6 +123,25 @@ selections.register({
     const y = p.y as number;
     return cx >= x && cx < x + (p.width as number) && cy >= y && cy < y + (p.height as number);
   },
+  /**
+   * The rect itself, **verbatim and unclamped** — the same four numbers `impl`
+   * tests against, so the extent cannot disagree with the selection.
+   *
+   * Not clipped to the grid, for §4.2's reason above: an author dragging a
+   * rectangle past the edge should not have it silently resized, and the extent
+   * is the one place where resizing it would be invisible rather than merely
+   * wrong. It is also what keeps **G2** — an overhanging rect sweeps its whole
+   * declared width, so a gradient's midpoint stays where the author put it and
+   * the clipped cells still consume their share of the range. The visible part
+   * of such a rect therefore does *not* reach the ends of the range, and that is
+   * correct.
+   */
+  extent: (p) => ({
+    x: p.x as number,
+    y: p.y as number,
+    width: p.width as number,
+    height: p.height as number,
+  }),
 });
 
 /**
@@ -181,5 +227,34 @@ selections.register({
     const cells = p.cells as [number, number][];
     for (const cell of cells) if (cell[0] === cx && cell[1] === cy) return true;
     return false;
+  },
+  /**
+   * The bounding box of the painted cells.
+   *
+   * A bounding box rather than the cells themselves, because an extent is what a
+   * spanning Source projects a direction onto and a sparse set has no meaningful
+   * projection domain beyond its hull. A gradient over an L-shaped brush stroke
+   * therefore sweeps across the L's bounding box, which is what the author sees
+   * themselves having drawn across.
+   *
+   * **An empty list yields a zero-area extent** (`width`/`height` of 0), which is
+   * degenerate and is the caller's to guard — `gradient` returns 0. Returning the
+   * grid instead would make a gradient over an empty brush sweep the whole
+   * canvas, which is a wrong picture rather than a missing one.
+   */
+  extent: (p) => {
+    const cells = p.cells as [number, number][];
+    if (cells.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const [cx, cy] of cells) {
+      if (cx < minX) minX = cx;
+      if (cx > maxX) maxX = cx;
+      if (cy < minY) minY = cy;
+      if (cy > maxY) maxY = cy;
+    }
+    return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
   },
 });

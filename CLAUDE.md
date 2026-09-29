@@ -13,6 +13,7 @@ ordinary consumer of that package — its preview is a plain `<Tileset>`.
 | `ARCHITECTURE.md`     | Module map, data flow, the three substrates, the testing situation. |
 | `CHANGELOG.md`        | What was built, per version.                                      |
 | `SUBPIXEL-GEOMETRY.md`| Why the residual has nowhere good to go, every approach tried, and what is still open. **Read before touching `uniform.ts`, a crop policy, or the substrate default.** |
+| `RESPONSIVE-HOSTING.md`| Why a gap painted for a heading does not stay under it when the page reflows, and the four answers. Analysis only — **nothing in it is built.** |
 | `packages/tileset`    | `@fndvit/gen-tilesets` — engine and renderer. **The only published package.** |
 | `apps/editor`         | The editor. Private, unpublished. Dev server on 5174.             |
 | `apps/demo`           | A fixture page for the renderer. Private, unpublished. Port 5173.  |

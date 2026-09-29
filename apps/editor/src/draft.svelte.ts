@@ -240,8 +240,10 @@ export function mappingOf(draft: Draft): Operation["mapping"] {
  *
  * `selection()` resolves an Operation and then reads `op.selection`, `op.id`,
  * `op.salt` and `op.reseedOnLoad` — the last two through `operationCtx`, whose
- * closure **O4** fixes at `{rows, columns, effectiveSeed, operationId, salt}`.
- * `target`, `mapping` and `blend` are not on that path. They are filled with the
+ * closure **O4** fixes at
+ * `{rows, columns, extent, effectiveSeed, operationId, salt}`.
+ * `target`, `mapping` and `blend` are not on that path. (`extent` is derived from
+ * `op.selection`, which is already on it, so it adds no field to this list.) They are filled with the
  * cheapest legal values so the object types, and a change that made the export
  * read one of them would be a change to **O4**'s closed set.
  *
@@ -254,9 +256,9 @@ export function toShadowOperation(draft: Draft): Operation | null {
     id: draft.id,
     // **Read**, unlike the three placeholders below: `selection()` reaches these
     // through `operationCtx`, whose closure **O4** fixes at `{rows, columns,
-    // effectiveSeed, operationId, salt}`. An edit-draft carrying `0` here would
-    // draw a `random` Selection's overlay against a salt the committed Operation
-    // does not have, so the overlay would disagree with the picture.
+    // extent, effectiveSeed, operationId, salt}`. An edit-draft carrying `0` here
+    // would draw a `random` Selection's overlay against a salt the committed
+    // Operation does not have, so the overlay would disagree with the picture.
     salt: draft.salt,
     reseedOnLoad: draft.reseedOnLoad,
     selection: { type: draft.selectionType, ...draft.selectionParams },
