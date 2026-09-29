@@ -17,6 +17,10 @@ ratio. *The recommendation* below is the conclusion, confirmed from `cellDev 4` 
 sign* below rather than woven back into the attempt log: the DOM substrate quantises its cell **up**,
 because it is the one substrate that feels the residual's sign rather than its size.
 
+**0.6.0 removed the `"svg"` substrate.** Its measurements below are kept as they were taken; the
+reason for the removal is in `ARCHITECTURE.md` *Two substrates*. Where this file says "three
+presentations", read it as the record of what was compared, not as what ships.
+
 **It is now what `<Tileset>` does.** `packages/tileset/src/render/uniform.ts` holds the geometry,
 `substrate` selects one of the three presentations, and the centre-crop chord that started all of
 this is gone — not because the crop changed, but because a square cell leaves it nothing to remove.

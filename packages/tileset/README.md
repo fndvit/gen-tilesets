@@ -58,7 +58,7 @@ environment, never from the file:
 ```
 
 ```sh
-pnpm add @fndvit/gen-tilesets@0.1.1 svelte
+pnpm add @fndvit/gen-tilesets@0.6.0 svelte
 ```
 
 - **Pin the exact version.** `0.x` promises nothing about output stability (`/CLAUDE.md`), so a
@@ -179,7 +179,7 @@ happens to be right. On `/deep/page` the browser asks for `/deep/tiles/water/a1.
   // `onAssetError` is OPTIONAL — everything below is. Drop it and the render is
   // still correct; you just get no report when a picture is missing, because
   // nothing is substituted and nothing returns null. `<Tileset {file}
-  // {provider} />` is the whole of the required form.
+  // options={{ provider }} />` is the whole of the required form.
   let failures = $state<string[]>([]);
 
   function onAssetError(ref: AssetRef, cause: unknown): void {
@@ -188,7 +188,7 @@ happens to be right. On `/deep/page` the browser asks for `/deep/tiles/water/a1.
 </script>
 
 <div class="frame">
-  <Tileset {file} {provider} {onAssetError} />
+  <Tileset {file} options={{ provider, onAssetError }} />
 </div>
 
 <!-- Optional, with the handler above: somewhere to show what failed. -->
@@ -242,7 +242,7 @@ The two bases differ by a slash — SvelteKit's `base` carries none, `BASE_URL` 
 default) — and `prefixedProvider` normalises both, so this is the only change. Vite handles JSON
 imports natively, so steps 5 and 6 are otherwise unchanged.
 
-### Five things worth knowing
+### Things worth knowing
 
 - **It is deterministic by default.** With no `seed` and no `loadSalt` you get
   `seed = file.config.defaultSeed` and `loadSalt = 0` — the same picture on every load, every
@@ -250,18 +250,19 @@ imports natively, so steps 5 and 6 are otherwise unchanged.
 - **If you want per-load variation, draw `loadSalt` in a `load` function.** Never at module scope
   or in component init: both run twice under SSR and give you two different pictures for one page.
   A `load` return value is serialized to the client, so server and hydration agree.
-- **`substrate` defaults to `"canvas"`.** All three substrates compute the same uniform square cell,
+- **Every setting goes in one `options` object** — see [Options](#options). `file` is the data
+  and `box` is the bindable element; everything else, from `seed` to `avoid`, is a field of
+  `options`, typed and documented as `TilesetOptions`.
+- **`substrate` defaults to `"canvas"`.** Both substrates compute the same uniform square cell,
   so a cell is square by construction, neighbours share an edge, and the centre-crop has nothing to
   remove. Take `"canvas"` unless you need something it cannot do: it is one element with no per-cell
   nodes, so no host-page CSS can reopen a seam, and the residual becomes one isotropic resample of
   one bitmap. Its cost is that it emits an empty box of the right ratio during SSR and fills it after
-  mount. Pass `substrate="dom"` if you need the tiles present in the server-rendered HTML or need to
+  mount. Pass `substrate: "dom"` if you need the tiles present in the server-rendered HTML or need to
   hit-test individual cells — its cost is that the grid does not fit its box exactly, so it always
   overhangs slightly at the sides and the outer columns are cut; its box is also a few pixels taller
   than the natural height, because it sizes itself to the grid rather than cutting the bottom row.
-  Pass
-  `substrate="svg"` only if you want maximum crispness and can accept visible seams at every cell
-  boundary; it is measured as the seamiest of the three by a wide margin.
+  (`"svg"` was a third substrate until 0.6.0 and is gone — see the changelog.)
 - **`onAssetError` is the only report of a missing picture.** Nothing is substituted and nothing
   returns null, so a tile whose file is absent draws an empty cell silently unless you wire this.
 - **`<Tileset>` validates its `file` in a development build, and throws.** It is keyed on the file,
@@ -309,11 +310,10 @@ coercion and `validate()` never coerces.
 
 ## The renderer
 
-`<Tileset file={...} seed? loadSalt? provider? onAssetError? substrate? />` — one component, one
-entry point (**S1**). It takes a parsed `TilesetFile` and calls `generate()` itself; nothing
-here accepts a bare grid.
+`<Tileset file={...} options?={...} bind:box? />` — one component, one entry point (**S1**). It
+takes a parsed `TilesetFile` and calls `generate()` itself; nothing here accepts a bare grid.
 
-**One geometry, three presentations.** All three substrates compute the same uniform square cell —
+**One geometry, two presentations.** Both substrates compute the same uniform square cell —
 `scaleFactor * cellSize * dpr`, quantised to one integer on both axes. That is what makes the
 picture correct: a cell is square by construction, so the centre-crop of **R8** has nothing left to
 remove, and neighbours share an edge, so a gap is unrepresentable. They differ only in where the
@@ -323,9 +323,8 @@ quantisation residual goes.
 | --- | --- | --- |
 | `"canvas"` (default) | one isotropic resample of one bitmap, where no internal edge exists to seam | **proportion.** No chord, exact quarter turns, no gaps at any cell size, and seamlessness no host CSS can undo |
 | `"dom"` | the **box** — sideways the grid overhangs and is clipped, so the outer columns are cut; vertically the box takes its height from the grid, so nothing is | **interactivity**, and SSR. The only one you can hit-test per cell |
-| `"svg"` | nowhere — there is no per-cell layout rounding to distribute | **crispness**, if you can accept a backdrop hairline at every shared edge |
 
-`"canvas"` and `"svg"` round the cell to nearest, because the presentation cancels the quantisation
+`"canvas"` rounds the cell to nearest, because the presentation cancels the quantisation
 and only its magnitude is left to minimise. `"dom"` rounds **up**: it has no presentation to cancel
 anything, so the grid always covers its box and the cut is the whole residual. Rounding to nearest
 there left the sign free, and about half of all widths came out a band of page backdrop down each
@@ -348,6 +347,85 @@ be false.
 which is engine-only — as pure functions rather than component methods, because there is exactly
 one coordinate mapping and every overlay shares it (**R1**).
 
+## Options
+
+Every setting is a field of one object, `options: TilesetOptions`, exported from
+`@fndvit/gen-tilesets/render` with a doc comment on every field. Defaults are written in exactly
+one place, `resolveOptions`, and this table is that function's output (`DEFAULT_OPTIONS`):
+
+| Field | Type | Default | When it matters |
+| --- | --- | --- | --- |
+| `seed` | `string` | `file.config.defaultSeed` | Variation between two placements of one file. |
+| `loadSalt` | `number` | `0` | Per-load variation. Draw it once per session, in a `load` function (see above). |
+| `substrate` | `"canvas" \| "dom"` | `"canvas"` | `"dom"` for SSR-complete HTML or per-cell hit-testing. |
+| `sizing` | `"fluid" \| "fixed"` | `"fluid"` | `"fixed"` keeps cells at `layout.cellSize` CSS px and crops instead of scaling. |
+| `align.x` | `"left" \| "center" \| "right"` | `"center"` | Under `"fixed"`: which side is cropped. No effect under `"fluid"`. |
+| `align.y` | `"top" \| "center" \| "bottom"` | `"top"` | When the host gives the tileset its own height: which rows are cropped. |
+| `avoid.targets` | selector, element, or elements | — (off) | Hide every tile whose cell overlaps these. See [Hosting over content](#hosting-over-content). |
+| `avoid.padding` | `number` (CSS px) | `0` | Clearance around each target. |
+| `provider` | `AssetProvider` | `defaultProvider` | Anywhere but the site root: `prefixedProvider(base)`. Create it once, not inline. |
+| `onAssetError` | `(ref, cause) => void` | none | The only report of a missing picture. |
+
+```svelte
+<Tileset {file} />                                                   <!-- every default -->
+<Tileset {file} options={{ provider, substrate: "dom" }} />
+<Tileset {file} options={{ sizing: "fixed", align: { x: "left", y: "bottom" } }} />
+```
+
+`undefined` means the same as absent in every field, so a wrapper can forward its own optional
+values without spreading. In a development build `<Tileset>` checks the object and throws on an
+unknown field or value — `substrate: "svg"` names the two that exist rather than quietly drawing a
+canvas — and on any of the pre-0.6.0 top-level props (`seed`, `loadSalt`, `provider`,
+`onAssetError`, `substrate`), naming where each one went. In production the check compiles out.
+
+## Hosting over content
+
+A tileset behind a hero's text used to need its gaps painted in the editor against a screenshot,
+and the gaps stayed where they were painted while the text rewrapped. `options.avoid` replaces that
+with the page's actual layout: the tileset measures the elements you name and hides every tile whose
+cell overlaps one of them, as whole tiles, and keeps doing so as they move.
+
+```svelte
+<section class="hero">
+  <Tileset {file} options={{ provider, avoid: { targets: "h1, p, .cta", padding: 8 } }} />
+  <div class="copy"><h1>…</h1><p>…</p><a class="cta">…</a></div>
+</section>
+```
+
+- **`targets`** is a selector, resolved inside the tileset's **parent element** (the section above)
+  and never matching the tileset's own cells; or an element, or a list of them, from `bind:this`.
+  A list written inline is compared by content, so it does not re-register anything on each render.
+- **It follows the layout**: the section or a target resizing, text rewrapping at any width or
+  breakpoint, web fonts landing, elements added or removed, `class`/`style` toggled, text edited in
+  place. **It does not follow** a target moved by a CSS animation or transition, which resizes and
+  mutates nothing — call `refresh()` from `@fndvit/gen-tilesets/render` when one ends.
+- **Nothing is drawn over the page before the mask exists.** With `avoid` set the tileset stays
+  hidden until its first measurement, which under SSR means until hydration. Space is still
+  reserved, so nothing shifts when it appears.
+- **The picture itself does not change.** The grid is generated exactly as without `avoid`; the
+  mask is applied when painting. An uncovered cell shows the tile it always had, and the same
+  `(file, seed, loadSalt)` is still the same picture.
+- **It works on both substrates.** Under `"dom"` a hidden cell carries `data-masked` and
+  `visibility: hidden`; under `"canvas"` it is skipped when painting. Both update in the same frame
+  as the layout change that caused it, so a resize never shows a frame of tiles over the text.
+- **The test is the cell, not the drawn tile.** A tile scaled past its cell can still reach over the
+  text from a neighbouring cell; `padding` is the knob for a design whose tiles spill.
+
+Every tileset on a page shares one `ResizeObserver`, one `MutationObserver` and one
+`IntersectionObserver`, reads all its rects before writing anything, and skips tilesets far off
+screen. Without `avoid`, nothing outside the tileset's own box is measured.
+
+### Fixed cells, cropped
+
+`sizing: "fixed"` keeps every cell at `layout.cellSize` CSS px and lets the box crop the grid, where
+`"fluid"` scales the whole picture with the box. `align.x` chooses the crop: `"left"` keeps the
+design's left edge and cuts from the right, `"right"` the reverse, `"center"` both sides. Columns
+are never added, so **author the grid for the widest box it will be shown in** — a wider box shows
+page backdrop beside it. The box's height is then a constant, reserved exactly in the server HTML.
+
+Culling comes with it: cells outside the box are not mounted under `"dom"` and not rasterised under
+`"canvas"`, so a 76-column grid on a phone costs what the handful of visible columns cost.
+
 ## Decorations
 
 A page usually wants more than one tileset: a couple of tailor-made ones, **plus** a scattering of
@@ -368,15 +446,15 @@ you like:
   const style = loadTilesetFile(raw);
 </script>
 
-<TileDecoration {style} {provider} rows={3} columns={2} cellSize={44} seed="board-tl" />
-<TileDecoration {style} {provider} rows={2} columns={4} cellSize={44} seed="board-br" />
+<TileDecoration {style} rows={3} columns={2} cellSize={44} options={{ provider, seed: "board-tl" }} />
+<TileDecoration {style} rows={2} columns={4} cellSize={44} options={{ provider, seed: "board-br" }} />
 ```
 
 Each placement declares `rows`, `columns` and `cellSize`, and shares the style's `tiles`,
 `operations` and assets — by reference, so there is nothing to drift. `rows`/`columns`/`layout` in
 the style file itself are placeholders that every placement overrides.
 
-**`seed` is what makes two decorations of the same size differ.** `generate()` is pure in
+**`options.seed` is what makes two decorations of the same size differ.** `generate()` is pure in
 `(config, seed, loadSalt)`, so a distinct string per spot re-rolls every Operation and the asset
 walk alike. Two spots with the same size and the same seed are the same picture, deliberately.
 

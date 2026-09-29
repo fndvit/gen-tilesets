@@ -8,6 +8,77 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.6.0 — hosting over content: one options object, fixed cells, and a keep-out mask
+
+**The case.** A tileset behind a hero's text had its gaps painted in the editor against a
+screenshot. The text rewraps and the gaps do not, because the tileset scales as one proportional
+picture while text wraps in steps (`RESPONSIVE-HOSTING.md` §1). Separately, a tileset could only
+ever scale with its box; there was no way to keep cells a constant size and crop instead.
+
+**No engine change and no schema change.** `generate()`, `hash.ts`, the registries and
+`validate.ts` are untouched, and so is generated output for any `(config, seed, loadSalt)`. The
+changes are all in the renderer and its props.
+
+### Breaking: every setting is one `options` object
+
+`<Tileset>` has three props now: `file`, `options?: TilesetOptions`, and the bindable `box`.
+
+```svelte
+<!-- 0.5.0 -->
+<Tileset {file} {seed} {loadSalt} {provider} {onAssetError} substrate="dom" />
+<!-- 0.6.0 -->
+<Tileset {file} options={{ seed, loadSalt, provider, onAssetError, substrate: "dom" }} />
+```
+
+`<TileDecoration>` takes the same `options` beside `style`, `rows`, `columns` and `cellSize`. Named
+`options` rather than `config`, because `file.config` already owns that word. Defaults live in
+`resolveOptions` and nowhere else. A development build throws on an unknown field or value, and on
+any of the five old top-level props, naming where each went — Svelte drops an unknown prop
+silently, and a seed or provider vanishing into a plausible picture is the failure this package
+refuses to have.
+
+### Breaking: `substrate: "svg"` is removed
+
+It showed a backdrop hairline at every shared edge (+52% leak), was never going to be the default,
+and every feature below would have had to be built a third time for it. `"canvas" | "dom"` remain.
+
+### `options.avoid` — the keep-out mask
+
+`avoid: { targets, padding? }` hides every tile whose cell overlaps the named elements (a selector
+resolved inside the tileset's parent, or elements), and follows them through resizes, rewraps,
+font loads, elements added or removed and class toggles. It is **render space**, not a config
+rewrite — `RESPONSIVE-HOSTING.md` §7 records why it replaced Route B. Works on both substrates;
+the tileset draws nothing over the page until the first mask exists.
+
+The measurement moved to one page-wide scheduler (`measure.ts`): one `ResizeObserver`, flushed
+inside its own callback so geometry and mask land in the frame that caused them; one
+`MutationObserver`; one `IntersectionObserver` so off-screen tilesets skip their reads; every read
+before any write. The client-to-render conversion moved from the editor's `paint.ts` into the
+package (`space.ts`) now that it has two callers.
+
+### `options.sizing` and `options.align`
+
+`sizing: "fixed"` keeps cells at `layout.cellSize` CSS px and crops the grid; `align.x` chooses the
+side. `align.y` chooses which rows a host-imposed height crops, which was top-only. `"fluid"`
+with default alignment reproduces 0.5.0's geometry and server HTML **bit for bit**, asserted in
+`sizing.test.ts` against the 0.5.0 expressions. Columns outside the box are culled — not mounted
+under `"dom"`, not rasterised under `"canvas"` — widened by `maxSpill` so a spilling neighbour is
+never cut.
+
+### Verified
+
+- `pnpm test` and `pnpm typecheck` green. New: `sizing.test.ts`, `occlusion.test.ts` (against a
+  brute-force reference), `options.test.ts`, `measure.test.ts` (fake observers).
+- `apps/demo`'s new Hosting fixture, driven headless at DPR 1 and 2 on both substrates and both
+  sizings, six widths from 1440 to 300 px and every `align.x`. Checked: no visible tile paint
+  inside any target (cell rects for DOM, canvas pixels for canvas); crop edges where `align` puts
+  them; fixed cells exactly 60 px; typed text, added and removed paragraphs, a class-shifted
+  heading, padding, a host-imposed height under each `align.y`, and `avoid` switched off. **And
+  120 frames of continuous resize with zero frames showing a tile over the text** — the condition
+  canvas masking was admitted on.
+
+---
+
 ## 0.5.0 — one style, many decorations
 
 **The case.** A page wants more than one tileset: a couple of tailor-made ones, plus a dozen small

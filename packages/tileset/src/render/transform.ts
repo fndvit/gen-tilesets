@@ -141,3 +141,35 @@ export function isIdentityTransform(attrs: TransformAttributes): boolean {
   const { sx, sy } = axes(attrs);
   return attrs.rotation === 0 && sx === 1 && sy === 1;
 }
+
+/**
+ * How far, in **whole cells**, the furthest-reaching drawable in `grid` paints
+ * past its own cell — what culling must widen by so it never drops a neighbour
+ * that spills into view.
+ *
+ * **R9** makes the render box the only clip and a cell *not* one, so a tile
+ * scaled 1.5x or turned 45 degrees paints into its neighbours. A cell just
+ * outside the box can therefore still reach into it, and culling at the box edge
+ * exactly would clip a picture the uncropped grid shows.
+ *
+ * The transformed square's axis-aligned half-extent, in cell units, is
+ * `(|sx cos| + |sy sin|) / 2` wide and `(|sx sin| + |sy cos|) / 2` tall; the spill
+ * is how far that exceeds the cell's own half, `0.5`. Rounded **up** to whole
+ * cells, because culling is by column.
+ *
+ * A function of the grid alone — no width, no DPR — so it is computed once per
+ * generation, not per resize.
+ */
+export function maxSpill(grid: { cells: readonly TransformAttributes[] }): number {
+  let spill = 0;
+  for (const cell of grid.cells) {
+    if (isIdentityTransform(cell)) continue;
+    const { sin, cos } = sincos(cell.rotation);
+    const sx = Math.abs(cell.scaleX * cell.scale);
+    const sy = Math.abs(cell.scaleY * cell.scale);
+    const halfW = (sx * Math.abs(cos) + sy * Math.abs(sin)) / 2;
+    const halfH = (sx * Math.abs(sin) + sy * Math.abs(cos)) / 2;
+    spill = Math.max(spill, halfW - 0.5, halfH - 0.5);
+  }
+  return Math.ceil(spill);
+}

@@ -12,7 +12,7 @@
  * | **Load preview**     | nothing — a prop     | Operations with `reseedOnLoad: true`  | ❌        |
  *
  * The first three are edits. The fourth writes no field at all, which is why it
- * lives in editor state and reaches `<Tileset>` as a prop.
+ * lives in editor state and reaches `<Tileset>` through its `options`.
  */
 
 import { sources, type Operation, type TilesetConfig } from "@fndvit/gen-tilesets";

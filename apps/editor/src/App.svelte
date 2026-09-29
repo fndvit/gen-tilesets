@@ -130,14 +130,14 @@
    * measuring, and an editor calling `getBoundingClientRect()` on an exposed
    * element is doing something else.
    */
-  // `HTMLElement` since ADR-006: under the default `substrate="canvas"` the render
-  // box is the `<canvas>` itself. `paint.ts`'s `metricsOf` already takes the wider
-  // type, because all it does is measure.
+  // `HTMLElement` since ADR-006: under the default `substrate: "canvas"` the render
+  // box is the canvas's wrapper `<div>`. `metricsOf` takes the wider type, because
+  // all it does is measure.
   let renderBox = $state<HTMLElement | null>(null);
 
   /**
    * §8.5's load preview. **Writes no field** — §8.1's fourth row is the one that
-   * is not an edit, so it lives here and reaches `<Tileset>` as a prop.
+   * is not an edit, so it lives here and reaches `<Tileset>` through its `options`.
    *
    * **R12** — one value per session, held for its duration. `08` **S7** makes
    * that structural rather than disciplinary: the component draws no random
@@ -600,7 +600,7 @@
 
           <!--
             §8.5 — the load preview. It **writes no field** (§8.1's fourth row): the
-            value is held in editor state and reaches `<Tileset>` as a prop.
+            value is held in editor state and reaches `<Tileset>` through its `options`.
 
             **Disabled where nothing is flagged.** `04` §8.3: a config with the flag
             false throughout is byte-identical on every load *regardless of*
@@ -707,7 +707,11 @@
             is drawn *over* this output and never in place of it, and the picture
             underneath is the same one a production page gets.
           -->
-          <Tileset {file} {loadSalt} provider={editorProvider} {onAssetError} bind:box={renderBox} />
+          <Tileset
+            {file}
+            options={{ loadSalt, provider: editorProvider, onAssetError }}
+            bind:box={renderBox}
+          />
 
           {#if shadow !== null}
             {@const s = shadow}

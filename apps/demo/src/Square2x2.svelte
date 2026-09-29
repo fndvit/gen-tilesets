@@ -100,7 +100,7 @@
     "square-2x2 (built in code)",
   );
 
-  let substrate = $state<"canvas" | "dom" | "svg">("dom");
+  let substrate = $state<"canvas" | "dom">("dom");
   /** CSS px, fractional on purpose — see `nudge`. */
   let width = $state(700);
   let box = $state<HTMLElement | null>(null);
@@ -192,7 +192,6 @@
       <select bind:value={substrate}>
         <option value="canvas">canvas</option>
         <option value="dom">dom</option>
-        <option value="svg">svg</option>
       </select>
     </label>
 
@@ -219,7 +218,7 @@
   -->
   <div class="stage">
     <div class="abs" style="width: {width}px;">
-      <Tileset file={FILE} {substrate} {provider} {onAssetError} bind:box />
+      <Tileset file={FILE} options={{ substrate, provider, onAssetError }} bind:box />
     </div>
   </div>
 
@@ -249,7 +248,7 @@
         <td></td>
       </tr>
       <tr class:live={substrate !== "dom"}>
-        <td>cellDev &mdash; canvas / svg (<code>round</code>)</td>
+        <td>cellDev &mdash; canvas (<code>round</code>)</td>
         <td><code>{u === null ? "—" : u.cellDev}</code></td>
         <td></td>
       </tr>

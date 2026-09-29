@@ -8,25 +8,84 @@
  */
 
 export {
+  alignFraction,
   cellAt,
   cellBox,
   cellCentre,
+  cellPlacementAffine,
   cellPlacementPercent,
+  cssLength,
   gridWidth,
+  latticeRange,
   naturalHeight,
   naturalRatio,
   originX,
   originY,
   scaleFactor,
+  visibleColumns,
+  type Affine,
+  type AlignX,
+  type AlignY,
   type CellBox,
   type CellPlacement,
+  type CellPlacementAffine,
+  type CellRange,
   type GridGeometry,
+  type Lattice,
+  type Sizing,
 } from "./geometry.js";
+
+/**
+ * `<Tileset>`'s one settings object. `TilesetOptions` documents every field and
+ * its default; `resolveOptions` is the only place a default is written, and
+ * `optionErrors` is the separate check the component runs in a development build.
+ */
+export {
+  DEFAULT_OPTIONS,
+  LEGACY_PROPS,
+  legacyPropErrors,
+  normalizeTargets,
+  optionErrors,
+  resolveOptions,
+  sameTargets,
+  type AvoidTargets,
+  type NormalizedTargets,
+  type ResolvedOptions,
+  type Substrate,
+  type TilesetOptions,
+} from "./options.js";
+
+/**
+ * Client coordinates to render space — `07` §8.2's caller work, done once. The
+ * editor's brush and the keep-out tracker both convert through this (**R1**).
+ */
+export {
+  metricsOf,
+  rectToRenderSpace,
+  toRenderSpace,
+  type BoxMetrics,
+  type RenderRect,
+} from "./space.js";
+
+/**
+ * The keep-out mask, as pure functions — what `options.avoid` computes, exported
+ * so a host drawing its own overlay can show exactly which cells are hidden.
+ */
+export { occlusionMask, sameMask, stableMask, type OcclusionMask } from "./occlusion.js";
+
+/**
+ * `refresh()` re-measures every tileset on the page on the next frame: the host's
+ * handle for a keep-out element moved by a CSS animation, which the tracker
+ * cannot see. `track` is the tracker itself, for a host that wants a keep-out
+ * measurement without a `<Tileset>`.
+ */
+export { refresh, track, type Measurement } from "./measure.js";
 
 export {
   applyMatrix,
   cssTransform,
   isIdentityTransform,
+  maxSpill,
   sincos,
   transformMatrix,
   type Matrix,
@@ -38,7 +97,7 @@ export { coverRect, snap } from "./edges.js";
 /**
  * The uniform square cell — `SUBPIXEL-GEOMETRY.md`, *The recommendation*.
  *
- * This is the geometry the `"canvas"` and `"svg"` substrates draw from, and it is
+ * This is the geometry the `"canvas"` substrate draws from, and it is
  * exported for the same reason `cellBox` is (**S10**, **R1**): a host that needs
  * to know what was actually rasterised — a tool sizing an export, a diagnostic
  * reporting the residual — must read the one implementation rather than restate it.
@@ -55,9 +114,12 @@ export { coverRect, snap } from "./edges.js";
  * `uniform.ts` and the two editor overlays.
  */
 export {
+  canvasPresentation,
   domGeometry,
+  domLattice,
   uniformDrawList,
   uniformGeometry,
+  type CanvasPresentation,
   type DomGeometry,
   type UniformGeometry,
   type UniformItem,
