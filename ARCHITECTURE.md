@@ -45,7 +45,7 @@ every push; a `v*` tag publishes the package (`.github/workflows/`). There is no
 here — `citations.mjs` went with the spec to `../gen-tileset-spec-archive/scripts/`, and the
 citations in the source are no longer checked by anything.
 
-`@fndvit/gen-tilesets` is at `0.4.0`. Everything `05` §10 says about version bumps describes a
+`@fndvit/gen-tilesets` is at `0.5.0`. Everything `05` §10 says about version bumps describes a
 future state; `05` §10.3 puts all of V1 at `0.x`, where no bump kind binds. **ADR-004 is the
 release valve that makes vector tables generatable before then, and it expires at 1.0.0.**
 
@@ -79,6 +79,7 @@ rejected.
 | `attributes.ts` | The attribute table: domain, default, bounding. `bound`, `writeAttribute`. |
 | `angle.ts` | `sincos` — degrees, exact on the axes. Shared, because `gradient` needs the same exactness the render matrix does and the engine cannot import from `render/`. `render/transform.ts` re-exports it. |
 | `assets.ts` | The weight walk — resolves a cell's `assetId`. Order-independent (`03` §4.2). |
+| `decoration.ts` | **One style, many placements.** `decorationFile(style, {rows, columns, cellSize})` overrides four numbers and shares everything else by reference; `decorationStyleErrors` is the separate check, for **C5**'s reason. Engine-space despite writing a `Layout` — it reads the `selections` registry and nothing in `render/`. |
 | `mapping.ts` | Numeric and tile mapping — gives units to a Source's bare `[0,1]`. Both branches return `max` exactly at the top, and both have a `t = 1` boundary case since **X6** closed. |
 | `selection.ts` | `selection(config, operationId, …) → (x,y) => boolean`. Exists so the editor implements no Selection test (**E8**). |
 | `validate.ts` | Fifteen error codes, strict at every depth, never coerces. Separate from `generate()`, which trusts its input (**C5**). |
@@ -95,6 +96,7 @@ header of `registry/sources.ts` and `spec/FREEZE.md` A-5.
 | Module | What |
 | --- | --- |
 | `Tileset.svelte` | The one entry point (**S1**). Takes a `TilesetFile` and calls `generate()` itself — nothing accepts a bare grid. |
+| `TileDecoration.svelte` | One placement of a decoration style. **Not a second entry point** — it derives a `TilesetFile` above `<Tileset>` and renders it, exactly as the editor's preview does, so **S1** is intact. What it owns is the box: `columns * cellSize` px, the same product `decorationFile` writes into `referenceWidth`. |
 | `geometry.ts` | The ideal fractional mapping: `cellBox`, `cellAt`, `originX/Y`, `scaleFactor`. Pure, no measurement. |
 | `uniform.ts` | **The uniform square cell.** One integer side on both axes, plus the split between raster and presentation, and the draw list. `uniformGeometry` quantises with `round` for `"canvas"` and `"svg"`; `domGeometry` quantises with `ceil` for `"dom"` so its side residual is always a clip and never a gutter, and reports `gridHeightDev` so that box can take its height from the grid instead of cutting the bottom row. Every substrate draws from this module. |
 | `edges.ts` | What survives of ADR-006: `snap` and `coverRect`. The per-edge snapping it was built around is gone — see `SUBPIXEL-GEOMETRY.md` attempt 1 before reintroducing it. |
@@ -174,6 +176,23 @@ paint, and apparent crispness of a curve goes as `1 / cellDev` rather than as th
 ratio. Read it before changing `uniform.ts`, a crop policy, or the substrate default — several
 plausible-looking fixes there are measured dead ends, and four of them were confident claims about
 browser mechanisms that turned out to be false.
+
+### Decorations are the zero-bleed corner of that geometry
+
+`decoration.ts` exists because `rows`/`columns` are `TilesetConfig` fields and `cellSize`/
+`referenceWidth` are `Layout` fields, so "the same design at another size" is a different file —
+and a page with a dozen small tile blocks in its margins then carries a dozen copies of one `tiles`
+array. The data model was already size-independent everywhere except the two `coordinateBound`
+Selections; the size was simply not separable from the thing being shared.
+
+**It lands on the exact case the rest of this section is about not having.** `referenceWidth =
+columns * cellSize` and `yOffset = 0`, so `originX` is 0, `s` is 1 and `presentScale` is 1 at
+integer DPR: the quantisation residual is *zero* rather than minimised, and the full-bleed case
+`ARCHITECTURE.md` says "is served by no substrate here" is served here by there being no bleed to
+fit. That is a property of the derivation and is asserted in `decoration.test.ts`, not assumed.
+
+Variation between two spots is the **`seed` prop**, which already existed. Nothing in
+`decoration.ts` touches a salt.
 
 ## `apps/editor/src` — the editor
 

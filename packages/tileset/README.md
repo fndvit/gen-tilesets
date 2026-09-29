@@ -348,6 +348,77 @@ be false.
 which is engine-only — as pure functions rather than component methods, because there is exactly
 one coordinate mapping and every overlay shares it (**R1**).
 
+## Decorations
+
+A page usually wants more than one tileset: a couple of tailor-made ones, **plus** a scattering of
+small tile blocks around it — a 2x2 in a corner, a stepped 3x4 beside a heading, an L of three
+cells under a photo. A dozen of those are one visual language and differ only in how many cells
+they occupy.
+
+They do **not** need a dozen files. Author one *decoration style* and place it as many times as
+you like:
+
+```svelte
+<script lang="ts">
+  import { loadTilesetFile } from "@fndvit/gen-tilesets";
+  import TileDecoration from "@fndvit/gen-tilesets/TileDecoration.svelte";
+  import { prefixedProvider } from "@fndvit/gen-tilesets/render";
+
+  const provider = prefixedProvider(import.meta.env.BASE_URL);
+  const style = loadTilesetFile(raw);
+</script>
+
+<TileDecoration {style} {provider} rows={3} columns={2} cellSize={44} seed="board-tl" />
+<TileDecoration {style} {provider} rows={2} columns={4} cellSize={44} seed="board-br" />
+```
+
+Each placement declares `rows`, `columns` and `cellSize`, and shares the style's `tiles`,
+`operations` and assets — by reference, so there is nothing to drift. `rows`/`columns`/`layout` in
+the style file itself are placeholders that every placement overrides.
+
+**`seed` is what makes two decorations of the same size differ.** `generate()` is pure in
+`(config, seed, loadSalt)`, so a distinct string per spot re-rolls every Operation and the asset
+walk alike. Two spots with the same size and the same seed are the same picture, deliberately.
+
+### A style must be reusable at any size
+
+One constraint, and it is checkable:
+
+- **No `rect` and no `cellList` Selection.** Both are `coordinateBound` — they hold literal cell
+  coordinates, which mean nothing in a 3x2 spot. `decorationStyleErrors(style)` returns one message
+  per offending Operation, and `<TileDecoration>` throws on a non-empty result **in a development
+  build**, so this fails loudly rather than drawing a plausible wrong picture. Use `all`,
+  `checkerboard`, `everyNth` and `random`.
+- **Put a `{tileId: null}` entry in a palette.** That is `04` §6.3's "clear this cell", and it is
+  where each spot's silhouette comes from — emptiness is *generated* from the seed rather than
+  painted per spot, which is what removes the need for a mask. Not enforced: a style without one is
+  a solid block, which is a legitimate decoration.
+- **`gradient` renormalizes per decoration.** It takes its domain from the Selection's extent,
+  which under `selection: {type: "all"}` is the grid — so a ramp authored across 40 columns becomes
+  a 3-step ramp in a 3-column spot. Legal and sometimes wanted; know that it is happening.
+  `valueNoise` does *not*: it samples grid-absolute coordinates, so its feature size in cells is
+  invariant and a decoration keeps the grain of the tileset it was authored beside.
+
+### What you get for free
+
+A decoration is the **zero-bleed** case, and that is not a coincidence — `decorationFile` derives
+`referenceWidth` as `columns * cellSize` and zeroes `yOffset`, because a small block of whole cells
+in a margin has no design for a bleed to belong to. Three exactnesses follow by construction rather
+than by care: `originX` is exactly 0, the scale is exactly 1, and the canvas presentation scale is
+exactly 1 at integer DPR. **`SUBPIXEL-GEOMETRY.md`'s whole subject is absent here** rather than
+merely small — measured in a browser at DPR 1 and 2, and asserted in `src/decoration.test.ts`
+rather than believed.
+
+The box sizes itself to `columns * cellSize` px with `max-width: 100%`, so a decoration wider than
+a phone shrinks rather than opening a horizontal scrollbar; the tiles just come out smaller, since
+every quantity is a fraction of the box's width.
+
+If you would rather own the box yourself, `decorationFile(style, {rows, columns, cellSize})` is
+exported from the root entry and gives you the derived `TilesetFile` to hand to a plain
+`<Tileset>`. `<TileDecoration>` is an ordinary consumer of `<Tileset>` and adds no stage to the
+pipeline — what it saves you is getting `referenceWidth` and the box width to agree, which is one
+number in two places and reintroduces a bleed silently when they disagree.
+
 ## Layout
 
 See `/ARCHITECTURE.md` for the module map. The specification is **archived outside this

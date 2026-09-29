@@ -28,6 +28,22 @@ export {
 
 export { canonicalAssets, prepareTile, walkWeights, type PreparedTile } from "./assets.js";
 
+/**
+ * Decorations — one authored style, many placements of it. `decorationFile` is a
+ * pure `(TilesetFile, Decoration) -> TilesetFile`, so it belongs here rather
+ * than behind `/render` despite writing a `Layout`: it reads the `selections`
+ * registry and nothing in `render/`.
+ *
+ * `decorationStyleErrors` is separate from it for **C5**'s reason — the
+ * transform trusts its input exactly as `generate()` does, and the check is what
+ * makes that trust earned. `<TileDecoration>` runs it under `DEV`.
+ */
+export {
+  decorationFile,
+  decorationStyleErrors,
+  type Decoration,
+} from "./decoration.js";
+
 export { operationCtx, type EvalCtx } from "./ctx.js";
 
 /**

@@ -8,6 +8,121 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.5.0 — one style, many decorations
+
+**The case.** A page wants more than one tileset: a couple of tailor-made ones, plus a dozen small
+tile blocks scattered around it — a 2x2 in a corner, a stepped 3x4 beside a heading. They are one
+visual language and differ only in **how many cells they occupy**.
+
+Each of those needed its own file, because `rows`/`columns` are `TilesetConfig` fields and
+`cellSize`/`referenceWidth` are `Layout` fields. A dozen decorations was a dozen copies of one
+`tiles` array and one set of assets, which drift apart the first time one is edited — the same
+duplicated-payload pain `RESPONSIVE-HOSTING.md` §4 names as C2's gate, arriving from a different
+direction.
+
+**What was already true.** The data model is size-independent everywhere except two Selections.
+`rect` and `cellList` are declared `coordinateBound` and are orphaned by a resize; `all`,
+`checkerboard`, `everyNth` and `random` are rule-based and survive one. Everything else — `tiles`,
+every `TileAsset`, `defaultSeed`, `assetSalt`, every mapping, blend and target — needs no rewrite
+at another size. So "the same Operations at another size" was expressible in the *model* all
+along; it was not expressible in the *file*, because the size sits inside the thing being shared.
+
+**What was added is that expression and nothing more.** `decorationFile(style, {rows, columns,
+cellSize})` overrides four numbers and passes every other field through **by reference** — twelve
+decorations hold one `tiles` array between them, which is the whole point and is asserted by
+identity rather than by deep equality, so a later `structuredClone` added for tidiness cannot
+quietly cost it.
+
+**No engine change, no schema change, and no output change for any existing file.** `generate()`,
+`hash.ts`, every registry and `validate.ts` are untouched. This is additive.
+
+### Variation is the `seed` prop, which already existed
+
+Two spots of the same size differ because they are generated under different seeds — `generate()`
+is pure in `(config, seed, loadSalt)`, so one string re-rolls every Operation *and* the asset walk
+through `effectiveSeeds`. Nothing in `decoration.ts` touches a salt, and there is no per-spot mask:
+emptiness comes from a `{tileId: null}` palette entry, so a spot's **silhouette** is a function of
+its seed. That is what replaces a hand-painted `cellList` per decoration, and it is only affordable
+because the hashing is positional — a bigger spot *extends* the picture instead of reshuffling it,
+which `decoration.test.ts` pins cell by cell.
+
+### It lands on the zero-bleed case on purpose
+
+`referenceWidth` is derived as `columns * cellSize` and `yOffset` is forced to 0. In a page-scale
+tileset `referenceWidth` is stored precisely *because* it differs from `columns * cellSize` — `02`
+§7.2 calls the difference the intentional bleed — but a small block of whole cells in a margin has
+no design for a bleed to belong to, and `yOffset` would shave the top of an edge the page can see.
+
+Three exactnesses follow by construction: `originX` is exactly 0, `s` is exactly 1, and
+`presentScale` is exactly 1 at integer DPR. **`SUBPIXEL-GEOMETRY.md`'s subject is absent here
+rather than minimised** — the full-bleed case `ARCHITECTURE.md` says "is served by no substrate
+here" is served by there being no bleed to fit. Asserted with strict equality in
+`decoration.test.ts` and measured in Chromium at DPR 1 and 2, where every box came out
+`columns * 44` by `rows * 44` CSS px with a backing store exactly `dpr` times that.
+
+### The check is separate, and loud in the right build
+
+`decorationStyleErrors(style)` returns one message per Operation whose Selection is
+`coordinateBound`. It is a **separate function** for exactly `06` **C5**'s reason: `decorationFile`
+trusts its input as `generate()` does, and the check is what makes that trust earned.
+`<TileDecoration>` runs it under `DEV` and throws, the same development-loud / production-trusting
+arrangement `<Tileset>` has with `assertValidFile` — verified to fold out of a production build,
+where the message string is absent from the bundle.
+
+It reads the **registry flag**, never a list of names, for the reason `selections.ts` gives on the
+declaration itself: the registry is open, so a name table here would misclassify anything
+registered later, and in the safe-looking direction. It returns `string[]` rather than
+`ValidationError[]` because `ErrorCode` is a closed union and a coordinate-bound Selection is
+perfectly valid in a *tileset* — the failure belongs to the decoration contract, not to the schema,
+so it stays out of the schema's vocabulary.
+
+### `<TileDecoration>` is not a second entry point
+
+**S1** is intact: `<Tileset>` remains the one thing that draws and the one thing that calls
+`generate()`. `<TileDecoration>` derives a file above it and renders it, exactly as the editor's
+preview does. What it earns its place with is the **box** — `columns * cellSize` px, the same
+product written into `referenceWidth`. That is one number in two places, and a host that gets them
+to disagree reintroduces a bleed silently: the grid still draws, just not at the tile size the
+author asked for. `max-width: 100%` is on it deliberately, because a 6-column decoration at 96px
+overflows a phone and a sideways-scrolling page is a worse failure than smaller tiles.
+
+`decorationFile` is exported for a host that would rather own the box itself.
+
+### The fixture, and what it caught
+
+`apps/demo/src/Decorations.svelte` is a third fixture and the first that is a **use case** rather
+than a geometry instrument: nine decorations off one style, on a light backdrop because a
+decoration in a margin is the case where the page's own background shows on all four sides of the
+grid.
+
+Two things were found by looking at it in a browser rather than by reasoning:
+
+- **The atlas's asset ids are not the obvious sequence.** `t1`–`t4` run `a1, a3, a4, a5, a6` — there
+  is no `a2` — and only `t5` runs `a1..a5`. Assuming otherwise produced four 404s and an
+  `EncodingError` per spot, reported through `onAssetError` and visible **nowhere else**, because
+  **R3** substitutes nothing and the cell simply drew empty. That is the asset rules working as
+  designed, and a good argument for wiring `onAssetError` in anything real.
+- **`onAssetError` fires once per cell, so a failure list keyed on the message throws.** The same
+  missing asset arrives dozens of times across nine decorations, and `{#each failures as f (f)}`
+  then dies with `each_key_duplicate`, taking the page with it. The fixture dedupes: the fact is
+  *which* asset failed, not how many cells noticed. `apps/demo/src/App.svelte` had the same
+  latent bug, hidden only because its assets all resolve, and now dedupes the same way.
+
+The fixture is **a new picture on every reload**. `App.svelte` draws a `loadSalt` once per page
+load and hands it to the fixture, and the style sets `reseedOnLoad` on both Operations and
+`reseedAssetsOnLoad` — without those flags the salt reaches nothing (`hash.ts` `pickSeed`). The
+per-spot seeds still separate spots within a load. This is the existing **R12** mechanism used as
+intended; `<TileDecoration>` still defaults `loadSalt` to 0 and the package is unchanged.
+
+Verified by packing the tarball with `pnpm pack` and installing it into a throwaway Vite 8 +
+Svelte 5 app: `svelte-check` reports 0 errors and 0 warnings and `vite build` succeeds over
+`@fndvit/gen-tilesets/TileDecoration.svelte`. Worth recording that **`npm pack` is the wrong tool**
+for that check — it does not apply pnpm's `publishConfig` substitution, so its tarball carries the
+workspace's source-pointing export map and *every* subpath fails to resolve, including the ones
+that were already correct.
+
+---
+
 ## 0.4.0 — a gradient that reaches both ends of its range
 
 **The bug**, found in the demo fixture. A `gradient` at `angle: 90` over ten rows, mapped
