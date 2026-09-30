@@ -8,6 +8,74 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.7.0 — one design, many shapes: `reshape`, and responsive rules
+
+**The case.** A tileset that should look different at a breakpoint — more rows on a phone, fewer
+columns on a tablet — needed a second complete file and reactive switching in the host, duplicating
+the tiles and Operations for what is a change of shape. Separately, "the same design at another
+size" existed only as decorations: always zero-bleed, always `yOffset: 0`, only through
+`<TileDecoration>`.
+
+**One mechanism serves both.** A tileset is a *design* (`tiles`, `operations`, seed, salts) and a
+*shape* (`rows`, `columns`, `cellSize`, `bleed`, `yOffset`). `reshape(file, override)` changes the
+shape and shares the design by reference. A responsive rule is a reshape with a width condition.
+A decoration is `reshape` with `bleed: 0, yOffset: 0`, plus a box.
+
+### New: `reshape`, `shapeOf`, `reshapeErrors` (`shape.ts`)
+
+- An override speaks `bleed` (columns overhanging the box), never `referenceWidth`, which is derived.
+  An absent `bleed` keeps the base's bleed in cells; unchanged `columns` and `cellSize` keep
+  `referenceWidth` verbatim, to the bit.
+- Same `config` object when `rows`/`columns` are unchanged — how `<Tileset>` tells density from size.
+- `reshape` drops the file's own `responsive` rules; they were written for the shape it replaces.
+- `reshapeErrors` reports bad values, unknown keys (naming `bleed` for a `referenceWidth`), a bleed
+  that leaves no box, and — when the override names `rows` or `columns` — each coordinate-bound
+  Operation. `cellSize`, `bleed` and `yOffset` are always allowed, `rect` or not.
+
+### New: responsive rules — schema v3
+
+- `TilesetFile.responsive?: ResponsiveRule[]` — `{ minWidth?, maxWidth?, ...shape fields }`. The
+  width is the **render box's**; bounds are inclusive; every matching rule applies in order, a later
+  one winning field by field (CSS's cascade). `responsive.ts` holds the pure resolution.
+- `options.responsive` — host rules, which **replace** the file's (`[]` disables them) and may also
+  set `sizing` and `align`.
+- `validate()` walks the rules: fields, conditions, a rule that says nothing, and
+  **`COORDINATE_BOUND_RESIZE`** (new code) for a rule naming `rows`/`columns` over a `rect` or
+  `cellList`. It also resolves every band (`bandWidths`) and rejects one whose bleed leaves no box.
+- **Cost of a crossing:** nothing inside a band; geometry only for a density change; one
+  `generate()` per new `(rows, columns)`, cached per instance (`GridCache`).
+- **Before measurement** the box reserves each band's height by container query (`reservationCss`),
+  on a wrapper rendered only when rules exist; tiles wait for the measurement, as under `avoid`.
+  **A responsive tileset's parent needs a definite width.**
+- Development warnings: a breakpoint flipping on its own (the scrollbar loop — use
+  `scrollbar-gutter: stable`), and a fluid rule that changes only `cellSize` (a no-op).
+
+### Fixed: `avoid` selectors inside `<TileDecoration>` matched nothing
+
+`RESPONSIVE-HOSTING.md` §8.2. The selector scope is now the nearest ancestor the package did not
+add (`scopeOf`, skipping `data-tileset-wrapper`).
+
+### Editor
+
+A Breakpoints section edits the file's rules; the preview handle shows the rules in force and a
+button per bound; overlays follow the shape at the preview width. Every rule transition is refused
+if the file would not validate (**E5**), and `rect`/`cellList` are disabled while a rule resizes the
+grid, with the reason.
+
+### Breaking
+
+- **`schemaVersion` is 3.** `migrate()` lifts v2 with nothing to rewrite; 0.6.0 refuses a v3 file.
+- **Removed `decorationFile`, `Decoration`, `decorationStyleErrors`.** No aliases.
+  `decorationFile(s, {rows, columns, cellSize})` is `reshape(s, {rows, columns, cellSize, bleed: 0,
+  yOffset: 0})`; `decorationStyleErrors(s)` is `reshapeErrors(s, {rows, columns})`.
+- **Peer dependency `svelte ^5.20`**, for `$props.id()`.
+- DOM cells are keyed by `(x, y)` rather than by flat index. No pixel changes; a breakpoint that
+  changes `columns` no longer remounts every cell.
+
+**Output** for an unchanged file with no rules and no new options is unchanged.
+
+---
+
 ## 0.6.0 — hosting over content: one options object, fixed cells, and a keep-out mask
 
 **The case.** A tileset behind a hero's text had its gaps painted in the editor against a

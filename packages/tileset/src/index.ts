@@ -29,20 +29,37 @@ export {
 export { canonicalAssets, prepareTile, walkWeights, type PreparedTile } from "./assets.js";
 
 /**
- * Decorations — one authored style, many placements of it. `decorationFile` is a
- * pure `(TilesetFile, Decoration) -> TilesetFile`, so it belongs here rather
- * than behind `/render` despite writing a `Layout`: it reads the `selections`
- * registry and nothing in `render/`.
+ * Shape — one design, any size. `reshape` is a pure `(TilesetFile, Partial<Shape>)
+ * -> TilesetFile`, so it belongs here rather than behind `/render` despite
+ * writing a `Layout`: it reads the `selections` registry and nothing in `render/`.
  *
- * `decorationStyleErrors` is separate from it for **C5**'s reason — the
- * transform trusts its input exactly as `generate()` does, and the check is what
- * makes that trust earned. `<TileDecoration>` runs it under `DEV`.
+ * `reshapeErrors` is separate from it for **C5**'s reason — the transform trusts
+ * its input exactly as `generate()` does, and the check is what makes that trust
+ * earned. `<Tileset>` (for host rules) and `<TileDecoration>` run it under `DEV`.
+ *
+ * Replaces 0.5.0's `decorationFile(s, {rows, columns, cellSize})`, which is
+ * `reshape(s, {rows, columns, cellSize, bleed: 0, yOffset: 0})`.
  */
 export {
-  decorationFile,
-  decorationStyleErrors,
-  type Decoration,
-} from "./decoration.js";
+  coordinateBoundOperations,
+  reshape,
+  reshapeErrors,
+  SHAPE_FIELDS,
+  shapeOf,
+} from "./shape.js";
+
+/**
+ * Responsive rules — which override holds at a render-box width. Pure; the width
+ * is an argument, and the measuring is `/render`'s.
+ */
+export {
+  activeKey,
+  activeRules,
+  bandWidths,
+  matches,
+  ruleOverride,
+  rulesReshapeErrors,
+} from "./responsive.js";
 
 export { operationCtx, type EvalCtx } from "./ctx.js";
 
@@ -130,7 +147,9 @@ export type {
   NumericMapping,
   Operation,
   PaletteEntry,
+  ResponsiveRule,
   Selection,
+  Shape,
   Source,
   TargetName,
   TargetType,

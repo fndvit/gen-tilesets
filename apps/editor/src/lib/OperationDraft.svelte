@@ -65,6 +65,13 @@
   let { draft, editing, nested = false, onClose }: Props = $props();
 
   const selectionRegistrations = selections.all();
+
+  /** The 1-based numbers of the file's breakpoints that name `rows` or `columns`. */
+  const resizedBy = $derived(
+    (session.file.responsive ?? []).flatMap((r, i) =>
+      r.rows !== undefined || r.columns !== undefined ? [i + 1] : [],
+    ),
+  );
   const sourceRegistrations = sources.all();
 
   const selectionSchema = $derived(
@@ -209,8 +216,18 @@
 
       <div class="types">
         {#each selectionRegistrations as registration (registration.name)}
+          <!--
+            A coordinate-bound Selection holds literal cells, so it cannot live in
+            a stack whose grid a breakpoint resizes — `document.ts` would refuse
+            the commit (`COORDINATE_BOUND_RESIZE`). Disabled here with the reason,
+            so the refusal never arrives as a silent no-op.
+          -->
           <button
             class:on={draft.selectionType === registration.name}
+            disabled={registration.coordinateBound && resizedBy.length > 0}
+            title={registration.coordinateBound && resizedBy.length > 0
+              ? `Holds literal cells, and breakpoint ${resizedBy.join(", ")} changes rows or columns.`
+              : undefined}
             onclick={() => chooseSelection(registration.name)}
           >
             {registration.name}

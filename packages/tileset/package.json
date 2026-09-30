@@ -1,6 +1,6 @@
 {
   "name": "@fndvit/gen-tilesets",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Procedural tileset generator: a pure, deterministic engine and a Svelte renderer.",
   "license": "MIT",
   "repository": {
@@ -63,7 +63,7 @@
     }
   },
   "peerDependencies": {
-    "svelte": "^5.0.0"
+    "svelte": "^5.20.0"
   },
   "scripts": {
     "build": "svelte-package --input src --output dist && pnpm run build:prune",

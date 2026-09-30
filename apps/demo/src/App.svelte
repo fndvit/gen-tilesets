@@ -23,6 +23,7 @@
   import Square2x2 from "./Square2x2.svelte";
   import Decorations from "./Decorations.svelte";
   import Hosting from "./Hosting.svelte";
+  import Responsive from "./Responsive.svelte";
 
   /**
    * The archive root, served statically. `meta.src` is written relative to it
@@ -164,6 +165,13 @@
   as it rewraps — `options.avoid`, `sizing` and `align`. See its header.
 -->
 <Hosting />
+
+<!--
+  A fifth, and the 0.7.0 one: one file, a shape per width — `responsive` rules in
+  the file, a host's replacing them, and a decoration that keeps its tile size in
+  a narrow slot. See its header.
+-->
+<Responsive />
 
 <main>
   {#if loadError !== null}

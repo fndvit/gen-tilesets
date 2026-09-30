@@ -36,7 +36,16 @@
  * session-scoped and does not survive a reload.
  */
 
-import type { Layout, Operation, Tile, TileAsset, TilesetFile } from "@fndvit/gen-tilesets";
+import {
+  shapeOf,
+  validate,
+  type Layout,
+  type Operation,
+  type ResponsiveRule,
+  type Tile,
+  type TileAsset,
+  type TilesetFile,
+} from "@fndvit/gen-tilesets";
 import { deriveColumns } from "./derive.js";
 import {
   parseCellSize,
@@ -44,6 +53,8 @@ import {
   parseRows,
   parseWeight,
   parseYOffset,
+  RULE_PARSERS,
+  type RuleField,
 } from "./fields.js";
 import { nextSalt } from "./reseed.js";
 import { memorableSeed } from "./seed.js";
@@ -112,9 +123,9 @@ const NEW_ALIGNMENT = "gutter" as const;
 
 export function newDocument(): TilesetFile {
   return {
-    // Required. Absent or unknown is a load failure (`06` **C2**). 2 since
-    // ADR-005 added the `scale` attribute.
-    schemaVersion: 2,
+    // Required. Absent or unknown is a load failure (`06` **C2**). 3 since
+    // 0.7.0 added the optional `responsive` rules.
+    schemaVersion: 3,
     // Required, advisory, never validated against anything (`06` **C3**). E2
     // makes it truthful by construction.
     engineVersion: ENGINE_VERSION,
@@ -200,14 +211,32 @@ export function newDocument(): TilesetFile {
 
 /** Re-derives `columns` from the three fields it depends on — `02` §7.1. */
 function withLayout(file: TilesetFile, layout: Layout): TilesetFile {
-  return {
+  return keepsRulesLegal(file, {
     ...file,
     config: {
       ...file.config,
       columns: deriveColumns(layout.referenceWidth, layout.cellSize, layout.horizontalAlignment),
     },
     layout,
-  };
+  });
+}
+
+/**
+ * **E5 with responsive rules in the file.** `next`, unless it has rules and does
+ * not validate — then `file`, unchanged, which is how every transition here
+ * refuses.
+ *
+ * Rules add two ways for an edit elsewhere to make a legal file illegal: a
+ * coordinate-bound Operation added to a stack that a rule resizes
+ * (`COORDINATE_BOUND_RESIZE`), and a re-derived `columns` under which a rule's
+ * `bleed` leaves no box. Neither is reachable without rules, so a file without
+ * them pays nothing and behaves exactly as before 0.7.0. The UI disables what
+ * this would refuse and says why (`OperationDraft`, the Breakpoints section); this
+ * is what keeps the file legal if it did not.
+ */
+function keepsRulesLegal(file: TilesetFile, next: TilesetFile): TilesetFile {
+  if (next.responsive === undefined || next.responsive.length === 0) return next;
+  return validate(next).length === 0 ? next : file;
 }
 
 /**
@@ -554,12 +583,17 @@ export function setAssetWeight(tileId: string, assetId: string, text: string): T
  * see*.
  */
 
-/** Appends to the end of the stack, which is where a new Operation runs last. */
+/**
+ * Appends to the end of the stack, which is where a new Operation runs last.
+ * Refused if a responsive rule resizes the grid and this Operation is
+ * coordinate-bound — `keepsRulesLegal`.
+ */
 export function addOperation(operation: Operation): Transition {
-  return (file) => ({
-    ...file,
-    config: { ...file.config, operations: [...file.config.operations, operation] },
-  });
+  return (file) =>
+    keepsRulesLegal(file, {
+      ...file,
+      config: { ...file.config, operations: [...file.config.operations, operation] },
+    });
 }
 
 /**
@@ -587,13 +621,14 @@ export function removeOperation(operationId: string): Transition {
  * implies.
  */
 export function replaceOperation(operation: Operation): Transition {
-  return (file) => ({
-    ...file,
-    config: {
-      ...file.config,
-      operations: file.config.operations.map((op) => (op.id === operation.id ? operation : op)),
-    },
-  });
+  return (file) =>
+    keepsRulesLegal(file, {
+      ...file,
+      config: {
+        ...file.config,
+        operations: file.config.operations.map((op) => (op.id === operation.id ? operation : op)),
+      },
+    });
 }
 
 /**
@@ -624,5 +659,115 @@ export function moveOperation(operationId: string, index: number): Transition {
     const [operation] = next.splice(from, 1);
     next.splice(index, 0, operation!);
     return { ...file, config: { ...file.config, operations: next } };
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Breakpoints — the file's `responsive` rules (0.7.0)
+// ---------------------------------------------------------------------------
+
+/**
+ * Every rule transition ends here: the file with `rules` in place of its own —
+ * `responsive` removed when none are left, so an emptied list exports exactly as
+ * a file that never had one — **or the file unchanged if the result does not
+ * validate**.
+ *
+ * Validation rather than a per-field check, because a rule's legality is a
+ * property of the whole cascade and the stack: a `rows` is illegal only if some
+ * Operation is coordinate-bound, a `bleed` only if some band's `columns` makes it
+ * leave no box, and removing the last condition leaves a rule that always holds.
+ * `validate()` already walks all of it; a second copy of those rules here would be
+ * the drift `08` **S10** exists to prevent. O(config), at typing rate.
+ */
+function withRules(file: TilesetFile, rules: ResponsiveRule[]): TilesetFile {
+  const { responsive: _old, ...rest } = file;
+  const next: TilesetFile = rules.length === 0 ? rest : { ...rest, responsive: rules };
+  return validate(next).length === 0 ? next : file;
+}
+
+const rulesOf = (file: TilesetFile): ResponsiveRule[] => file.responsive ?? [];
+
+/**
+ * Appends a rule that changes nothing yet, for the author to edit: below the
+ * narrowest existing bound (or 600px), carrying the file's own `columns` — or,
+ * when a coordinate-bound Operation pins the grid, its own `cellSize`, since a
+ * rule naming `columns` would not validate.
+ */
+export function addRule(): Transition {
+  return (file) => {
+    const rules = rulesOf(file);
+    const bounds = rules.flatMap((r) => [r.minWidth, r.maxWidth]).filter((w): w is number => w !== undefined);
+    const maxWidth = bounds.length === 0 ? 600 : Math.max(0, Math.floor(Math.min(...bounds) / 2));
+    const own = shapeOf(file);
+    const withColumns = withRules(file, [...rules, { maxWidth, columns: own.columns }]);
+    if (withColumns !== file) return withColumns;
+    return withRules(file, [...rules, { maxWidth, cellSize: own.cellSize }]);
+  };
+}
+
+/** Removes rule `index`. */
+export function removeRule(index: number): Transition {
+  return (file) => {
+    const rules = rulesOf(file);
+    if (index < 0 || index >= rules.length) return file;
+    return withRules(file, rules.filter((_, i) => i !== index));
+  };
+}
+
+/**
+ * Moves rule `index` to `to`. **Order is meaning**: rules cascade in array order,
+ * a later rule winning field by field, so a move can change the picture at every
+ * width both rules hold at.
+ */
+export function moveRule(index: number, to: number): Transition {
+  return (file) => {
+    const rules = [...rulesOf(file)];
+    if (index < 0 || index >= rules.length || to < 0 || to >= rules.length || to === index) return file;
+    const [rule] = rules.splice(index, 1);
+    rules.splice(to, 0, rule!);
+    return withRules(file, rules);
+  };
+}
+
+/** Sets one field of rule `index` from text. Refused if the text does not parse. */
+export function setRuleField(index: number, field: RuleField, text: string): Transition {
+  return (file) => {
+    const rules = rulesOf(file);
+    const rule = rules[index];
+    if (rule === undefined) return file;
+    const value = RULE_PARSERS[field](text);
+    if (value === null) return file;
+    if (rule[field] === value) return file;
+    return withRules(file, rules.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+  };
+}
+
+/**
+ * Gives rule `index` a field it does not have yet, starting from the value the
+ * base already has — so adding a field changes nothing until it is edited. A
+ * width starts at 600px, or at the other bound when one is set.
+ */
+export function addRuleField(index: number, field: RuleField): Transition {
+  return (file) => {
+    const rule = rulesOf(file)[index];
+    if (rule === undefined || rule[field] !== undefined) return file;
+    const own = shapeOf(file);
+    const value =
+      field === "minWidth"
+        ? (rule.maxWidth ?? 600)
+        : field === "maxWidth"
+          ? (rule.minWidth ?? 600)
+          : own[field];
+    return withRules(file, rulesOf(file).map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+  };
+}
+
+/** Removes one field from rule `index`. Refused if the rule would then be illegal. */
+export function removeRuleField(index: number, field: RuleField): Transition {
+  return (file) => {
+    const rule = rulesOf(file)[index];
+    if (rule === undefined || rule[field] === undefined) return file;
+    const { [field]: _gone, ...rest } = rule;
+    return withRules(file, rulesOf(file).map((r, i) => (i === index ? rest : r)));
   };
 }

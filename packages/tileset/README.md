@@ -58,12 +58,12 @@ environment, never from the file:
 ```
 
 ```sh
-pnpm add @fndvit/gen-tilesets@0.6.0 svelte
+pnpm add @fndvit/gen-tilesets@0.7.0 svelte
 ```
 
 - **Pin the exact version.** `0.x` promises nothing about output stability (`/CLAUDE.md`), so a
   range is a promise this package does not make.
-- **Peers.** `svelte@^5` is a peer dependency, and the consuming app needs
+- **Peers.** `svelte@^5.20` is a peer dependency, and the consuming app needs
   `@sveltejs/vite-plugin-svelte`. Nothing further: the published `exports` declare the `svelte`
   condition, so a bare `svelte()` plugin with **no `svelte.config.js` at all** resolves and
   compiles `Tileset.svelte`. This is verified, not assumed — see *Publishing* below.
@@ -119,7 +119,7 @@ having to think about it.
 
 You cannot skip this. `<Tileset>` imports no validator, so in a production build a file
 `validate()` would reject is **undefined behaviour** (**S3**, as **C5**). The types push you the
-same way: `TilesetFile.schemaVersion` is the literal type `2`, so a JSON import (which widens it to
+same way: `TilesetFile.schemaVersion` is the literal type `3`, so a JSON import (which widens it to
 `number`) never assigns to `TilesetFile` directly. Validation is what earns the cast, and
 `loadTilesetFile` is what performs it:
 
@@ -363,6 +363,7 @@ one place, `resolveOptions`, and this table is that function's output (`DEFAULT_
 | `align.y` | `"top" \| "center" \| "bottom"` | `"top"` | When the host gives the tileset its own height: which rows are cropped. |
 | `avoid.targets` | selector, element, or elements | — (off) | Hide every tile whose cell overlaps these. See [Hosting over content](#hosting-over-content). |
 | `avoid.padding` | `number` (CSS px) | `0` | Clearance around each target. |
+| `responsive` | `HostRule[]` | the file's own rules | Shape overrides by box width, **replacing** the file's; `[]` turns them off. See [One design, many shapes](#one-design-many-shapes). |
 | `provider` | `AssetProvider` | `defaultProvider` | Anywhere but the site root: `prefixedProvider(base)`. Create it once, not inline. |
 | `onAssetError` | `(ref, cause) => void` | none | The only report of a missing picture. |
 
@@ -392,8 +393,9 @@ cell overlaps one of them, as whole tiles, and keeps doing so as they move.
 </section>
 ```
 
-- **`targets`** is a selector, resolved inside the tileset's **parent element** (the section above)
-  and never matching the tileset's own cells; or an element, or a list of them, from `bind:this`.
+- **`targets`** is a selector, resolved inside the tileset's **parent element** (the section above —
+  past any wrapper the package itself adds, such as `<TileDecoration>`'s box) and never matching the
+  tileset's own cells; or an element, or a list of them, from `bind:this`.
   A list written inline is compared by content, so it does not re-register anything on each render.
 - **It follows the layout**: the section or a target resizing, text rewrapping at any width or
   breakpoint, web fonts landing, elements added or removed, `class`/`style` toggled, text edited in
@@ -425,6 +427,172 @@ page backdrop beside it. The box's height is then a constant, reserved exactly i
 
 Culling comes with it: cells outside the box are not mounted under `"dom"` and not rasterised under
 `"canvas"`, so a 76-column grid on a phone costs what the handful of visible columns cost.
+
+## One design, many shapes
+
+A tileset is two things, and the package keeps them apart:
+
+- **the design** — `tiles`, `operations`, `defaultSeed`, the salts. *What* is drawn. Shared, never
+  overridden.
+- **the shape** — `rows`, `columns`, `cellSize`, `bleed`, `yOffset`. *How many cells, and how big.*
+  Overridable, without a second file.
+
+| You want | Use | New file? |
+| --- | --- | --- |
+| A one-off tileset | a `TilesetFile` in `<Tileset>` | — |
+| The same design at another fixed size, in another place (the hero as a 3-row banner on another page) | `reshape(file, { rows: 3 })` | no |
+| One placement whose shape changes with its box's width (the hero gets 14 rows on a phone) | `responsive` rules, in the file or in `options` | no |
+| Small blocks in margins that keep one tile size | `<TileDecoration>` — see [Decorations](#decorations) | no |
+| Different tiles or Operations on a phone | a second file, swapped by the host | **yes** |
+
+**They are one mechanism.** `reshape` applies an override where you place the tileset; a responsive
+rule is an override with a width condition, which `<Tileset>` applies itself; `<TileDecoration>` is
+`reshape` with `bleed: 0, yOffset: 0` plus a box. They combine: reshape a file into a banner, then
+give the banner rules of its own.
+
+### The shape fields
+
+| Field | Means | Note |
+| --- | --- | --- |
+| `rows`, `columns` | the grid | Pinned by a coordinate-bound Operation — see below. |
+| `cellSize` | design px per cell | CSS px under `sizing: "fixed"`. **Under `"fluid"` it changes nothing on its own** — see below. |
+| `bleed` | columns that overhang the box, in cells | Stands in for `referenceWidth`, which is derived: `(columns − bleed) × cellSize`. Absent means the base's bleed, kept in cells. `0` fits the grid to its box exactly. |
+| `yOffset` | fraction of a cell, `[0, 1)` | Shifts the grid up, clipping row 0's top. |
+
+An override never names `referenceWidth`: changing `columns` would make you redo that sum by hand,
+and getting it wrong adds or removes a bleed silently. Every field you do not name is the base's.
+
+**Under fluid sizing the density knob is `columns`.** A fluid cell is `box width × cellSize /
+referenceWidth`, and `reshape` keeps the bleed in cells, so a `cellSize` change alone cancels out. A
+development build warns about a rule that does only that.
+
+### Reuse at another size
+
+```ts
+import { loadTilesetFile, reshape } from "@fndvit/gen-tilesets";
+
+const hero = loadTilesetFile(raw);
+const banner = reshape(hero, { rows: 3 });              // same design, three rows
+const strip = reshape(hero, { rows: 2, columns: 40 });  // wider and shorter, same bleed in cells
+```
+
+```svelte
+<Tileset file={banner} options={{ provider }} />
+```
+
+`reshape` is pure and shares `tiles` and `operations` by reference. It **drops the file's own
+`responsive` rules**, which were written for the shape it replaces; pass `options.responsive` for
+rules of the banner's own. `reshapeErrors(file, override)` is the matching check, returning one
+message per problem — `<TileDecoration>` and `<Tileset>` run it in a development build.
+
+A cell present in both grids keeps its tile: randomness is addressed by `(x, y)`, so a bigger grid
+extends the picture and a smaller one trims it, rather than reshuffling. **The exception is
+`gradient`**, which spans whatever grid it is in — a ramp across 25 columns becomes a ramp across 9.
+`valueNoise` keeps its grain in cells, so its features scale with `cellSize`.
+
+### Responsive rules
+
+A rule is a width condition plus the shape fields it changes:
+
+```json
+{
+  "schemaVersion": 3,
+  "config": { "rows": 8, "columns": 25, "…": "…" },
+  "layout": { "cellSize": 60, "referenceWidth": 1440, "yOffset": 0, "horizontalAlignment": "column" },
+  "responsive": [
+    { "maxWidth": 900, "columns": 15 },
+    { "maxWidth": 500, "columns": 9, "rows": 14 }
+  ]
+}
+```
+
+- **The width is the tileset's box, in CSS px** — not the viewport. A tileset in a sidebar responds
+  to the sidebar.
+- **Bounds are inclusive**, as in CSS `(max-width: 500px)`.
+- **Every matching rule applies, in order, and a later rule wins field by field** — CSS's cascade. At
+  400px above, both hold: 9 × 14. At 700px only the first: 15 columns, and the base's 8 rows. Above
+  900px, the base.
+- **A rule changes the shape, never the design.** If a phone needs different tiles or Operations,
+  that is a second file.
+
+**In the file** is where a designer puts them: the editor has a Breakpoints section, and its preview
+handle shows each rule taking over. **In code**, a host passes its own:
+
+```svelte
+<!-- Replaces the file's rules. A host rule may also set sizing and align. -->
+<Tileset {file} options={{ responsive: [{ maxWidth: 600, sizing: "fixed", cellSize: 44, align: { x: "left" } }] }} />
+
+<!-- The file's rules plus one more — say what you mean. -->
+<Tileset {file} options={{ responsive: [...(file.responsive ?? []), { maxWidth: 360, rows: 16 }] }} />
+
+<!-- No rules at all. -->
+<Tileset {file} options={{ responsive: [] }} />
+```
+
+Precedence, in one line: **`options.responsive` if given, else the file's rules, else none** — and a
+reshaped file has none of its own.
+
+**What a breakpoint costs.** Inside a band, nothing: the picture scales, as it always did. Crossing
+into a band that changes only `cellSize`, `bleed`, `yOffset`, `sizing` or `align` recomputes
+geometry and nothing else. Crossing into one that changes `rows` or `columns` generates that grid
+once — each shape is cached, so dragging a window back and forth regenerates nothing after the
+first pass. Under `"dom"`, cells present on both sides keep their element.
+
+**Before measurement** — the server HTML, the first client frame — the box reserves the height the
+right rule will have, with a container query, so a phone load does not jump. The tiles appear once
+the box is measured, as with `avoid`. That needs a wrapper with `container-type: inline-size`, which
+`<Tileset>` renders **only when there are rules**, and it has one requirement: **the tileset's
+parent needs a definite width** (a block, or a flex/grid item with a set basis). In a shrink-to-fit
+context — an inline-block, a flex item with an auto basis — inline-size containment collapses it to
+nothing.
+
+If a breakpoint that changes `rows` flips back and forth on its own, the extra rows are adding a
+page scrollbar, which narrows the box back across the bound. A development build names it;
+`scrollbar-gutter: stable` on the page root fixes it.
+
+### Which Operations survive a shape change
+
+**An Operation that picks cells by hand pins the grid's `rows` and `columns`.** Those are `rect`
+and `cellList`, flagged `coordinateBound` in the registry: they hold literal cell coordinates, which
+mean something only in the grid they were drawn in. Everything else about the shape can still
+change — `cellSize`, `bleed` and `yOffset` move no cell, so a file with a `rect` in it can still
+take them. `all`, `checkerboard`, `everyNth` and `random` are rules and hold at any size.
+
+It is checked everywhere it can go wrong, and never by a list of names:
+
+- `validate()` rejects a file whose rule names `rows` or `columns` over a stack with a coordinate-bound
+  Operation — `COORDINATE_BOUND_RESIZE`, at the rule's field, naming the Operation.
+- `reshapeErrors` and `rulesReshapeErrors` do the same for `reshape` and host rules; `<Tileset>` and
+  `<TileDecoration>` throw on them in a development build.
+- The editor disables what would break it — `rows`/`columns` in a rule while a `rect` exists, and
+  `rect`/`cellList` while a rule resizes the grid — and says why.
+
+### Sizing with CSS
+
+Under fluid sizing, **CSS on the tileset's container controls its size completely**. The box is
+`width: 100%` of its parent, measured with a `ResizeObserver`; nothing reads the viewport. So
+`width`, `min-width`, `max-width`, `clamp()`, a flex basis and `flex-shrink: 0` on the parent all
+apply. "Fluid down to 800px, then stop shrinking and crop both sides":
+
+```css
+.hero      { overflow: hidden; display: flex; justify-content: center; }
+.hero-slot { flex: none; width: max(100%, 800px); } /* the tileset's parent */
+```
+
+Style a wrapper you own, not the tileset's box (its class is scoped). What CSS controls is the
+**box**; a fluid cell is always the same fraction of it. CSS cannot change the number of rows or
+columns, or switch to exact-pixel cells — those are shape overrides and `sizing`, above. (The crop
+above freezes cells at their 800px size, which looks like `sizing: "fixed"` at that scale.)
+
+### Common mistakes
+
+- **A rule with `rows` or `columns` in a file with a `rect`.** Refused; use `cellSize`/`bleed`, or
+  rebuild the gap from procedural Selections.
+- **A fluid rule that changes only `cellSize`.** Nothing happens. Change `columns`, or make the rule
+  `sizing: "fixed"` (host rules only).
+- **Expecting a rule to change tiles or Operations.** Rules are shape only; that is a second file.
+- **A responsive tileset in a shrink-to-fit parent.** It collapses; give the parent a width.
+- **Writing `referenceWidth` in an override.** Not a field; say `bleed`.
 
 ## Decorations
 
@@ -463,9 +631,9 @@ walk alike. Two spots with the same size and the same seed are the same picture,
 One constraint, and it is checkable:
 
 - **No `rect` and no `cellList` Selection.** Both are `coordinateBound` — they hold literal cell
-  coordinates, which mean nothing in a 3x2 spot. `decorationStyleErrors(style)` returns one message
-  per offending Operation, and `<TileDecoration>` throws on a non-empty result **in a development
-  build**, so this fails loudly rather than drawing a plausible wrong picture. Use `all`,
+  coordinates, which mean nothing in a 3x2 spot. `reshapeErrors(style, {rows, columns})` returns one
+  message per offending Operation, and `<TileDecoration>` throws on a non-empty result **in a
+  development build**, so this fails loudly rather than drawing a plausible wrong picture. Use `all`,
   `checkerboard`, `everyNth` and `random`.
 - **Put a `{tileId: null}` entry in a palette.** That is `04` §6.3's "clear this cell", and it is
   where each spot's silhouette comes from — emptiness is *generated* from the seed rather than
@@ -479,21 +647,30 @@ One constraint, and it is checkable:
 
 ### What you get for free
 
-A decoration is the **zero-bleed** case, and that is not a coincidence — `decorationFile` derives
+A decoration is the **zero-bleed** case, and that is not a coincidence — its preset derives
 `referenceWidth` as `columns * cellSize` and zeroes `yOffset`, because a small block of whole cells
 in a margin has no design for a bleed to belong to. Three exactnesses follow by construction rather
 than by care: `originX` is exactly 0, the scale is exactly 1, and the canvas presentation scale is
 exactly 1 at integer DPR. **`SUBPIXEL-GEOMETRY.md`'s whole subject is absent here** rather than
-merely small — measured in a browser at DPR 1 and 2, and asserted in `src/decoration.test.ts`
+merely small — measured in a browser at DPR 1 and 2, and asserted in `src/shape.test.ts`
 rather than believed.
 
 The box sizes itself to `columns * cellSize` px with `max-width: 100%`, so a decoration wider than
 a phone shrinks rather than opening a horizontal scrollbar; the tiles just come out smaller, since
-every quantity is a fraction of the box's width.
+every quantity is a fraction of the box's width. To keep the tile size and crop instead, give it a
+rule that turns fixed just below its own width:
 
-If you would rather own the box yourself, `decorationFile(style, {rows, columns, cellSize})` is
-exported from the root entry and gives you the derived `TilesetFile` to hand to a plain
-`<Tileset>`. `<TileDecoration>` is an ordinary consumer of `<Tileset>` and adds no stage to the
+```svelte
+<TileDecoration {style} rows={3} columns={6} cellSize={44}
+  options={{ provider, responsive: [{ maxWidth: 6 * 44 - 0.01, sizing: "fixed", align: { x: "left" } }] }} />
+```
+
+The style's own `responsive` rules, if it has any, are dropped: they were written for its shape, not
+for this placement.
+
+If you would rather own the box yourself, `reshape(style, {rows, columns, cellSize, bleed: 0,
+yOffset: 0})` — `decorationFile` until 0.7.0 — gives you the derived `TilesetFile` to hand to a
+plain `<Tileset>`. `<TileDecoration>` is an ordinary consumer of `<Tileset>` and adds no stage to the
 pipeline — what it saves you is getting `referenceWidth` and the box width to agree, which is one
 number in two places and reintroduces a bleed silently when they disagree.
 

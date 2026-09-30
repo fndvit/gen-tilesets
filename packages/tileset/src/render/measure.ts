@@ -166,6 +166,35 @@ interface Tracker {
   onMeasure: (m: Measurement) => void;
 }
 
+/**
+ * Marks an element the package itself put around a tileset's box — the container
+ * wrapper `<Tileset>` renders for responsive rules, and `<TileDecoration>`'s sized
+ * box. {@link scopeOf} walks past every one of them.
+ */
+export const WRAPPER_ATTRIBUTE = "data-tileset-wrapper";
+
+/**
+ * Where an `avoid` selector is resolved: the tileset's **section** — the nearest
+ * ancestor of the box that the host wrote rather than the package.
+ *
+ * It was `box.parentElement` until 0.7.0, and inside `<TileDecoration>` that is the
+ * decoration's own sized wrapper, whose only content is the box. So `avoid: {
+ * targets: "h2" }` resolved to nothing and the MutationObserver watched a subtree
+ * that could never change — silent, with a plausible picture
+ * (`RESPONSIVE-HOSTING.md` §8.2). Responsive rules add a second wrapper of the same
+ * kind, so the fix is one rule for both rather than a scope threaded through props:
+ * the package marks what it adds, and the scope skips what is marked.
+ *
+ * Rejected: an explicit `scope` on `track()` passed down by each wrapper. It needs
+ * an internal prop on `<Tileset>` for `<TileDecoration>` to set, and every wrapper
+ * added later would have to remember to set it — the same silent failure, waiting.
+ */
+export function scopeOf(box: Element): Element | null {
+  let el = box.parentElement;
+  while (el !== null && el.hasAttribute(WRAPPER_ATTRIBUTE)) el = el.parentElement;
+  return el;
+}
+
 export class Scheduler {
   readonly #env: MeasureEnv;
   readonly #trackers = new Set<Tracker>();
@@ -196,7 +225,7 @@ export class Scheduler {
     const rect = box.getBoundingClientRect();
     const t: Tracker = {
       box,
-      scope: box.parentElement,
+      scope: scopeOf(box),
       targets,
       elements: [],
       watched: new Set(),

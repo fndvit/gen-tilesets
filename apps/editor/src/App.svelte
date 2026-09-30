@@ -19,12 +19,18 @@
   import { selections } from "@fndvit/gen-tilesets";
   import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
   import { naturalHeight, naturalRatio, type AssetRef } from "@fndvit/gen-tilesets/render";
+  import { activeRules, reshape, ruleOverride, type TilesetFile } from "@fndvit/gen-tilesets";
   import { editorProvider } from "./assets.js";
   import { bleed } from "./derive.js";
   import { exportZip } from "./download.js";
   import { drawsNothing } from "./export.js";
   import {
+    addRule,
+    addRuleField,
     ENGINE_VERSION,
+    moveRule,
+    removeRule,
+    removeRuleField,
     rerollAssets,
     rerollSeed,
     setCellSize,
@@ -33,12 +39,20 @@
     setReferenceWidth,
     setReseedAssetsOnLoad,
     setRows,
+    setRuleField,
     setYOffset,
     type Transition,
   } from "./document.js";
   import { toShadowOperation } from "./draft.svelte.js";
   import { drafting } from "./drafting.svelte.js";
-  import { parseCellSize, parseReferenceWidth, parseRows, parseYOffset } from "./fields.js";
+  import {
+    parseCellSize,
+    parseReferenceWidth,
+    parseRows,
+    parseYOffset,
+    RULE_FIELDS,
+    RULE_PARSERS,
+  } from "./fields.js";
   import { nextOperationId } from "./ids.js";
   import { atRisk, needsConfirmation, orphans } from "./orphans.js";
   import ImportPanel from "./lib/ImportPanel.svelte";
@@ -57,6 +71,22 @@
   const file = $derived(session.file);
   const config = $derived(file.config);
   const layout = $derived(file.layout);
+
+  /** The file's breakpoints. Empty for a file without any, which is most. */
+  const rules = $derived(file.responsive ?? []);
+
+  /**
+   * The file **as `<Tileset>` draws it at a preview width** — its rules' cascade
+   * applied by the package's own functions, never re-derived here (**R1**).
+   *
+   * What reads it: the frame's height and the two overlays. They must agree with
+   * the picture to the cell, and at a width where a rule changes `columns` the
+   * picture is not the base file's grid. The editing controls keep reading the
+   * base, because the base is what they edit.
+   */
+  function shapedAt(Wpx: number): TilesetFile {
+    return reshape(file, ruleOverride(activeRules(rules, Wpx)));
+  }
 
   /**
    * `09` §5's prop table.
@@ -470,6 +500,78 @@
           </p>
         </Section>
 
+        <Section title="Breakpoints" open={rules.length > 0}>
+          <!--
+            The file's `responsive` rules: shape overrides by render-box width,
+            cascading in order as CSS does. Drag the preview across a bound, or use
+            its bound buttons, to see one take over — the preview is `<Tileset>` on
+            this file (**S2**), so nothing about that is simulated.
+
+            Every edit here goes through `document.ts`, which refuses one that
+            would leave the file illegal (**E5**) — a `rows` over a stack with a
+            `rect` in it, a `bleed` that leaves no box, a rule with no
+            condition. The field that would do that is disabled here, with the
+            reason, so a refusal is never a mystery.
+          -->
+          {#each rules as rule, i (i)}
+            <div class="rule">
+              <div class="rule-head">
+                <strong>Rule {i + 1}</strong>
+                <span class="rule-actions">
+                  <button disabled={i === 0} onclick={() => session.apply(moveRule(i, i - 1))} title="Earlier — a later rule wins">↑</button>
+                  <button disabled={i === rules.length - 1} onclick={() => session.apply(moveRule(i, i + 1))} title="Later — a later rule wins">↓</button>
+                  <button onclick={() => session.apply(removeRule(i))} title="Remove this rule">×</button>
+                </span>
+              </div>
+              <div class="fields">
+                {#each RULE_FIELDS.filter((f) => rule[f] !== undefined) as field (field)}
+                  <div class="rule-field">
+                    <NumericInput
+                      label={field}
+                      value={rule[field]!}
+                      parse={RULE_PARSERS[field]}
+                      onCommit={(t) => session.apply(setRuleField(i, field, t))}
+                    />
+                    <button class="drop" onclick={() => session.apply(removeRuleField(i, field))} title="Inherit {field} again">×</button>
+                  </div>
+                {/each}
+              </div>
+              <select
+                class="add-field"
+                value=""
+                onchange={(e) => {
+                  const field = e.currentTarget.value as (typeof RULE_FIELDS)[number];
+                  e.currentTarget.value = "";
+                  if (field) session.apply(addRuleField(i, field));
+                }}
+              >
+                <option value="">+ field…</option>
+                {#each RULE_FIELDS.filter((f) => rule[f] === undefined) as field (field)}
+                  <option
+                    value={field}
+                    disabled={(field === "rows" || field === "columns") && risked.length > 0}
+                  >
+                    {field}{(field === "rows" || field === "columns") && risked.length > 0 ? " — pinned" : ""}
+                  </option>
+                {/each}
+              </select>
+            </div>
+          {/each}
+          <button onclick={() => session.apply(addRule())}>Add breakpoint</button>
+          <p class="warn">
+            Rules change the shape, never the design: tiles and Operations are the
+            same at every width. Bounds are the render box's width, inclusive.
+            {#if risked.length > 0}
+              <strong>{risked.map((op) => op.id).join(", ")}</strong>
+              {risked.length === 1 ? "is" : "are"} coordinate-bound, so no rule may change
+              <code>rows</code> or <code>columns</code>; cell size, bleed and y offset still can.
+            {:else}
+              Under fluid sizing the density knob is <code>columns</code>; <code>cellSize</code>
+              alone changes nothing visible.
+            {/if}
+          </p>
+        </Section>
+
         <Section title="Derived" open={false}>
           <!--
             `columns` is **displayed, never edited** (§9.1). The author needs to
@@ -700,8 +802,16 @@
         `PreviewFrame` is that CSS and nothing more — **E11**: it sets `Wpx` and
         writes no field.
       -->
-      <PreviewFrame ratio={naturalRatio(layout, config.rows)} painting={painting !== null}>
+      <PreviewFrame
+        ratio={(Wpx) => {
+          const f = shapedAt(Wpx);
+          return naturalRatio(f.layout, f.config.rows);
+        }}
+        {rules}
+        painting={painting !== null}
+      >
         {#snippet children(Wpx: number)}
+          {@const here = shapedAt(Wpx)}
           <!--
             **S2** — one component, drawing the complete stack. The brush layer
             is drawn *over* this output and never in place of it, and the picture
@@ -721,8 +831,8 @@
               implements no Selection's test.
             -->
             <SelectionOverlay
-              g={{ layout, rows: config.rows, columns: config.columns, Wpx }}
-              config={s.config}
+              g={{ layout: here.layout, rows: here.config.rows, columns: here.config.columns, Wpx }}
+              config={{ ...s.config, rows: here.config.rows, columns: here.config.columns }}
               operationId={s.operationId}
               seed={config.defaultSeed}
               {loadSalt}
@@ -737,7 +847,7 @@
               `05` §5.1 rather than arrived at).
             -->
             <PaintLayer
-              g={{ layout, rows: config.rows, columns: config.columns, Wpx }}
+              g={{ layout: here.layout, rows: here.config.rows, columns: here.config.columns, Wpx }}
               box={renderBox}
               cells={brush.cells}
               param={brush.name}
@@ -955,6 +1065,48 @@
   .segmented button.on {
     background: #cbd5e0;
     color: #1a202c;
+  }
+
+  .rule {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .rule-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+  }
+
+  .rule-actions {
+    display: flex;
+    gap: 0.2rem;
+  }
+
+  .rule-actions button,
+  .drop {
+    padding: 0 0.35rem;
+    font-size: 0.75rem;
+    background: #f7fafc;
+    border-color: #cbd5e0;
+  }
+
+  .rule-field {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .add-field {
+    font: inherit;
+    font-size: 0.75rem;
+    justify-self: start;
   }
 
   .warn {

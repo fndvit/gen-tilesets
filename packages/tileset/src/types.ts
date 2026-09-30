@@ -235,19 +235,69 @@ export interface Layout {
   horizontalAlignment: "column" | "gutter";
 }
 
+/**
+ * Every overridable number of a tileset — `shape.ts`. Spans `config` (`rows`,
+ * `columns`) and `layout` (the rest), because that is where the engine and the
+ * renderer respectively read them; an override never has to know which.
+ */
+export interface Shape {
+  /** Integer, `>= 1`. */
+  rows: number;
+  /** Integer, `>= 1`. */
+  columns: number;
+  /**
+   * Design px per cell. Under `sizing: "fixed"` that is CSS px. Under `"fluid"`
+   * only its ratio to the box is visible, so changing it alone changes nothing —
+   * the density knob under fluid is `columns`.
+   */
+  cellSize: number;
+  /**
+   * How many columns overhang the box, in cells: `columns - referenceWidth /
+   * cellSize`. Stands in for `referenceWidth` in every override, so changing
+   * `columns` never means redoing that sum by hand — see `reshape`. `0` is a
+   * grid that exactly fits its box; negative is a grid narrower than its box,
+   * centred, which is legal in a file too.
+   */
+  bleed: number;
+  /** Fraction of a cell, `[0, 1)`. Shifts the grid up, clipping row 0's top. */
+  yOffset: number;
+}
+
+/**
+ * A shape override with a width condition — `responsive.ts`.
+ *
+ * The width is the **render box's**, in CSS px, never the viewport's: a tileset in
+ * a sidebar responds to the sidebar. Both bounds are inclusive, as in CSS
+ * `(max-width: 500px)`. Every matching rule applies, in array order, and a later
+ * rule wins field by field — the cascade CSS authors already know.
+ */
+export interface ResponsiveRule extends Partial<Shape> {
+  minWidth?: number;
+  maxWidth?: number;
+}
+
 /** The only name in the package for the thing on disk (`06` §3). */
 export interface TilesetFile {
   /**
    * Required. Absent or unknown is a load failure (`06` **C2**).
    *
-   * **2 since ADR-005**, which added the `scale` attribute and so changed the
-   * shape of `TileState`. There is no v1 compatibility path: `validate()`
-   * rejects a v1 file with `SCHEMA_VERSION_UNKNOWN`, which is what **C2** says
-   * an unknown version is.
+   * **3 since 0.7.0**, which added `responsive`. 2 was ADR-005's, which added the
+   * `scale` attribute. `migrate()` lifts a v2 file to 3 with nothing to rewrite —
+   * the field is optional — and an engine before 0.7.0 rejects a v3 file, which is
+   * what **C2** says an unknown version is.
    */
-  schemaVersion: 2;
+  schemaVersion: 3;
   /** Required, advisory, never validated against anything (`06` **C3**). */
   engineVersion: string;
   config: TilesetConfig;
   layout: Layout;
+  /**
+   * The designer's breakpoints: shape overrides by render-box width. Absent means
+   * the file draws one shape at every width, as before 0.7.0.
+   *
+   * Shape only, never the design: a breakpoint that changed `tiles` or
+   * `operations` would be a second design, which is a second file. A host's
+   * `options.responsive` replaces these wholesale, and `reshape()` drops them.
+   */
+  responsive?: ResponsiveRule[];
 }

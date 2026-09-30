@@ -500,3 +500,86 @@ describe("collecting rather than throwing", () => {
     expect(codes("{}")).toEqual(["TYPE_MISMATCH"]);
   });
 });
+
+describe("responsive rules — 0.7.0", () => {
+  const rect: Operation = {
+    ...paint,
+    id: "gap",
+    selection: { type: "rect", x: 1, y: 1, width: 2, height: 2 },
+  };
+
+  it("accepts a file with rules, and one without", () => {
+    expect(validate(file({ responsive: [{ maxWidth: 500, columns: 3, rows: 8 }] }))).toEqual([]);
+    expect(validate(file({ responsive: [] }))).toEqual([]);
+    expect(validate(file())).toEqual([]);
+  });
+
+  it("is strict at every depth, like the rest of the file", () => {
+    const f = { ...file(), responsive: [{ maxWidth: 500, colums: 3 }] };
+    expect(validate(f).map((e) => [e.code, e.path])).toEqual([
+      ["UNKNOWN_KEY", "/responsive/0/colums"],
+      ["MISSING_KEY", "/responsive/0"],
+    ]);
+  });
+
+  it("names referenceWidth as unknown — a rule speaks bleed", () => {
+    expect(paths({ ...file(), responsive: [{ maxWidth: 500, referenceWidth: 900 }] })).toContain(
+      "/responsive/0/referenceWidth",
+    );
+  });
+
+  it("checks each shape field's domain at its own path", () => {
+    const f = { ...file(), responsive: [{ maxWidth: 500, rows: 0, columns: 2.5, yOffset: 1 }] };
+    expect(validate(f).map((e) => [e.code, e.path])).toEqual([
+      ["OUT_OF_RANGE", "/responsive/0/rows"],
+      ["NOT_AN_INTEGER", "/responsive/0/columns"],
+      ["OUT_OF_RANGE", "/responsive/0/yOffset"],
+    ]);
+  });
+
+  it("requires a condition, and a condition that can hold", () => {
+    expect(codes({ ...file(), responsive: [{ rows: 3 }] })).toEqual(["MISSING_KEY"]);
+    expect(paths({ ...file(), responsive: [{ minWidth: 600, maxWidth: 500, rows: 3 }] })).toEqual([
+      "/responsive/0/minWidth",
+    ]);
+    expect(codes({ ...file(), responsive: [{ maxWidth: -1, rows: 3 }] })).toEqual(["OUT_OF_RANGE"]);
+  });
+
+  it("rejects responsive that is not an array", () => {
+    expect(codes({ ...file(), responsive: { 500: { rows: 3 } } })).toEqual(["TYPE_MISMATCH"]);
+  });
+
+  it("COORDINATE_BOUND_RESIZE — a rule naming rows or columns over a coordinate-bound stack", () => {
+    const f = file({
+      config: { ...file().config, operations: [paint, rect] },
+      responsive: [{ maxWidth: 500, rows: 8, columns: 3 }],
+    });
+    const errors = validate(f);
+    expect(errors.map((e) => [e.code, e.path])).toEqual([
+      ["COORDINATE_BOUND_RESIZE", "/responsive/0/rows"],
+      ["COORDINATE_BOUND_RESIZE", "/responsive/0/columns"],
+    ]);
+    expect(errors[0]!.message).toContain('"gap"');
+  });
+
+  it("lets a coordinate-bound stack keep rules that move no cell", () => {
+    const f = file({
+      config: { ...file().config, operations: [paint, rect] },
+      responsive: [{ maxWidth: 500, cellSize: 60, bleed: 0, yOffset: 0 }],
+    });
+    expect(validate(f)).toEqual([]);
+  });
+
+  it("checks the bleed against the columns every band resolves to", () => {
+    // Each rule is fine alone; together, between 0 and 500px, they leave no box.
+    const f = file({
+      responsive: [
+        { maxWidth: 900, bleed: 2 },
+        { maxWidth: 500, columns: 2 },
+      ],
+    });
+    const errors = validate(f);
+    expect(errors.map((e) => [e.code, e.path])).toEqual([["OUT_OF_RANGE", "/responsive/1"]]);
+    expect(validate(file({ responsive: [{ maxWidth: 900, bleed: 2 }] }))).toEqual([]);
+  });
+});

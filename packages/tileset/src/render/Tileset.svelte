@@ -46,9 +46,10 @@
 -->
 <script lang="ts">
   import { untrack } from "svelte";
-  import { generate } from "../generate.js";
   import { DEV } from "../dev.js";
   import { assertValidFile } from "../load.js";
+  import { activeKey, ruleOverride, rulesReshapeErrors } from "../responsive.js";
+  import { reshape } from "../shape.js";
   import type { TileState, TilesetFile } from "../types.js";
   import {
     cellPlacementAffine,
@@ -71,11 +72,14 @@
     uniformGeometry,
   } from "./uniform.js";
   import { assetTooSmall, cellTooSmall, WarnOnce } from "./warn.js";
-  import { currentDpr, observeDpr, track } from "./measure.js";
+  import { currentDpr, observeDpr, track, WRAPPER_ATTRIBUTE } from "./measure.js";
+  import { FlipFlop, GridCache, inertCellSizeRules, reservationCss } from "./breakpoints.js";
   import { occlusionMask, stableMask, type OcclusionMask } from "./occlusion.js";
   import {
+    effectiveRules,
     legacyPropErrors,
     optionErrors,
+    renderOverride,
     resolveOptions,
     sameTargets,
     type NormalizedTargets,
@@ -172,9 +176,10 @@
   const seedOption = $derived(resolved.seed);
   const loadSalt = $derived(resolved.loadSalt);
   const substrate = $derived(resolved.substrate);
-  const sizing = $derived(resolved.sizing);
-  const alignX = $derived(resolved.alignX);
-  const alignY = $derived(resolved.alignY);
+  const baseSizing = $derived(resolved.sizing);
+  const baseAlignX = $derived(resolved.alignX);
+  const baseAlignY = $derived(resolved.alignY);
+  const hostRules = $derived(resolved.responsive);
   const provider = $derived(resolved.provider);
   const padding = $derived(resolved.avoid?.padding ?? 0);
 
@@ -226,16 +231,127 @@
   // nondeterministic by accident, including under SSR.
   const effectiveSeed = $derived(seedOption ?? checked.config.defaultSeed);
 
-  // Regenerates when `file.config`, `seed`, or `loadSalt` changes, and on nothing
-  // else — not a `provider` change, not a viewport resize, not hydration
-  // (`08` §5.2, `07` §9.1), and **not a keep-out change**: the mask is applied at
-  // paint, downstream of this. A viewport resize changes `s` and nothing else, so
-  // every cell keeps its TileState and moves to a new rect.
-  const grid = $derived(generate(checked.config, effectiveSeed, loadSalt));
+  /**
+   * What `measure.ts` reports, and nothing else about the page is read.
+   *
+   * Width and DPR are ADR-006's two numbers. Height is read so a non-top `alignY`
+   * has something to align against. `keepout` is the rects of `options.avoid`'s
+   * targets in render space, and stays `null` without it — in which case nothing
+   * outside the box is measured at all.
+   */
+  let measuredWidth = $state(0);
+  let measuredHeight = $state(0);
+  let keepout = $state.raw<RenderRect[] | null>(null);
+  let dpr = $state(currentDpr());
 
-  const layout = $derived(checked.layout);
-  const rows = $derived(checked.config.rows);
-  const columns = $derived(checked.config.columns);
+  // ------------------------------------------------------- responsive rules ---
+
+  /**
+   * The rules in force — the host's if it passed any, else the file's
+   * (`effectiveRules`). A file's own rules were checked by `assertValidFile`
+   * above; a host's are checked here, against the file they will reshape, for the
+   * same development-loud / production-trusting reason. What only the file can
+   * answer — a `rect` pinning `rows`, a cascade whose bleed leaves no box — is
+   * `rulesReshapeErrors`'.
+   */
+  const rules = $derived.by(() => {
+    const r = effectiveRules(checked, hostRules);
+    if (DEV && hostRules !== undefined) {
+      const errors = rulesReshapeErrors(checked, r);
+      if (errors.length > 0) {
+        throw new Error(
+          "`<Tileset>`'s `options.responsive` cannot be applied to this file:\n" +
+            errors.map((e) => `  - ${e}`).join("\n"),
+        );
+      }
+    }
+    return r;
+  });
+  const hasRules = $derived(rules.length > 0);
+
+  /** SSR-stable, so the server's reservation CSS and the client's agree. */
+  const uid = $props.id();
+
+  /**
+   * Which rules hold at the measured width, as `activeKey`'s string. **This is
+   * the line that makes a resize inside a band cost nothing**: the width moves on
+   * every frame, the key only when a rule starts or stops matching, and every
+   * derived below keys on it rather than on the width.
+   *
+   * Before measurement — on the server, and on the first client frame — it is
+   * `""`, the base shape. That is not a guess shown to anyone: the box reserves
+   * the right height by container query (`reservationCss`) and draws nothing until
+   * the key is real (`pending`).
+   */
+  const ruleKey = $derived(hasRules && measuredWidth > 0 ? activeKey(rules, measuredWidth) : "");
+
+  /**
+   * The file at this width — `reshape(file, cascade)`, and the active rules for
+   * the render half of the cascade. With no rule active the override is `{}`,
+   * and `reshape` keeps the file's `config` by reference, so a density-only rule
+   * never reaches `generate()`.
+   */
+  const shaped = $derived.by(() => {
+    const active = ruleKey === "" ? [] : ruleKey.split(",").map((i) => rules[Number(i)]!);
+    return { file: reshape(checked, ruleOverride(active)), active };
+  });
+
+  const rendered = $derived(
+    renderOverride({ sizing: baseSizing, alignX: baseAlignX, alignY: baseAlignY }, shaped.active),
+  );
+  const sizing = $derived(rendered.sizing);
+  const alignX = $derived(rendered.alignX);
+  const alignY = $derived(rendered.alignY);
+
+  /** The reservation stylesheet. Empty without rules, when there is no wrapper to hold it. */
+  const reservation = $derived(
+    hasRules
+      ? reservationCss(uid, checked, rules, { sizing: baseSizing, alignX: baseAlignX, alignY: baseAlignY })
+      : "",
+  );
+
+  // Development only: name the scrollbar feedback loop, and a rule that changes
+  // nothing. Neither changes what is drawn.
+  const flips = new FlipFlop();
+  $effect(() => {
+    const key = ruleKey;
+    if (!DEV || !hasRules) return;
+    if (flips.record(key, performance.now())) {
+      console.warn(
+        "<Tileset>: a responsive breakpoint is flipping back and forth on its own. Changing " +
+          "`rows` probably adds or removes the page scrollbar, which moves the box back across " +
+          "the breakpoint. `scrollbar-gutter: stable` on the page root stops it.",
+      );
+    }
+  });
+  $effect(() => {
+    if (!DEV || !hasRules) return;
+    for (const i of inertCellSizeRules(rules, { sizing: baseSizing, alignX: baseAlignX, alignY: baseAlignY })) {
+      warnings.say(
+        `inert:${i}`,
+        `<Tileset>: responsive rule ${i} changes only \`cellSize\`, and the tileset is fluid ` +
+          "wherever it holds, so it changes nothing visible. Under fluid sizing the density knob is " +
+          "`columns`; `cellSize` is CSS px only under `sizing: \"fixed\"`.",
+      );
+    }
+  });
+
+  // ------------------------------------------------------------------ grid ---
+
+  // Regenerates when `file.config`, `seed`, or `loadSalt` changes, or a rule
+  // changes `rows` or `columns` to a size this instance has not generated yet —
+  // and on nothing else: not a `provider` change, not a viewport resize, not
+  // hydration (`08` §5.2, `07` §9.1), and **not a keep-out change**: the mask is
+  // applied at paint, downstream of this. A viewport resize inside a band changes
+  // `s` and nothing else, so every cell keeps its TileState and moves to a new
+  // rect. `GridCache` says why `(rows, columns)` is a sufficient key.
+  const gridCache = new GridCache();
+  const config = $derived(shaped.file.config);
+  const grid = $derived(gridCache.get(checked.config, config, effectiveSeed, loadSalt));
+
+  const layout = $derived(shaped.file.layout);
+  const rows = $derived(config.rows);
+  const columns = $derived(config.columns);
   const ratio = $derived(naturalRatio(layout, rows));
 
   /**
@@ -431,18 +547,6 @@
 
   // ----------------------------------------------------------- measurement ---
 
-  /**
-   * What `measure.ts` reports, and nothing else about the page is read.
-   *
-   * Width and DPR are ADR-006's two numbers. Height is read so a non-top `alignY`
-   * has something to align against. `keepout` is the rects of `options.avoid`'s
-   * targets in render space, and stays `null` without it — in which case nothing
-   * outside the box is measured at all.
-   */
-  let measuredWidth = $state(0);
-  let measuredHeight = $state(0);
-  let keepout = $state.raw<RenderRect[] | null>(null);
-  let dpr = $state(currentDpr());
 
   $effect(() => observeDpr((next) => (dpr = next)));
 
@@ -682,8 +786,15 @@
    * failure the option exists to prevent. The canvas already draws nothing before
    * it is measured; the DOM branch hides its box. Without `avoid`, this is always
    * `false` and SSR is unchanged.
+   *
+   * **Responsive rules hold it too, until the first measurement.** The server
+   * cannot know which rule applies, so the cells it could emit are the base
+   * shape's — the wrong picture on a phone, swapped a frame later. The height is
+   * already right by container query (`reservationCss`), so hiding the cells
+   * until the key is real costs no layout shift, only the pre-hydration picture
+   * the canvas substrate never had either.
    */
-  const pending = $derived(targets !== null && mask === null);
+  const pending = $derived((targets !== null && mask === null) || (hasRules && measuredWidth === 0));
 
   function masked(i: number): boolean {
     return mask !== null && mask[i] === 1;
@@ -883,184 +994,225 @@
   have made "which options work with which substrate" a question every user had to
   ask.
 -->
-{#if substrate === "canvas"}
-  <!--
-    **Two elements, because the two jobs are now two things.**
+<!--
+  **The container wrapper exists only when rules do.** It is what the reservation
+  stylesheet's `@container` queries measure, so the box reserves the height of
+  the rule that will hold before anything is measured — including in the server
+  HTML. `container-type: inline-size` is why it is conditional: inline-size
+  containment gives an element no width from its content, so in a shrink-to-fit
+  context (an inline-block, a flex item with an auto basis) the wrapper collapses
+  to nothing. A tileset without rules keeps the DOM it had before 0.7.0; one with
+  rules needs a parent with a definite width, and the README says so.
 
-    The wrapper is the *box*: it is what `Wpx` means, it carries **R9**'s clip, and
-    it declares **S8**'s natural ratio so correct space is reserved before anything
-    is drawn. The canvas is the *grid*: its backing store is exactly the grid in
-    device pixels, and it is presented at the ideal fractional grid width, hanging
-    off both sides by the bleed the author designed. `leftCss` is negative
-    whenever there is bleed, which is what puts it there. Since 0.6.0 it is the
-    grid's **visible columns** rather than all of them (`canvasPresentation`), which
-    under `"fixed"` in a narrow box is the difference between a canvas the size of
-    the screen and one many times wider.
+  `data-tileset-wrapper` is also what keeps `options.avoid`'s selectors resolving
+  in the host's section rather than in here (`measure.ts`'s `scopeOf`).
 
-    `height` is left `auto` **on purpose, and this is the one line not to tidy**. A
-    canvas has an intrinsic ratio from its backing store, so the vertical
-    presentation scale comes out equal to the horizontal one by construction rather
-    than by a second calculation that could disagree with the first. Writing a
-    height here is the single edit that would make cells non-square again.
-
-    **The wrapper declares a ratio only until it has a canvas to measure**, and
-    that is not fussiness. `naturalRatio` and the canvas's intrinsic ratio are not
-    the same number: `originYDev` is rounded, so the raster's height is
-    `rows * cellDev + originYDev` rather than `(rows - yOffset) * cellDev`, and the
-    two disagree by up to **half a CSS pixel** at a fractional `yOffset` (and by
-    exactly nothing when `yOffset` is 0, which is where the rounding goes away).
-    Declaring the ratio permanently would leave the canvas a fraction short at some
-    widths and show the page backdrop as a hairline under the bottom row -- the
-    exact defect class this change exists to remove.
-
-    So after measurement the wrapper takes its height from the canvas, the way an
-    ordinary block box takes it from its only child. That keeps **S8**'s reserved
-    space where it is actually needed -- before anything is drawn -- without
-    introducing a second height to disagree with the first. Clamping instead
-    (`min-height`) would work too, but it would stretch the picture anisotropically
-    by that half pixel, and this substrate exists to keep cells square.
-
-    Before the first measurement the canvas has no size and the wrapper is an empty
-    box of the right ratio — or, under `"fixed"`, of the right height, inline and
-    only until then. That is the canvas substrate's known SSR cost, and it is why
-    `"dom"` still exists.
-
-    **Vertical alignment moves the canvas with `position: relative; top`**, never
-    with a margin. A relative offset is visual only: the wrapper still takes its
-    height from the canvas's unshifted box, so the height the shift is measured
-    against does not move with the shift. A bottom-aligned margin would be a fixed
-    point at any value.
-  -->
-  <div
-    class="tileset"
-    style={presentation === null
-      ? sizing === "fixed"
-        ? `height: ${fixedHeight}px;`
-        : `aspect-ratio: ${ratio};`
-      : ""}
-    aria-hidden="true"
-    bind:this={box}
-  >
+  The stylesheet goes through `{@html}` because its selectors carry this
+  instance's id; every value in it is a number or `$props.id()`'s, never text a
+  page author wrote (`reservationCss`).
+-->
+{#snippet body()}
+  {#if substrate === "canvas"}
     <!--
-      **One element, conditionally styled** — not two arms of an `{#if}`. Two
-      would tear the canvas down and build a new one at the first measurement,
-      which discards the backing store and rebinds `canvas`, for a difference that
-      is one attribute.
+      **Two elements, because the two jobs are now two things.**
+
+      The wrapper is the *box*: it is what `Wpx` means, it carries **R9**'s clip, and
+      it declares **S8**'s natural ratio so correct space is reserved before anything
+      is drawn. The canvas is the *grid*: its backing store is exactly the grid in
+      device pixels, and it is presented at the ideal fractional grid width, hanging
+      off both sides by the bleed the author designed. `leftCss` is negative
+      whenever there is bleed, which is what puts it there. Since 0.6.0 it is the
+      grid's **visible columns** rather than all of them (`canvasPresentation`), which
+      under `"fixed"` in a narrow box is the difference between a canvas the size of
+      the screen and one many times wider.
+
+      `height` is left `auto` **on purpose, and this is the one line not to tidy**. A
+      canvas has an intrinsic ratio from its backing store, so the vertical
+      presentation scale comes out equal to the horizontal one by construction rather
+      than by a second calculation that could disagree with the first. Writing a
+      height here is the single edit that would make cells non-square again.
+
+      **The wrapper declares a ratio only until it has a canvas to measure**, and
+      that is not fussiness. `naturalRatio` and the canvas's intrinsic ratio are not
+      the same number: `originYDev` is rounded, so the raster's height is
+      `rows * cellDev + originYDev` rather than `(rows - yOffset) * cellDev`, and the
+      two disagree by up to **half a CSS pixel** at a fractional `yOffset` (and by
+      exactly nothing when `yOffset` is 0, which is where the rounding goes away).
+      Declaring the ratio permanently would leave the canvas a fraction short at some
+      widths and show the page backdrop as a hairline under the bottom row -- the
+      exact defect class this change exists to remove.
+
+      So after measurement the wrapper takes its height from the canvas, the way an
+      ordinary block box takes it from its only child. That keeps **S8**'s reserved
+      space where it is actually needed -- before anything is drawn -- without
+      introducing a second height to disagree with the first. Clamping instead
+      (`min-height`) would work too, but it would stretch the picture anisotropically
+      by that half pixel, and this substrate exists to keep cells square.
+
+      Before the first measurement the canvas has no size and the wrapper is an empty
+      box of the right ratio — or, under `"fixed"`, of the right height, inline and
+      only until then. That is the canvas substrate's known SSR cost, and it is why
+      `"dom"` still exists.
+
+      **Vertical alignment moves the canvas with `position: relative; top`**, never
+      with a margin. A relative offset is visual only: the wrapper still takes its
+      height from the canvas's unshifted box, so the height the shift is measured
+      against does not move with the shift. A bottom-aligned margin would be a fixed
+      point at any value.
     -->
-    <canvas
-      class="presented"
-      style={presentation === null
-        ? ""
-        : `width: ${presentation.widthCss}px; margin-left: ${presentation.leftCss}px;` +
-          (presentation.topCss === 0 ? "" : ` position: relative; top: ${presentation.topCss}px;`)}
-      bind:this={canvas}
-    ></canvas>
+    <div
+      class="tileset"
+      style={presentation === null && !hasRules
+        ? sizing === "fixed"
+          ? `height: ${fixedHeight}px;`
+          : `aspect-ratio: ${ratio};`
+        : ""}
+      aria-hidden="true"
+      data-tileset-box=""
+      data-measured={measuredWidth > 0 ? "" : undefined}
+      bind:this={box}
+    >
+      <!--
+        **One element, conditionally styled** — not two arms of an `{#if}`. Two
+        would tear the canvas down and build a new one at the first measurement,
+        which discards the backing store and rebinds `canvas`, for a difference that
+        is one attribute.
+      -->
+      <canvas
+        class="presented"
+        style={presentation === null
+          ? ""
+          : `width: ${presentation.widthCss}px; margin-left: ${presentation.leftCss}px;` +
+            (presentation.topCss === 0 ? "" : ` position: relative; top: ${presentation.topCss}px;`)}
+        bind:this={canvas}
+      ></canvas>
+    </div>
+  {:else}
+    <!--
+      **The box declares a ratio only until it has a grid to measure**, which is the
+      same arrangement the canvas wrapper is in above and for the same reason: a
+      declared ratio is the *ideal* height and the grid inside it is quantised, so the
+      two disagree — and because the grid is top-anchored, the whole disagreement lands
+      on the bottom edge as a shaved bottom row. Vertically there is no second edge to
+      share it with, which is why `ceil`'s residual is tolerable at the sides (centred,
+      half each) and was not at the bottom (one-edged, up to `rows` device px).
+
+      So after measurement the box takes its height from `.extent`, the way an ordinary
+      block box takes it from its only in-flow child, and `domGeometry.gridHeightDev`
+      is the last horizontal edge — the same expression the cells are placed by, so it
+      cannot disagree with them.
+
+      Before measurement it is `naturalRatio`, unchanged: that is what reserves correct
+      space in the server-rendered HTML (**S8**), and it is why this substrate is the
+      SSR-complete one. Under `"fixed"` the natural height is a constant, so the
+      `.extent` carries it from the start instead and no ratio is declared at all.
+
+      `visibility: hidden` while `pending`: with `options.avoid` set, nothing is shown
+      over the page until the keep-out mask exists — which on the server means the
+      whole of hydration. Space is still reserved, so nothing reflows when it appears.
+    -->
+    <div
+      class="tileset"
+      style={(domCell === null && sizing !== "fixed" && !hasRules ? `aspect-ratio: ${ratio};` : "") +
+        (pending ? " visibility: hidden;" : "")}
+      aria-hidden="true"
+      data-tileset-box=""
+      data-measured={measuredWidth > 0 ? "" : undefined}
+      bind:this={box}
+    >
+      <!--
+        Cells are painted in row-major order — ascending y, then ascending x within a
+        row (**R10**). `grid.cells` is stored row-major, so document order gives it
+        for free, which is exactly what `07` §7.4 predicts: "the correct behaviour is
+        the free one and any deviation costs effort."
+
+        Later rows are lower on the screen and read as nearer the viewer, so painting
+        them on top is what overlapping foliage and anything with implied depth want.
+
+        `shownCells` is already culled to the visible columns and stripped of empty
+        cells, so this is one node per cell that can be seen.
+
+        **Keyed by `(x, y)`, not by the flat index.** A breakpoint that changes
+        `columns` renumbers every flat index, and keying on it remounted every node
+        and re-decoded every image. A cell present in both grids is the same cell —
+        positional hashing gives it the same TileState — so it keeps its node.
+
+        **`data-masked` is the keep-out mask**, and it is an attribute rather than part
+        of `cellStyle` on purpose. The style string is rewritten on every resize; a
+        mask folded into it would rewrite it on every mask change too. As a separate
+        attribute, a mask change touches only the cells whose value flipped — which,
+        because `stableMask` keeps the identity of an unchanged mask, is none at all
+        on most frames of a resize. It is also a hook a host stylesheet can target,
+        and a later fade can transition.
+      -->
+      {#each shownCells as { cell, i, x, y } (`${x},${y}`)}
+        {@const key = assetKey(cell.tileId!, cell.assetId!)}
+        {#if !loadFailed.has(key)}
+            <div
+              class="cell"
+              style={cellStyle(cell, x, y)}
+              data-masked={masked(i) ? "" : undefined}
+            >
+              <!--
+                Geometry is computed and committed before resolution is attempted, and
+                is never revised as a result of it (**R5**, §4.2). So: no layout shift
+                as assets arrive, assets lazily loadable in any order, and a missing
+                asset leaves a hole in a laid-out grid rather than collapsing it.
+              -->
+              {#await drawables.get(key) then drawable}
+                {#if drawable}
+                  <img
+                    src={drawable.src}
+                    alt=""
+                    loading="lazy"
+                    draggable="false"
+                    onerror={(e) => handleLoadError(cell, e)}
+                  />
+                {/if}
+              {:catch}
+                <!-- R3: the cell draws nothing. No placeholder, no default tile, and
+                     not another TileAsset from the same Tile -- falling back to a
+                     sibling would keep the picture plausible and silently reweight the
+                     distribution D3 exists to make deterministic. -->
+              {/await}
+            </div>
+        {/if}
+      {/each}
+      <!--
+        **The only in-flow child, and it exists to carry a height.** Cells are
+        `position: absolute` (they have to be — `R6`'s shared edge is an arithmetic
+        identity between two margins, not a flow relationship), so they contribute no
+        height at all and `height: auto` would collapse the box to nothing.
+
+        An inline `height` on the box itself would be shorter and would break **S8**:
+        `07` §7.3's vertical bleed is a host writing `height` in its own stylesheet, and
+        an inline style beats a stylesheet. An in-flow child leaves the host's `height`
+        winning, with this simply overflowing into **R9**'s clip — exactly the
+        relationship the canvas has with its wrapper.
+      -->
+      {#if domCell !== null}
+        <div class="extent" style="height: {domCell.gridHeightDev / dpr}px"></div>
+      {:else if sizing === "fixed"}
+        <div class="extent" style="height: {fixedHeight}px"></div>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
+
+{#if hasRules}
+  <div {...{ [WRAPPER_ATTRIBUTE]: uid }} class="container">
+    {@html `<style>${reservation}</style>`}
+    {@render body()}
   </div>
 {:else}
-  <!--
-    **The box declares a ratio only until it has a grid to measure**, which is the
-    same arrangement the canvas wrapper is in above and for the same reason: a
-    declared ratio is the *ideal* height and the grid inside it is quantised, so the
-    two disagree — and because the grid is top-anchored, the whole disagreement lands
-    on the bottom edge as a shaved bottom row. Vertically there is no second edge to
-    share it with, which is why `ceil`'s residual is tolerable at the sides (centred,
-    half each) and was not at the bottom (one-edged, up to `rows` device px).
-
-    So after measurement the box takes its height from `.extent`, the way an ordinary
-    block box takes it from its only in-flow child, and `domGeometry.gridHeightDev`
-    is the last horizontal edge — the same expression the cells are placed by, so it
-    cannot disagree with them.
-
-    Before measurement it is `naturalRatio`, unchanged: that is what reserves correct
-    space in the server-rendered HTML (**S8**), and it is why this substrate is the
-    SSR-complete one. Under `"fixed"` the natural height is a constant, so the
-    `.extent` carries it from the start instead and no ratio is declared at all.
-
-    `visibility: hidden` while `pending`: with `options.avoid` set, nothing is shown
-    over the page until the keep-out mask exists — which on the server means the
-    whole of hydration. Space is still reserved, so nothing reflows when it appears.
-  -->
-  <div
-    class="tileset"
-    style={(domCell === null && sizing !== "fixed" ? `aspect-ratio: ${ratio};` : "") +
-      (pending ? " visibility: hidden;" : "")}
-    aria-hidden="true"
-    bind:this={box}
-  >
-    <!--
-      Cells are painted in row-major order — ascending y, then ascending x within a
-      row (**R10**). `grid.cells` is stored row-major, so document order gives it
-      for free, which is exactly what `07` §7.4 predicts: "the correct behaviour is
-      the free one and any deviation costs effort."
-
-      Later rows are lower on the screen and read as nearer the viewer, so painting
-      them on top is what overlapping foliage and anything with implied depth want.
-
-      `shownCells` is already culled to the visible columns and stripped of empty
-      cells, so this is one node per cell that can be seen.
-
-      **`data-masked` is the keep-out mask**, and it is an attribute rather than part
-      of `cellStyle` on purpose. The style string is rewritten on every resize; a
-      mask folded into it would rewrite it on every mask change too. As a separate
-      attribute, a mask change touches only the cells whose value flipped — which,
-      because `stableMask` keeps the identity of an unchanged mask, is none at all
-      on most frames of a resize. It is also a hook a host stylesheet can target,
-      and a later fade can transition.
-    -->
-    {#each shownCells as { cell, i, x, y } (i)}
-      {@const key = assetKey(cell.tileId!, cell.assetId!)}
-      {#if !loadFailed.has(key)}
-          <div
-            class="cell"
-            style={cellStyle(cell, x, y)}
-            data-masked={masked(i) ? "" : undefined}
-          >
-            <!--
-              Geometry is computed and committed before resolution is attempted, and
-              is never revised as a result of it (**R5**, §4.2). So: no layout shift
-              as assets arrive, assets lazily loadable in any order, and a missing
-              asset leaves a hole in a laid-out grid rather than collapsing it.
-            -->
-            {#await drawables.get(key) then drawable}
-              {#if drawable}
-                <img
-                  src={drawable.src}
-                  alt=""
-                  loading="lazy"
-                  draggable="false"
-                  onerror={(e) => handleLoadError(cell, e)}
-                />
-              {/if}
-            {:catch}
-              <!-- R3: the cell draws nothing. No placeholder, no default tile, and
-                   not another TileAsset from the same Tile -- falling back to a
-                   sibling would keep the picture plausible and silently reweight the
-                   distribution D3 exists to make deterministic. -->
-            {/await}
-          </div>
-      {/if}
-    {/each}
-    <!--
-      **The only in-flow child, and it exists to carry a height.** Cells are
-      `position: absolute` (they have to be — `R6`'s shared edge is an arithmetic
-      identity between two margins, not a flow relationship), so they contribute no
-      height at all and `height: auto` would collapse the box to nothing.
-
-      An inline `height` on the box itself would be shorter and would break **S8**:
-      `07` §7.3's vertical bleed is a host writing `height` in its own stylesheet, and
-      an inline style beats a stylesheet. An in-flow child leaves the host's `height`
-      winning, with this simply overflowing into **R9**'s clip — exactly the
-      relationship the canvas has with its wrapper.
-    -->
-    {#if domCell !== null}
-      <div class="extent" style="height: {domCell.gridHeightDev / dpr}px"></div>
-    {:else if sizing === "fixed"}
-      <div class="extent" style="height: {fixedHeight}px"></div>
-    {/if}
-  </div>
+  {@render body()}
 {/if}
 
 <style>
+  .container {
+    container-type: inline-size;
+  }
+
   .tileset {
     position: relative;
     display: block;

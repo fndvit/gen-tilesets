@@ -114,3 +114,34 @@ export function parseWeight(text: string): ParseResult {
   if (n === null || n < 0) return null;
   return n;
 }
+
+/** A breakpoint width, in CSS px of the render box: finite and `>= 0`. */
+export function parseWidth(text: string): ParseResult {
+  const n = toFiniteNumber(text);
+  if (n === null || n < 0) return null;
+  return n;
+}
+
+/**
+ * A rule's `bleed`, in cells: any finite number. Its bound is relative —
+ * `columns - bleed > 0` — and `columns` may come from another rule, so it is the
+ * transition's to check against the whole cascade, not this function's.
+ */
+export function parseBleed(text: string): ParseResult {
+  return toFiniteNumber(text);
+}
+
+/** The fields a responsive rule can carry, in the order the editor shows them. */
+export const RULE_FIELDS = ["minWidth", "maxWidth", "rows", "columns", "cellSize", "bleed", "yOffset"] as const;
+export type RuleField = (typeof RULE_FIELDS)[number];
+
+/** Each rule field's parser. `columns` shares `rows`' domain: an integer `>= 1`. */
+export const RULE_PARSERS: Record<RuleField, (text: string) => ParseResult> = {
+  minWidth: parseWidth,
+  maxWidth: parseWidth,
+  rows: parseRows,
+  columns: parseRows,
+  cellSize: parseCellSize,
+  bleed: parseBleed,
+  yOffset: parseYOffset,
+};

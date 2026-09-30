@@ -12,7 +12,7 @@ import { migrate, MIGRATIONS } from "./migrate.js";
 import type { TilesetFile } from "./types.js";
 import { SCHEMA_VERSION, validate } from "./validate.js";
 
-/** A v2 file that validates clean, used as the shape everything else varies. */
+/** A current file that validates clean, used as the shape everything else varies. */
 const current = (): TilesetFile => ({
   schemaVersion: SCHEMA_VERSION,
   engineVersion: "0.0.0",
@@ -42,13 +42,16 @@ const current = (): TilesetFile => ({
 /** The same document as it would have been written before ADR-005. */
 const v1 = (): Record<string, unknown> => ({ ...current(), schemaVersion: 1 });
 
-describe("migrate — the v1 → v2 path", () => {
-  it("upgrades a v1 file", () => {
+describe("migrate — the v1 → current path", () => {
+  it("upgrades a v1 file, one row at a time", () => {
     const outcome = migrate(v1());
     expect(outcome.kind).toBe("migrated");
     if (outcome.kind !== "migrated") return;
-    expect((outcome.file as TilesetFile).schemaVersion).toBe(2);
-    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([[1, 2]]);
+    expect((outcome.file as TilesetFile).schemaVersion).toBe(SCHEMA_VERSION);
+    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([
+      [1, 2],
+      [2, 3],
+    ]);
   });
 
   /**
@@ -60,7 +63,7 @@ describe("migrate — the v1 → v2 path", () => {
     const before = v1();
     const outcome = migrate(before);
     if (outcome.kind !== "migrated") throw new Error("expected a migration");
-    expect(outcome.file).toEqual({ ...before, schemaVersion: 2 });
+    expect(outcome.file).toEqual({ ...before, schemaVersion: SCHEMA_VERSION });
   });
 
   /** The whole point: an old file opens. */
@@ -93,6 +96,22 @@ describe("migrate — the v1 → v2 path", () => {
   });
 });
 
+describe("migrate — the v2 → v3 path", () => {
+  /**
+   * 0.7.0's row. `responsive` is optional, and a v2 file has none, which is what
+   * "one shape at every width" always was — so there is nothing to convert.
+   */
+  it("changes nothing but the version number, and adds no rules", () => {
+    const before = { ...current(), schemaVersion: 2 };
+    const outcome = migrate(before);
+    if (outcome.kind !== "migrated") throw new Error("expected a migration");
+    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([[2, 3]]);
+    expect(outcome.file).toEqual({ ...before, schemaVersion: 3 });
+    expect("responsive" in (outcome.file as object)).toBe(false);
+    expect(validate(outcome.file)).toEqual([]);
+  });
+});
+
 describe("migrate — the other three outcomes", () => {
   it("reports a current file as current, and touches nothing", () => {
     expect(migrate(current())).toEqual({ kind: "current" });
@@ -104,7 +123,8 @@ describe("migrate — the other three outcomes", () => {
    * defect this module fixes.
    */
   it("reports a newer file as newer", () => {
-    expect(migrate({ ...current(), schemaVersion: 3 })).toEqual({ kind: "newer", declared: 3 });
+    const newer = SCHEMA_VERSION + 1;
+    expect(migrate({ ...current(), schemaVersion: newer })).toEqual({ kind: "newer", declared: newer });
   });
 
   it("reports an absent or non-integer version as unrecognized", () => {

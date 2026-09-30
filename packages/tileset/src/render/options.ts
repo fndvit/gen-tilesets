@@ -26,10 +26,26 @@
  * spread workaround `<TileDecoration>` used to need.
  */
 
+import { shapeFieldProblem, SHAPE_FIELDS } from "../shape.js";
+import type { ResponsiveRule, TilesetFile } from "../types.js";
 import type { AlignX, AlignY, Sizing } from "./geometry.js";
 import { defaultProvider, type AssetProvider, type AssetRef } from "./provider.js";
 
 export type Substrate = "canvas" | "dom";
+
+/**
+ * A responsive rule written by the host: a file rule's shape fields, plus the two
+ * render-space settings a page commonly wants to change at a width.
+ *
+ * `sizing` and `align` are here and not in a file rule for the reason
+ * `geometry.ts` gives on `Sizing`: they are how a page *hosts* a design, not part
+ * of the design, and one file may be hosted fluid in a hero and fixed in a
+ * sidebar.
+ */
+export interface HostRule extends ResponsiveRule {
+  sizing?: Sizing | undefined;
+  align?: { x?: AlignX | undefined; y?: AlignY | undefined } | undefined;
+}
 
 /** A CSS selector, one element, or several. See {@link TilesetOptions.avoid}. */
 export type AvoidTargets = string | Element | Iterable<Element>;
@@ -110,6 +126,21 @@ export interface TilesetOptions {
     | undefined;
 
   /**
+   * Shape overrides by the render box's width — **replaces** `file.responsive`
+   * wholesale when present, and `[]` turns the file's rules off. Absent means the
+   * file's own rules, if it has any.
+   *
+   * Replaced rather than merged: two rule lists meeting would need a precedence
+   * rule between them, on top of the cascade within each, and a host that wants
+   * the file's rules plus one more can spread them — `[...file.responsive ?? [],
+   * mine]` — which says exactly what it means.
+   *
+   * A host rule may also set `sizing` and `align`, which a file rule may not. See
+   * `HostRule`.
+   */
+  responsive?: readonly HostRule[] | undefined;
+
+  /**
    * `(tileId, assetId)` → drawable. Default `defaultProvider`, which reads
    * `meta.src`. Use `prefixedProvider(base)` anywhere but the site root.
    */
@@ -133,6 +164,8 @@ export interface ResolvedOptions {
   alignX: AlignX;
   alignY: AlignY;
   avoid: { targets: NormalizedTargets; padding: number } | null;
+  /** `undefined` means "the file's own". See {@link effectiveRules}. */
+  responsive: readonly HostRule[] | undefined;
   provider: AssetProvider;
   onAssetError: ((ref: AssetRef, cause: unknown) => void) | undefined;
 }
@@ -146,6 +179,7 @@ export const DEFAULT_OPTIONS: Readonly<ResolvedOptions> = Object.freeze({
   alignX: "center",
   alignY: "top",
   avoid: null,
+  responsive: undefined,
   provider: defaultProvider,
   onAssetError: undefined,
 });
@@ -164,9 +198,44 @@ export function resolveOptions(o: TilesetOptions | undefined): ResolvedOptions {
       o.avoid === undefined
         ? null
         : { targets: normalizeTargets(o.avoid.targets), padding: o.avoid.padding ?? 0 },
+    responsive: o.responsive ?? d.responsive,
     provider: o.provider ?? d.provider,
     onAssetError: o.onAssetError ?? d.onAssetError,
   };
+}
+
+const NO_RULES: readonly HostRule[] = Object.freeze([]);
+
+/**
+ * The rules in force, in one line of precedence: the host's if it gave any
+ * (`[]` included), otherwise the file's, otherwise none.
+ *
+ * `reshape()` has already dropped a file's rules by the time a reshaped file gets
+ * here, so "a reshaped file has no rules of its own" needs no case of its own.
+ */
+export function effectiveRules(
+  file: TilesetFile,
+  host: readonly HostRule[] | undefined,
+): readonly HostRule[] {
+  return host ?? file.responsive ?? NO_RULES;
+}
+
+/**
+ * The render-space half of the cascade: `sizing` and `align` over the host's
+ * base options, in rule order, a later rule winning field by field — the same
+ * cascade `ruleOverride` runs over the shape fields.
+ */
+export function renderOverride(
+  base: { sizing: Sizing; alignX: AlignX; alignY: AlignY },
+  active: readonly HostRule[],
+): { sizing: Sizing; alignX: AlignX; alignY: AlignY } {
+  let { sizing, alignX, alignY } = base;
+  for (const r of active) {
+    sizing = r.sizing ?? sizing;
+    alignX = r.align?.x ?? alignX;
+    alignY = r.align?.y ?? alignY;
+  }
+  return { sizing, alignX, alignY };
 }
 
 /**
@@ -211,9 +280,11 @@ const KNOWN = new Set([
   "sizing",
   "align",
   "avoid",
+  "responsive",
   "provider",
   "onAssetError",
 ]);
+const RULE_KEYS = new Set<string>(["minWidth", "maxWidth", ...SHAPE_FIELDS, "sizing", "align"]);
 
 /**
  * Everything wrong with an options object, as messages naming the field.
@@ -296,6 +367,14 @@ export function optionErrors(o: unknown): string[] {
     }
   }
 
+  if (r.responsive !== undefined) {
+    if (!Array.isArray(r.responsive)) {
+      errors.push("`options.responsive` must be an array of rules.");
+    } else {
+      (r.responsive as unknown[]).forEach((rule, i) => ruleErrors(`options.responsive[${i}]`, rule, errors, oneOf));
+    }
+  }
+
   if (r.provider !== undefined && typeof r.provider !== "function") {
     errors.push("`options.provider` must be a function.");
   }
@@ -303,6 +382,72 @@ export function optionErrors(o: unknown): string[] {
     errors.push("`options.onAssetError` must be a function.");
   }
   return errors;
+}
+
+/**
+ * One host rule's own fields. What needs the file — a coordinate-bound Operation
+ * pinning `rows`, a bleed that leaves no box once the cascade has run — is
+ * `rulesReshapeErrors`' question, asked by `<Tileset>` with the file in hand.
+ *
+ * The shape fields are checked by `shapeFieldProblem`, the same statement of
+ * each domain `validate()` reads for a file's rules.
+ */
+function ruleErrors(
+  path: string,
+  rule: unknown,
+  errors: string[],
+  oneOf: (path: string, v: unknown, allowed: readonly string[]) => void,
+): void {
+  if (rule === null || typeof rule !== "object" || Array.isArray(rule)) {
+    errors.push(`\`${path}\` must be a rule object.`);
+    return;
+  }
+  const r = rule as Record<string, unknown>;
+  for (const key of Object.keys(r)) {
+    if (RULE_KEYS.has(key)) continue;
+    errors.push(
+      key === "referenceWidth"
+        ? `\`${path}.referenceWidth\` is not a rule field; set \`bleed\` (columns that overhang the box) instead.`
+        : `\`${path}.${key}\` is not a rule field.`,
+    );
+  }
+  for (const key of ["minWidth", "maxWidth"] as const) {
+    const v = r[key];
+    if (v !== undefined && !(typeof v === "number" && Number.isFinite(v) && v >= 0)) {
+      errors.push(`\`${path}.${key}\` must be a finite width in CSS px, 0 or more.`);
+    }
+  }
+  if (r.minWidth === undefined && r.maxWidth === undefined) {
+    errors.push(`\`${path}\` needs \`minWidth\` or \`maxWidth\`; a rule that always holds is the base.`);
+  }
+  if (typeof r.minWidth === "number" && typeof r.maxWidth === "number" && r.minWidth > r.maxWidth) {
+    errors.push(`\`${path}\` has minWidth above maxWidth, so it never holds.`);
+  }
+  let sets = 0;
+  for (const field of SHAPE_FIELDS) {
+    if (r[field] === undefined) continue;
+    sets++;
+    const problem = shapeFieldProblem(field, r[field]);
+    if (problem !== null) errors.push(`\`${path}.${field}\`: ${problem.message}.`);
+  }
+  oneOf(`${path}.sizing`, r.sizing, SIZINGS);
+  if (r.sizing !== undefined) sets++;
+  if (r.align !== undefined) {
+    sets++;
+    if (r.align === null || typeof r.align !== "object") {
+      errors.push(`\`${path}.align\` must be an object with \`x\` and/or \`y\`.`);
+    } else {
+      const a = r.align as Record<string, unknown>;
+      for (const key of Object.keys(a)) {
+        if (key !== "x" && key !== "y") errors.push(`\`${path}.align.${key}\` is not an option.`);
+      }
+      oneOf(`${path}.align.x`, a.x, ALIGN_X);
+      oneOf(`${path}.align.y`, a.y, ALIGN_Y);
+    }
+  }
+  if (sets === 0) {
+    errors.push(`\`${path}\` sets nothing; give it a shape field, \`sizing\` or \`align\`.`);
+  }
 }
 
 /** The props `<Tileset>` took before 0.6.0, all of which moved into `options`. */
