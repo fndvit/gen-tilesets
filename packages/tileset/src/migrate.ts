@@ -90,6 +90,16 @@ export const MIGRATIONS: readonly Migration[] = [
     note: "nothing to do — ADR-005 widened Operation.target and changed no key",
     upgrade: (file) => ({ ...file, schemaVersion: 2 }),
   },
+  {
+    from: 2,
+    to: 3,
+    // 0.7.0 added the optional top-level `responsive` array. A v2 file has none,
+    // and none is what "one shape at every width" was, so every legal v2 file is
+    // a legal v3 file. The bump exists so that an older engine meeting a file
+    // *with* rules refuses it by version (C2) instead of by an unknown key.
+    note: "nothing to do — 0.7.0 added the optional `responsive` rules and changed no key",
+    upgrade: (file) => ({ ...file, schemaVersion: 3 }),
+  },
 ];
 
 function isObject(value: unknown): value is Record<string, unknown> {

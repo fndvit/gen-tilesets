@@ -37,7 +37,15 @@ import { acceptedBlends, TARGETS } from "./registry/blends.js";
 import type { ParamSchema, ParamSpec } from "./registry/registry.js";
 import { selections } from "./registry/selections.js";
 import { sources } from "./registry/sources.js";
-import type { TargetName } from "./types.js";
+import { activeRules, bandWidths, ruleOverride } from "./responsive.js";
+import {
+  coordinateBoundMessage,
+  coordinateBoundOperations,
+  reshape,
+  SHAPE_FIELDS,
+  shapeFieldProblem,
+} from "./shape.js";
+import type { Operation, TargetName, TilesetFile } from "./types.js";
 
 /**
  * `06` §10.2, **C7**.
@@ -81,10 +89,11 @@ export type ErrorCode =
   | "ZERO_WEIGHT_SUM"
   | "DANGLING_TILE_REF"
   | "UNKNOWN_TYPE_NAME"
-  | "INVALID_TARGET_BLEND";
+  | "INVALID_TARGET_BLEND"
+  | "COORDINATE_BOUND_RESIZE";
 
-/** The one version this build knows — `06` §4.1, **C2**. 2 since ADR-005. */
-export const SCHEMA_VERSION = 2;
+/** The one version this build knows — `06` §4.1, **C2**. 3 since 0.7.0 (`responsive`); 2 was ADR-005. */
+export const SCHEMA_VERSION = 3;
 
 /** `06` §5.3, **C10**. Excludes `:`, which `04` §4.3 concatenates with. */
 const IDENTIFIER = /^[A-Za-z0-9_-]+$/;
@@ -756,6 +765,124 @@ function config(e: Errors, path: string, value: unknown): void {
 }
 
 // ---------------------------------------------------------------------------
+// Responsive rules — 0.7.0
+// ---------------------------------------------------------------------------
+
+const RULE_CONDITIONS = ["minWidth", "maxWidth"] as const;
+
+/**
+ * The file's `responsive` rules — `responsive.ts` says what they mean.
+ *
+ * Four layers, each with its own path so the editor's repair affordance lands on
+ * the right field:
+ *
+ * 1. **Each rule's own fields.** A condition is a width, `>= 0`; `minWidth <=
+ *    maxWidth`. A shape field is checked by `shapeFieldProblem`, the same
+ *    statement of its domain `reshapeErrors` reads, so a host rule and a file rule
+ *    cannot disagree about what a legal `rows` is.
+ * 2. **A rule must say when and what.** No condition is the base under another
+ *    name — edit the base; no shape field is a rule that does nothing. Both are
+ *    `MISSING_KEY` at the rule, because in each case something the author meant to
+ *    write is absent.
+ * 3. **`COORDINATE_BOUND_RESIZE`.** A rule that *names* `rows` or `columns` in a
+ *    file whose stack holds a coordinate-bound Operation — one error per pair, at
+ *    the rule's field, naming the Operation. A schema error rather than a
+ *    decoration-contract message (`shape.ts`'s `reshapeErrors`) because the rules
+ *    are now in the schema: the file itself promises a resize its own Operations
+ *    cannot survive.
+ * 4. **Every band resolves to a box.** `bleed`'s bound is relative (`columns -
+ *    bleed > 0`), and the `columns` it is relative to may come from another rule,
+ *    so it can only be checked against the resolved shape. `bandWidths` gives one
+ *    width per band, which makes the check exhaustive rather than sampled. Run
+ *    only on an otherwise-valid file: resolving a shape from a broken base would
+ *    report the base's defect a second time, in a worse place.
+ */
+function responsive(e: Errors, path: string, value: unknown, file: Record<string, unknown>): void {
+  if (!e.typed(path, value, "an array of rules", Array.isArray(value))) return;
+  const rules = value as unknown[];
+
+  const ops = pinningOperations(file);
+
+  rules.forEach((rule, i) => {
+    const rulePath = at(path, i);
+    if (!e.typed(rulePath, rule, "a rule object", isObject(rule))) return;
+    const r = rule as Record<string, unknown>;
+    unknownKeys(e, rulePath, r, [...RULE_CONDITIONS, ...SHAPE_FIELDS]);
+
+    for (const key of RULE_CONDITIONS) {
+      if (r[key] === undefined) continue;
+      const keyPath = at(rulePath, key);
+      if (finite(e, keyPath, r[key], key)) inRange(e, keyPath, r[key] as number, key, (r[key] as number) >= 0, ">= 0");
+    }
+    if (
+      typeof r.minWidth === "number" &&
+      typeof r.maxWidth === "number" &&
+      Number.isFinite(r.minWidth) &&
+      Number.isFinite(r.maxWidth) &&
+      r.minWidth > r.maxWidth
+    ) {
+      e.add(at(rulePath, "minWidth"), "OUT_OF_RANGE", `minWidth ${r.minWidth} is above maxWidth ${r.maxWidth}, so the rule never holds`);
+    }
+    if (r.minWidth === undefined && r.maxWidth === undefined) {
+      e.add(rulePath, "MISSING_KEY", "a rule needs minWidth or maxWidth; a rule that always holds is the base, so edit the base");
+    }
+
+    let names = 0;
+    for (const field of SHAPE_FIELDS) {
+      if (r[field] === undefined) continue;
+      names++;
+      const problem = shapeFieldProblem(field, r[field]);
+      if (problem !== null) e.add(at(rulePath, field), problem.code, problem.message);
+    }
+    if (names === 0) {
+      e.add(rulePath, "MISSING_KEY", `a rule must set at least one of ${SHAPE_FIELDS.join(", ")}`);
+    }
+
+    for (const field of ["rows", "columns"] as const) {
+      if (r[field] === undefined) continue;
+      for (const op of ops) e.add(at(rulePath, field), "COORDINATE_BOUND_RESIZE", coordinateBoundMessage(op));
+    }
+  });
+}
+
+/**
+ * The coordinate-bound Operations of a file not yet known to be valid.
+ *
+ * Only the well-shaped ones are looked at: a malformed Operation has its own
+ * errors at its own path, and a second report of it here would be one defect
+ * given two voices.
+ */
+function pinningOperations(file: Record<string, unknown>): Operation[] {
+  const config = file.config;
+  if (!isObject(config) || !Array.isArray(config.operations)) return [];
+  const wellShaped = (config.operations as unknown[]).filter(
+    (op): op is Operation =>
+      isObject(op) && isObject(op.selection) && typeof op.selection.type === "string" && typeof op.id === "string",
+  );
+  return coordinateBoundOperations(wellShaped);
+}
+
+/** Layer 4 of {@link responsive}: every band of an otherwise-valid file resolves to a box. */
+function everyBandHasABox(e: Errors, file: TilesetFile): void {
+  const rules = file.responsive ?? [];
+  for (const width of bandWidths(rules)) {
+    const active = activeRules(rules, width);
+    const out = reshape(file, ruleOverride(active));
+    if (out.layout.referenceWidth > 0) continue;
+    // Blame the last rule that set what the bound is made of.
+    const culprit = [...active].reverse().find((r) => r.bleed !== undefined || r.columns !== undefined);
+    const i = culprit === undefined ? 0 : rules.indexOf(culprit);
+    e.add(
+      at("/responsive", i),
+      "OUT_OF_RANGE",
+      `at a box width of ${width}px the rules resolve to ${out.config.columns} columns with a bleed that leaves no box ` +
+        "(columns - bleed must be > 0)",
+    );
+    return;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The entry point — §10
 // ---------------------------------------------------------------------------
 
@@ -787,7 +914,7 @@ export function validate(file: unknown): ValidationError[] {
     return e.list;
   }
 
-  unknownKeys(e, "", object, ["schemaVersion", "engineVersion", "config", "layout"]);
+  unknownKeys(e, "", object, ["schemaVersion", "engineVersion", "config", "layout", "responsive"]);
 
   if (required(e, "", object, "engineVersion")) {
     // **C3** — required, advisory, and never validated against anything. A shape
@@ -798,6 +925,10 @@ export function validate(file: unknown): ValidationError[] {
 
   if (required(e, "", object, "config")) config(e, "/config", object.config);
   if (required(e, "", object, "layout")) layout(e, "/layout", object.layout);
+  if (object.responsive !== undefined) {
+    responsive(e, "/responsive", object.responsive, object);
+    if (e.list.length === 0) everyBandHasABox(e, object as unknown as TilesetFile);
+  }
 
   return e.list;
 }

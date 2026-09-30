@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_OPTIONS,
+  effectiveRules,
   legacyPropErrors,
   normalizeTargets,
   optionErrors,
   resolveOptions,
+  renderOverride,
   sameTargets,
+  type HostRule,
   type TilesetOptions,
 } from "./options.js";
+import type { TilesetFile } from "../types.js";
 import { defaultProvider } from "./provider.js";
 
 /** Stand-ins for elements: `normalizeTargets` only asks for `nodeType`. */
@@ -25,6 +29,7 @@ describe("resolveOptions", () => {
       alignX: "center",
       alignY: "top",
       avoid: null,
+      responsive: undefined,
       provider: defaultProvider,
       onAssetError: undefined,
     });
@@ -103,6 +108,9 @@ describe("optionErrors", () => {
       { avoid: { targets: [el("a")], padding: 0 } },
       { avoid: { targets: el("a"), padding: 12.5 } },
       { provider: () => ({ src: "" }), onAssetError: () => {} },
+      { responsive: [] },
+      { responsive: [{ maxWidth: 500, rows: 14, columns: 9 }, { minWidth: 1400, sizing: "fixed" }] },
+      { responsive: [{ minWidth: 0, maxWidth: 0, align: { x: "left" } }] },
     ];
     for (const o of valid) expect(optionErrors(o)).toEqual([]);
   });
@@ -127,6 +135,16 @@ describe("optionErrors", () => {
       [{ provider: "defaultProvider" }, "options.provider"],
       [{ onAssetError: true }, "options.onAssetError"],
       [{ substrat: "dom" }, "options.substrat"],
+      [{ responsive: { 500: { rows: 3 } } }, "options.responsive"],
+      [{ responsive: [3] }, "options.responsive[0]"],
+      [{ responsive: [{ rows: 3 }] }, "options.responsive[0]"],
+      [{ responsive: [{ maxWidth: 500 }] }, "options.responsive[0]"],
+      [{ responsive: [{ maxWidth: -1, rows: 3 }] }, "options.responsive[0].maxWidth"],
+      [{ responsive: [{ minWidth: 600, maxWidth: 500, rows: 3 }] }, "options.responsive[0]"],
+      [{ responsive: [{ maxWidth: 500, rows: 0 }] }, "options.responsive[0].rows"],
+      [{ responsive: [{ maxWidth: 500, referenceWidth: 900 }] }, "bleed"],
+      [{ responsive: [{ maxWidth: 500, sizing: "auto" }] }, "options.responsive[0].sizing"],
+      [{ responsive: [{ maxWidth: 500, align: { x: "start" } }] }, "options.responsive[0].align.x"],
     ];
     for (const [o, path] of invalid) {
       const errors = optionErrors(o);
@@ -146,5 +164,38 @@ describe("legacyPropErrors", () => {
 
   it("is silent when there are none", () => {
     expect(legacyPropErrors({})).toEqual([]);
+  });
+});
+
+describe("effectiveRules — the one line of precedence", () => {
+  const file = (responsive?: HostRule[]) =>
+    ({ config: {}, layout: {}, ...(responsive ? { responsive } : {}) }) as unknown as TilesetFile;
+  const fileRules: HostRule[] = [{ maxWidth: 500, rows: 14 }];
+
+  it("takes the host's rules over the file's, wholesale", () => {
+    const host: HostRule[] = [{ maxWidth: 600, columns: 9 }];
+    expect(effectiveRules(file(fileRules), host)).toBe(host);
+  });
+
+  it("lets [] turn the file's rules off", () => {
+    expect(effectiveRules(file(fileRules), [])).toEqual([]);
+  });
+
+  it("falls back to the file's rules, then to none", () => {
+    expect(effectiveRules(file(fileRules), undefined)).toBe(fileRules);
+    expect(effectiveRules(file(), undefined)).toEqual([]);
+  });
+});
+
+describe("renderOverride", () => {
+  it("cascades sizing and align over the base, field by field", () => {
+    const base = { sizing: "fluid", alignX: "center", alignY: "top" } as const;
+    expect(renderOverride(base, [])).toEqual(base);
+    expect(
+      renderOverride(base, [
+        { maxWidth: 900, sizing: "fixed", align: { x: "left" } },
+        { maxWidth: 500, align: { y: "bottom" } },
+      ]),
+    ).toEqual({ sizing: "fixed", alignX: "left", alignY: "bottom" });
   });
 });

@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { Scheduler, type Measurement, type MeasureEnv } from "./measure.js";
+import { Scheduler, scopeOf, WRAPPER_ATTRIBUTE, type Measurement, type MeasureEnv } from "./measure.js";
 import { normalizeTargets } from "./options.js";
 
 interface Rect {
@@ -22,6 +22,7 @@ type Log = string[];
 class FakeElement {
   children: FakeElement[] = [];
   parentElement: FakeElement | null = null;
+  attributes = new Set<string>();
   constructor(
     readonly name: string,
     public rect: Rect,
@@ -32,6 +33,9 @@ class FakeElement {
     child.parentElement = this;
     this.children.push(child);
     return child;
+  }
+  hasAttribute(name: string): boolean {
+    return this.attributes.has(name);
   }
   getBoundingClientRect() {
     this.log.push(`read:${this.name}`);
@@ -226,6 +230,36 @@ describe("Scheduler", () => {
     expect(seen.at(-1)!.rects).toHaveLength(2);
     // The new element is now watched for size changes too.
     expect(state.ro!.observed.has(p)).toBe(true);
+  });
+
+  /**
+   * `RESPONSIVE-HOSTING.md` §8.2, fixed. Inside `<TileDecoration>` — and inside
+   * `<Tileset>`'s container wrapper when it has responsive rules — the box's
+   * parent is a wrapper the package added, holding nothing but the box. Resolving
+   * a selector there matched nothing, silently.
+   */
+  it("resolves a selector in the host's section, past the package's own wrappers", () => {
+    const log: Log = [];
+    const { env, state } = fakeEnv(log);
+    const section = new FakeElement("section", { left: 0, top: 100, width: 400, height: 200 }, log, "section");
+    const outer = section.append(new FakeElement("decoration", { left: 0, top: 100, width: 400, height: 200 }, log));
+    const inner = outer.append(new FakeElement("container", { left: 0, top: 100, width: 400, height: 200 }, log));
+    outer.attributes.add(WRAPPER_ATTRIBUTE);
+    inner.attributes.add(WRAPPER_ATTRIBUTE);
+    const box = inner.append(new FakeElement("box", { left: 0, top: 100, width: 400, height: 200 }, log));
+    section.append(new FakeElement("h1", { left: 50, top: 150, width: 100, height: 30 }, log, "h1"));
+
+    expect(scopeOf(asEl(box))).toBe(section);
+    const seen: Measurement[] = [];
+    new Scheduler(env).track(asEl(box), normalizeTargets("h1"), (m) => seen.push(m));
+    expect(seen[0]!.rects).toHaveLength(1);
+    expect(state.mo!.observed.has(section)).toBe(true);
+  });
+
+  it("keeps the box's parent as the scope when the host wrote it", () => {
+    const log: Log = [];
+    const { section, box } = page(log);
+    expect(scopeOf(asEl(box))).toBe(section);
   });
 
   it("never matches its own cells with a selector, and ignores its own mutations", () => {

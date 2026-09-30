@@ -51,9 +51,19 @@ export {
   type AvoidTargets,
   type NormalizedTargets,
   type ResolvedOptions,
+  effectiveRules,
+  renderOverride,
+  type HostRule,
   type Substrate,
   type TilesetOptions,
 } from "./options.js";
+
+/**
+ * What `<Tileset>` does with responsive rules, as pure functions: the height it
+ * reserves before measurement, per band. Exported for a host rendering its own
+ * shell around a tileset, and so the claim is checkable without a component.
+ */
+export { reservationCss } from "./breakpoints.js";
 
 /**
  * Client coordinates to render space — `07` §8.2's caller work, done once. The

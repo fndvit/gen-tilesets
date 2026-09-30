@@ -9,22 +9,24 @@ One pure engine and one renderer, published together as `@fndvit/gen-tilesets`. 
 consumer of that package with no privileged access: its preview is an ordinary `<Tileset>`.
 
 ```
-TilesetFile ──migrate()──> validate() ──> generate(config, seed, loadSalt)
-   │                                            │
-   │  layout                                    ▼
-   │                                    Grid<TileState>
-   ▼                                            │
-placement: sizing, align ───────────────────────┤  geometry.ts / uniform.ts
-   ▲ box size, dpr                              │
-keep-out rects ──> occlusion mask ──────────────┤  occlusion.ts (options.avoid only)
-   ▲ measure.ts                                 ▼
-                          AssetProvider: (tileId, assetId) -> Drawable
-                                                │
-                                                ▼
-                                    <canvas> or one <img> per cell
+TilesetFile ──migrate()──> validate() ──> reshape(file, rules at box width) ──> generate(config, seed, loadSalt)
+   │                                        shape.ts, responsive.ts               │
+   │  layout                                  ▲ box width                         ▼
+   │                                          │                             Grid<TileState>
+   ▼                                          │                                   │
+placement: sizing, align ─────────────────────┼───────────────────────────────────┤  geometry.ts / uniform.ts
+   ▲ box size, dpr                            │                                   │
+keep-out rects ──> occlusion mask ────────────┼───────────────────────────────────┤  occlusion.ts (options.avoid only)
+   ▲ measure.ts ──────────────────────────────┘                                   ▼
+                                                  AssetProvider: (tileId, assetId) -> Drawable
+                                                                                  │
+                                                                                  ▼
+                                                                  <canvas> or one <img> per cell
 ```
 
-**Four stages, and only the last is a substrate.** The engine makes the grid; the geometry places
+**Four stages, and only the last is a substrate.** Responsive rules come first, and are not a
+stage of their own: they pick a shape override from the measured box width and `reshape` applies it,
+so what reaches the engine is an ordinary config. The engine makes the grid; the geometry places
 it for the box, the sizing and the alignment; the keep-out mask hides the cells under page content
 the host named; and a substrate paints. The mask is render space: it never reaches the config, so
 the grid is generated exactly as often with it as without it. See `occlusion.ts`'s header for the
@@ -53,7 +55,7 @@ every push; a `v*` tag publishes the package (`.github/workflows/`). There is no
 here — `citations.mjs` went with the spec to `../gen-tileset-spec-archive/scripts/`, and the
 citations in the source are no longer checked by anything.
 
-`@fndvit/gen-tilesets` is at `0.6.0`. Everything `05` §10 says about version bumps describes a
+`@fndvit/gen-tilesets` is at `0.7.0`. Everything `05` §10 says about version bumps describes a
 future state; `05` §10.3 puts all of V1 at `0.x`, where no bump kind binds. **ADR-004 is the
 release valve that makes vector tables generatable before then, and it expires at 1.0.0.**
 
@@ -87,11 +89,12 @@ rejected.
 | `attributes.ts` | The attribute table: domain, default, bounding. `bound`, `writeAttribute`. |
 | `angle.ts` | `sincos` — degrees, exact on the axes. Shared, because `gradient` needs the same exactness the render matrix does and the engine cannot import from `render/`. `render/transform.ts` re-exports it. |
 | `assets.ts` | The weight walk — resolves a cell's `assetId`. Order-independent (`03` §4.2). |
-| `decoration.ts` | **One style, many placements.** `decorationFile(style, {rows, columns, cellSize})` overrides four numbers and shares everything else by reference; `decorationStyleErrors` is the separate check, for **C5**'s reason. Engine-space despite writing a `Layout` — it reads the `selections` registry and nothing in `render/`. |
+| `shape.ts` | **One design, any shape.** `reshape(file, {rows, columns, cellSize, bleed, yOffset})` overrides shape fields and shares the design by reference — the same `config` object when `rows`/`columns` are unchanged, which is how `<Tileset>` tells density from size. `bleed` stands in for `referenceWidth` in every override. `reshapeErrors` is the separate check, for **C5**'s reason; `shapeFieldProblem` is the one statement of each field's domain, read by it and by `validate()`. Engine-space despite writing a `Layout` — it reads the `selections` registry and nothing in `render/`. Replaced `decoration.ts` (0.5.0) in 0.7.0. |
+| `responsive.ts` | **Which override holds at a width.** `activeRules`, `activeKey`, `ruleOverride` — CSS's cascade, pure, the width an argument. `bandWidths` gives one width per band, which makes `validate()`'s check of every band exhaustive. `rulesReshapeErrors` checks a host's rules against a file. |
 | `mapping.ts` | Numeric and tile mapping — gives units to a Source's bare `[0,1]`. Both branches return `max` exactly at the top, and both have a `t = 1` boundary case since **X6** closed. |
 | `selection.ts` | `selection(config, operationId, …) → (x,y) => boolean`. Exists so the editor implements no Selection test (**E8**). |
-| `validate.ts` | Fifteen error codes, strict at every depth, never coerces. Separate from `generate()`, which trusts its input (**C5**). |
-| `migrate.ts` | The v1 → v2 table and its walk. Runs **before** `validate()`, because rewriting a version is a coercion (`06` §9.2). |
+| `validate.ts` | Sixteen error codes, strict at every depth, never coerces. Separate from `generate()`, which trusts its input (**C5**). Walks `responsive` too: each rule's fields, `COORDINATE_BOUND_RESIZE`, and every band resolving to a box. |
+| `migrate.ts` | The v1 → v2 → v3 table and its walk. Runs **before** `validate()`, because rewriting a version is a coercion (`06` §9.2). |
 | `dev.ts` | Development-build detection. A **provisional** answer to `08` Q3, which is still open. |
 | `registry/` | `registry.ts` (name → type, no public registration API), `sources.ts`, `selections.ts`, `blends.ts`. A Selection declares its `extent` here, beside `stochastic` and `coordinateBound`. |
 
@@ -103,9 +106,10 @@ header of `registry/sources.ts` and `spec/FREEZE.md` A-5.
 
 | Module | What |
 | --- | --- |
-| `Tileset.svelte` | The one entry point (**S1**). Takes a `TilesetFile` and calls `generate()` itself — nothing accepts a bare grid. Three props: `file`, `options`, and the bindable `box`. |
+| `Tileset.svelte` | The one entry point (**S1**). Takes a `TilesetFile` and calls `generate()` itself — nothing accepts a bare grid. Three props: `file`, `options`, and the bindable `box`. Applies the rules in force at the measured width (`options.responsive`, else the file's), keyed on `activeKey` so a resize inside a band touches nothing. |
+| `breakpoints.ts` | What `<Tileset>` does with rules, testable: `GridCache` (one grid per `(rows, columns)`, so crossing a breakpoint twice generates once), `reservationCss` (the container-query height reserved before measurement), `FlipFlop` (names the scrollbar feedback loop), `inertCellSizeRules`. |
 | `options.ts` | **`TilesetOptions`** — every setting in one typed object, each field documented. `resolveOptions` is the only place a default is written; `optionErrors` and `legacyPropErrors` are the development-build checks. Named `options` because `file.config` already owns `config`. |
-| `TileDecoration.svelte` | One placement of a decoration style. **Not a second entry point** — it derives a `TilesetFile` above `<Tileset>` and renders it, exactly as the editor's preview does, so **S1** is intact. What it owns is the box: `columns * cellSize` px, the same product `decorationFile` writes into `referenceWidth`. |
+| `TileDecoration.svelte` | One placement of a decoration style: `reshape` with `bleed: 0, yOffset: 0`. **Not a second entry point** — it derives a `TilesetFile` above `<Tileset>` and renders it, exactly as the editor's preview does, so **S1** is intact. What it owns is the box: `columns * cellSize` px, the same product the preset writes into `referenceWidth`. |
 | `geometry.ts` | The ideal fractional mapping: `cellBox`, `cellAt`, `originX/Y`, `scaleFactor`. Pure, no measurement. Carries **sizing and alignment** — `"fixed"` is `s = 1` plus a pinned origin, and the fluid defaults are the 0.5.0 expressions verbatim. Also `cellPlacementAffine` (pre-measurement CSS in every mode), and `Lattice`/`latticeRange`/`visibleColumns`, which the mask and culling share. |
 | `uniform.ts` | **The uniform square cell.** One integer side on both axes, plus the split between raster and presentation, and the draw list. `canvasPresentation` restricts the raster to the visible columns; `domLattice` is where the DOM actually places cells. `uniformGeometry` quantises with `round` for `"canvas"`; `domGeometry` quantises with `ceil` for `"dom"` so its side residual is always a clip and never a gutter, and reports `gridHeightDev` so that box can take its height from the grid instead of cutting the bottom row. Every substrate draws from this module. |
 | `edges.ts` | What survives of ADR-006: `snap` and `coverRect`. The per-edge snapping it was built around is gone — see `SUBPIXEL-GEOMETRY.md` attempt 1 before reintroducing it. |
@@ -113,7 +117,7 @@ header of `registry/sources.ts` and `spec/FREEZE.md` A-5.
 | `transform.ts` | Scale-then-rotate about the centre (**D11**). `sincos` makes quarter turns exact rather than `6.12e-17` off. `maxSpill` is how far any drawable reaches past its cell, which culling widens by. |
 | `occlusion.ts` | **The keep-out mask.** Measured rects → one byte per cell, on the lattice the substrate paints. The lattice cell is the test, not the drawn tile. `stableMask` keeps an unchanged mask's identity, which is what makes a resize touch nothing. |
 | `space.ts` | Client → render space, including an ancestor's CSS zoom. Moved here from the editor's `paint.ts` when the tracker became its second caller (**R1**). |
-| `measure.ts` | **One scheduler for the page**: one `ResizeObserver` (flushed inside its own callback, so geometry and mask land in the frame that caused them), one `MutationObserver` and `document.fonts` (batched to one `requestAnimationFrame`), one `IntersectionObserver` (off-screen tilesets skip their reads). Reads every tracker before writing any. **This is ADR-006's concession, extended** — `07` **R5** says the renderer never measures, and with `options.avoid` it now measures other elements too. |
+| `measure.ts` | **One scheduler for the page** (an `avoid` selector resolves in `scopeOf(box)`: the nearest ancestor the package did not add, skipping `data-tileset-wrapper`): one `ResizeObserver` (flushed inside its own callback, so geometry and mask land in the frame that caused them), one `MutationObserver` and `document.fonts` (batched to one `requestAnimationFrame`), one `IntersectionObserver` (off-screen tilesets skip their reads). Reads every tracker before writing any. **This is ADR-006's concession, extended** — `07` **R5** says the renderer never measures, and with `options.avoid` it now measures other elements too. |
 | `images.ts` | Decoded bitmaps for the canvas substrate. |
 | `provider.ts` | Resolves `(tileId, assetId)` → `Drawable`. Keyed on the **pair**, never on `assetId` alone. |
 
@@ -199,22 +203,29 @@ ratio. Read it before changing `uniform.ts`, a crop policy, or the substrate def
 plausible-looking fixes there are measured dead ends, and four of them were confident claims about
 browser mechanisms that turned out to be false.
 
-### Decorations are the zero-bleed corner of that geometry
+### Shapes, rules, and decorations as the zero-bleed corner
 
-`decoration.ts` exists because `rows`/`columns` are `TilesetConfig` fields and `cellSize`/
-`referenceWidth` are `Layout` fields, so "the same design at another size" is a different file —
-and a page with a dozen small tile blocks in its margins then carries a dozen copies of one `tiles`
+`shape.ts` exists because `rows`/`columns` are `TilesetConfig` fields and `cellSize`/
+`referenceWidth` are `Layout` fields, so "the same design at another size" was a different file —
+and a page with a dozen small tile blocks in its margins then carried a dozen copies of one `tiles`
 array. The data model was already size-independent everywhere except the two `coordinateBound`
-Selections; the size was simply not separable from the thing being shared.
+Selections; the size was simply not separable from the thing being shared. `reshape` separates it.
 
-**It lands on the exact case the rest of this section is about not having.** `referenceWidth =
-columns * cellSize` and `yOffset = 0`, so `originX` is 0, `s` is 1 and `presentScale` is 1 at
+**A responsive rule is a reshape with a width condition**, so rules add no concept. The file's
+rules (schema v3) or the host's (`options.responsive`, which replace them) cascade as CSS does;
+`<Tileset>` resolves them against the render box's measured width, never the viewport. What a
+crossing costs is in `breakpoints.ts`'s header: nothing inside a band, geometry only for a density
+change, one cached `generate()` per new `(rows, columns)`. Before measurement the box's height comes
+from `reservationCss`, a container query per band on a wrapper that exists only when rules do.
+
+**Decorations are one preset of it** — `bleed: 0, yOffset: 0` — and land on an exact case.
+`referenceWidth = columns * cellSize` and `yOffset = 0`, so `originX` is 0, `s` is 1 and `presentScale` is 1 at
 integer DPR: the quantisation residual is *zero* rather than minimised, and the full-bleed case
 `ARCHITECTURE.md` says "is served by no substrate here" is served here by there being no bleed to
-fit. That is a property of the derivation and is asserted in `decoration.test.ts`, not assumed.
+fit. That is a property of the derivation and is asserted in `shape.test.ts`, not assumed.
 
 Variation between two spots is the **`seed` prop**, which already existed. Nothing in
-`decoration.ts` touches a salt.
+`shape.ts` touches a salt.
 
 ## `apps/editor/src` — the editor
 

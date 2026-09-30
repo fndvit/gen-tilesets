@@ -16,7 +16,7 @@
   **The atlas's own `tileset.json` cannot be the style.** Its second Operation is
   a `rect {x: 0, y: 0, width: 76, height: 7}`, and `rect` is `coordinateBound`:
   it holds literal cell coordinates and so means nothing in a 3x2 spot.
-  `decorationStyleErrors` is exactly that check, and `<TileDecoration>` throws on
+  `reshapeErrors` is exactly that check, and `<TileDecoration>` throws on
   it under `DEV` — so the style below is built for the purpose, from procedural
   Selections only. Swap a `rect` in and the page fails loudly rather than drawing
   a plausible wrong picture.
@@ -51,8 +51,9 @@
    * placement overrides them, and the style is never rendered at this size. They
    * are 1x1 rather than something plausible so that a decoration accidentally
    * drawing at the style's size would be unmistakable rather than subtle.
-   * `layout`'s numbers are equally inert: `decorationFile` derives
-   * `referenceWidth` from the placement and zeroes `yOffset`.
+   * `layout`'s numbers are equally inert: the decoration preset
+   * (`reshape` with `bleed: 0, yOffset: 0`) derives `referenceWidth` from the
+   * placement and zeroes `yOffset`.
    *
    * Two Operations, both procedural:
    *

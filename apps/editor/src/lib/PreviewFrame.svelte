@@ -26,16 +26,27 @@
   **The design principle, which is the whole of the fix (§9.2):** the destructive
   edit must not be the one that is easy to do by accident. A page edge that can be
   dragged reads as a viewport, and a viewport does not destroy work.
+
+  **Since 0.7.0 this is also the breakpoint preview**, and still writes no field.
+  The file's `responsive` rules select a shape by render-box width, and the
+  preview is `<Tileset>` on the file (**S2**), so dragging across a breakpoint
+  shows the rule taking over with nothing added here. What this control adds is
+  a readout of which rules hold at the current width, and a button per bound so
+  the author can land exactly on one — bounds are inclusive, so the button shows
+  the rule applying.
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { activeRules, type ResponsiveRule } from "@fndvit/gen-tilesets";
   import ReferenceControls from "./ReferenceControls.svelte";
   import ReferenceLayer from "./ReferenceLayer.svelte";
   import { frameExtent, layerHeight, loadReference, type Reference } from "../reference.js";
 
   interface Props {
     /**
-     * The render box's natural aspect ratio, from the package's `naturalRatio`.
+     * The render box's natural aspect ratio at a width, from the package's
+     * `naturalRatio`. A function of `Wpx` since 0.7.0, because a breakpoint can
+     * change `rows` — still computed rather than measured, for the reason below.
      *
      * Passed in rather than measured. `07` §5.3: "the render box's natural
      * aspect ratio is a constant" of `Layout` and `rows`, with `Wpx` cancelled
@@ -44,7 +55,13 @@
      * and the only version that cannot form a measurement cycle — see the
      * `align-items` note in the styles below.
      */
-    ratio: number;
+    ratio: (Wpx: number) => number;
+
+    /**
+     * The file's breakpoints, for the readout and the bound buttons. The frame
+     * reads them and nothing else about the file.
+     */
+    rules?: readonly ResponsiveRule[];
 
     /**
      * Rendered with the current **`Wpx`**.
@@ -67,7 +84,8 @@
     painting?: boolean;
   }
 
-  let { ratio, children, painting = false }: Props = $props();
+  let { ratio, rules = [], children, painting = false }: Props = $props();
+
 
   /**
    * The narrowest the frame may be dragged, in px.
@@ -83,10 +101,9 @@
    * Preset widths, offered as a convenience on this control.
    *
    * §9.2: they "carry no spec content". **The term _breakpoint_ is reserved for
-   * `06` §12's `layouts` extension point and is not used for them** — these
-   * select a preview width and nothing in the file responds to them, where a
-   * breakpoint would eventually select a `Layout`. UI constants; see
-   * `DECISIONS.md` D17.
+   * the file's `responsive` rules and is not used for these** — they select a
+   * preview width and nothing in the file names them. The file's own bounds get
+   * buttons of their own, beside these. UI constants; see `DECISIONS.md` D17.
    */
   const PRESETS = [375, 768, 1024, 1440];
 
@@ -158,6 +175,19 @@
    */
   const width = $derived(requested === null ? room : Math.max(requested, MIN_WIDTH));
 
+  /** Every distinct bound the rules name, ascending — one button each. */
+  const bounds = $derived(
+    [...new Set(rules.flatMap((r) => [r.minWidth, r.maxWidth]).filter((w): w is number => w !== undefined))].sort(
+      (a, b) => a - b,
+    ),
+  );
+
+  /** Which rules hold here, by 1-based number, or "base". */
+  const holding = $derived.by(() => {
+    const active = activeRules(rules, width);
+    return active.length === 0 ? "base" : `rule ${active.map((r) => rules.indexOf(r) + 1).join(" + ")}`;
+  });
+
   /**
    * The **display zoom**, applied when `Wpx` exceeds the room the editor has.
    *
@@ -185,7 +215,10 @@
    * figure, because a transform does not affect layout and the frame would
    * otherwise leave its full-size gap behind.
    */
-  const frameHeight = $derived(ratio > 0 ? width / ratio : 0);
+  const frameHeight = $derived.by(() => {
+    const r = ratio(width);
+    return r > 0 ? width / r : 0;
+  });
 
   /**
    * The reference image and its three viewing controls — **E11** state, in the
@@ -311,9 +344,17 @@
   <span class="readout">
     render box <code>{Math.round(width)}px</code>
     <em>
-      Wpx · writes no field{#if zoom < 1} · shown at {Math.round(zoom * 100)}%{/if}
+      Wpx · writes no field{#if zoom < 1} · shown at {Math.round(zoom * 100)}%{/if}{#if rules.length > 0}
+        · {holding}{/if}
     </em>
   </span>
+  {#if bounds.length > 0}
+    <div class="presets breakpoints" title="The file's breakpoints. Bounds are inclusive.">
+      {#each bounds as bound (bound)}
+        <button class:on={requested === bound} onclick={() => (requested = bound)}>{bound}</button>
+      {/each}
+    </div>
+  {/if}
   <div class="presets">
     {#each PRESETS as preset (preset)}
       <button
@@ -476,6 +517,10 @@
     font: inherit;
     font-size: 0.72rem;
     cursor: pointer;
+  }
+
+  .breakpoints button {
+    border-style: dashed;
   }
 
   .presets button.on {

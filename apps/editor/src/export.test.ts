@@ -46,7 +46,7 @@ const bytes = () => new Uint8Array([1, 2, 3]);
 describe("the file — 09 §11.3", () => {
   it("carries schemaVersion and engineVersion, always", () => {
     const parsed = JSON.parse(serialize(newDocument()));
-    expect(parsed.schemaVersion).toBe(2);
+    expect(parsed.schemaVersion).toBe(3);
     expect(typeof parsed.engineVersion).toBe("string");
   });
 

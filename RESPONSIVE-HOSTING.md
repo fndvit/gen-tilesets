@@ -8,8 +8,9 @@ convention: `ARCHITECTURE.md` says how the renderer is built, the source comment
 rationale at each point of use, and this document carries the part that belongs to no single point
 of use. Nothing here is normative. **Sections 3 and 4 are not built** — they describe designs
 that were reasoned through and deliberately not implemented, and the reasoning is the payload.
-**Section 7 is built** (0.6.0): it is what replaced Route B, and it says why. **Section 8 is not
-built**: it applies the same questions to `<TileDecoration>`.
+**Section 7 is built** (0.6.0): it is what replaced Route B, and it says why. **Section 8** applies
+the same questions to `<TileDecoration>`; §8.2's fix is built (0.7.0), the rest is not. **Section 9
+is built** (0.7.0): Route C, as responsive rules, and what it costs that Route E did not.
 
 Every claim about the code below was made with the file open, and cites where.
 
@@ -191,6 +192,9 @@ correct answer.
 
 ### C1 — `layouts` keyed by `minWidth`
 
+*Superseded in 0.7.0 by responsive rules — §9 — which key shape overrides by the render box's
+width. The SSR cost named below is answered there with a container query.*
+
 The reserved extension point. Per-band `cellSize` and `referenceWidth`, so tiles stop being five
 pixels wide on a phone. It solves **density**, not gap placement — see §1's last bullet.
 
@@ -337,7 +341,7 @@ has an answer that does not need C1 either.
 
 ---
 
-## 8. Decorations. **Not built.**
+## 8. Decorations. **§8.2 built in 0.7.0; the rest not built.**
 
 What the two questions above — how a picture responds to width, and whether it can see the page —
 come to for `<TileDecoration>` (`packages/tileset/src/decoration.ts`,
@@ -373,6 +377,12 @@ but it crops at a pixel. A decoration's edge is visible against the page's backd
 the demo's background is light), so the crop shows up as a half tile.
 
 ### 8.2 `options.avoid` through `<TileDecoration>`
+
+*Fixed in 0.7.0, by a different route than the sketch below: the package marks every wrapper it adds
+with `data-tileset-wrapper`, and `measure.ts`'s `scopeOf` walks past them to the host's section. An
+explicit scope threaded through an internal prop was rejected because every wrapper added later
+would have had to remember to pass it — and responsive rules added one immediately. Pinned by a
+`measure.test.ts` case. The analysis below is kept as it was written.*
 
 `options` goes through untouched, so `avoid` reaches `<Tileset>`. Two things are wrong with the
 result.
@@ -442,3 +452,44 @@ renormalize per width step.
 - **The `avoid` scope fix**, when the first decoration overlaps copy. Or sooner, because the
   failure is silent: the first time someone passes a selector and gets nothing, this section is
   the diagnosis.
+
+---
+
+## 9. Route C, as responsive rules. **Built, in 0.7.0.**
+
+C1's "layouts keyed by width" and the decorations' "same design at another size" turned out to be
+one mechanism. `shape.ts`'s `reshape(file, override)` overrides the shape — `rows`, `columns`,
+`cellSize`, `bleed`, `yOffset` — and shares the design by reference; a responsive rule is that
+override with a width condition, stored in the file (schema v3) or passed by the host
+(`options.responsive`, which replaces the file's). `<TileDecoration>` is its zero-bleed preset.
+
+**What it solves, and what it does not.** It answers §1's density complaint and "more rows on a
+phone" without a second file. It does **not** move a gap: `rect` and `cellList` still pin `rows` and
+`columns`, and `validate()` refuses a rule that resizes a stack holding one
+(`COORDINATE_BOUND_RESIZE`). Gaps under reflowing text remain Route E's. "A phone hero is a different
+design" remains C2's — a second file — because rules change the shape and never the design.
+
+**The cost Route E avoided and this one pays.** §7 made a point of the file plus `(seed, loadSalt)`
+determining the grid with no viewport involved. Rules give that up, deliberately and in the one
+discrete way §3 described: the render box's width now selects which config reaches `generate()`.
+`generate()` itself is untouched — it still receives a config and never a pixel (**G5**) — but the
+picture on a page is a function of `(file, seed, loadSalt, band)`, and the vector tables `05` §11
+requires will need the band in them. That is why the mechanism is shaped the way it is:
+
+- **The band is a pure function of the width** (`responsive.ts`'s `activeKey`), so a table can pin
+  `(rules, width) → override` without a browser, and `bandWidths` enumerates every band exactly.
+- **Positional hashing pays its dividend a third time.** A cell present on both sides of a bound
+  keeps its TileState and asset, so a breakpoint extends or trims the picture rather than
+  reshuffling it — except under `gradient`, which spans whatever grid it is in, and that is pinned
+  in `shape.test.ts` as the documented exception.
+- **§3's lattice hysteresis, in a new place.** Regeneration happens only when the active key
+  changes *and* `rows` or `columns` changes to a size not seen before (`GridCache`), so a resize
+  inside a band is still a pure rescale and a window dragged back and forth generates once per
+  shape.
+- **C1's SSR regression is answered.** The box reserves each band's height with a container query
+  (`reservationCss`) before anything is measured, and the tiles wait for the measurement, as they
+  do under `avoid`. The cost moved to a requirement: a responsive tileset's parent needs a definite
+  width, because the wrapper carrying the query has inline-size containment.
+- **No hysteresis in the band itself.** A rows change can toggle the page scrollbar and push the box
+  back across a bound; the picture stays a pure function of the width at every frame, and a
+  development build names the loop instead of hiding it (`FlipFlop`).
