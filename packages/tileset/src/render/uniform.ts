@@ -70,7 +70,7 @@ import {
   type GridGeometry,
   type Lattice,
 } from "./geometry.js";
-import { isIdentityTransform, sincos, type Matrix } from "./transform.js";
+import { isIdentityTransform, sincos, translationDev, type Matrix } from "./transform.js";
 
 /**
  * Everything a substrate needs in order to draw the uniform grid, plus the
@@ -457,7 +457,10 @@ export interface UniformItem {
   index: number;
   x: number;
   y: number;
-  /** The cell's top-left in the raster. Integral, a multiple of `cellDev` off the origin. */
+  /**
+   * The cell's top-left in the raster. Integral: a multiple of `cellDev` off the
+   * origin, plus the cell's translation in whole device px (`translationDev`).
+   */
   dx: number;
   dy: number;
   /** The cell's side. `cellDev` for every cell — the whole point. */
@@ -514,8 +517,13 @@ export function uniformDrawList(
     const x = i % grid.columns;
     if (x < range.x0 || x >= range.x1) continue;
     const y = Math.floor(i / grid.columns);
-    const dx = originXDev + (x - range.x0) * cellDev;
-    const dy = originYDev + y * cellDev;
+    // The translation is placement, not transform -- see `translationDev`. It
+    // moves `dx`/`dy`, and so `cx`/`cy`, which is where the matrix pivots: the
+    // tile turns about where it landed. A tile moved off the raster is clipped by
+    // the canvas, and the raster's size is the lattice's -- it never grows for it.
+    const { tx, ty } = translationDev(cell, cellDev);
+    const dx = originXDev + (x - range.x0) * cellDev + tx;
+    const dy = originYDev + y * cellDev + ty;
 
     out.push({
       key: keyOf(cell.tileId, cell.assetId),

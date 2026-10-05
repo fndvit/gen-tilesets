@@ -1,0 +1,321 @@
+{
+  "schemaVersion": 4,
+  "engineVersion": "0.0.0",
+  "config": {
+    "rows": 22,
+    "columns": 34,
+    "defaultSeed": "kelp-thicket-78",
+    "assetSalt": 49,
+    "reseedAssetsOnLoad": false,
+    "tiles": [
+      {
+        "id": "t1",
+        "name": "circle2Beige",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a2",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t1/a2.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a3",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t1/a3.svg",
+              "width": 12,
+              "height": 12
+            }
+          }
+        ]
+      },
+      {
+        "id": "t2",
+        "name": "circle4Beige",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t2/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a2",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t2/a2.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a3",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t2/a3.svg",
+              "width": 12,
+              "height": 12
+            }
+          }
+        ]
+      },
+      {
+        "id": "t3",
+        "name": "circle05Beige",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a2",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t3/a2.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a3",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t3/a3.svg",
+              "width": 12,
+              "height": 12
+            }
+          }
+        ]
+      },
+      {
+        "id": "t4",
+        "name": "circleSolidBeige",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t4/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a2",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t4/a2.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a3",
+            "weight": 2,
+            "meta": {
+              "src": "tiles/t4/a3.svg",
+              "width": 12,
+              "height": 12
+            }
+          }
+        ]
+      },
+      {
+        "id": "t5",
+        "name": "solidBeige",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t5/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a2",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t5/a2.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a3",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t5/a3.svg",
+              "width": 12,
+              "height": 12
+            }
+          }
+        ]
+      },
+      {
+        "id": "t6",
+        "name": "stripesFull",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t6/a1.svg",
+              "width": 39,
+              "height": 39
+            }
+          }
+        ]
+      }
+    ],
+    "operations": [
+      {
+        "id": "op1",
+        "salt": 13,
+        "reseedOnLoad": false,
+        "selection": {
+          "type": "all"
+        },
+        "source": {
+          "type": "valueNoise",
+          "cellsPerFeature": 20,
+          "octaves": 1
+        },
+        "target": "tileId",
+        "mapping": {
+          "palette": [
+            {
+              "tileId": "t4",
+              "weight": 1
+            },
+            {
+              "tileId": "t2",
+              "weight": 1
+            },
+            {
+              "tileId": "t1",
+              "weight": 1
+            },
+            {
+              "tileId": "t3",
+              "weight": 1
+            }
+          ]
+        },
+        "blend": "set"
+      },
+      {
+        "id": "op2",
+        "salt": 71,
+        "reseedOnLoad": false,
+        "selection": {
+          "type": "all"
+        },
+        "source": {
+          "type": "valueNoise",
+          "cellsPerFeature": 30,
+          "octaves": 1
+        },
+        "target": "scale",
+        "mapping": {
+          "range": [
+            0,
+            1
+          ]
+        },
+        "blend": "set"
+      },
+      {
+        "id": "op3",
+        "salt": 147,
+        "reseedOnLoad": false,
+        "selection": {
+          "type": "random",
+          "density": 0.06
+        },
+        "source": {
+          "type": "constant"
+        },
+        "target": "tileId",
+        "mapping": {
+          "palette": [
+            {
+              "tileId": "t5",
+              "weight": 1
+            }
+          ]
+        },
+        "blend": "set"
+      },
+      {
+        "id": "op4",
+        "salt": 0,
+        "reseedOnLoad": false,
+        "selection": {
+          "type": "all"
+        },
+        "source": {
+          "type": "valueNoise",
+          "cellsPerFeature": 20,
+          "octaves": 1
+        },
+        "target": "translateX",
+        "mapping": {
+          "range": [
+            -1,
+            1
+          ]
+        },
+        "blend": "set"
+      },
+      {
+        "id": "op5",
+        "salt": 0,
+        "reseedOnLoad": false,
+        "selection": {
+          "type": "all"
+        },
+        "source": {
+          "type": "valueNoise",
+          "cellsPerFeature": 5,
+          "octaves": 1
+        },
+        "target": "translateY",
+        "mapping": {
+          "range": [
+            1,
+            -1
+          ]
+        },
+        "blend": "set"
+      }
+    ]
+  },
+  "layout": {
+    "cellSize": 30,
+    "referenceWidth": 1000,
+    "yOffset": 0,
+    "horizontalAlignment": "gutter"
+  }
+}

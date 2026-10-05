@@ -100,6 +100,17 @@ export const MIGRATIONS: readonly Migration[] = [
     note: "nothing to do — 0.7.0 added the optional `responsive` rules and changed no key",
     upgrade: (file) => ({ ...file, schemaVersion: 3 }),
   },
+  {
+    from: 3,
+    to: 4,
+    // 0.8.0 added the `translateX`/`translateY` attributes. As with `scale` in
+    // 1 -> 2, their only reach into the file is that `Operation.target` gained two
+    // admissible values -- a pure widening. The bump exists so an older engine
+    // meeting a file that *uses* them refuses it by version (C2) rather than with
+    // an OUT_OF_RANGE target.
+    note: "nothing to do — 0.8.0 widened Operation.target with translateX/translateY and changed no key",
+    upgrade: (file) => ({ ...file, schemaVersion: 4 }),
+  },
 ];
 
 function isObject(value: unknown): value is Record<string, unknown> {

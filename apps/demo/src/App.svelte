@@ -24,6 +24,7 @@
   import Decorations from "./Decorations.svelte";
   import Hosting from "./Hosting.svelte";
   import Responsive from "./Responsive.svelte";
+  import Kelp from "./Kelp.svelte";
 
   /**
    * The archive root, served statically. `meta.src` is written relative to it
@@ -145,6 +146,12 @@
     <Tileset {file} options={{ seed, loadSalt, substrate, provider, onAssetError }} />
   {/if}
 </div>
+
+<!--
+  An editor export dropped in as-is (`public/kelp/`), on the DOM substrate: the
+  first fixture to use `translateX` / `translateY`. See its header.
+-->
+<Kelp />
 
 <!--
   A second fixture, and the opposite regime: 2x2 at a ~350 device px cell in an

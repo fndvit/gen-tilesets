@@ -25,7 +25,7 @@ import {
   type AlignY,
   type GridGeometry,
 } from "./geometry.js";
-import { maxSpill } from "./transform.js";
+import { drawnHalfExtents, maxSpill, translationDev } from "./transform.js";
 import {
   canvasPresentation,
   domGeometry,
@@ -325,6 +325,39 @@ describe("cellPlacementAffine — CSS before measurement, in every mode", () => 
     }
   });
 
+  it("places a translated cell as if it sat t cells over — 0.8.0", () => {
+    const r = rng(23);
+    for (let n = 0; n < 200; n++) {
+      const g: GridGeometry = {
+        ...randomGeometry(r),
+        sizing: r() < 0.5 ? "fixed" : "fluid",
+        alignX: (["left", "center", "right"] as const)[Math.floor(r() * 3)],
+        alignY: (["top", "center", "bottom"] as const)[Math.floor(r() * 3)],
+      };
+      const x = Math.floor(r() * g.columns);
+      const y = Math.floor(r() * g.rows);
+      const t = { translateX: (r() - 0.5) * 6, translateY: (r() - 0.5) * 6 };
+      const plain = cellPlacementAffine(g, x, y);
+      const moved = cellPlacementAffine(g, x, y, t);
+      const at = (v: { pct: number; px: number }) => (v.pct / 100) * g.Wpx + v.px;
+      const side = at(plain.side);
+      expect(at(moved.side)).toBeCloseTo(side, 9);
+      expect(at(moved.left) - at(plain.left)).toBeCloseTo(t.translateX * side, 6);
+      expect(at(moved.marginTop) - at(plain.marginTop)).toBeCloseTo(t.translateY * side, 6);
+      expect(moved.topPct).toBe(plain.topPct);
+    }
+  });
+
+  it("is byte-identical at t = 0 to the call without a translation", () => {
+    const r = rng(24);
+    for (let n = 0; n < 50; n++) {
+      const g = { ...randomGeometry(r), sizing: r() < 0.5 ? ("fixed" as const) : ("fluid" as const) };
+      expect(cellPlacementAffine(g, 3, 2, { translateX: 0, translateY: 0 })).toEqual(
+        cellPlacementAffine(g, 3, 2),
+      );
+    }
+  });
+
   it("writes calc() only when both terms are present", () => {
     expect(cssLength({ pct: 12.5, px: 0 })).toBe("12.5%");
     expect(cssLength({ pct: 0, px: -4 })).toBe("-4px");
@@ -377,6 +410,8 @@ describe("the culled canvas draw list", () => {
     scaleY: 1,
     rotation: 0,
     opacity: 1,
+    translateX: 0,
+    translateY: 0,
     ...over,
   });
   const grid: Grid<TileState> = { rows: 2, columns: 10, cells: Array.from({ length: 20 }, () => cell()) };
@@ -417,6 +452,8 @@ describe("maxSpill", () => {
     scaleY: 1,
     rotation: 0,
     opacity: 1,
+    translateX: 0,
+    translateY: 0,
     ...over,
   });
 
@@ -431,5 +468,39 @@ describe("maxSpill", () => {
     expect(maxSpill({ cells: [cell({ rotation: 45 })] })).toBe(1);
     // Scale 4 reaches 1.5 cells past its own.
     expect(maxSpill({ cells: [cell({ scale: 4 })] })).toBe(2);
+  });
+
+  it("counts translation, in either direction, on top of scale and rotation — 0.8.0", () => {
+    // A translate-only cell is an identity *transform* and still spills.
+    expect(maxSpill({ cells: [cell({ translateX: 0.3 })] })).toBe(1);
+    expect(maxSpill({ cells: [cell({ translateY: -2.5 })] })).toBe(3);
+    expect(maxSpill({ cells: [cell({ translateX: 40 })] })).toBe(40);
+    // Scale 2 reaches 0.5 past its cell; translated 1 more, 1.5 -> 2.
+    expect(maxSpill({ cells: [cell({ scale: 2, translateX: -1 })] })).toBe(2);
+    // A shrunk tile moved inside its own square spills nothing.
+    expect(maxSpill({ cells: [cell({ scale: 0.5, translateX: 0.2 })] })).toBe(0);
+  });
+
+  it("agrees with drawnHalfExtents, which it is computed from", () => {
+    expect(drawnHalfExtents(cell({}))).toEqual({ halfW: 0.5, halfH: 0.5 });
+    const h = drawnHalfExtents(cell({ rotation: 45 }));
+    expect(h.halfW).toBeCloseTo(Math.SQRT1_2, 12);
+    expect(h.halfH).toBeCloseTo(Math.SQRT1_2, 12);
+    expect(drawnHalfExtents(cell({ scaleX: -2, scaleY: 1 }))).toEqual({ halfW: 1, halfH: 0.5 });
+    // Quarter turns transpose exactly, thanks to sincos.
+    expect(drawnHalfExtents(cell({ scaleX: 2, rotation: 90 }))).toEqual({ halfW: 0.5, halfH: 1 });
+  });
+});
+
+describe("translationDev", () => {
+  it("is cells times the device cell, rounded to a whole device pixel", () => {
+    expect(translationDev({ translateX: 0.5, translateY: -0.25 }, 40)).toEqual({ tx: 20, ty: -10 });
+    expect(translationDev({ translateX: 0.33, translateY: 1 }, 37)).toEqual({ tx: 12, ty: 37 });
+  });
+
+  it("is exactly 0, never -0, for a zero or tiny translation", () => {
+    const { tx, ty } = translationDev({ translateX: 0, translateY: -0.001 }, 40);
+    expect(Object.is(tx, 0)).toBe(true);
+    expect(Object.is(ty, 0)).toBe(true);
   });
 });

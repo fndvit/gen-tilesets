@@ -92,8 +92,8 @@ export type ErrorCode =
   | "INVALID_TARGET_BLEND"
   | "COORDINATE_BOUND_RESIZE";
 
-/** The one version this build knows — `06` §4.1, **C2**. 3 since 0.7.0 (`responsive`); 2 was ADR-005. */
-export const SCHEMA_VERSION = 3;
+/** The one version this build knows — `06` §4.1, **C2**. 4 since 0.8.0 (`translateX`/`translateY`); 3 was 0.7.0 (`responsive`); 2 was ADR-005. */
+export const SCHEMA_VERSION = 4;
 
 /** `06` §5.3, **C10**. Excludes `:`, which `04` §4.3 concatenates with. */
 const IDENTIFIER = /^[A-Za-z0-9_-]+$/;

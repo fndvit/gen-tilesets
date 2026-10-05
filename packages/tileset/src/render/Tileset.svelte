@@ -62,7 +62,7 @@
     type GridGeometry,
     type Lattice,
   } from "./geometry.js";
-  import { cssTransform, isIdentityTransform, maxSpill } from "./transform.js";
+  import { cssTransform, isIdentityTransform, maxSpill, translationDev } from "./transform.js";
   import { coverRect } from "./edges.js";
   import {
     canvasPresentation,
@@ -74,7 +74,7 @@
   import { assetTooSmall, cellTooSmall, WarnOnce } from "./warn.js";
   import { currentDpr, observeDpr, track, WRAPPER_ATTRIBUTE } from "./measure.js";
   import { FlipFlop, GridCache, inertCellSizeRules, reservationCss } from "./breakpoints.js";
-  import { occlusionMask, stableMask, type OcclusionMask } from "./occlusion.js";
+  import { drawnTiles, occlusionMask, stableMask, type OcclusionMask } from "./occlusion.js";
   import {
     effectiveRules,
     legacyPropErrors,
@@ -176,6 +176,7 @@
   const seedOption = $derived(resolved.seed);
   const loadSalt = $derived(resolved.loadSalt);
   const substrate = $derived(resolved.substrate);
+  const overflow = $derived(resolved.overflow);
   const baseSizing = $derived(resolved.sizing);
   const baseAlignX = $derived(resolved.alignX);
   const baseAlignY = $derived(resolved.alignY);
@@ -477,7 +478,7 @@
    * of them.
    */
   function cellStyle(cell: TileState, x: number, y: number): string {
-    let style = domPlacement(x, y);
+    let style = domPlacement(cell, x, y);
     if (!isIdentityTransform(cell)) style += ` transform: ${cssTransform(cell)};`;
     if (cell.opacity < 1) style += ` opacity: ${cell.opacity};`;
     return style;
@@ -525,18 +526,23 @@
    * outside it, in the region **R9** clips — and `08` **S8**'s reserved space is the
    * box's, not the cells', so nothing reflows around it either.
    */
-  function domPlacement(x: number, y: number): string {
+  function domPlacement(cell: TileState, x: number, y: number): string {
     const u = domCell;
     if (u !== null) {
       const side = u.cellDev / dpr;
+      // 0.8.0's translation rides on the margin, in whole device px, for the
+      // reason `translationDev` gives: a cell that is only translated keeps its
+      // snapped box. Moving the border box is also what moves the hit area, so a
+      // translated tile is hit where it is drawn, by the browser, for nothing.
+      const { tx, ty } = translationDev(cell, u.cellDev);
       return (
         `width: ${side}px; ` +
         `height: ${side}px; ` +
-        `margin-left: ${(u.originXDev + x * u.cellDev) / dpr}px; ` +
-        `margin-top: ${(u.originYDev + y * u.cellDev) / dpr}px;`
+        `margin-left: ${(u.originXDev + x * u.cellDev + tx) / dpr}px; ` +
+        `margin-top: ${(u.originYDev + y * u.cellDev + ty) / dpr}px;`
       );
     }
-    const p = cellPlacementAffine({ layout, rows, columns, sizing, alignX, alignY }, x, y);
+    const p = cellPlacementAffine({ layout, rows, columns, sizing, alignX, alignY }, x, y, cell);
     return (
       `width: ${cssLength(p.side)}; ` +
       `margin-left: ${cssLength(p.left)}; ` +
@@ -772,10 +778,25 @@
    * an attribute and the canvas repainting for a mask that did not move.
    * `lastMask` is a plain variable for `lastTargets`' reason: a memo, not state.
    */
+  /**
+   * Each cell's drawn tile at rest, for the mask — per grid, like `spill`, because
+   * the mask tests the tile and not the lattice square since 0.8.0 (see
+   * `occlusion.ts`'s header). The rest pose only: no animation ever reaches it.
+   */
+  const drawn = $derived(drawnTiles(grid));
+
+  /** The device-px cell `lattice` was painted with — what the mask rounds a translation by. */
+  const paintedCellDev = $derived(
+    substrate === "canvas" ? (uniform?.cellDev ?? null) : (domCell?.cellDev ?? null),
+  );
+
   let lastMask: OcclusionMask | null = null;
   const mask = $derived.by((): OcclusionMask | null => {
-    if (keepout === null || lattice === null) return null;
-    lastMask = stableMask(lastMask, occlusionMask(lattice, columns, rows, keepout, padding));
+    if (keepout === null || lattice === null || paintedCellDev === null) return null;
+    lastMask = stableMask(
+      lastMask,
+      occlusionMask(lattice, columns, rows, keepout, padding, { tiles: drawn, cellDev: paintedCellDev }),
+    );
     return lastMask;
   });
 
@@ -976,6 +997,12 @@
   is the box's top edge meeting a negative `originY`, and the horizontal bleed is
   its side edges meeting a negative `originX`.
 
+  Since 0.8.0 the DOM box can give that clip up: `options.overflow: "visible"`
+  hands it to the host, whose own `overflow: hidden` on an ancestor is then the
+  boundary, if it wants one. Both cases above come back into view with it, which is
+  the price of seeing a translated tile whole and is documented on the option. It
+  stays one boundary, never one per cell; it is only a question of whose.
+
   **§4.5** — the output is decorative. The box is `aria-hidden` and every image
   carries `alt=""`. Meaningful content is never a tile.
 
@@ -1111,8 +1138,14 @@
       over the page until the keep-out mask exists — which on the server means the
       whole of hydration. Space is still reserved, so nothing reflows when it appears.
     -->
+    <!--
+      `overflow-visible` is a class rather than part of `style`: the style string is
+      geometry and `pending`, rewritten on every resize, and this changes only when
+      the option does.
+    -->
     <div
       class="tileset"
+      class:overflow-visible={overflow === "visible"}
       style={(domCell === null && sizing !== "fixed" && !hasRules ? `aspect-ratio: ${ratio};` : "") +
         (pending ? " visibility: hidden;" : "")}
       aria-hidden="true"
@@ -1144,6 +1177,19 @@
         because `stableMask` keeps the identity of an unchanged mask, is none at all
         on most frames of a resize. It is also a hook a host stylesheet can target,
         and a later fade can transition.
+
+        **`data-x` / `data-y` are the cell's identity, and this is the interactive
+        substrate.** The browser hit-tests each `.cell` by its border box under its
+        transform — so by the drawn tile, translated, scaled and turned, not by its
+        home square — and resolves overlaps by document order, which is paint order.
+        Masked cells are `visibility: hidden` and take no hits. What the browser could
+        not say is *which* cell was hit; a host delegating one listener on the box
+        reads it here. The canvas is one element and stays decorative.
+
+        **The hit area is the rest pose.** `.cell` carries the generated transform and
+        must not be animated: a hover effect that scaled `.cell` itself would move the
+        hit area under the pointer and flicker at the edge. Animate the `<img>`
+        inside it, and the cell stays where it is hit.
       -->
       {#each shownCells as { cell, i, x, y } (`${x},${y}`)}
         {@const key = assetKey(cell.tileId!, cell.assetId!)}
@@ -1151,6 +1197,8 @@
             <div
               class="cell"
               style={cellStyle(cell, x, y)}
+              data-x={x}
+              data-y={y}
               data-masked={masked(i) ? "" : undefined}
             >
               <!--
@@ -1188,7 +1236,9 @@
         `07` §7.3's vertical bleed is a host writing `height` in its own stylesheet, and
         an inline style beats a stylesheet. An in-flow child leaves the host's `height`
         winning, with this simply overflowing into **R9**'s clip — exactly the
-        relationship the canvas has with its wrapper.
+        relationship the canvas has with its wrapper. Under `overflow: "visible"`
+        there is no clip for it to overflow into, but it is `width: 0` and draws
+        nothing, so a host height still wins and only the tiles show past it.
       -->
       {#if domCell !== null}
         <div class="extent" style="height: {domCell.gridHeightDev / dpr}px"></div>
@@ -1227,6 +1277,12 @@
     border: 0;
     /* R9 — the only clipping boundary in the system. */
     overflow: hidden;
+  }
+
+  /* `options.overflow: "visible"`, DOM only: the clip is handed to the host's own
+     ancestors. The box keeps its size; only what paints past it changes. */
+  .tileset.overflow-visible {
+    overflow: visible;
   }
 
   .presented {

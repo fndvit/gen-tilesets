@@ -33,6 +33,9 @@ import { defaultProvider, type AssetProvider, type AssetRef } from "./provider.j
 
 export type Substrate = "canvas" | "dom";
 
+/** Whether the render box clips the grid. See {@link TilesetOptions.overflow}. */
+export type Overflow = "hidden" | "visible";
+
 /**
  * A responsive rule written by the host: a file rule's shape fields, plus the two
  * render-space settings a page commonly wants to change at a width.
@@ -76,6 +79,32 @@ export interface TilesetOptions {
    *   up to a device pixel per cell, clipped at the sides.
    */
   substrate?: Substrate | undefined;
+
+  /**
+   * Whether the render box clips what is drawn past it. Default `"hidden"`, which
+   * is **R9**: the box is the only clipping boundary. **`substrate: "dom"` only.**
+   *
+   * - `"hidden"` — a tile translated, scaled or turned past the edge is cut there.
+   * - `"visible"` — the box clips nothing, and every cell that is built paints
+   *   wherever its tile lands. That shows more than the moved tiles: the designed
+   *   side bleed, the extra columns culling builds outside the box for tiles that
+   *   reach in (`maxSpill`, so the picture ends raggedly a column or so past each
+   *   side), and the top of row 0 that `yOffset` crops. Rows are never culled, so
+   *   below the box it is exactly the tiles that moved there.
+   *
+   * The clip is handed to the host, not removed: `overflow: hidden` on any
+   * ancestor puts one back wherever the page wants it, and the box keeps its size
+   * either way.
+   *
+   * Not on the canvas substrate, and passing it there is an error rather than a
+   * no-op: a canvas cannot paint outside its own bitmap. Rejected: an enlarged
+   * raster hanging past the box. It would move the canvas's presentation geometry
+   * (`uniform.ts`), which `SUBPIXEL-GEOMETRY.md` is the record of getting right.
+   *
+   * Not a `HostRule` field: it is how one placement hosts the design, and no case
+   * for changing it at a width has come up.
+   */
+  overflow?: Overflow | undefined;
 
   /**
    * How cells respond to the box's width. Default `"fluid"`.
@@ -160,6 +189,7 @@ export interface ResolvedOptions {
   seed: string | undefined;
   loadSalt: number;
   substrate: Substrate;
+  overflow: Overflow;
   sizing: Sizing;
   alignX: AlignX;
   alignY: AlignY;
@@ -175,6 +205,7 @@ export const DEFAULT_OPTIONS: Readonly<ResolvedOptions> = Object.freeze({
   seed: undefined,
   loadSalt: 0,
   substrate: "canvas",
+  overflow: "hidden",
   sizing: "fluid",
   alignX: "center",
   alignY: "top",
@@ -191,6 +222,7 @@ export function resolveOptions(o: TilesetOptions | undefined): ResolvedOptions {
     seed: o.seed ?? d.seed,
     loadSalt: o.loadSalt ?? d.loadSalt,
     substrate: o.substrate ?? d.substrate,
+    overflow: o.overflow ?? d.overflow,
     sizing: o.sizing ?? d.sizing,
     alignX: o.align?.x ?? d.alignX,
     alignY: o.align?.y ?? d.alignY,
@@ -270,6 +302,7 @@ export function sameTargets(a: NormalizedTargets | null, b: NormalizedTargets | 
 }
 
 const SUBSTRATES: readonly string[] = ["canvas", "dom"];
+const OVERFLOWS: readonly string[] = ["hidden", "visible"];
 const SIZINGS: readonly string[] = ["fluid", "fixed"];
 const ALIGN_X: readonly string[] = ["left", "center", "right"];
 const ALIGN_Y: readonly string[] = ["top", "center", "bottom"];
@@ -277,6 +310,7 @@ const KNOWN = new Set([
   "seed",
   "loadSalt",
   "substrate",
+  "overflow",
   "sizing",
   "align",
   "avoid",
@@ -325,6 +359,12 @@ export function optionErrors(o: unknown): string[] {
     errors.push("`options.loadSalt` must be a finite number.");
   }
   oneOf("options.substrate", r.substrate, SUBSTRATES);
+  oneOf("options.overflow", r.overflow, OVERFLOWS);
+  // Absent `substrate` is `"canvas"`, so `{ overflow: "visible" }` alone is this
+  // error too: ignoring the field would be a quiet wrong picture.
+  if (r.overflow === "visible" && (r.substrate ?? DEFAULT_OPTIONS.substrate) === "canvas") {
+    errors.push('`options.overflow: "visible"` needs `substrate: "dom"`: a canvas cannot draw outside itself.');
+  }
   oneOf("options.sizing", r.sizing, SIZINGS);
 
   if (r.align !== undefined) {

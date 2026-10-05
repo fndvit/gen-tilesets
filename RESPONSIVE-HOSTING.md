@@ -319,7 +319,10 @@ Taking Route B's cost list in order:
 
 Two decisions that §3 did not have to make:
 
-- **The lattice cell, not the drawn tile.** A tile scaled past its cell can still reach over the
+- **The lattice cell, not the drawn tile.** *(Superseded in 0.8.0: the test is now the drawn tile at
+  rest — see `occlusion.ts`'s header. Translation made the lattice rule visibly wrong, and the
+  per-frame objection below is kept by reading only the generated pose. The reasoning is left as it
+  was.)* A tile scaled past its cell can still reach over the
   text from a neighbour. Testing the painted bounds would catch that, and was declined for the
   predictable rule: the hidden region is the cells under the element and does not change when an
   attribute does, which is also what keeps a future animated transform from turning a per-layout

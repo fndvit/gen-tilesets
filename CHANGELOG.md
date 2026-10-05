@@ -8,6 +8,68 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.8.0 — `translateX` / `translateY`, and the drawn tile as the unit of hiding and hitting
+
+**The case.** A tile could be scaled, flipped, turned and faded, but always sat centred on its own
+cell. Jitter, staggered rows and hand-placed looks needed it to move. And once a tile can move, two
+things that had quietly meant "the home square" have to mean "the tile where it is drawn": what the
+pointer hits, and what the keep-out mask hides.
+
+### New: the `translateX` and `translateY` attributes — schema v4
+
+- **Cell units** (`1` is one cell side), grid axes, `y` down. Default `0`, open domain, every
+  numeric Blend accepted (`multiply` acts only on a translation an earlier `set`/`add` wrote).
+  Named so as not to collide with `Layout.yOffset`, whose positive shifts the grid *up*.
+- **`transform(pos) + t`:** the tile scales and turns about its own centre, then moves. Applied to
+  the cell's **placement**, rounded to a whole device pixel (`translationDev`), not to its matrix or
+  CSS `transform` — so a translate-only cell keeps its snapped box and equally-translated
+  neighbours keep their shared edge. Canvas `dx`/`dy`, DOM margins after measurement, and the
+  affine placement before it all go through it.
+- **Never changes the tileset's size.** No box dimension takes the grid; a tile moved past the
+  edge is cut or not visible. `maxSpill` counts translation, so culling still builds a tile moved
+  into view from a hidden column — one number for the grid, so one far-moved tile widens culling
+  for all (work, never layout).
+- `migrate()` lifts a v3 file to 4 with nothing to rewrite. **`TileState` gains two fields**, so a
+  grid is a structurally different object even where no value moved; every existing value is
+  unchanged (hash channels are keyed by Operation and position, not by the attribute set).
+  `Translation`, `translationDev` and `drawnHalfExtents` are exported from `/render`.
+
+### Changed: the keep-out mask tests the drawn tile, not the lattice cell
+
+A cell is hidden when its **drawn tile at rest** — its bounding box after the generated scale,
+rotation and translation — meets a keep-out rect. A tile moved over a heading disappears; one whose
+home is under it but which is drawn clear of it stays. **This changes existing output** for a page
+combining `avoid` with scaled or turned tiles: neighbours spilling over the text are now hidden too,
+where before `padding` was the workaround. Untransformed grids get the old mask byte for byte.
+Rotated tiles are tested by their bounding box (hidden slightly early). Animations never reach it,
+which is what keeps it per-layout rather than per-frame. `occlusion.ts`'s header records the rule
+it replaced.
+
+### New: `data-x` / `data-y` on DOM cells
+
+The DOM substrate was already hit-testable by the drawn tile — the browser follows margins and
+transforms, and resolves overlaps in paint order — but a host could not tell which cell it hit. The
+rule for the hover work is recorded at the template: the hit area is the rest pose, so animate the
+`<img>`, never `.cell`. Canvas stays decorative.
+
+### New: `options.overflow` — the DOM box can stop clipping
+
+- `"hidden"` (default, unchanged output) or `"visible"`. Under `"visible"` the DOM substrate's box
+  drops **R9**'s `overflow: hidden`, so a tile translated or scaled past the edge is drawn whole
+  instead of cut. The clip goes to the host: `overflow: hidden` on an ancestor puts one back.
+- It lifts the whole clip, not just the moved tiles: the side bleed, the `maxSpill` columns culling
+  builds outside the box, and row 0's `yOffset` crop all show. That was chosen over clipping only
+  cells whose home lies outside the box, which would need a second, per-cell boundary.
+- **DOM only.** `"visible"` with `substrate: "canvas"` (or the default) is an `optionErrors` error.
+  An enlarged canvas raster was rejected because it moves `uniform.ts`'s presentation geometry.
+- `Overflow` is exported from `/render`.
+
+### Editor
+
+`translateX`/`translateY` tracks of `[−1, 1]` cells, soft. New documents are schema v4.
+
+---
+
 ## 0.7.0 — one design, many shapes: `reshape`, and responsive rules
 
 **The case.** A tileset that should look different at a breakpoint — more rows on a phone, fewer
