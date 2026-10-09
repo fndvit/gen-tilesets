@@ -80,7 +80,9 @@ describe("coverRect — R8's centre-crop, computed rather than declared", () => 
   });
 
   it("survives a degenerate intrinsic size rather than emitting NaN", () => {
-    // An SVG with no intrinsic dimensions reports 0. Better a no-op than a rect
+    // A browser may report 0 for an SVG with no intrinsic dimensions. Chrome
+    // reports 150 instead, which `images.ts` `requireNaturalSize` refuses before
+    // anything is drawn, so this is a last guard: better a no-op than a rect
     // full of NaN reaching drawImage.
     expect(coverRect(0, 0, 50, 50)).toEqual({ sx: 0, sy: 0, sw: 0, sh: 0 });
   });

@@ -5,7 +5,8 @@ sidebar:
   order: 2
 ---
 
-**Written from:** `apps/editor/src/assets.ts`, `library.test.ts` (the attach-path block), and the
+**Written from:** `apps/editor/src/assets.ts`, `assets.test.ts`, `library.test.ts` (the
+attach-path block), and the
 call sites in `lib/TileLibrary.svelte`, `lib/ImportPanel.svelte`, `App.svelte`, `download.ts` and
 `reference.ts`.
 
@@ -33,6 +34,8 @@ reads the original bytes back out.
 
 - the attach path, which measures and stores, or throws;
 - `replaceAll`, the whole-store swap an import needs;
+- `heldTileIds` and `heldAssetIds`, the ids the store still holds bytes for, so id allocation can
+  stay clear of them;
 - `editorProvider`, an [`AssetProvider`](/api/render/type-aliases/assetprovider/) that resolves
   from the store and ignores `meta.src`;
 - small helpers that build the `tiles/<tileId>/<assetId>.<ext>` path written into `meta.src`.
@@ -47,10 +50,11 @@ reads the original bytes back out.
 | `exportPath(tileId, assetId, ext)` | function | `` `tiles/${tileId}/${assetId}.${ext}` `` |
 | `measure(url)` | function | `Promise<{ width, height }>`. Rejects on decode failure or a zero dimension. |
 | `attach(tileId, assetId, file)` | async function | Measures, stores, returns the `StoredAsset`. Throws if measurement fails. |
-| `release(tileId, assetId)` | function | Revokes the URL and removes the entry. A no-op if absent. |
 | `Incoming` | interface | `{ tileId, assetId, file }`, one asset an import wants attached. |
 | `AttachFailure` | interface | `{ tileId, assetId, reason }`. |
 | `replaceAll(incoming)` | async function | Builds a new store to the side, swaps it in, returns the failures. |
+| `heldTileIds()` | function | Tile ids the store holds bytes for, deleted Tiles' included. |
+| `heldAssetIds(tileId)` | function | Asset ids the store holds bytes for under `tileId`. |
 | `stored(tileId, assetId)` | function | Lookup, or `undefined`. |
 | `editorProvider` | const | `AssetProvider`: `(ref) → { src: url }`, or throws. |
 
@@ -73,6 +77,9 @@ Engine types: [`AssetProvider`](/api/render/type-aliases/assetprovider/),
   A failure revokes that URL and records an `AttachFailure`; the loop continues. Then it
   snapshots the outgoing values, clears the store, copies the staged entries in, and only then
   revokes every outgoing URL.
+- **`heldTileIds()` / `heldAssetIds(tileId)`.** They read the store's keys back with
+  [`parseAssetKey`](/api/render/functions/parseassetkey/). `heldTileIds` returns each Tile id
+  once.
 - **`editorProvider(ref)`.** It looks up `assetKey(ref.tileId, ref.assetId)`. If nothing is there it
   throws *no attached file for t/a…*. It never reads `ref.meta`.
 
@@ -88,6 +95,14 @@ Engine types: [`AssetProvider`](/api/render/type-aliases/assetprovider/),
   so the provider is a lookup rather than a source of variation.
 - **The provider throws, never substitutes.** No `null`, no placeholder. `<Tileset>` turns the
   throw into one `onAssetError` call and an empty cell.
+- **A delete keeps the bytes.** There is deliberately no `release()`. Deleting a Tile or asset is
+  undoable, so its bytes stay in the store and undo finds them. The cost is a leak bounded by the
+  session: every picture dropped since the last import or new document stays until `replaceAll`
+  swaps the store out.
+- **A kept id is not reallocated.** [ids.ts](/editor/ids/) allocates from what the document
+  holds, so after a delete it could hand out the deleted Tile's id, and the new attach would
+  overwrite bytes undo still needs. `heldTileIds` and `heldAssetIds` are passed to allocation
+  alongside the document's ids.
 - **Session-scoped.** The bytes are in memory only. The comment records that the storage choice
   is still open (IndexedDB, file system, server).
 
@@ -95,28 +110,36 @@ Engine types: [`AssetProvider`](/api/render/type-aliases/assetprovider/),
 
 | Caller | Uses |
 | --- | --- |
-| `lib/TileLibrary.svelte:68` | `attach` inside `buildAsset`, then `exportPath(tileId, assetId, extensionOf(file.name))` at `:77` into `meta.src`. |
-| `lib/TileLibrary.svelte:99` | `tileNameOf(file.name)` for a new Tile's name. |
-| `lib/TileLibrary.svelte:174`, `:183` | `release` before `deleteTile` / `deleteAsset`. |
-| `lib/TileLibrary.svelte:268` | `stored(tile.id, asset.id)` to show a thumbnail. |
+| `lib/TileLibrary.svelte:69` | `attach` inside `buildAsset`, then `exportPath(tileId, assetId, extensionOf(file.name))` at `:78` into `meta.src`. |
+| `lib/TileLibrary.svelte:102` | `tileNameOf(file.name)` for a new Tile's name. |
+| `lib/TileLibrary.svelte:91`, `:115` | `heldTileIds()` and `heldAssetIds(tile.id)`, passed to `nextIds` beside the document's ids. |
+| `lib/TileLibrary.svelte:275` | `stored(tile.id, asset.id)` to show a thumbnail. |
 | `lib/ImportPanel.svelte:207` | `replaceAll(incoming)` after validation, before `session.open`. |
-| `App.svelte:822` | `editorProvider` passed as `options.provider` to `<Tileset>`. |
+| `App.svelte:827` | `editorProvider` passed as `options.provider` to `<Tileset>`. |
 | `download.ts:43` | `stored` to read original bytes for export. |
 | `reference.ts:56` | `measure`, reused for the reference image. |
 
-Callees: `assetKey` from `@fndvit/gen-tilesets/render`, `URL.createObjectURL` /
+Callees: `assetKey` and `parseAssetKey` from `@fndvit/gen-tilesets/render`, `URL.createObjectURL` /
 `revokeObjectURL`, `Image`.
 
 ### Tests
 
-There is no `assets.test.ts`. `library.test.ts` (block *attach paths*, lines 76–96) pins:
+`library.test.ts` (block *attach paths*, lines 82–102) pins:
 
 - `exportPath` mirrors the `AssetRef` key, so two Tiles holding `a1` cannot collide;
 - `extensionOf` takes the extension from the dropped file;
 - `tileNameOf` names a new Tile from the file.
 
-`measure`, `attach`, `release`, `replaceAll` and `editorProvider` need a DOM `Image` and
-object URLs. They are untested.
+`assets.test.ts` stubs a minimal `Image` that "decodes" any URL at 10 × 10, and tests the
+store's lifetime:
+
+- an asset the document no longer holds still resolves through `editorProvider`;
+- a new Tile's id, allocated with `heldTileIds()`, stays clear of a deleted Tile's bytes, and the
+  old bytes still resolve;
+- a new asset's id, allocated with `heldAssetIds`, stays clear of a deleted asset's bytes;
+- `replaceAll([])` empties the store, after which `editorProvider` throws *no attached file*.
+
+`measure`'s real decode and `replaceAll`'s URL-revocation ordering are still untested.
 
 ### Gotchas & rejected alternatives
 
@@ -129,8 +152,13 @@ object URLs. They are untested.
   failed. Building to the side keeps the outgoing document intact until the swap.
 - **One undecodable picture is skipped, not fatal.** It is reported as an `AttachFailure` and the
   cell draws nothing.
-- **Undo does not restore bytes.** `session.open` is undoable, but the store was swapped with it.
-  `session.svelte.ts` documents this as a known gap.
+- **Undo does not restore bytes across an import.** `session.open` is undoable, but the store
+  was swapped with it. `session.svelte.ts` documents this as a known gap. Undoing a delete is
+  fine, because a delete keeps the bytes.
+- **Rejected: releasing only the bytes no undo or redo state references.** It needs this module
+  to read `session`'s history, and to re-run on every transition that drops a state off the end
+  of it. That is a second owner for the store's lifetime, for memory `replaceAll` already
+  reclaims.
 
 ### Review notes
 
@@ -140,6 +168,9 @@ object URLs. They are untested.
 - `lib/TileLibrary.svelte:174` and `:183` call `release` **before** the delete transition. The
   delete is undoable, but the bytes are not. An undo restores the Tile or asset with no stored
   bytes, so the preview draws an empty cell and export throws *no attached bytes*. `assets.ts`
-  documents the same gap for import only. (possible bug)
+  documents the same gap for import only. (possible bug) **Fixed in 0.8.1:** `release()` is
+  removed and a delete keeps the bytes for undo.
 - `measure`, `attach`, `replaceAll` and `editorProvider` have no tests. The URL-revocation
-  ordering in `replaceAll` is the subtle part. (missing test)
+  ordering in `replaceAll` is the subtle part. (missing test) **Partly fixed in 0.8.1:**
+  `assets.test.ts` covers `attach`, `editorProvider`, `replaceAll` emptying the store, and the
+  held ids; `measure`'s real decode and the revocation ordering are still untested.

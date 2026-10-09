@@ -34,6 +34,14 @@ class FakeElement {
     this.children.push(child);
     return child;
   }
+  /** Laid-out size, untouched by a transform. `rect` is on screen; set this to scale it. */
+  layout: { width: number; height: number } | null = null;
+  get offsetWidth(): number {
+    return Math.round(this.layout?.width ?? this.rect.width);
+  }
+  get offsetHeight(): number {
+    return Math.round(this.layout?.height ?? this.rect.height);
+  }
   hasAttribute(name: string): boolean {
     return this.attributes.has(name);
   }
@@ -192,6 +200,18 @@ describe("Scheduler", () => {
     expect(log.filter((e) => e.startsWith("write:"))).toEqual(["write:a", "write:b"]);
     expect(log.slice(firstWrite).some((e) => e.startsWith("read:"))).toBe(false);
     expect(log.slice(0, firstWrite)).toEqual(["read:box", "read:h1", "read:box", "read:h1"]);
+  });
+
+  it("seeds the first measurement from the laid-out width, not the zoomed rect", () => {
+    // A scaled ancestor at 0.5: on screen the box is 200 wide; laid out, 400.
+    const log: Log = [];
+    const { env } = fakeEnv(log);
+    const { box } = page(log);
+    box.layout = { width: 400, height: 200 };
+    box.rect = { ...box.rect, width: 200, height: 100 };
+    const seen: Measurement[] = [];
+    new Scheduler(env).track(asEl(box), null, (m) => seen.push(m));
+    expect(seen[0]).toEqual({ width: 400, height: 200, rects: null });
   });
 
   it("takes the box width from the ResizeObserver, un-rounded", () => {

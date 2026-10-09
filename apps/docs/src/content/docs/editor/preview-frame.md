@@ -106,7 +106,7 @@ handle.
 | Caller | Use |
 | --- | --- |
 | `App.svelte:63` | import |
-| `App.svelte:805`–`858` | `ratio` from `naturalRatio` on `shapedAt(Wpx)`, `{rules}`, `painting={painting !== null}`, and a `children(Wpx)` snippet holding `<Tileset>`, `SelectionOverlay` and `PaintLayer` |
+| `App.svelte:810`–`863` | `ratio` from `naturalRatio` on `shapedAt(Wpx)`, `{rules}`, `painting={painting !== null}`, and a `children(Wpx)` snippet holding `<Tileset>`, `SelectionOverlay` and `PaintLayer` |
 
 Callees (`PreviewFrame.svelte:40`–`43`): [`activeRules`](/api/index/functions/activerules/);
 [ReferenceControls](/editor/reference-controls/), [ReferenceLayer](/editor/reference-layer/);

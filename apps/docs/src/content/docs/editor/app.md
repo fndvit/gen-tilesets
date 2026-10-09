@@ -124,7 +124,8 @@ Which component renders which, in source order. Conditional children are marked.
   falls back to it, so the preview always shows what a visitor with no host seed would see. A
   separate preview seed "would let the author approve a picture the file does not produce".
 - **`onAssetError` is always wired.** Each failure appends `"<tileId>/<assetId>: <cause>"` to
-  `failures`, listed under the preview. The empty cell is not filled and no placeholder is drawn.
+  `failures`, listed under the preview. A string already in the list is dropped: the renderer
+  reports a failing provider again each time it re-resolves, and the list is keyed by the string. The empty cell is not filled and no placeholder is drawn.
 - **`renderBox`** is bound out so `PaintLayer` can convert pointer events into render space.
   Since the canvas substrate became the default, the box is the canvas's wrapper `<div>`, which
   is why it is typed `HTMLElement`.
@@ -240,14 +241,16 @@ validates.
 
 ### Review notes
 
-- `App.svelte:886` says "what Step 11 will export". The export exists (the download footer at
-  line 766). The comment is stale.
+- `App.svelte:891` says "what Step 11 will export". The export exists (the download footer at
+  line 771). The comment is stale.
 - `failures` is append-only and never cleared, and the list is keyed by the string itself
-  (`{#each failures as failure (failure)}`, line 876). The package calls `onAssetError` from
+  (`{#each failures as failure (failure)}`, line 881). The package calls `onAssetError` from
   inside a derivation (`Tileset.svelte:199`–`204`), so if the same asset fails again on a later
   re-derivation the same string would be appended twice and Svelte's keyed `each` would see a
-  duplicate key. Not verified at runtime.
-- The seed field (line 674) commits on every `input` without `NumericInput`'s draft-text model.
+  duplicate key. Not verified at runtime. **Fixed in 0.8.1:** `onAssetError` drops a failure
+  string already in the list, and the package now reports on a microtask, not from inside the
+  derivation.
+- The seed field (line 679) commits on every `input` without `NumericInput`'s draft-text model.
   The empty case is safe, because `setDefaultSeed` (`document.ts:325`) trims and refuses `""`.
   But every keystroke that changes the seed is its own undo entry, so undoing a typed seed
   takes one undo per character. The same holds for the tile rename in `TileLibrary`. The source

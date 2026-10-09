@@ -86,10 +86,13 @@
     type TilesetOptions,
   } from "./options.js";
   import type { RenderRect } from "./space.js";
-  import { ImageBank } from "./images.js";
+  import { ImageBank, NaturalSizeChecks } from "./images.js";
   import {
     assetKey,
+    loadBlocked,
     parseAssetKey,
+    recordLoadFailure,
+    resolveDrawable,
     type AssetRef,
     type Drawable,
   } from "./provider.js";
@@ -196,9 +199,11 @@
   });
 
   /**
-   * `onAssetError`, read at call time and **untracked**. It is called from inside
-   * `drawables`' derivation, and a tracked read there would make every new
-   * identity of a host's inline callback re-resolve every asset.
+   * `onAssetError`, read at call time and **untracked**. It was called from inside
+   * `drawables`' derivation, where a tracked read made every new identity of a
+   * host's inline callback re-resolve every asset. Every report now arrives
+   * asynchronously (`provider.ts` `resolveDrawable`), and the read stays untracked
+   * so that moving a call back into a derivation cannot bring that back.
    */
   function reportAssetError(ref: AssetRef, cause: unknown): void {
     untrack(() => resolved.onAssetError)?.(ref, cause);
@@ -408,29 +413,26 @@
         assetId: cell.assetId,
         meta: metaByKey.get(key) ?? {},
       };
-      try {
-        map.set(key, provider(ref));
-      } catch (cause) {
-        // R3: a failure to obtain a drawable never substitutes one. The cell
-        // draws nothing and the failure is reported.
-        reportAssetError(ref, cause);
-        map.set(key, Promise.reject(cause));
-      }
+      // R3: a failure to obtain a drawable never substitutes one. The cell
+      // draws nothing and the failure is reported, thrown or rejected alike.
+      map.set(key, resolveDrawable(provider, ref, reportAssetError));
     }
     return map;
   });
 
-  // Cells whose <img> failed to load. `08` **S6**: the substrate substitutes on
-  // its own — a broken <img> renders the browser's placeholder glyph, which is a
-  // drawable the renderer did not choose, in a cell **R3** says must draw
-  // nothing.
-  let loadFailed = $state(new Set<string>());
+  // Keys whose <img> failed to load, and the `src` that failed (`provider.ts`
+  // `recordLoadFailure` says why the `src`). `08` **S6**: the substrate
+  // substitutes on its own — a broken <img> renders the browser's placeholder
+  // glyph, which is a drawable the renderer did not choose, in a cell **R3**
+  // says must draw nothing.
+  let loadFailed = $state(new Map<string, string>());
 
-  function handleLoadError(cell: TileState, cause: unknown): void {
+  function handleLoadError(cell: TileState, src: string, cause: unknown): void {
     if (cell.tileId === null || cell.assetId === null) return;
     const key = assetKey(cell.tileId, cell.assetId);
-    if (loadFailed.has(key)) return;
-    loadFailed = new Set(loadFailed).add(key);
+    const next = recordLoadFailure(loadFailed, key, src);
+    if (next === null) return;
+    loadFailed = next;
     reportAssetError(
       { tileId: cell.tileId, assetId: cell.assetId, meta: metaByKey.get(key) ?? {} },
       cause,
@@ -594,7 +596,9 @@
   // ADR-006. Everything below is inert under `substrate="dom"`.
 
   let canvas = $state<HTMLCanvasElement | null>(null);
-  const bank = new ImageBank();
+  // One set of checks for both substrates, so a src is probed once (`images.ts`).
+  const sizeChecks = new NaturalSizeChecks();
+  const bank = new ImageBank(sizeChecks);
   /** Bumped when a decode lands, so the paint effect re-runs. `bank` is plain. */
   let bankVersion = $state(0);
 
@@ -629,8 +633,8 @@
 
     for (const [key, value] of seen) {
       if (value instanceof Promise) {
-        // A rejection has already been reported through `onAssetError` where the
-        // provider threw, or is reported by the bank if the URL fails to load.
+        // A rejection is reported through `onAssetError` by `resolveDrawable`,
+        // and a URL that fails to load is reported by the bank.
         void value.then((d) => settle(key, d.src)).catch(() => {});
       } else {
         settle(key, value.src);
@@ -1193,7 +1197,7 @@
       -->
       {#each shownCells as { cell, i, x, y } (`${x},${y}`)}
         {@const key = assetKey(cell.tileId!, cell.assetId!)}
-        {#if !loadFailed.has(key)}
+        {#if !loadBlocked(loadFailed, key, drawables.get(key))}
             <div
               class="cell"
               style={cellStyle(cell, x, y)}
@@ -1208,13 +1212,22 @@
                 asset leaves a hole in a laid-out grid rather than collapsing it.
               -->
               {#await drawables.get(key) then drawable}
-                {#if drawable}
+                <!-- A lazy provider's `src` is only known here, so a failed one is
+                     caught here rather than by `loadBlocked` above. -->
+                {#if drawable && loadFailed.get(key) !== drawable.src}
                   <img
                     src={drawable.src}
                     alt=""
                     loading="lazy"
                     draggable="false"
-                    onerror={(e) => handleLoadError(cell, e)}
+                    onerror={(e) => handleLoadError(cell, drawable.src, e)}
+                    onload={(e) =>
+                      // A picture with no natural size is refused here too, so the
+                      // DOM agrees with canvas (`images.ts` `requireNaturalSize`).
+                      // It shows until the probe settles, about one frame.
+                      sizeChecks
+                        .check(drawable.src, e.currentTarget as HTMLImageElement)
+                        .catch((cause: unknown) => handleLoadError(cell, drawable.src, cause))}
                   />
                 {/if}
               {:catch}

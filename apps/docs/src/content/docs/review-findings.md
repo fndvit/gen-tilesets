@@ -3,14 +3,16 @@ title: Review findings
 description: Everything noticed while documenting, collected rather than fixed silently.
 ---
 
-Everything below was noticed while writing the module pages from source. **Nothing here has been
-changed in the source.** Each finding links to the module page where it was found, and the page's
-*Review notes* section has the detail and the line numbers.
+Everything below was noticed while writing the module pages from source, against 0.8.0. Each
+finding links to the module page where it was found, and the page's *Review notes* section has the
+detail and the line numbers. Line numbers in the tables here are 0.8.0's; the module pages'
+are 0.8.1's.
 
-Every *possible bug* was re-checked against the source after it was reported. Four depend on
-runtime behaviour that was **not** reproduced: overlapping tile drops, duplicate failure keys, the
-URL revoke in `download.ts`, and the unhandled-rejection noise. The `edges.ts` SVG finding was
-reproduced in headless Chrome. The other kinds were spot-checked, not all re-read.
+**0.8.1 fixed the possible bugs**, as the *Status* column below says; the other kinds are as
+reported. Every possible bug was re-checked against the source after it was reported. The
+`edges.ts` SVG finding was reproduced in headless Chrome, and its fix, the async-provider fix and
+the unhandled-rejection fix were checked there too. The overlapping-drop and `download.ts`
+findings were not reproduced and are left open. The other kinds were spot-checked, not all re-read.
 
 ## Summary
 
@@ -27,23 +29,23 @@ reproduced in headless Chrome. The other kinds were spot-checked, not all re-rea
 
 ## Possible bugs
 
-| Module | Finding |
-| --- | --- |
-| [export.ts](/editor/export/) | An imported document's `engineVersion` is never restamped: only `newDocument()` writes it, `session.open` and `serialize` pass the file through, so a 0.6.0 file edited and exported by the 0.8.0 editor still says `"0.6.0"` — the case E2 exists to prevent ([Versioning](/concepts/versioning/)) |
-| [edges.ts](/renderer/edges/) | Verified in headless Chrome: a viewBox-only SVG reports `naturalWidth/Height` 150×150 (not 0, as `edges.test.ts:83` assumes) but `drawImage` with that source rect paints it into the top-left third, so the canvas substrate draws such tiles shrunk (16 px in a 48 px cell). DOM is unaffected; every demo SVG declares `width`/`height` |
-| [shape.ts](/engine/shape/) | `reshapeErrors` builds its no-box message from `String(s.bleed)`, so a failure with inherited bleed (fewer columns, no `bleed` given) reads "bleed undefined leaves no box: …"; the test only checks for `columns - bleed` |
-| [Tileset.svelte](/renderer/tileset/) | An async provider whose promise rejects is never reported through `onAssetError`: canvas swallows it with `.catch(() => {})` (l.634) and DOM's `{:catch}` (l.1220) renders nothing. The comment at l.632 assumes the provider threw synchronously |
-| [Tileset.svelte](/renderer/tileset/) | `loadFailed` is only ever added to (l.427–433). After an `<img>` fails, every cell using that asset stays unmounted even if the host changes `provider` or `file`; canvas's `ImageBank` does clear failures when the `src` changes |
-| [Tileset.svelte](/renderer/tileset/) | A synchronous provider throw is stored as `Promise.reject(cause)` (l.417); under DOM, if every cell using that asset is culled, nothing handles the rejection (console noise; the error is already reported) |
-| [measure.ts](/renderer/measure/) | `track`'s first synchronous measurement (l.225) uses `getBoundingClientRect()`, which includes ancestor zoom, not the layout width; under a scaled ancestor (the editor's PreviewFrame) `Wpx` is wrong until the first ResizeObserver entry |
-| [assets.ts](/editor/assets/) | `TileLibrary.svelte:174` and `:183` call `release()` before the delete transition. Undoing the delete brings back a Tile/asset with no stored bytes: `editorProvider` throws, `<Tileset>` draws a hole, and export throws "no attached bytes" |
-| [ids.ts](/editor/ids/) | "Never reassigned" does not hold for the highest id: scanning for the maximum hands the same id out again once the highest is deleted (remove `op3` from [op1, op2, op3] → next is `op3`), so a new Operation inherits the deleted one's hash channels. The test only deletes a middle id |
-| [download.ts](/editor/download/) | The object URL is revoked immediately after `anchor.click()`; the source asserts this is safe, nothing verifies it |
-| [TileLibrary.svelte](/editor/tile-library/) | `removeAsset` → `deleteAsset` (`document.ts:512`) checks only the asset count, so deleting the only non-zero-weight asset (`[1, 0]` → `[0]`) leaves a Tile whose weights sum to zero: the session then holds a file `validate()` rejects (`ZERO_WEIGHT_SUM`), the state `setAssetWeight` refuses. No test covers it |
-| [TileLibrary.svelte](/editor/tile-library/) | `dropAsTiles` allocates ids before its awaits and `addTiles` does not check for duplicates, so two overlapping drops could produce the same tile id (not reproduced) |
-| [App.svelte](/editor/app/) | `failures` is append-only and keyed by its own string (l.876); `onAssetError` is called from inside a derivation, so a repeat failure could produce a duplicate key (not checked at runtime) |
-| [ParamControl.svelte](/editor/param-control/) | A slider uses exclusive bounds as its ends and commits without calling `admits`, so it could land on an excluded value (no registered spec triggers this today); same root cause in `affordance.ts` |
-| [ParamControl.svelte](/editor/param-control/) | The range readout marks only `exclusiveMin` as open (l.46); `exclusiveMax` is shown with `]` |
+| Module | Finding | Status |
+| --- | --- | --- |
+| [export.ts](/editor/export/) | An imported document's `engineVersion` is never restamped: only `newDocument()` writes it, `session.open` and `serialize` pass the file through, so a 0.6.0 file edited and exported by the 0.8.0 editor still says `"0.6.0"` — the case E2 exists to prevent ([Versioning](/concepts/versioning/)) | Fixed in 0.8.1: `serialize` stamps the current version |
+| [edges.ts](/renderer/edges/) | Verified in headless Chrome: a viewBox-only SVG reports `naturalWidth/Height` 150×150 (not 0, as `edges.test.ts:83` assumes) but `drawImage` with that source rect paints it into the top-left third, so the canvas substrate draws such tiles shrunk (16 px in a 48 px cell). DOM is unaffected; every demo SVG declares `width`/`height` | Fixed in 0.8.1: such an SVG is refused on both substrates, reported through `onAssetError` ([images.ts](/renderer/images/)) |
+| [shape.ts](/engine/shape/) | `reshapeErrors` builds its no-box message from `String(s.bleed)`, so a failure with inherited bleed (fewer columns, no `bleed` given) reads "bleed undefined leaves no box: …"; the test only checks for `columns - bleed` | Fixed in 0.8.1: the message names the effective bleed |
+| [Tileset.svelte](/renderer/tileset/) | An async provider whose promise rejects is never reported through `onAssetError`: canvas swallows it with `.catch(() => {})` (l.634) and DOM's `{:catch}` (l.1220) renders nothing. The comment at l.632 assumes the provider threw synchronously | Fixed in 0.8.1: `resolveDrawable` ([provider.ts](/renderer/provider/)) reports it |
+| [Tileset.svelte](/renderer/tileset/) | `loadFailed` is only ever added to (l.427–433). After an `<img>` fails, every cell using that asset stays unmounted even if the host changes `provider` or `file`; canvas's `ImageBank` does clear failures when the `src` changes | Fixed in 0.8.1: failures are keyed by `src` |
+| [Tileset.svelte](/renderer/tileset/) | A synchronous provider throw is stored as `Promise.reject(cause)` (l.417); under DOM, if every cell using that asset is culled, nothing handles the rejection (console noise; the error is already reported) | Fixed in 0.8.1: the stored rejection is marked handled |
+| [measure.ts](/renderer/measure/) | `track`'s first synchronous measurement (l.225) uses `getBoundingClientRect()`, which includes ancestor zoom, not the layout width; under a scaled ancestor (the editor's PreviewFrame) `Wpx` is wrong until the first ResizeObserver entry | Fixed in 0.8.1: seeded from `offsetWidth` |
+| [assets.ts](/editor/assets/) | `TileLibrary.svelte:174` and `:183` call `release()` before the delete transition. Undoing the delete brings back a Tile/asset with no stored bytes: `editorProvider` throws, `<Tileset>` draws a hole, and export throws "no attached bytes" | Fixed in 0.8.1: deletes keep the bytes; new ids skip ids the store holds |
+| [ids.ts](/editor/ids/) | "Never reassigned" does not hold for the highest id: scanning for the maximum hands the same id out again once the highest is deleted (remove `op3` from [op1, op2, op3] → next is `op3`), so a new Operation inherits the deleted one's hash channels. The test only deletes a middle id | Accepted in 0.8.1: documented in `ids.ts` and pinned by a test |
+| [download.ts](/editor/download/) | The object URL is revoked immediately after `anchor.click()`; the source asserts this is safe, nothing verifies it | Open: not reproduced |
+| [TileLibrary.svelte](/editor/tile-library/) | `removeAsset` → `deleteAsset` (`document.ts:512`) checks only the asset count, so deleting the only non-zero-weight asset (`[1, 0]` → `[0]`) leaves a Tile whose weights sum to zero: the session then holds a file `validate()` rejects (`ZERO_WEIGHT_SUM`), the state `setAssetWeight` refuses. No test covers it | Fixed in 0.8.1: `deleteAsset` refuses, and the library says so |
+| [TileLibrary.svelte](/editor/tile-library/) | `dropAsTiles` allocates ids before its awaits and `addTiles` does not check for duplicates, so two overlapping drops could produce the same tile id (not reproduced) | Open: confirmed by reading, not reproduced |
+| [App.svelte](/editor/app/) | `failures` is append-only and keyed by its own string (l.876); `onAssetError` is called from inside a derivation, so a repeat failure could produce a duplicate key (not checked at runtime) | Fixed in 0.8.1: a repeat is dropped. Also fixed: a synchronous throw reported from inside the derivation crashed this handler with `state_unsafe_mutation` |
+| [ParamControl.svelte](/editor/param-control/) | A slider uses exclusive bounds as its ends and commits without calling `admits`, so it could land on an excluded value (no registered spec triggers this today); same root cause in `affordance.ts` | Fixed in 0.8.1: the slider checks `admits` |
+| [ParamControl.svelte](/editor/param-control/) | The range readout marks only `exclusiveMin` as open (l.46); `exclusiveMax` is shown with `]` | Fixed in 0.8.1: `rangeLabel` in `affordance.ts` |
 
 ## Engine
 

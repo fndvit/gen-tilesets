@@ -8,6 +8,59 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.8.1 — the possible bugs from the docs review
+
+**The case.** Writing the contributor docs (`apps/docs`) turned up fifteen findings that looked like
+bugs (`review-findings.md`). Each was re-checked against the source; this release fixes the ones
+that held, and says which did not.
+
+### Changed: an SVG with no natural size is refused, on both substrates
+
+An SVG with a `viewBox` and no `width`/`height` drew **shrunk** on the canvas substrate in Chrome (a
+15 px tile in a 48 px cell) and, cover-cropped, **not at all**: Chrome reports it as 150 × 150 but
+lays it out at the destination size when given a source rect. The DOM substrate drew it correctly,
+so the two disagreed silently. Now both refuse it once it loads: the cell is a hole and
+`onAssetError` says to add `width` and `height`, which is the rule the editor already applied at
+attach (**E13**). **This changes output** for a host that used such SVGs on the DOM substrate.
+Detected with `createImageBitmap`, which Chrome refuses for exactly this case; `images.ts` records
+the measurements and the rejected fixes.
+
+### Fixed: renderer
+
+- **An async provider's rejection is reported** through `onAssetError`, as the option promised.
+  Canvas swallowed it and DOM rendered it as nothing.
+- **A synchronous provider throw no longer crashes a host that writes state** in `onAssetError`.
+  It was reported from inside a `$derived`, where Svelte throws `state_unsafe_mutation`; it now
+  arrives on a microtask, like every other failure. Its stored rejection is marked handled, so a
+  fully culled asset no longer logs an unhandled rejection.
+- **A DOM `<img>` failure is keyed by `src`**, as canvas's `ImageBank` already was. A key that
+  failed once is retried when the host's `provider` or `file` gives it a new `src`.
+- **The first measurement is the laid-out width**, not the on-screen rect, so a tileset under a
+  scaled ancestor no longer starts at the wrong `Wpx`.
+- **`reshapeErrors`** names the effective bleed instead of printing "bleed undefined" when the
+  bleed was inherited.
+
+### Fixed: editor
+
+- **Deleting the last weighted asset is refused**, as zeroing its weight already was; it used to
+  leave a file `validate()` rejects.
+- **Undoing a Tile or asset delete brings its picture back.** Deletes no longer free the bytes
+  (the store is reclaimed whole on import or new document), and new ids skip ids the store still
+  holds, so a reused id cannot overwrite them.
+- **Export stamps the current `engineVersion`** (**E2**); an imported file kept the old one.
+- **A repeated asset failure is listed once**; a repeat was a duplicate `{#each}` key.
+- **A parameter's range readout** brackets each end by whether it is admitted, and the slider
+  checks `admits` before committing.
+
+### Accepted and left open
+
+- The highest Operation id comes back after it is deleted. Accepted: it only ever matches an
+  Operation that no longer exists. `ids.ts` says why scanning undo history was rejected.
+- Two overlapping tile drops can allocate the same id (confirmed by reading, not reproduced), and
+  `download.ts` revokes its URL straight after the click (not reproduced). Both are still open.
+
+---
+
 ## 0.8.0 — `translateX` / `translateY`, and the drawn tile as the unit of hiding and hitting
 
 **The case.** A tile could be scaled, flipped, turned and faded, but always sat centred on its own

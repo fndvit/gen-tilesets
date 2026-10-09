@@ -103,7 +103,7 @@ No props, no events, no bindings. It reads and writes module state directly:
 | Caller | Use |
 | --- | --- |
 | `App.svelte:58` | import |
-| `App.svelte:751` | `<ImportPanel />` inside `<Section title="Import" open={false} destructive>` |
+| `App.svelte:756` | `<ImportPanel />` inside `<Section title="Import" open={false} destructive>` |
 
 Callees: [`migrate`](/api/index/functions/migrate/), [`validate`](/api/index/functions/validate/)
 (`ImportPanel.svelte:35`); `unzipSync` (`fflate`, line 36); `replaceAll` (`assets.ts`, line 37);

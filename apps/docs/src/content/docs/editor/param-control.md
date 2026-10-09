@@ -45,27 +45,27 @@ spec refuses is not clamped into range.
 | `affordance.kind` | Renders | Commits |
 | --- | --- | --- |
 | `"segmented"` | one button per `affordance.values`, `on` when `value === option` | `onChange(option)` on click |
-| `"slider"` | `<input type="range">` over `[min, max]` at `step`, plus an exact `<input type="number">` | the slider calls `onChange(Number(text))` directly; the exact field goes through `commit()` |
+| `"slider"` | `<input type="range">` over `[min, max]` at `step`, plus an exact `<input type="number">` | the slider calls `onChange(n)` only when `admits(spec, n)`; the exact field goes through `commit()` |
 | `"number"` | `<input type="number">`, `step` `1` for integers else `"any"` | `commit()` |
 | `"cellList"` | nothing (handled by `ParamFields`) | — |
 
 `commit(text)` sets `draft = text` and calls `onChange(n)` only when the trimmed text is
 non-empty, `Number.isFinite(n)`, and `admits(spec, n)`. Blur sets `draft = null`.
 
-The label shows a range readout:
+The label shows a range readout, `rangeLabel(spec)` from [affordance.ts](/editor/affordance/):
 
 - `""` for `enum` and `cellList`;
 - `"integer"` for an unbounded integer, `""` for an unbounded number;
-- otherwise `"[lo, hi]"`, with `(` instead of `[` when `exclusiveMin` is set, `−∞` / `∞` for a
-  missing end, and `)` when there is no upper bound.
+- otherwise `"[lo, hi]"`, each end bracketed on its own: `[` / `]` for an inclusive bound, `(` /
+  `)` for an exclusive or missing one, with `−∞` / `∞` for a missing end.
 
 `pending` (`class:pending`) is true while `draft !== null && !admits(spec, Number(draft))`.
 
 ### Invariants
 
 - **Refuse, never coerce** (`admits`). A typed out-of-range value is held as text, not clamped.
-- **A slider commits directly**, on the comment's reasoning that "a slider cannot produce a value
-  its own bounds exclude".
+- **A slider is checked with `admits`, like typed input.** Its ends are the affordance's `min`
+  and `max`, and for an exclusive bound that end is a value the spec refuses.
 
 ### Callers / callees
 
@@ -74,14 +74,15 @@ The label shows a range readout:
 | `controls/ParamFields.svelte:13` | import |
 | `controls/ParamFields.svelte:47` | one per non-`cellList` parameter |
 
-Callees: `admits` and the `Affordance` type from `affordance.ts` (line 11).
+Callees: `admits`, `rangeLabel` and the `Affordance` type from `affordance.ts` (line 11).
 
 ### Tests
 
 No test file for the component. `controls/affordance.test.ts` pins `admits`: inclusive and
 exclusive bounds are honoured separately; `NaN` and `Infinity` are refused for every numeric spec;
 a fraction is refused where the spec says integer; an enum accepts only its own values (`"0"`
-is not `0`).
+is not `0`). It also pins `rangeLabel`: each end's bracket, including `{ min: 0, exclusiveMax: 1 }`
+as `[0, 1)`, a bare integer as `"integer"`, and `""` for an unbounded number or an enum.
 
 ### Gotchas & rejected alternatives
 
@@ -95,9 +96,11 @@ is not `0`).
   ends, so a `number` spec with an exclusive bound at both ends would get a slider that can land
   exactly on an excluded end, and `slide()` commits without calling `admits`. No registered
   parameter has two exclusive bounds today (`cellsPerFeature` is `exclusiveMin` only and gets a
-  number field). (possible bug, latent)
+  number field). (possible bug, latent) **Fixed in 0.8.1:** `slide()` checks `admits` before
+  committing.
 - **The readout marks only `exclusiveMin` as open.** An `exclusiveMax` is shown with `]`. (possible
-  bug, latent; no registered spec uses `exclusiveMax`)
+  bug, latent; no registered spec uses `exclusiveMax`) **Fixed in 0.8.1:** `rangeLabel` brackets
+  each end on its own.
 - **`pending` and `commit` disagree on blank text.** `commit` refuses `""` explicitly, but
   `pending` evaluates `Number("")`, which is `0`; for a spec that admits `0`, an emptied box is not
   marked pending. (inconsistency)

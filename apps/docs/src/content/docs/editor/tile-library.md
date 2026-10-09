@@ -53,19 +53,23 @@ No props, no events, no bindings. It reads `session.file.config.tiles` and write
 
 | Gesture | Function | Result |
 | --- | --- | --- |
-| Drop on the zone, or "Add files…" | `dropAsTiles(files)` | ids from `nextIds(n, existing, nextTileId)`; each Tile named `tileNameOf(file.name)` with one asset `a1`; then one `addTiles(built)` |
-| Drop on a Tile card | `dropAsAssets(tile, files)` | ids from `nextIds(n, tile's asset ids, nextAssetId)`; then one `addAssets(tile.id, built)` |
+| Drop on the zone, or "Add files…" | `dropAsTiles(files)` | ids from `nextIds(n, existing + heldTileIds(), nextTileId)`; each Tile named `tileNameOf(file.name)` with one asset `a1`; then one `addTiles(built)` |
+| Drop on a Tile card | `dropAsAssets(tile, files)` | ids from `nextIds(n, tile's asset ids + heldAssetIds(tile.id), nextAssetId)`; then one `addAssets(tile.id, built)` |
 
 A file that fails to decode is reported as `"<name> — <message>"` and skipped. The others are
 still committed.
+
+The held ids come from [assets.ts](/editor/assets/). A deleted Tile's or asset's bytes stay in
+the store for undo, so a new id must not land on them: the new attach would overwrite the bytes,
+and undoing past the add would restore the old Tile showing the new picture.
 
 #### Edits
 
 | Control | Transition | Pre-check |
 | --- | --- | --- |
 | Name input (`oninput`) | `renameTile(id, value)` | none; commits on every keystroke |
-| Tile × | `deleteTile(id)` | `tileReferences(file, id)`; if any, reports "used by operation …, palette entry …" and stops. Otherwise calls `release()` on each asset first. |
-| Asset × | `deleteAsset(tileId, assetId)` | if it is the only asset, reports and stops. Otherwise `release()` first. |
+| Tile × | `deleteTile(id)` | `tileReferences(file, id)`; if any, reports "used by operation …, palette entry …" and stops. The bytes are not released. |
+| Asset × | `deleteAsset(tileId, assetId)` | if it is the only asset, reports and stops. After applying, if the file is unchanged, reports "must keep one non-zero weight". The bytes are not released. |
 | Weight ([NumericInput](/editor/numeric-input/), `parseWeight`) | `setAssetWeight(tileId, assetId, text)` | after applying, if the file is unchanged and the text parsed to `0`, reports "must keep one non-zero weight" |
 
 The percentage beside each asset is `weight / total` over the canonical list. A zero weight
@@ -96,10 +100,11 @@ shows "never" instead.
 | Caller | Use |
 | --- | --- |
 | `App.svelte:66` | import |
-| `App.svelte:619` | `<TileLibrary />` inside `<Section title="Tiles">` |
+| `App.svelte:624` | `<TileLibrary />` inside `<Section title="Tiles">` |
 
-Callees (`TileLibrary.svelte:23`–`44`): [`canonicalAssets`](/api/index/functions/canonicalassets/);
-`attach`, `exportPath`, `extensionOf`, `release`, `stored`, `tileNameOf` from `assets.ts`;
+Callees (`TileLibrary.svelte:23`–`45`): [`canonicalAssets`](/api/index/functions/canonicalassets/);
+`attach`, `exportPath`, `extensionOf`, `heldAssetIds`, `heldTileIds`, `stored`, `tileNameOf` from
+`assets.ts`;
 `addAssets`, `addTiles`, `deleteAsset`, `deleteTile`, `renameTile`, `setAssetWeight`,
 `tileReferences` from `document.ts`; `parseWeight` from `fields.ts`; `nextAssetId`, `nextIds`,
 `nextTileId` from `ids.ts`; `session`; [NumericInput](/editor/numeric-input/).
@@ -110,13 +115,15 @@ The component has no test, but `library.test.ts` pins everything it calls:
 
 - **Ids:** generated ids match the identifier charset and exclude the colon, do not collide with
   taken ids, ignore taken ids that do not fit the pattern, allocate a batch without duplicates,
-  and are never reused after a deletion.
+  and are never reused after a deletion, except the highest, which is handed back once it is
+  deleted (pinned as accepted, see [ids.ts](/editor/ids/)).
 - **Attach paths:** `exportPath` mirrors the asset key so two Tiles holding `a1` cannot collide;
   the extension comes from the dropped file; `tileNameOf` names a Tile from its file.
 - **Library transitions:** `addTiles` and `addAssets` append; `renameTile` accepts a duplicate,
   the empty string and `"a:b/c"`.
 - **Refusals:** `tileReferences` finds every palette entry naming a Tile and ignores numeric
-  mappings; `deleteTile` refuses a referenced Tile; `deleteAsset` refuses a Tile's last asset;
+  mappings; `deleteTile` refuses a referenced Tile; `deleteAsset` refuses a Tile's last asset, and the last
+  weighted asset of `[1, 0]` while allowing the zero-weight one;
   `setAssetWeight` refuses to zero the last non-zero weight, allows zeroing while another is
   non-zero, and refuses `"-1"`, `""`, `"abc"`, `"Infinity"`; every refusal is an exact identity.
 
@@ -135,12 +142,14 @@ The component has no test, but `library.test.ts` pins everything it calls:
   and `removeAsset` call `release()` (revoke the object URL and drop the stored bytes) before
   `session.apply(delete…)`. Undo restores the Tile or asset in the document, but its picture is
   gone, so the preview reports an asset error and `exportZip` will throw for missing bytes.
-  (possible bug)
+  (possible bug) **Fixed in 0.8.1:** delete no longer releases; the bytes stay for undo, and new
+  ids are kept clear of them.
 - **Deleting an asset can leave a Tile whose weights sum to zero.** `removeAsset` only checks
-  `assets.length <= 1`, and `deleteAsset` (`document.ts:512`) refuses only when one asset would
+  `assets.length <= 1`, and `deleteAsset` (`document.ts:518`) refuses only when one asset would
   remain zero. Deleting the only non-zero asset of a Tile weighted `[1, 0]` is allowed, which
   produces the state `setAssetWeight` refuses to create. `library.test.ts` does not test it.
-  (possible bug)
+  (possible bug) **Fixed in 0.8.1:** `deleteAsset` also refuses when the remaining weights sum to
+  `<= 0`, and `removeAsset` reports it.
 - **Overlapping drops can allocate the same Tile id.** `dropAsTiles` reads `tiles` before its
   `await`s and commits after them. Two drops in flight at once both allocate from the same list,
   and `addTiles` (`document.ts:460`) appends without checking ids. (possible bug, not reproduced)

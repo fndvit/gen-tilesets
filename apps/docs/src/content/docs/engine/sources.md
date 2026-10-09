@@ -116,7 +116,7 @@ production it returns the value unchecked.
 | `apps/editor/src/lib/OperationDraft.svelte:75, 81, 96, 274` | `all()` for the picker, `get(...).params` for controls and defaults, `stochastic` badge |
 | `index.ts:104` | re-export |
 
-(`render/Tileset.svelte:619` calls `sources.get(key)` on a local `Map` of the same name, not this
+(`render/Tileset.svelte:623` calls `sources.get(key)` on a local `Map` of the same name, not this
 registry.)
 
 Callees: `Registry`, `sincos` (`angle.ts`), `DEV` (`dev.ts`), `hash` (`hash.ts`), type `EvalCtx`.

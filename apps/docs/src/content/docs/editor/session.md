@@ -73,13 +73,13 @@ the undo stack would have to escape the document too.
 | Caller | Uses |
 | --- | --- |
 | `App.svelte:71` | `session.file` → `file`, `config`, `layout` |
-| `App.svelte:209`, `:214` | `session.apply` direct, and from `confirmPending` after E12 confirmation |
-| `App.svelte:349` | Undo button: `disabled={!session.canUndo}`, `session.undo()` |
-| `App.svelte:434-698` | `session.apply(...)` for layout, rule, seed and asset-salt transitions |
-| `App.svelte:615` | `session.reset()`, the *New document* button |
+| `App.svelte:214`, `:219` | `session.apply` direct, and from `confirmPending` after E12 confirmation |
+| `App.svelte:354` | Undo button: `disabled={!session.canUndo}`, `session.undo()` |
+| `App.svelte:439-703` | `session.apply(...)` for layout, rule, seed and asset-salt transitions |
+| `App.svelte:620` | `session.reset()`, the *New document* button |
 | `lib/ImportPanel.svelte:210` | `session.open(file as TilesetFile)` after validate and `replaceAll` |
-| `lib/TileLibrary.svelte:46`, `:165`, `:188-191` | `session.file` reads, and the before/after identity check that detects a refused weight |
-| `lib/TileLibrary.svelte:105`, `:125`, `:175`, `:184`, `:189`, `:244` | `session.apply` for library transitions |
+| `lib/TileLibrary.svelte:47`, `:168`, `:195-198` | `session.file` reads, and the before/after identity check that detects a refused weight |
+| `lib/TileLibrary.svelte:108`, `:128`, `:178`, `:187`, `:196`, `:251` | `session.apply` for library transitions |
 | `lib/OperationStack.svelte:88` | `session.file.config.operations` |
 | `lib/OperationStack.svelte:153-226` | `session.apply` for move, reroll, remove, and the reseed flag |
 | `lib/OperationDraft.svelte:71`, `:316` | `session.file` reads (rules, tiles) |
@@ -102,7 +102,7 @@ of `history.ts` (tested in `history.test.ts`) and `document.ts`.
 - **Undo after import does not restore asset bytes.** The bytes live in the session-scoped store
   ([assets.ts](/editor/assets/)) and were swapped with the document. The source calls this the
   same gap a reload has always had, not a defect in the undo stack.
-- **Refusals are detected by identity.** `TileLibrary.svelte:188-191` compares `session.file`
+- **Refusals are detected by identity.** `TileLibrary.svelte:195-198` compares `session.file`
   before and after `apply` to learn that a weight change was refused.
 
 ### Review notes

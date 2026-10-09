@@ -106,10 +106,10 @@ All re-exported from `render/index.ts:43-60`.
 
 | Caller | Uses |
 | --- | --- |
-| `render/Tileset.svelte:157-167` | `legacyPropErrors(rest)` and `optionErrors(options)` (DEV), then `resolveOptions(options)`. |
-| `render/Tileset.svelte:192-196` | `sameTargets` to keep the targets' identity when an inline array is rebuilt. |
-| `render/Tileset.svelte:259` | `effectiveRules(checked, hostRules)`. |
-| `render/Tileset.svelte:300-302` | `renderOverride(base, shaped.active)`. |
+| `render/Tileset.svelte:160-170` | `legacyPropErrors(rest)` and `optionErrors(options)` (DEV), then `resolveOptions(options)`. |
+| `render/Tileset.svelte:195-199` | `sameTargets` to keep the targets' identity when an inline array is rebuilt. |
+| `render/Tileset.svelte:264` | `effectiveRules(checked, hostRules)`. |
+| `render/Tileset.svelte:305-307` | `renderOverride(base, shaped.active)`. |
 | `render/breakpoints.ts:20, 103, 197` | `renderOverride` in `reservationCss` and `inertCellSizeRules`. |
 | `render/measure.ts:54` | The `NormalizedTargets` type. |
 | `render/TileDecoration.svelte:35` | The `TilesetOptions` type, passed straight through. |

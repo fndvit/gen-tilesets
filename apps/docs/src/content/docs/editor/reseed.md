@@ -90,9 +90,9 @@ The fourth writes no field, so it lives in editor state and reaches `<Tileset>` 
 | Caller | Uses |
 | --- | --- |
 | `document.ts:59`, `:366`, `:382` | `nextSalt` in `rerollOperation` and `rerollAssets` |
-| `App.svelte:181` | `loadVaries(config)`, which enables the load-preview button (`:717`) |
-| `App.svelte:182` | `inertFlags(config)` for the advisory |
-| `App.svelte:717` | `loadSalt = drawLoadSalt()` |
+| `App.svelte:186` | `loadVaries(config)`, which enables the load-preview button (`:722`) |
+| `App.svelte:187` | `inertFlags(config)` for the advisory |
+| `App.svelte:722` | `loadSalt = drawLoadSalt()` |
 | `lib/OperationStack.svelte:221` | `offersReseedOnLoad(op)` gates the checkbox |
 
 `isStochastic` is used only inside this module (`:68`, `:84`). `SALT_MODULUS` is used inside this

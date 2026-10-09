@@ -53,8 +53,8 @@ exported from the module for the package's own use and for tests.
 
 ### Inputs → outputs
 
-**`Scheduler.track(box, targets, onMeasure)`** creates a tracker with the box's
-`getBoundingClientRect()` size, observes the box with the shared `ResizeObserver`, and, if
+**`Scheduler.track(box, targets, onMeasure)`** creates a tracker seeded with the box's laid-out
+size, `offsetWidth`/`offsetHeight`, observes the box with the shared `ResizeObserver`, and, if
 `targets` is not `null`, also observes the scope, rebuilds the `MutationObserver`, observes the box
 with the `IntersectionObserver` and binds `document.fonts`' `loadingdone`. It then calls
 `flush()`, so `onMeasure` runs **synchronously once** before `track` returns.
@@ -93,6 +93,11 @@ a no-op teardown.
 - **Flushed inside the ResizeObserver callback**, which runs after layout and before paint, so the
   geometry and mask are painted in the same frame as the resize. Deferring to
   `requestAnimationFrame` "would show one frame of tiles over the text on every resize step".
+- **Seeded from the laid-out size, not the on-screen rect.** Under a scaled ancestor (the
+  editor's `PreviewFrame`) `getBoundingClientRect()` carried the zoom into `Wpx` until the first
+  ResizeObserver entry. `offsetWidth` is rounded to an integer, which that first entry corrects
+  with the un-rounded `borderBoxSize`: "half a pixel for one frame is the better error than a
+  whole zoom factor".
 - **Width and rects in one callback**, so the geometry and mask come from one measurement.
 - **A selector never matches inside the box.** Otherwise `"div"` would select every DOM cell, "which
   would then hide itself".
@@ -105,9 +110,9 @@ a no-op teardown.
 
 | Caller | Uses |
 | --- | --- |
-| `render/Tileset.svelte:563-572` | An `$effect` calls `track(box, targets, m => { measuredWidth, measuredHeight, keepout = … })`, re-made when the box or the targets (by content) change. |
-| `render/Tileset.svelte:246, 557` | `currentDpr()` initialises `dpr`; `observeDpr` updates it. |
-| `render/Tileset.svelte:1253` | Puts `WRAPPER_ATTRIBUTE` (value: the instance id) on the responsive container. |
+| `render/Tileset.svelte:565-574` | An `$effect` calls `track(box, targets, m => { measuredWidth, measuredHeight, keepout = … })`, re-made when the box or the targets (by content) change. |
+| `render/Tileset.svelte:251, 559` | `currentDpr()` initialises `dpr`; `observeDpr` updates it. |
+| `render/Tileset.svelte:1266` | Puts `WRAPPER_ATTRIBUTE` (value: the instance id) on the responsive container. |
 | `render/TileDecoration.svelte:34, 123` | Puts `WRAPPER_ATTRIBUTE` (value `""`) on its sized wrapper. |
 
 `refresh` has no caller in `apps/editor/src` or `apps/demo/src`. Callees: `rectToRenderSpace`
@@ -121,6 +126,7 @@ Run against fake elements and observers; "nothing here is a browser".
 - Without targets, measures only the box: no mutation or intersection observers.
 - One ResizeObserver is shared across every tileset.
 - Every tracker is read before any is called back.
+- The first measurement is seeded from the laid-out width, not the zoomed rect.
 - The box width comes from the ResizeObserver, un-rounded.
 - No callback when nothing measured changed.
 - A selector is re-resolved when the section's children change.
@@ -157,4 +163,5 @@ Run against fake elements and observers; "nothing here is a browser".
   per `space.ts`) the synchronous first callback therefore reports a zoomed `Wpx` until the
   ResizeObserver's first entry corrects it. This is possibly a one-frame wrong geometry; the
   `Measurement.width` doc says "un-rounded layout width", which the first value is not.
+  **Fixed in 0.8.1:** `track` seeds from `offsetWidth`/`offsetHeight`, the laid-out size.
 - `observeDpr` and `currentDpr` have no test.

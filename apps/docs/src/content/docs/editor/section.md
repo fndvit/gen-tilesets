@@ -58,14 +58,14 @@ expanded}`, so collapsing **unmounts** the children rather than hiding them.
 | Caller | Use |
 | --- | --- |
 | `App.svelte:64` | import |
-| `App.svelte:427` | "Grid" |
-| `App.svelte:447` | "Design", `destructive` |
-| `App.svelte:503` | "Breakpoints", `open={rules.length > 0}` |
-| `App.svelte:575` | "Derived", `open={false}` |
-| `App.svelte:618` | "Tiles" |
-| `App.svelte:622` | "Operations" |
-| `App.svelte:668` | "Seed", `open={false}` |
-| `App.svelte:750` | "Import", `open={false}`, `destructive` |
+| `App.svelte:432` | "Grid" |
+| `App.svelte:452` | "Design", `destructive` |
+| `App.svelte:508` | "Breakpoints", `open={rules.length > 0}` |
+| `App.svelte:580` | "Derived", `open={false}` |
+| `App.svelte:623` | "Tiles" |
+| `App.svelte:627` | "Operations" |
+| `App.svelte:673` | "Seed", `open={false}` |
+| `App.svelte:755` | "Import", `open={false}`, `destructive` |
 
 Callees: none.
 
@@ -80,7 +80,7 @@ No test file.
   the same shape as `BlendControl`'s `button.disclose`.
 - **Unmounting on collapse loses child state.** Collapsing Operations unmounts the draft panel,
   but the draft itself survives because it lives in `drafting`, not in the panel (stated in
-  `App.svelte:624`–`634`).
+  `App.svelte:629`–`639`).
 - **Breakpoints opens by default only for a file that has rules.** Because `open` is read once,
   a rule added later does not reopen a collapsed panel.
 

@@ -36,6 +36,24 @@
  * name. A name-derived id disagrees with its own Tile the first time the author
  * renames it, and §10.1 forbids the editor from ever blocking a rename.
  * Recorded in `DECISIONS.md` D14.
+ *
+ * ## …except the highest one, once it is gone
+ *
+ * `nextId` scans what the file holds now, so deleting `op3` from `op1, op2, op3`
+ * hands `op3` to the next Operation, which then draws with the deleted one's
+ * hash channels. Accepted: the reused id only ever matches an Operation that no
+ * longer exists, so no two Operations *in a file* share a channel, which is the
+ * correctness half of the constraint above. What is lost is a "fresh" Operation
+ * after a delete-and-add being fresh.
+ *
+ * Rejected: also scanning the ids in undo and redo history. History is not saved
+ * with the file, so after a reload the id is free again anyway; it would buy
+ * the guarantee for one session at the cost of threading `session` state into
+ * a pure allocator.
+ *
+ * Tile and asset ids are kept clear of the asset store's ids by their caller
+ * (`assets.ts` `heldTileIds`), because there a reuse would overwrite bytes that
+ * undo still needs, not only repeat a pattern.
  */
 
 /**

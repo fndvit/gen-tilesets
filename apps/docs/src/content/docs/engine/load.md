@@ -65,7 +65,7 @@ line, and appends `hint` after the list. The return value is the input, cast to 
 
 | Caller | Uses | Why |
 | --- | --- | --- |
-| `render/Tileset.svelte:217` | `assertValidFile` | In a `DEV` build only, `checked = assertValidFile(file, …, hint)`. Every later `$derived` reads `checked`, never `file`, so the assertion cannot be removed as dead code without also removing the data. In production it is skipped (cited as **S3**). |
+| `render/Tileset.svelte:222` | `assertValidFile` | In a `DEV` build only, `checked = assertValidFile(file, …, hint)`. Every later `$derived` reads `checked`, never `file`, so the assertion cannot be removed as dead code without also removing the data. In production it is skipped (cited as **S3**). |
 | `render/TileDecoration.svelte` | (by reference) | Its comment describes the same `DEV`-only relationship. |
 | Host apps | `loadTilesetFile` | The intended consumer path. |
 | `apps/editor`: **not a caller** | — | `ImportPanel.svelte:183` calls `migrate()` and `validate()` itself. It needs `MigrationOutcome.steps` for its upgrade advisory (**E16**) and needs the structured errors to report each at its path. Throwing discards both. |

@@ -68,7 +68,7 @@ recomputed by hand (**R1**).
 | Caller | Use |
 | --- | --- |
 | `App.svelte:65` | import |
-| `App.svelte:833`–`839` | only when `shadow !== null`; `g` and `rows`/`columns` from `shapedAt(Wpx)`; `config={{ ...shadow.config, rows, columns }}`; `seed={config.defaultSeed}`; `{loadSalt}` |
+| `App.svelte:838`–`844` | only when `shadow !== null`; `g` and `rows`/`columns` from `shapedAt(Wpx)`; `config={{ ...shadow.config, rows, columns }}`; `seed={config.defaultSeed}`; `{loadSalt}` |
 
 Callees: [`selection`](/api/index/functions/selection/) (`SelectionOverlay.svelte:35`);
 [`cellPlacementPercent`](/api/render/functions/cellplacementpercent/) and

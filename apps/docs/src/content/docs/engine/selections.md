@@ -99,7 +99,7 @@ cell in `rows × columns` is tested, including those the renderer will clip (cit
 | `shape.ts:183` | `has` + `get(...).coordinateBound` in `coordinateBoundOperations`; `shape.ts:195` lists the procedural names for a message |
 | `validate.ts:358–368` | `has` / `get(...).params` for `UNKNOWN_TYPE_NAME` and parameter checks |
 | `apps/editor/src/orphans.ts:44` | `atRisk`: Operations whose Selection is `coordinateBound` |
-| `apps/editor/src/App.svelte:238` | `get(...).params`, to find the `cellList` parameter to paint |
+| `apps/editor/src/App.svelte:243` | `get(...).params`, to find the `cellList` parameter to paint |
 | `apps/editor/src/lib/OperationDraft.svelte:67, 78, 91, 227` | `all()` for the picker, `get(...).params` for controls and defaults, `coordinateBound` to disable an option |
 | `index.ts:103` | re-export |
 

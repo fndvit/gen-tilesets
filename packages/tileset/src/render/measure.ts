@@ -222,15 +222,20 @@ export class Scheduler {
     targets: NormalizedTargets | null,
     onMeasure: (m: Measurement) => void,
   ): () => void {
-    const rect = box.getBoundingClientRect();
+    // Seeded from the **laid-out** size, not `getBoundingClientRect()`: the rect
+    // is on screen, so under a scaled ancestor (the editor's `PreviewFrame`) it
+    // carried the zoom into `Wpx` until the first ResizeObserver entry replaced
+    // it. `offsetWidth` is rounded to an integer, which that same first entry
+    // corrects with the un-rounded `borderBoxSize`; half a pixel for one frame
+    // is the better error than a whole zoom factor. See `space.ts` `BoxMetrics`.
     const t: Tracker = {
       box,
       scope: scopeOf(box),
       targets,
       elements: [],
       watched: new Set(),
-      width: rect.width,
-      height: rect.height,
+      width: box.offsetWidth,
+      height: box.offsetHeight,
       onscreen: true,
       dirty: true,
       requery: targets !== null,
