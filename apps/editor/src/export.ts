@@ -32,6 +32,7 @@
  */
 
 import type { TileAsset, TilesetFile } from "@fndvit/gen-tilesets";
+import { ENGINE_VERSION } from "./document.js";
 
 /** One file in the zip. Bytes, so the writer needs no knowledge of where they came from. */
 export interface ExportEntry {
@@ -54,7 +55,11 @@ export const FILE_NAME = "tileset.json";
  *
  * - `schemaVersion: 2` — required, and the file is never written without it.
  * - `engineVersion` — the pinned package of **E2**, so it is truthful by
- *   construction rather than by being remembered.
+ *   construction rather than by being remembered. **Stamped here, at export**,
+ *   because `newDocument()` is the only other place that writes it: an imported
+ *   file keeps whatever version wrote it, so a 0.6.0 file exported from a later
+ *   editor would otherwise go on claiming 0.6.0. Export is where the claim is
+ *   made, so it is made true here; the in-memory document is left as imported.
  * - **Every field explicitly, except `steps`.** `06` §5.1: the schema's defaults
  *   "exist so hand-written fixtures stay short, not so saved files can be
  *   sparse". `steps` is the one exception because its *absence is a meaning* —
@@ -66,7 +71,8 @@ export const FILE_NAME = "tileset.json";
  * open, diff, and commit.
  */
 export function serialize(file: TilesetFile): string {
-  return JSON.stringify(file, null, 2) + "\n";
+  // Spread over the existing key, so it keeps its place in the output.
+  return JSON.stringify({ ...file, engineVersion: ENGINE_VERSION }, null, 2) + "\n";
 }
 
 /**

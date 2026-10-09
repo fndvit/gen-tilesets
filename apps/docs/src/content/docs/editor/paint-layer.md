@@ -67,14 +67,14 @@ re-implemented.
 - **Re-entering a cell is a no-op.** `addCell` is idempotent and `removeCell` is total.
 - **Bounded at the call site, not in `cellAt`.** `cellAt` stays unbounded because a `rect` drag
   needs the coordinates it actually reached.
-- **Nothing touches the file.** `onChange` writes `draft.selectionParams` (`App.svelte:331`–`334`).
+- **Nothing touches the file.** `onChange` writes `draft.selectionParams` (`App.svelte:336`–`339`).
 
 ### Callers / callees
 
 | Caller | Use |
 | --- | --- |
 | `App.svelte:62` | import |
-| `App.svelte:849`–`855` | only when `painting !== null && renderBox !== null`; `g` from `shapedAt(Wpx)`, `box={renderBox}`, `cells={brush.cells}`, `param={brush.name}`, `onChange` → `paintCells(name, cells)` |
+| `App.svelte:854`–`860` | only when `painting !== null && renderBox !== null`; `g` from `shapedAt(Wpx)`, `box={renderBox}`, `cells={brush.cells}`, `param={brush.name}`, `onChange` → `paintCells(name, cells)` |
 
 Callees (`PaintLayer.svelte:26`–`31`): [`cellPlacementPercent`](/api/render/functions/cellplacementpercent/),
 [`naturalHeight`](/api/render/functions/naturalheight/); `addCell`, `cellUnder`, `hasCell`,

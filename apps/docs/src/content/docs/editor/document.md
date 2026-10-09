@@ -23,7 +23,8 @@ every moment, even between keystrokes.
 
 This is the centre of the editor's pipeline: import → **document** → draft/history → preview →
 export. The session holds the current file and applies these edits. The undo history stores the
-results. The preview draws the file. Export writes it out unchanged.
+results. The preview draws the file. Export writes it out unchanged, except that it stamps the
+current `engineVersion`.
 
 ## In detail
 
@@ -96,7 +97,7 @@ returns no errors.
 | `addAssets(tileId, assets)` | `→ Transition` | `assets` empty |
 | `renameTile(tileId, name)` | `→ Transition` | never, including empty or duplicate names |
 | `deleteTile(tileId)` | `→ Transition` | any palette references the Tile |
-| `deleteAsset(tileId, assetId)` | `→ Transition` | Tile unknown, or it has `<= 1` asset |
+| `deleteAsset(tileId, assetId)` | `→ Transition` | Tile unknown; it has `<= 1` asset; remaining weights sum `<= 0` |
 | `setAssetWeight(tileId, assetId, text)` | `→ Transition` | text not `>= 0`; Tile unknown; new sum `<= 0` |
 | `addOperation(op)` | `→ Transition` | rules present and result invalid |
 | `removeOperation(id)` | `→ Transition` | no Operation has that id |
@@ -140,6 +141,11 @@ nothing until it is edited.
 (`rows`, `columns`, `cellSize`, `bleed`, `yOffset`). `minWidth` starts at the rule's `maxWidth`,
 or 600. `maxWidth` starts at the rule's `minWidth`, or 600.
 
+**`deleteAsset`.** It refuses to empty a Tile, and also refuses when the remaining weights sum to
+`<= 0`, the same rule as `setAssetWeight`. Deleting the weighted asset of `[1, 0]` would leave
+`[0]`: a Tile with an asset that still cannot select one, which `validate()` rejects as
+`ZERO_WEIGHT_SUM`.
+
 **`setAssetWeight`.** It computes the Tile's weight sum with the new value substituted and refuses
 if the sum is `<= 0`. Zero on one asset is legal, meaning *listed but never chosen*.
 
@@ -179,12 +185,12 @@ index is an argument: the subject is named by id, but a destination has no id.
 | --- | --- |
 | `session.svelte.ts:38`, `:49`, `:104` | `newDocument`, `Transition` |
 | `App.svelte:27-45` | imports the layout, seed, rule and `ENGINE_VERSION` exports |
-| `App.svelte:434`, `:442` | `setRows`, `setYOffset` through `session.apply` |
-| `App.svelte:453`, `:459`, `:475` | `setReferenceWidth`, `setCellSize`, `setHorizontalAlignment` through `destructive()` (`:207`) |
-| `App.svelte:521-560` | `moveRule`, `removeRule`, `setRuleField`, `removeRuleField`, `addRuleField`, `addRule` |
-| `App.svelte:674`, `:676`, `:690`, `:698` | `setDefaultSeed`, `rerollSeed`, `rerollAssets`, `setReseedAssetsOnLoad` |
-| `App.svelte:341` | `ENGINE_VERSION` shown in the header |
-| `lib/TileLibrary.svelte:105`, `:125`, `:165`, `:175`, `:184`, `:189`, `:244` | `addTiles`, `addAssets`, `tileReferences`, `deleteTile`, `deleteAsset`, `setAssetWeight`, `renameTile` |
+| `App.svelte:439`, `:447` | `setRows`, `setYOffset` through `session.apply` |
+| `App.svelte:458`, `:464`, `:480` | `setReferenceWidth`, `setCellSize`, `setHorizontalAlignment` through `destructive()` (`:212`) |
+| `App.svelte:526-565` | `moveRule`, `removeRule`, `setRuleField`, `removeRuleField`, `addRuleField`, `addRule` |
+| `App.svelte:679`, `:681`, `:695`, `:703` | `setDefaultSeed`, `rerollSeed`, `rerollAssets`, `setReseedAssetsOnLoad` |
+| `App.svelte:346` | `ENGINE_VERSION` shown in the header |
+| `lib/TileLibrary.svelte:108`, `:128`, `:168`, `:178`, `:187`, `:196`, `:251` | `addTiles`, `addAssets`, `tileReferences`, `deleteTile`, `deleteAsset`, `setAssetWeight`, `renameTile` |
 | `lib/OperationStack.svelte:153`, `:163`, `:193`, `:202`, `:226` | `moveOperation`, `rerollOperation`, `removeOperation`, `setReseedOnLoad` |
 | `lib/OperationDraft.svelte:171` | `replaceOperation` or `addOperation` on commit |
 
@@ -206,7 +212,8 @@ Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseRefe
   touched.
 - **`library.test.ts`** (tile library and operation stack). Appends, rename never blocked (even to
   `""` or a duplicate), `tileReferences` ignores numeric targets. The refusals: referenced
-  `deleteTile`, last-asset `deleteAsset`, last non-zero weight, a weight the schema rejects. Every
+  `deleteTile`, last-asset `deleteAsset`, last-weighted-asset `deleteAsset`, last non-zero
+  weight, a weight the schema rejects. Every
   refusal is `toBe` identity. Operations append, keep order, are removed by id, are returned
   unchanged on no match, are replaced in place, and have no `disabled` field. `moveOperation`
   moves later and earlier, reaches both ends, is its own inverse, changes no Operation, and
@@ -242,14 +249,14 @@ Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseRefe
 
 - `document.ts:199-204` says *"The confirmation is Step 10 and is not implemented here… until Step
   10 there are no Operations for it to warn about."* Confirmation now exists
-  (`App.svelte:207` `destructive()`, using [orphans.ts](/editor/orphans/)), so the second half is
+  (`App.svelte:212` `destructive()`, using [orphans.ts](/editor/orphans/)), so the second half is
   stale. (stale comment)
 - Several transitions build a new object even when nothing changes: `setRows` to the current
   value, `setDefaultSeed` with the same trimmed text, `setHorizontalAlignment` to the current
   alignment, `rerollOperation`/`setReseedOnLoad` with an unknown id, and `renameTile` to the
   same name. `session.apply` compares by reference, so each pushes an undo entry that undoes to
-  an identical file. Two consequences show in the UI. `App.svelte:674` applies `setDefaultSeed`
-  on every `oninput`, so typing a trailing space pushes a no-op entry. `App.svelte:475` lets the
+  an identical file. Two consequences show in the UI. `App.svelte:679` applies `setDefaultSeed`
+  on every `oninput`, so typing a trailing space pushes a no-op entry. `App.svelte:480` lets the
   already-selected alignment button go through `destructive()`, which can open the E12
   confirmation for a change that changes nothing. `history.test.ts:89-94` pins the
   `setRows("5")` case as *"a genuine entry"*, which contradicts `history.ts`'s *"an unchanged

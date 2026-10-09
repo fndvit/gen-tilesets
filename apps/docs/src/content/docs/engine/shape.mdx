@@ -91,6 +91,9 @@ bound (`columns - bleed > 0`) depends on the resolved shape.
    `bleed`.
 2. Each bad value, via `shapeFieldProblem`.
 3. If all values are good: reshape, and report if the resulting `referenceWidth` is not `> 0`.
+   The message names the **effective** bleed, read back with `shapeOf` from the result: `bleed N
+   leaves no box` when `s.bleed` was given, and `the file's bleed (N columns, kept) leaves no box`
+   when it was inherited.
 4. If `s` names `rows` or `columns`: one message per coordinate-bound Operation, listing the
    procedural Selections as the alternative.
 
@@ -113,9 +116,9 @@ bound (`columns - bleed > 0`) depends on the resolved shape.
 
 | Symbol | Caller |
 | --- | --- |
-| `reshape` | `render/Tileset.svelte:297`, `render/TileDecoration.svelte:92`, `render/breakpoints.ts:102`, `validate.ts:870`, `apps/editor/src/App.svelte:88` |
+| `reshape` | `render/Tileset.svelte:302`, `render/TileDecoration.svelte:92`, `render/breakpoints.ts:102`, `validate.ts:870`, `apps/editor/src/App.svelte:88` |
 | `reshapeErrors` | `render/TileDecoration.svelte:84` (under `DEV`); `responsive.ts:130` (inside `rulesReshapeErrors`) |
-| `shapeOf` | `apps/editor/src/document.ts:701`, `:754` |
+| `shapeOf` | `apps/editor/src/document.ts:706`, `:759` |
 | `SHAPE_FIELDS` | `render/options.ts:321`, `:467`; `validate.ts:810`, `:831`, `:838`; `responsive.ts:80` |
 | `shapeFieldProblem` | `render/options.ts:470`, `validate.ts:834` |
 | `coordinateBoundOperations` | `validate.ts:862` |
@@ -146,7 +149,8 @@ The file states that it asserts properties, not fixed expected values.
   `rows`/`columns` are named (by name, not value; one message per Operation in stack order); lets a
   pinned file change `cellSize`, `bleed`, `yOffset`; follows the registry, not a name list; leaves
   an unknown Selection type to `validate()`; reports bad values, unknown keys and a no-box bleed,
-  including an inherited bleed that no longer fits.
+  including an inherited bleed that no longer fits; names an inherited bleed as "the file's bleed
+  (1 columns, kept)" rather than `undefined`.
 
 ### Gotchas & rejected alternatives
 
@@ -168,7 +172,8 @@ The file states that it asserts properties, not fixed expected values.
   the problem comes from an **inherited** bleed (`s.bleed` absent, `columns` reduced), the message
   reads *"bleed undefined leaves no box: …"*. The test (`shape.test.ts`, *"reports an inherited
   bleed that no longer fits"*) only checks that the message contains `columns - bleed`, so the
-  wording is unpinned.
+  wording is unpinned. **Fixed in 0.8.1:** the message names the effective bleed, and a new test
+  pins the wording.
 - `coordinateBoundOperations` guards with `selections.has` so an unknown type is skipped. The
   header says `apps/editor/src/orphans.ts`'s `atRisk()` "reads the same flag for the same reason",
   but `atRisk` (`orphans.ts:44`) calls `selections.get` without the guard, so it throws on an

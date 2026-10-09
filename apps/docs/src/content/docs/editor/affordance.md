@@ -15,9 +15,10 @@ operation draft. It looks only at what a setting allows (a list of choices, a wh
 number with or without limits) and answers with one of four kinds: a row of buttons, a slider, a
 number box, or "painted on the preview".
 
-It also answers two smaller questions. What value should a setting start at when the author first
-picks the type, if the type does not say? And is a value the author typed acceptable for that
-setting? The answer to the second is yes or no; a bad value is never nudged into range.
+It also answers three smaller questions. What value should a setting start at when the author
+first picks the type, if the type does not say? Is a value the author typed acceptable for that
+setting? The answer is yes or no; a bad value is never nudged into range. And how should the
+setting's range be spelled out beside its control?
 
 In the editor's pipeline (import → document → **draft**/history → preview → export), it serves
 the draft: it shapes the controls that edit it and supplies its starting values.
@@ -42,6 +43,7 @@ Editor-internal; nothing here has an API page.
 | `affordanceFor` | `(spec: ParamSpec) → Affordance` | Total; no fallthrough. |
 | `defaultFor` | `(spec: ParamSpec) → string \| number` | A fresh parameter's value. |
 | `admits` | `(spec: ParamSpec, value: unknown) → boolean` | Whether a value satisfies the spec. |
+| `rangeLabel` | `(spec: ParamSpec) → string` | The bounds spelled out beside a control, e.g. `"[0, 1)"`. |
 
 ```ts
 type Affordance =
@@ -84,6 +86,14 @@ For a `number`, the lower bound is `min ?? exclusiveMin` and the upper `max ?? e
 - `number` / `integer`: a finite number; an integer for `integer`; within `min`/`max` inclusive and
   `exclusiveMin`/`exclusiveMax` exclusive.
 
+#### `rangeLabel`
+
+- `""` for `enum` and `cellList`, and for a `number` with no bounds; `"integer"` for an
+  `integer` with no bounds.
+- Otherwise `"<lo>, <hi>"` in brackets, with the ends found as in `affordanceFor`. Each end gets
+  its own bracket: `[` / `]` where the bound is inclusive, `(` / `)` where it is exclusive or
+  absent. A missing end is `−∞` / `∞`. So `{ min: 0, exclusiveMax: 1 }` reads `[0, 1)`.
+
 ### Invariants
 
 - **Total.** Every spec the encoding admits returns an affordance.
@@ -100,9 +110,9 @@ For a `number`, the lower bound is `min ?? exclusiveMin` and the upper `max ?? e
 | Caller | Uses |
 | --- | --- |
 | `controls/ParamFields.svelte:12`, `:32` | `affordanceFor` |
-| `controls/ParamControl.svelte:11` | `admits`, `Affordance` |
+| `controls/ParamControl.svelte:11` | `admits`, `rangeLabel`, `Affordance` |
 | `draft.svelte.ts:42`, `:124` | `defaultFor`, inside `defaultParams` |
-| `controls/affordance.test.ts:4` | all three functions |
+| `controls/affordance.test.ts:4` | all four functions |
 
 Callees: none at runtime. It imports only the `ParamSpec` type.
 
@@ -113,6 +123,9 @@ Callees: none at runtime. It imports only the `ParamSpec` type.
   `[1,2,3]`; `0..100` integer → slider with step `1`; enum → segmented; `cellList` → `cellList`.
 - **`admits`:** exclusive vs inclusive bounds; non-finite refused; fractions refused for
   integers; enum strictness; `cellList` shape.
+- **`rangeLabel`:** inclusive ends bracketed, exclusive or absent ends parenthesised (including
+  `[0, 1)`, the case it used to get wrong); a bare integer reads `"integer"`; an unbounded
+  number and an enum read `""`; and `admits` agrees at the ends it calls closed.
 - **`defaultFor`:** prefers the schema's default; falls back to the first value the spec admits,
   and never to an excluded bound.
 - **The sweep over the real registries:** pins the registered names (`all`, `cellList`,
@@ -137,5 +150,7 @@ Callees: none at runtime. It imports only the `ParamSpec` type.
 - `affordanceFor` treats an exclusive bound as a slider end (`min ?? exclusiveMin`), so a spec
   bounded exclusively at both ends would get a slider able to land on an excluded value. See
   [ParamControl](/editor/param-control/). No registered spec triggers it. (possible bug, latent)
+  **Fixed in 0.8.1:** the slider now checks `admits` before committing, so an excluded end is
+  never committed.
 - No test exercises `defaultFor` on a spec with both `exclusiveMin` and an upper bound (the
   midpoint branch). (missing test)

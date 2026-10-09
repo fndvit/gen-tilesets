@@ -185,3 +185,23 @@ export function admits(spec: ParamSpec, value: unknown): boolean {
   if (spec.max !== undefined && value > spec.max) return false;
   return true;
 }
+
+/**
+ * The bounds, spelled out beside a control, so the author can see what it
+ * admits. Empty for a type with no numeric range.
+ *
+ * Each end gets its own bracket: `(` or `)` where the bound is exclusive or
+ * absent (infinity is never reached), `[` or `]` where it is inclusive. It used
+ * to check only `exclusiveMin`, so `{ min: 0, exclusiveMax: 1 }` read `[0, 1]`
+ * and offered 1, which `admits` refuses.
+ */
+export function rangeLabel(spec: ParamSpec): string {
+  if (spec.type === "enum" || spec.type === "cellList") return "";
+  const number = spec.type === "number";
+  const lo = number ? (spec.min ?? spec.exclusiveMin) : spec.min;
+  const hi = number ? (spec.max ?? spec.exclusiveMax) : spec.max;
+  if (lo === undefined && hi === undefined) return spec.type === "integer" ? "integer" : "";
+  const loOpen = lo === undefined || (number && spec.min === undefined);
+  const hiOpen = hi === undefined || (number && spec.max === undefined);
+  return `${loOpen ? "(" : "["}${lo ?? "−∞"}, ${hi ?? "∞"}${hiOpen ? ")" : "]"}`;
+}

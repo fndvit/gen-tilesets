@@ -68,7 +68,7 @@ All re-exported from `render/index.ts:73-79`.
 
 | Caller | Uses |
 | --- | --- |
-| `render/measure.ts:55, 287` | `rectToRenderSpace`, once per keep-out element per flush, with metrics built inline from the box rect and the ResizeObserver's un-rounded width. |
+| `render/measure.ts:55, 292` | `rectToRenderSpace`, once per keep-out element per flush, with metrics built inline from the box rect and the ResizeObserver's un-rounded width. |
 | `apps/editor/src/paint.ts:35, 70` | `toRenderSpace` in the brush's `cellUnder`. |
 | `apps/editor/src/paint.ts:50` | Re-exports `metricsOf`, `toRenderSpace`, `BoxMetrics` so its own callers are unchanged. |
 | `apps/editor/src/lib/PaintLayer.svelte:31, 65` | `metricsOf(box)` (via `paint.ts`). |

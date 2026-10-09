@@ -240,8 +240,13 @@ export function reshapeErrors(file: TilesetFile, s: Partial<Shape>): string[] {
   if (valuesOk) {
     const out = reshape(file, s);
     if (!(out.layout.referenceWidth > 0)) {
+      // The effective bleed, read back from the result, not `s.bleed`: an
+      // inherited bleed (rule 3 of `reshape`) is absent from `s`, and this used
+      // to print "bleed undefined" for exactly the case most likely to surprise.
+      const bleed = shapeOf(out).bleed;
+      const which = s.bleed === undefined ? `the file's bleed (${bleed} columns, kept)` : `bleed ${bleed}`;
       errors.push(
-        `bleed ${String(s.bleed)} leaves no box: columns - bleed must be > 0 (columns is ${out.config.columns}).`,
+        `${which} leaves no box: columns - bleed must be > 0 (columns is ${out.config.columns}).`,
       );
     }
   }

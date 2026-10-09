@@ -267,6 +267,9 @@ imports natively, so steps 5 and 6 are otherwise unchanged.
   (`"svg"` was a third substrate until 0.6.0 and is gone — see the changelog.)
 - **`onAssetError` is the only report of a missing picture.** Nothing is substituted and nothing
   returns null, so a tile whose file is absent draws an empty cell silently unless you wire this.
+- **An SVG asset must declare `width` and `height`**, not only a `viewBox`. One without them has
+  no natural size, and from 0.8.1 both substrates refuse it: an empty cell and an `onAssetError`
+  saying so. (Canvas could not draw it the right size, and the two substrates disagreed.)
 - **`<Tileset>` validates its `file` in a development build, and throws.** It is keyed on the file,
   so it runs when the file changes rather than per frame, and it compiles out of a production build
   along with the validator itself. If it fires, the fix is `loadTilesetFile` — the message says so.

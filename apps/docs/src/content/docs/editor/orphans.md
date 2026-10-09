@@ -92,9 +92,9 @@ is. `authored` is spread in or omitted rather than set to `undefined`, because u
 | Caller | Uses |
 | --- | --- |
 | `App.svelte:57` | imports `atRisk`, `needsConfirmation`, `orphans` |
-| `App.svelte:208` | `needsConfirmation(config)` in `destructive()`: hold the transition as `pending`, or apply it |
-| `App.svelte:219` | `risked = atRisk(config)`, the names in the confirmation |
-| `App.svelte:226` | `orphaned = orphans(config, config.defaultSeed, loadSalt)` |
+| `App.svelte:213` | `needsConfirmation(config)` in `destructive()`: hold the transition as `pending`, or apply it |
+| `App.svelte:224` | `risked = atRisk(config)`, the names in the confirmation |
+| `App.svelte:231` | `orphaned = orphans(config, config.defaultSeed, loadSalt)` |
 
 Callees: [`selection`](/api/index/functions/selection/) and
 [`selections`](/api/index/variables/selections/) from the engine.

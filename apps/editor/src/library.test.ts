@@ -71,6 +71,12 @@ describe("generated ids — 09 §4.3, 06 C10", () => {
     // "is assigned at creation and never reassigned".
     expect(nextTileId(["t1", "t3"])).toBe("t4");
   });
+
+  it("does hand back the highest id once it is deleted — accepted, see ids.ts", () => {
+    // Pinned so a change to it is deliberate. op3 then matches only an
+    // Operation that no longer exists; no two in one file share a channel.
+    expect(nextOperationId(["op1", "op2"])).toBe("op3");
+  });
 });
 
 describe("attach paths — 09 §10.3, §11.1", () => {
@@ -159,6 +165,13 @@ describe("refusals — E5, and never a dangling reference", () => {
 
     const two = withTiles(tile("t1", "grass", [1, 1]));
     expect(run(two, deleteAsset("t1", "a1")).config.tiles[0]!.assets).toHaveLength(1);
+  });
+
+  it("refuses to delete the last weighted asset — 06 §6, ZERO_WEIGHT_SUM", () => {
+    // [1, 0] minus its weighted asset is [0]: not empty, and still unselectable.
+    const file = withTiles(tile("t1", "grass", [1, 0]));
+    expect(deleteAsset("t1", "a1")(file)).toBe(file);
+    expect(run(file, deleteAsset("t1", "a2")).config.tiles[0]!.assets).toHaveLength(1);
   });
 
   it("refuses to zero the last non-zero weight — §10.2, 06 §6", () => {

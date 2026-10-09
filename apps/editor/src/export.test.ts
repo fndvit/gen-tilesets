@@ -12,7 +12,7 @@
 
 import type { Operation, Tile, TilesetFile } from "@fndvit/gen-tilesets";
 import { describe, expect, it } from "vitest";
-import { newDocument } from "./document.js";
+import { ENGINE_VERSION, newDocument } from "./document.js";
 import { drawsNothing, entries, FILE_NAME, serialize } from "./export.js";
 
 const asset = (id: string, src: string | undefined) => ({
@@ -48,6 +48,17 @@ describe("the file — 09 §11.3", () => {
     const parsed = JSON.parse(serialize(newDocument()));
     expect(parsed.schemaVersion).toBe(4);
     expect(typeof parsed.engineVersion).toBe("string");
+  });
+
+  it("stamps the current engineVersion on an imported file — E2", () => {
+    // Only newDocument() wrote it before, so an imported file kept the version
+    // of whatever wrote it last.
+    const imported: TilesetFile = { ...newDocument(), engineVersion: "0.6.0" };
+    const text = serialize(imported);
+    expect(JSON.parse(text).engineVersion).toBe(ENGINE_VERSION);
+    expect(imported.engineVersion).toBe("0.6.0");
+    // Nothing else moves: the key keeps its place.
+    expect(Object.keys(JSON.parse(text))).toEqual(Object.keys(imported));
   });
 
   it("writes the optional fields explicitly — 06 §5.1", () => {

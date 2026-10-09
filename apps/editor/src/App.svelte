@@ -117,7 +117,12 @@
    * failure is reported *beside* the preview, not inside it.
    */
   function onAssetError(ref: AssetRef, cause: unknown): void {
-    failures = [...failures, `${ref.tileId}/${ref.assetId}: ${String(cause)}`];
+    const failure = `${ref.tileId}/${ref.assetId}: ${String(cause)}`;
+    // The renderer reports a failing provider again each time it re-resolves (a
+    // reseed, a resize), and the list below is keyed by the string: a repeat
+    // would be a duplicate `{#each}` key, which Svelte throws on.
+    if (failures.includes(failure)) return;
+    failures = [...failures, failure];
   }
 
   const currentBleed = $derived(bleed(layout.referenceWidth, layout.cellSize, config.columns));

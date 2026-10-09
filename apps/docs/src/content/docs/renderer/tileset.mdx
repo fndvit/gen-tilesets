@@ -9,7 +9,8 @@ import TilesetStory from "../../../stories/TilesetStory.svelte";
 
 **Written from:** `packages/tileset/src/render/Tileset.svelte`, the tests of the modules it is
 built from (`options.test.ts`, `breakpoints.test.ts`, `measure.test.ts`, `geometry.test.ts`,
-`sizing.test.ts`, `uniform.test.ts`, `occlusion.test.ts`, `edges.test.ts`, `provider.test.ts`), and
+`sizing.test.ts`, `uniform.test.ts`, `occlusion.test.ts`, `edges.test.ts`, `provider.test.ts`,
+`images.test.ts`), and
 the call sites in `apps/editor/src/App.svelte`, `apps/demo/src` and `render/TileDecoration.svelte`.
 
 ## Overview
@@ -88,8 +89,10 @@ only, say, `avoid.padding` changed. The comment calls this "what keeps R12 true"
 
 - `targets` is the normalised `avoid.targets`, kept at the previous identity while `sameTargets`
   says nothing changed, so an inline `[a, b]` does not re-register observers.
-- `onAssetError` is read **untracked** at call time (`reportAssetError`), so a new identity of an
-  inline callback does not re-resolve every asset.
+- `onAssetError` is read **untracked** at call time (`reportAssetError`). It used to be called
+  from inside `drawables`' derivation, where a tracked read made every new identity of an inline
+  callback re-resolve every asset. Every report now arrives asynchronously, and the read stays
+  untracked so that moving a call back into a derivation cannot bring that back.
 - `effectiveSeed` is `seedOption ?? checked.config.defaultSeed` (cited as **S4**: with no options
   the picture is fixed).
 
@@ -116,8 +119,10 @@ See [breakpoints.ts](/renderer/breakpoints/) for the reservation CSS and the cac
   keep-out change.
 - `spill = maxSpill(grid)` and `drawn = drawnTiles(grid)` are per grid, not per resize.
 - `metaByKey` maps `assetKey(tileId, assetId)` to each `TileAsset`'s `meta` (or `{}`).
-- `drawables` calls `provider(ref)` **once per distinct key** in the grid. A synchronous throw is
-  reported through `onAssetError` and stored as `Promise.reject(cause)`. The comment says memoising
+- `drawables` calls `provider(ref)` **once per distinct key** in the grid, through
+  `resolveDrawable` ([provider.ts](/renderer/provider/)). A synchronous throw is reported through
+  `onAssetError` on a microtask and stored as a handled `Promise.reject(cause)`; a returned
+  promise that rejects is reported when it rejects. The comment says memoising
   makes "the provider is pure" structural rather than an obligation, and records the objection that
   it "silently repairs an impure provider" and caches a lazy provider's rejection too.
 
@@ -148,8 +153,9 @@ items        = uniformDrawList(geometry, grid, dpr, 0, assetKey, presentation)
 
 - `sources` maps each key to its `src`. A promise from a lazy provider is awaited and lands in the
   map when it settles; keys no longer referenced are dropped.
-- `bank.sync(sources, …)` decodes images ([images.ts](/renderer/images/)); a decode failure is
-  turned back into a pair with `parseAssetKey` and reported.
+- `bank.sync(sources, …)` decodes images ([images.ts](/renderer/images/)); a decode failure, or a
+  picture with no natural size, is turned back into a pair with `parseAssetKey` and reported. The
+  bank shares one `NaturalSizeChecks` with the DOM substrate, so a `src` is probed once.
 - **Paint** (`$effect`): sizes the backing store to `rasterWidthDev x rasterHeightDev`, clears it,
   enables high-quality smoothing, then for each item: skip if masked; skip if no decoded image
   (cited as **R3**: no placeholder, no sibling asset); compute `coverRect` against the square cell;
@@ -169,8 +175,14 @@ shownCells = non-empty cells in domColumns, row-major
 
 - Each shown cell renders `<div class="cell" style={cellStyle(...)} data-x data-y data-masked>`
   around `{#await drawables.get(key)}` an `<img alt="" loading="lazy" draggable="false">`. A
-  rejected drawable renders nothing. An `<img>` `error` adds the key to `loadFailed`, which unmounts
-  every cell using that key and reports once.
+  rejected drawable renders nothing. `loadFailed` is a `Map` from key to the `src` that failed
+  (`recordLoadFailure`). An `<img>` `error` records it and reports once; `loadBlocked` then
+  unmounts every cell whose drawable has that `src`. A new `src` for the key is retried. A lazy
+  provider's `src` is known only inside `{#await}`, so an inner guard
+  (`loadFailed.get(key) !== drawable.src`) catches it there.
+- An `<img>` `load` runs `sizeChecks.check(src, img)`, and a picture with no natural size is
+  refused through the same `handleLoadError`, so the DOM agrees with canvas. It shows until the
+  probe settles, about one frame.
 - `cellStyle` = `domPlacement` + `transform: cssTransform(cell)` only when not an identity +
   `opacity` only when below 1.
 - `domPlacement`, **before measurement:** `cellPlacementAffine` as `width`, `margin-left`,
@@ -233,7 +245,7 @@ All are guarded by `DEV` from `../dev.ts`, which folds to `false` in a productio
 
 | Caller | How |
 | --- | --- |
-| `apps/editor/src/App.svelte:20, 820-824` | `<Tileset {file} options={{ loadSalt, provider: editorProvider, onAssetError }} bind:box={renderBox} />`, the editor preview (cited as **S2**). |
+| `apps/editor/src/App.svelte:20, 825-829` | `<Tileset {file} options={{ loadSalt, provider: editorProvider, onAssetError }} bind:box={renderBox} />`, the editor preview (cited as **S2**). |
 | `render/TileDecoration.svelte:36, 124` | `<Tileset {file} {options} />` on a reshaped style. |
 | `apps/demo/src/App.svelte:21, 146` | `seed`, `loadSalt`, `substrate`, `provider`, `onAssetError`. |
 | `apps/demo/src/Hosting.svelte:26, 162` | A full `options` object built from controls (sizing, align, substrate). |
@@ -304,31 +316,34 @@ story above are its only coverage.
 
 - **Async provider rejections are never reported.** `drawables` reports only a *synchronous* throw.
   A provider that returns a promise which rejects is swallowed by `.catch(() => {})` on canvas
-  (line 634) and rendered as nothing by `{:catch}` on DOM (line 1220), with no `onAssetError` call
-  on either path. The comment at line 632 says the rejection "has already been reported … where the
-  provider threw", which holds only for a synchronous throw. `TilesetOptions.onAssetError` promises
-  it "fires for a resolution failure and a load failure alike".
+  and rendered as nothing by `{:catch}` on DOM, with no `onAssetError` call on either path. The
+  comment there said the rejection "has already been reported … where the provider threw", which
+  held only for a synchronous throw. `TilesetOptions.onAssetError` promises it "fires for a
+  resolution failure and a load failure alike". **Fixed in 0.8.1:** `resolveDrawable` reports a
+  rejected promise too, and the comment now says so.
 - **Unhandled rejections on the DOM substrate.** A synchronous throw is stored as
   `Promise.reject(cause)`. Under DOM, only cells that are mounted `{#await}` it, so a failing asset
   whose cells are all culled, or all in `loadFailed`, leaves a rejection with no handler. The error
-  is already reported; this would only add console noise.
+  is already reported; this would only add console noise. **Fixed in 0.8.1:** the stored
+  rejection is marked handled.
 - **`loadFailed` is never cleared.** Once an `<img>` fails for a key, every cell using that key stays
   unmounted for the component's lifetime, even if the host changes `provider` or `file`. On canvas
-  the equivalent (`ImageBank`'s failed set) is cleared when the `src` changes.
-- **Stale template comment** (lines 1009-1013): "under `substrate="canvas"` the render box *is* the
+  the equivalent (`ImageBank`'s failed set) is cleared when the `src` changes. **Fixed in 0.8.1:**
+  `loadFailed` maps key to the failed `src`, and a new `src` is retried.
+- **Stale template comment** (lines 1013-1017): "under `substrate="canvas"` the render box *is* the
   canvas: one element". Since the split the box is the wrapper and the canvas is a separate, wider
-  element, as the comment at line 1044 and the `box` prop's docstring say.
-- **Stale comment** (lines 373-379): "Placement is `cellPlacementPercent`'s … called per cell from
+  element, as the comment at line 1048 and the `box` prop's docstring say.
+- **Stale comment** (lines 378-384): "Placement is `cellPlacementPercent`'s … called per cell from
   `cellStyle`". Placement now goes through `domPlacement`, which calls `cellPlacementAffine` before
   measurement and `domGeometry` after.
-- **Detached docstring** (lines 771-780): the doc comment describing `mask` and `lastMask` is
+- **Detached docstring** (lines 775-784): the doc comment describing `mask` and `lastMask` is
   followed directly by the doc comment for `drawn`, so it is attached to nothing (and tools will
   associate neither comment with `mask`).
-- **Stale CSS comment** on `.cell` (lines 1308-1311): "`width` is set inline as a percentage … and
+- **Stale CSS comment** on `.cell` (lines 1321-1324): "`width` is set inline as a percentage … and
   `margin-left` / `margin-top` … as percentages". That is only true before measurement; afterwards
   they are px from `domGeometry`.
-- **Slightly inaccurate comment** (lines 174-175): "Nothing below this block reads `resolved` or
+- **Slightly inaccurate comment** (lines 177-178): "Nothing below this block reads `resolved` or
   `options` again, except the one `untrack`ed read in `reportAssetError`". The `targets` derived
-  just below (line 193) also reads `resolved.avoid`.
+  just below (line 196) also reads `resolved.avoid`.
 - **No softness warnings under DOM.** `cellTooSmall` and `assetTooSmall` run only in the canvas
   paint effect.

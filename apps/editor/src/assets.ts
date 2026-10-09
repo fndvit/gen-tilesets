@@ -33,7 +33,7 @@
  * rather than a source of variation.
  */
 
-import { assetKey, type AssetProvider, type AssetRef, type Drawable } from "@fndvit/gen-tilesets/render";
+import { assetKey, parseAssetKey, type AssetProvider, type AssetRef, type Drawable } from "@fndvit/gen-tilesets/render";
 
 /** What one attach produced. `width`/`height` are E13's frozen measurement. */
 export interface StoredAsset {
@@ -143,13 +143,50 @@ export async function attach(tileId: string, assetId: string, file: File): Promi
   }
 }
 
-/** Releases an attach whose asset has been deleted from the document. */
-export function release(tileId: string, assetId: string): void {
-  const key = assetKey(tileId, assetId);
-  const stored = store.get(key);
-  if (stored === undefined) return;
-  URL.revokeObjectURL(stored.url);
-  store.delete(key);
+/*
+ * There is deliberately no `release()`. Deleting a Tile or an asset from the
+ * document leaves its bytes here, because the delete is undoable: a release
+ * before `deleteTile` / `deleteAsset` meant undo brought the Tile back with no
+ * bytes, so `editorProvider` threw, the preview drew a hole and export failed
+ * with "no attached file".
+ *
+ * The cost is a leak bounded by the session: every picture dropped since the
+ * last import or new document stays in memory until `replaceAll` swaps the
+ * whole store out. That is what the author dropped, and no more.
+ *
+ * Rejected: releasing only the entries no undo or redo state still references.
+ * It needs this module to read `session`'s history, and a release then has to be
+ * re-run on every transition that drops a state off the end of the history. That
+ * is a second owner for the store's lifetime, in exchange for memory that
+ * `replaceAll` already reclaims.
+ */
+
+/**
+ * Tile ids the store still holds bytes for, including deleted Tiles'.
+ *
+ * `ids.ts` allocates from what the *document* holds, so after a delete it can
+ * hand the deleted Tile's id to a new one. With the bytes kept for undo, the
+ * new attach would then overwrite them, and undoing back past the add would
+ * restore the old Tile showing the new picture, silently. Id allocation passes
+ * these alongside the document's ids so that cannot happen.
+ */
+export function heldTileIds(): string[] {
+  const ids = new Set<string>();
+  for (const key of store.keys()) {
+    const pair = parseAssetKey(key);
+    if (pair !== null) ids.add(pair.tileId);
+  }
+  return [...ids];
+}
+
+/** Asset ids the store holds bytes for under `tileId`, for the same reason. */
+export function heldAssetIds(tileId: string): string[] {
+  const ids: string[] = [];
+  for (const key of store.keys()) {
+    const pair = parseAssetKey(key);
+    if (pair !== null && pair.tileId === tileId) ids.push(pair.assetId);
+  }
+  return ids;
 }
 
 /** One asset an import wants attached, under ids the incoming document owns. */

@@ -508,15 +508,20 @@ export function deleteTile(tileId: string): Transition {
 /**
  * **Refused when it would empty the Tile** — `03` §4.1: "a Tile with no assets
  * cannot resolve". Deleting the Tile itself is the way to remove the last one.
+ *
+ * **Refused, too, when it would leave no non-zero weight** — the same rule as
+ * `setAssetWeight` below, for the same reason. Deleting the sole weighted asset
+ * of `[1, 0]` leaves `[0]`: a Tile that has an asset and still cannot select
+ * one, which `validate()` rejects as `ZERO_WEIGHT_SUM`. Counting assets alone
+ * let that through.
  */
 export function deleteAsset(tileId: string, assetId: string): Transition {
   return (file) => {
     const tile = file.config.tiles.find((t) => t.id === tileId);
     if (tile === undefined || tile.assets.length <= 1) return file;
-    return mapTile(file, tileId, (t) => ({
-      ...t,
-      assets: t.assets.filter((a) => a.id !== assetId),
-    }));
+    const remaining = tile.assets.filter((a) => a.id !== assetId);
+    if (remaining.reduce((n, a) => n + a.weight, 0) <= 0) return file;
+    return mapTile(file, tileId, (t) => ({ ...t, assets: remaining }));
   };
 }
 

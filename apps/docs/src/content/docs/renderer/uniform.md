@@ -115,11 +115,11 @@ cell's flat `index`.
 
 | Caller | Uses |
 | --- | --- |
-| `render/Tileset.svelte:673-675` | `uniformGeometry(geometry, dpr)` as `uniform`, canvas and measured only. |
-| `render/Tileset.svelte:721-725` | `canvasPresentation(geometry, uniform, dpr, canvasColumns)`. |
-| `render/Tileset.svelte:696-698` | `domGeometry(geometry, dpr)` as `domCell`, DOM and measured only. |
-| `render/Tileset.svelte:739, 767` | `domLattice` for DOM culling and for the mask. |
-| `render/Tileset.svelte:847-851` | `uniformDrawList(geometry, grid, dpr, 0, assetKey, presentation)`, passing the presentation as the range. |
+| `render/Tileset.svelte:677-679` | `uniformGeometry(geometry, dpr)` as `uniform`, canvas and measured only. |
+| `render/Tileset.svelte:725-729` | `canvasPresentation(geometry, uniform, dpr, canvasColumns)`. |
+| `render/Tileset.svelte:700-702` | `domGeometry(geometry, dpr)` as `domCell`, DOM and measured only. |
+| `render/Tileset.svelte:743, 771` | `domLattice` for DOM culling and for the mask. |
+| `render/Tileset.svelte:851-855` | `uniformDrawList(geometry, grid, dpr, 0, assetKey, presentation)`, passing the presentation as the range. |
 | `apps/demo/src/Square2x2.svelte:37, 41, 164-165` | `uniformGeometry` and `domGeometry` in a diagnostic readout. |
 
 Callees: `alignFraction`, `originX`, `scaleFactor` (`geometry.ts`); `isIdentityTransform`, `sincos`,

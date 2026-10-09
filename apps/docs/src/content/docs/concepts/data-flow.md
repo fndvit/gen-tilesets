@@ -90,5 +90,6 @@ import ─▶ document ─▶ session.apply(transition) ─▶ history ─▶ <T
   half-built Operation.
 - The preview is a plain `<Tileset>` on the session's file ([App.svelte](/editor/app/)). Overlays
   draw on top of it and never replace it.
-- [export.ts](/editor/export/) serialises the in-memory file as it is, and
+- [export.ts](/editor/export/) serialises the in-memory file as it is, stamping only the current
+  `engineVersion`, and
   [download.ts](/editor/download/) zips it with the asset bytes.

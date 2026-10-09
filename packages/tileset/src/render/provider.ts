@@ -141,3 +141,84 @@ export function parseAssetKey(key: string): { tileId: string; assetId: string } 
   if (at < 0) return null;
   return { tileId: key.slice(0, at), assetId: key.slice(at + 1) };
 }
+
+/**
+ * Calls `provider` once for `ref` and makes **every** failure reach `report`,
+ * whichever way it arrives. `TilesetOptions.onAssetError` promises it "fires for
+ * a resolution failure and a load failure alike", and `AssetProvider` may fail
+ * in two shapes:
+ *
+ * - **It throws.** Reported on a microtask, not now: this runs inside the
+ *   component's `$derived`, and a host whose `onAssetError` writes `$state` (the
+ *   editor's does) then died with Svelte's `state_unsafe_mutation` instead of
+ *   showing the failure. Every other failure already arrived asynchronously, so
+ *   this makes the one timing a host has to allow for. The throw is stored as a
+ *   rejected promise so the DOM
+ *   substrate's `{#await}` still takes its `{:catch}` branch. That promise is
+ *   marked handled: a key whose cells are all culled has no `{#await}` mounted
+ *   to handle it, and an unhandled rejection is a second, misleading report of
+ *   the same failure, in the console instead of through `onAssetError`.
+ * - **It returns a promise that rejects.** Reported when it rejects. Before
+ *   this, only the synchronous throw was reported: the canvas substrate
+ *   swallowed the rejection with `.catch(() => {})` and the DOM one rendered it
+ *   as `{:catch}`'s nothing, so a lazy provider's failure was silent.
+ *
+ * The promise handed back is the provider's own, not the reporting chain, so
+ * consumers still see the rejection and take the R3 path: the cell draws nothing.
+ */
+export function resolveDrawable(
+  provider: AssetProvider,
+  ref: AssetRef,
+  report: (ref: AssetRef, cause: unknown) => void,
+): Drawable | Promise<Drawable> {
+  let value: Drawable | Promise<Drawable>;
+  try {
+    value = provider(ref);
+  } catch (cause) {
+    queueMicrotask(() => report(ref, cause));
+    value = Promise.reject(cause);
+    value.catch(() => {});
+    return value;
+  }
+  if (value instanceof Promise) value.catch((cause: unknown) => report(ref, cause));
+  return value;
+}
+
+/**
+ * The DOM substrate's record of `<img>` load failures: `(tileId, assetId)` key
+ * to the `src` that failed.
+ *
+ * **Keyed by `src` as well as by key, as canvas's `ImageBank` is.** It used to
+ * be a set of keys, only ever added to, so an asset whose `<img>` failed once
+ * stayed unmounted for the life of the component, even after the host changed
+ * `provider` or `file` and the key now resolved somewhere that would load. A
+ * failure is a fact about one `src`; a new `src` for the key is a new attempt.
+ *
+ * Returns the next map, or `null` when this `src` has already failed for this
+ * key, so the caller reports each failure once and does not churn `$state`.
+ */
+export function recordLoadFailure(
+  failed: ReadonlyMap<string, string>,
+  key: string,
+  src: string,
+): Map<string, string> | null {
+  if (failed.get(key) === src) return null;
+  return new Map(failed).set(key, src);
+}
+
+/**
+ * Whether a key's drawable is one whose `src` already failed to load, so the
+ * cell is not mounted at all (`08` **S6**: a broken `<img>` renders the
+ * browser's placeholder glyph, a drawable the renderer did not choose).
+ *
+ * A pending promise's `src` is not known yet, so it is never blocked here; the
+ * template checks again once it settles, with `drawable.src` in hand.
+ */
+export function loadBlocked(
+  failed: ReadonlyMap<string, string>,
+  key: string,
+  value: Drawable | Promise<Drawable> | undefined,
+): boolean {
+  if (value === undefined || value instanceof Promise) return false;
+  return failed.get(key) === value.src;
+}

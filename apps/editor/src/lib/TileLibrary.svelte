@@ -25,7 +25,8 @@
     attach,
     exportPath,
     extensionOf,
-    release,
+    heldAssetIds,
+    heldTileIds,
     stored,
     tileNameOf,
   } from "../assets.js";
@@ -84,9 +85,10 @@
 
   /** Drop on the library background: one Tile per file, per `DECISIONS.md` D13. */
   async function dropAsTiles(files: File[]): Promise<void> {
+    // The store's ids too: a deleted Tile's bytes stay for undo (assets.ts).
     const ids = nextIds(
       files.length,
-      tiles.map((t) => t.id),
+      [...tiles.map((t) => t.id), ...heldTileIds()],
       nextTileId,
     );
     const built: Tile[] = [];
@@ -94,7 +96,8 @@
     for (const [index, file] of files.entries()) {
       const tileId = ids[index]!;
       try {
-        // A fresh Tile has no assets yet, so the first id is always `a1`.
+        // A fresh Tile has no assets yet, and `heldTileIds` kept its id clear of
+        // any deleted Tile's bytes, so the first id is always `a1`.
         const asset = await buildAsset(tileId, nextAssetId([]), file);
         built.push({ id: tileId, name: tileNameOf(file.name), assets: [asset] });
       } catch (cause) {
@@ -109,7 +112,7 @@
   async function dropAsAssets(tile: Tile, files: File[]): Promise<void> {
     const ids = nextIds(
       files.length,
-      tile.assets.map((a) => a.id),
+      [...tile.assets.map((a) => a.id), ...heldAssetIds(tile.id)],
       nextAssetId,
     );
     const built: TileAsset[] = [];
@@ -171,7 +174,7 @@
       );
       return;
     }
-    for (const asset of tile.assets) release(tile.id, asset.id);
+    // The bytes are not released: undo can bring the Tile back (assets.ts).
     session.apply(deleteTile(tile.id));
   }
 
@@ -180,8 +183,12 @@
       report(`"${tile.name}" must keep at least one asset (03 §4.1). Delete the Tile instead.`);
       return;
     }
-    release(tile.id, assetId);
+    const before = session.file;
     session.apply(deleteAsset(tile.id, assetId));
+    // A refusal is an identity, so this is how the caller learns of one.
+    if (session.file === before) {
+      report(`"${tile.name}" must keep one non-zero weight (09 §10.2, 06 §6).`);
+    }
   }
 
   function changeWeight(tile: Tile, assetId: string, text: string): void {

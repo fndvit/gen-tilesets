@@ -82,7 +82,7 @@ admitted (`> 0`). `deriveColumns` does not guard against zero or negative values
 | --- | --- |
 | `document.ts:138` | `deriveColumns` in `newDocument()` |
 | `document.ts:218` | `deriveColumns` in `withLayout`, behind `setCellSize`, `setReferenceWidth` and `setHorizontalAlignment` |
-| `App.svelte:123` | `bleed(layout.referenceWidth, layout.cellSize, config.columns)` for display |
+| `App.svelte:128` | `bleed(layout.referenceWidth, layout.cellSize, config.columns)` for display |
 
 Callees: none.
 
