@@ -118,9 +118,15 @@ See [breakpoints.ts](/renderer/breakpoints/) for the reservation CSS and the cac
   before, **and on nothing else**: not a provider change, not a resize, not hydration, not a
   keep-out change.
 - `spill = maxSpill(grid)` and `drawn = drawnTiles(grid)` are per grid, not per resize.
-- `metaByKey` maps `assetKey(tileId, assetId)` to each `TileAsset`'s `meta` (or `{}`).
+- `metaByKey` maps `assetKey(tileId, assetId)` to each `TileAsset`'s `meta`, or to one shared,
+  frozen `NO_META` when it has none, so that asset keeps the same `meta` identity across
+  derivations.
 - `drawables` calls `provider(ref)` **once per distinct key** in the grid, through
-  `resolveDrawable` ([provider.ts](/renderer/provider/)). A synchronous throw is reported through
+  `resolutions = new DrawableCache()` ([provider.ts](/renderer/provider/)), which outlives the
+  derivation: it first `retain`s the keys in `metaByKey`, then `resolve`s each key, and resolves
+  again only when the provider or the asset's `meta` changes identity. A reseed re-derives
+  `drawables` without changing any asset, and resolving afresh used to report a failing provider
+  again on every reseed. A synchronous throw is reported through
   `onAssetError` on a microtask and stored as a handled `Promise.reject(cause)`; a returned
   promise that rejects is reported when it rejects. The comment says memoising
   makes "the provider is pure" structural rather than an obligation, and records the objection that
@@ -152,7 +158,9 @@ items        = uniformDrawList(geometry, grid, dpr, 0, assetKey, presentation)
 ```
 
 - `sources` maps each key to its `src`. A promise from a lazy provider is awaited and lands in the
-  map when it settles; keys no longer referenced are dropped.
+  map when it settles; keys no longer referenced are dropped. The effect that fills it runs on
+  **both** substrates, because it also records `settled` for the DOM (below); only `bank.sync` is
+  canvas-only.
 - `bank.sync(sources, …)` decodes images ([images.ts](/renderer/images/)); a decode failure, or a
   picture with no natural size, is turned back into a pair with `parseAssetKey` and reported. The
   bank shares one `NaturalSizeChecks` with the DOM substrate, so a `src` is probed once.
@@ -174,15 +182,24 @@ shownCells = non-empty cells in domColumns, row-major
 ```
 
 - Each shown cell renders `<div class="cell" style={cellStyle(...)} data-x data-y data-masked>`
-  around `{#await drawables.get(key)}` an `<img alt="" loading="lazy" draggable="false">`. A
-  rejected drawable renders nothing. `loadFailed` is a `Map` from key to the `src` that failed
-  (`recordLoadFailure`). An `<img>` `error` records it and reports once; `loadBlocked` then
-  unmounts every cell whose drawable has that `src`. A new `src` for the key is retried. A lazy
-  provider's `src` is known only inside `{#await}`, so an inner guard
-  (`loadFailed.get(key) !== drawable.src`) catches it there.
-- An `<img>` `load` runs `sizeChecks.check(src, img)`, and a picture with no natural size is
-  refused through the same `handleLoadError`, so the DOM agrees with canvas. It shows until the
-  probe settles, about one frame.
+  around `{#await drawables.get(key)}` an `<img alt="" loading="lazy" draggable="false">`, inside
+  `{#if !loadBlocked(loadFailed, key, drawables.get(key), settledFor(key, drawables.get(key)))}`.
+  `loadFailed` is a `Map` from key to the `src` that failed (`recordLoadFailure`). An `<img>`
+  `error` records it and reports once; `loadBlocked` then unmounts every cell whose drawable has
+  that `src`. A new `src` for the key is retried.
+- A lazy provider's `src` is not on its promise, so the sources effect also records `settled`: key
+  → `{ from, src, rejected }`, tagged with the promise it came from. `settledFor(key, value)` returns
+  the entry only when `from === value`, so a newer promise for the key is never judged by an older
+  one's outcome. With it, `loadBlocked` unmounts the **whole `.cell`** of a lazy drawable that
+  rejected or whose `<img>` failed. Before, such a cell stayed mounted, empty, and still took a
+  host's clicks. An inner guard (`loadFailed.get(key) !== drawable.src`) inside `{#await}` covers
+  the one effect between the promise settling and `settled` recording it.
+- An `<img>` `load` calls `checkLoaded(cell, src, img)`, which runs `sizeChecks.check(src, img)` and
+  refuses a picture with no natural size through the same `handleLoadError`, so the DOM agrees with
+  canvas. It shows until the probe settles, about one frame. `cell` and `src` are parameters, bound
+  when `load` fires: the template's `cell` and `drawable` are live bindings of a keyed `{#each}` and
+  `{#await}`, and read in the probe's `.catch` instead, a reseed during the probe had moved them to
+  the cell's new asset and blamed a healthy one.
 - `cellStyle` = `domPlacement` + `transform: cssTransform(cell)` only when not an identity +
   `opacity` only when below 1.
 - `domPlacement`, **before measurement:** `cellPlacementAffine` as `width`, `margin-left`,
@@ -330,16 +347,23 @@ story above are its only coverage.
   unmounted for the component's lifetime, even if the host changes `provider` or `file`. On canvas
   the equivalent (`ImageBank`'s failed set) is cleared when the `src` changes. **Fixed in 0.8.1:**
   `loadFailed` maps key to the failed `src`, and a new `src` is retried.
-- **Stale template comment** (lines 1013-1017): "under `substrate="canvas"` the render box *is* the
+- **A failing provider is reported again on every reseed**, because `drawables` re-derives with the
+  grid and resolved every key afresh. **Fixed:** `DrawableCache` resolves a key again only when the
+  provider or its `meta` changes.
+- **A lazy cell that can never draw stays mounted.** Since 0.8.0 made the drawn tile the unit of
+  hitting, this is a bug, not a cosmetic gap: `loadBlocked` never blocked a promise, so a cell whose lazy provider rejected, or whose `<img>` failed, stayed as an
+  empty `.cell` that still took a host's clicks. **Fixed:** the sources effect runs on both
+  substrates and records `settled`, which `loadBlocked` reads through `settledFor`.
+- **Stale template comment** (lines 1073-1077): "under `substrate="canvas"` the render box *is* the
   canvas: one element". Since the split the box is the wrapper and the canvas is a separate, wider
-  element, as the comment at line 1048 and the `box` prop's docstring say.
+  element, as the comment at line 1108 and the `box` prop's docstring say.
 - **Stale comment** (lines 378-384): "Placement is `cellPlacementPercent`'s … called per cell from
   `cellStyle`". Placement now goes through `domPlacement`, which calls `cellPlacementAffine` before
   measurement and `domGeometry` after.
-- **Detached docstring** (lines 775-784): the doc comment describing `mask` and `lastMask` is
+- **Detached docstring** (lines 834-843): the doc comment describing `mask` and `lastMask` is
   followed directly by the doc comment for `drawn`, so it is attached to nothing (and tools will
   associate neither comment with `mask`).
-- **Stale CSS comment** on `.cell` (lines 1321-1324): "`width` is set inline as a percentage … and
+- **Stale CSS comment** on `.cell` (lines 1375-1378): "`width` is set inline as a percentage … and
   `margin-left` / `margin-top` … as percentages". That is only true before measurement; afterwards
   they are px from `domGeometry`.
 - **Slightly inaccurate comment** (lines 177-178): "Nothing below this block reads `resolved` or

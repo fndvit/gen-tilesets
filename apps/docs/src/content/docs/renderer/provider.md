@@ -29,12 +29,13 @@ file → load → generate → **resolve** → draw.
 A `TileState` carries identifiers only. Resolution happens in the renderer, through a provider the
 host passes in `options.provider`. This file fixes three things: the shape of what a provider
 returns, the default way `meta.src` is read (and the loud failure when it is missing), and the
-`(tileId, assetId)` key. It also holds three helpers `<Tileset>` uses to call a provider and to
-track DOM load failures, so that logic can be tested as plain `.ts`.
+`(tileId, assetId)` key. It also holds the helpers `<Tileset>` uses to call a provider, to remember
+what each key resolved to, and to track DOM load failures, so that logic can be tested as plain
+`.ts`.
 
 ### Public surface
 
-All re-exported from `render/index.ts:149-157`.
+All re-exported from `render/index.ts:155-163`.
 
 | Export | Kind | Meaning |
 | --- | --- | --- |
@@ -52,7 +53,8 @@ Exported from the module but **not** from `render/index.ts`, so internal to the 
 | --- | --- | --- |
 | `resolveDrawable` | `(provider, ref, report) → Drawable \| Promise<Drawable>` | Calls `provider(ref)` once and makes every failure reach `report`. |
 | `recordLoadFailure` | `(failed, key, src) → Map<string, string> \| null` | The next key → failed-`src` map, or `null` if this `src` already failed for this key. |
-| `loadBlocked` | `(failed, key, value) → boolean` | Whether a key's drawable is one whose `src` already failed to load. |
+| `loadBlocked` | `(failed, key, value, settled?) → boolean` | Whether a key's cell is not mounted at all: its provider rejected, or its `src` already failed to load. `settled` is `{ src: string \| undefined; rejected: boolean }`, what a promise settled to. |
+| `DrawableCache` | class | `resolve(provider, ref, report)` is `resolveDrawable` remembered per key across re-derivations; `retain(live)` forgets every key not in `live`. |
 
 The module-private `readSrc(ref)` is the one place `meta.src` is read and the one place its
 absence throws.
@@ -88,8 +90,21 @@ absence throws.
   the rejection and draw nothing (**R3**).
 - **`recordLoadFailure(failed, key, src)`** returns a copy of `failed` with `key → src`, or `null`
   when `failed.get(key) === src`, so each failure is reported once and `$state` does not churn.
-- **`loadBlocked(failed, key, value)`** is `false` for `undefined` or a pending promise, whose
-  `src` is not known yet, and otherwise `failed.get(key) === value.src`.
+- **`loadBlocked(failed, key, value, settled?)`** is `false` for `undefined`. For a promise, whose
+  `src` is not on the promise, it reads `settled`, which the component records as the promise
+  settles: no `settled` (still pending) is `false`, a rejected one is `true`, and otherwise it is
+  `failed.get(key) === settled.src`. For a plain drawable it is `failed.get(key) === value.src`.
+  The whole `.cell` is unmounted, not only its `<img>`, because since 0.8.0 the drawn tile is the
+  unit of hitting and an empty cell would still take a host's clicks.
+- **`DrawableCache.resolve(provider, ref, report)`** returns the remembered value for
+  `assetKey(ref.tileId, ref.assetId)` when both the provider and `ref.meta` are the same
+  *identities* it was resolved from, and otherwise calls `resolveDrawable` and remembers the result.
+  A reseed or a column change re-derives the drawables without touching an asset, so a failing
+  provider is reported **once**, not on every reseed. This is **R2** held across derivations, not
+  only within one.
+- **`DrawableCache.retain(live)`** deletes every key `live.has` rejects. `<Tileset>` passes the
+  keys the config holds, not the ones on the grid, so an asset culled for a frame keeps its
+  resolution and does not report its failure twice.
 
 ### Invariants
 
@@ -104,6 +119,9 @@ absence throws.
   asset whose `<img>` failed once stayed unmounted even after the host changed `provider` or
   `file`. A new `src` for the key is a new attempt.
 - **Every `onAssetError` report is asynchronous.** A host has one timing to allow for.
+- **A key resolves again only when what it was resolved from changed:** the provider's identity
+  or the `meta` object's identity. `<Tileset>` shares one frozen empty `NO_META` for assets without
+  a `meta`, so they keep their identity across derivations.
 - **`readSrc` is synchronous**, so `prefixedProvider` does not have to await a value already in
   hand by composing through the async-capable public type.
 
@@ -112,13 +130,13 @@ absence throws.
 | Caller | Uses |
 | --- | --- |
 | `render/options.ts:32, 214` | `defaultProvider` is `DEFAULT_OPTIONS.provider`. |
-| `render/Tileset.svelte:391, 409, 432, 853, 1199` | `assetKey` for `metaByKey`, the `drawables` memo, `loadFailed`, the canvas draw list, and the DOM `{#each}`. |
-| `render/Tileset.svelte:660, 943` | `parseAssetKey` to recover the pair from a bank key for `onAssetError` and for the asset-size warning. |
-| `render/Tileset.svelte:418` | `resolveDrawable(provider, ref, reportAssetError)` for each key in the `drawables` memo. |
-| `render/Tileset.svelte:433` | `recordLoadFailure` in `handleLoadError`, from an `<img>`'s `onerror` or a failed size check. |
-| `render/Tileset.svelte:1200` | `loadBlocked` to leave a cell unmounted when its `src` already failed. |
-| `apps/editor/src/assets.ts:36, 136, 238, 259, 275` | `assetKey` for the editor's asset store; the file also imports `AssetProvider`, `AssetRef`, `Drawable`. |
-| `apps/editor/src/assets.ts:176, 186` | `parseAssetKey` in `heldTileIds` / `heldAssetIds`. |
+| `render/Tileset.svelte:395, 419, 457, 913, 1259` | `assetKey` for `metaByKey`, the `drawables` memo, `loadFailed`, the canvas draw list, and the DOM `{#each}`. |
+| `render/Tileset.svelte:720, 1003` | `parseAssetKey` to recover the pair from a bank key for `onAssetError` and for the asset-size warning. |
+| `render/Tileset.svelte:413-428` | `resolutions = new DrawableCache()`; the `drawables` memo calls `resolutions.retain(metaByKey)`, then `resolutions.resolve(provider, ref, reportAssetError)` for each key. |
+| `render/Tileset.svelte:458` | `recordLoadFailure` in `handleLoadError`, from an `<img>`'s `onerror` or a failed size check. |
+| `render/Tileset.svelte:1260` | `loadBlocked(loadFailed, key, drawables.get(key), settledFor(key, …))` to leave a cell unmounted when its `src` already failed or its provider rejected. |
+| `apps/editor/src/assets.ts:37, 147, 250, 271, 287` | `assetKey` for the editor's asset store; the file also imports `AssetProvider`, `AssetRef`, `Drawable`. |
+| `apps/editor/src/assets.ts:188, 198` | `parseAssetKey` in `heldTileIds` / `heldAssetIds`. |
 | `apps/editor/src/download.ts:21, 45, 69` | `assetKey` for exported bytes. |
 | `apps/demo/src/App.svelte:35`, `Hosting.svelte:36`, `Responsive.svelte:30`, `Square2x2.svelte:48`, `Decorations.svelte:42`, `Kelp.svelte:23` | `prefixedProvider(…)`. |
 
@@ -140,7 +158,12 @@ Callees: none.
   awaits it; reports a rejecting promise once and still hands back the same rejection; reports
   nothing for a promise that resolves.
 - `recordLoadFailure` records once per `src` and records a new `src` for the same key;
-  `loadBlocked` blocks only the `src` that failed and never a pending promise or `undefined`.
+  `loadBlocked` blocks only the `src` that failed and never a pending promise or `undefined`; it
+  blocks a settled promise whose `src` failed or that rejected, and not one whose `src` is
+  different.
+- `DrawableCache` resolves a key once while its provider and `meta` are unchanged (one report for
+  a throwing provider); resolves again for a new provider or a new `meta`; and calls the provider
+  again after `retain` has forgotten the key.
 
 ### Gotchas & rejected alternatives
 

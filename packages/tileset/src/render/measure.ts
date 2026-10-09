@@ -222,20 +222,29 @@ export class Scheduler {
     targets: NormalizedTargets | null,
     onMeasure: (m: Measurement) => void,
   ): () => void {
-    // Seeded from the **laid-out** size, not `getBoundingClientRect()`: the rect
-    // is on screen, so under a scaled ancestor (the editor's `PreviewFrame`) it
-    // carried the zoom into `Wpx` until the first ResizeObserver entry replaced
-    // it. `offsetWidth` is rounded to an integer, which that same first entry
-    // corrects with the un-rounded `borderBoxSize`; half a pixel for one frame
-    // is the better error than a whole zoom factor. See `space.ts` `BoxMetrics`.
+    // Seeded from the **laid-out** size. The rect is on screen, so under a scaled
+    // ancestor (the editor's `PreviewFrame`) it carried the zoom into `Wpx` until
+    // the first ResizeObserver entry replaced it. `offsetWidth` is the laid-out
+    // size, but rounded to an integer.
+    //
+    // So the rect is still used when it rounds to `offsetWidth`, which means the
+    // box is not scaled: it is then the exact, fractional width. Seeding from
+    // `offsetWidth` alone paired a rounded `layoutWidth` with the fractional
+    // `clientWidth` in `flush`, and the keep-out zoom (their ratio) was off by up
+    // to half a pixel's worth on the first frame for a box nothing scales. Under
+    // a real scale the rounded width stands until the first ResizeObserver entry
+    // brings the un-rounded `borderBoxSize`. See `space.ts` `BoxMetrics`.
+    const rect = box.getBoundingClientRect();
+    const unscaled =
+      Math.round(rect.width) === box.offsetWidth && Math.round(rect.height) === box.offsetHeight;
     const t: Tracker = {
       box,
       scope: scopeOf(box),
       targets,
       elements: [],
       watched: new Set(),
-      width: box.offsetWidth,
-      height: box.offsetHeight,
+      width: unscaled ? rect.width : box.offsetWidth,
+      height: unscaled ? rect.height : box.offsetHeight,
       onscreen: true,
       dirty: true,
       requery: targets !== null,

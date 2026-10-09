@@ -207,18 +207,74 @@ export function recordLoadFailure(
 }
 
 /**
- * Whether a key's drawable is one whose `src` already failed to load, so the
- * cell is not mounted at all (`08` **S6**: a broken `<img>` renders the
- * browser's placeholder glyph, a drawable the renderer did not choose).
+ * Whether a key's cell is not mounted at all, because it can never draw: its
+ * provider rejected, or its `src` already failed to load (`08` **S6**: a broken
+ * `<img>` renders the browser's placeholder glyph, a drawable the renderer did
+ * not choose). Unmounting the whole `.cell`, not only its `<img>`, matters since
+ * 0.8.0 made the drawn tile the unit of hitting: an empty cell would still take
+ * a host's clicks.
  *
- * A pending promise's `src` is not known yet, so it is never blocked here; the
- * template checks again once it settles, with `drawable.src` in hand.
+ * A promise's `src` is not on the promise, so the caller passes what it settled
+ * to (`settled`) and whether it rejected (`rejected`), both recorded by the
+ * component as the promise settles. A pending promise is never blocked.
  */
 export function loadBlocked(
   failed: ReadonlyMap<string, string>,
   key: string,
   value: Drawable | Promise<Drawable> | undefined,
+  settled?: { src: string | undefined; rejected: boolean },
 ): boolean {
-  if (value === undefined || value instanceof Promise) return false;
+  if (value === undefined) return false;
+  if (value instanceof Promise) {
+    if (settled === undefined) return false;
+    if (settled.rejected) return true;
+    return settled.src !== undefined && failed.get(key) === settled.src;
+  }
   return failed.get(key) === value.src;
+}
+
+/**
+ * {@link resolveDrawable}, remembered per `(tileId, assetId)` key across
+ * re-derivations.
+ *
+ * The component re-derives its drawables whenever the grid changes, which a
+ * reseed or a column change does without touching any asset. Resolving afresh
+ * each time called the provider again and, for a failing one, reported the same
+ * failure through `onAssetError` on every reseed. A host that keyed a list by
+ * the report (the editor did) crashed on the duplicate; one that counted them
+ * over-counted.
+ *
+ * A key is resolved again only when what it was resolved *from* changed: the
+ * provider's identity, or the identity of the asset's `meta`. That is `07`
+ * **R2** held across derivations, not only within one. Plain, rune-free, and
+ * mutated from inside a `$derived`, which is safe because nothing reads it
+ * reactively.
+ */
+export class DrawableCache {
+  readonly #byKey = new Map<
+    string,
+    { provider: AssetProvider; meta: AssetRef["meta"]; value: Drawable | Promise<Drawable> }
+  >();
+
+  resolve(
+    provider: AssetProvider,
+    ref: AssetRef,
+    report: (ref: AssetRef, cause: unknown) => void,
+  ): Drawable | Promise<Drawable> {
+    const key = assetKey(ref.tileId, ref.assetId);
+    const hit = this.#byKey.get(key);
+    if (hit !== undefined && hit.provider === provider && hit.meta === ref.meta) return hit.value;
+    const value = resolveDrawable(provider, ref, report);
+    this.#byKey.set(key, { provider, meta: ref.meta, value });
+    return value;
+  }
+
+  /**
+   * Forgets every key not in `live`. Called with the keys the config still
+   * holds, not the ones on the grid: an asset that is only culled for a frame
+   * keeps its resolution, and so does not report its failure twice.
+   */
+  retain(live: { has(key: string): boolean }): void {
+    for (const key of this.#byKey.keys()) if (!live.has(key)) this.#byKey.delete(key);
+  }
 }

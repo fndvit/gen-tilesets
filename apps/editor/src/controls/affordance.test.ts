@@ -186,6 +186,23 @@ describe("E9 — totality over the actual registries", () => {
   });
 });
 
+describe("slider ends — every position is admitted", () => {
+  it("insets an exclusive end by one step", () => {
+    const spec: ParamSpec = { type: "number", exclusiveMin: 0, max: 1 };
+    const a = affordanceFor(spec);
+    expect(a).toMatchObject({ kind: "slider", min: 0.01, max: 1, step: 0.01 });
+    if (a.kind !== "slider") return;
+    expect(admits(spec, a.min)).toBe(true);
+    expect(admits(spec, a.max)).toBe(true);
+  });
+
+  it("insets both exclusive ends, and leaves inclusive ones alone", () => {
+    const both = affordanceFor({ type: "number", exclusiveMin: 0, exclusiveMax: 1 });
+    expect(both).toMatchObject({ min: 0.01, max: 0.99 });
+    expect(affordanceFor({ type: "number", min: 0, max: 1 })).toMatchObject({ min: 0, max: 1 });
+  });
+});
+
 describe("rangeLabel — each end says whether it is admitted", () => {
   it("brackets inclusive ends and parenthesises exclusive or absent ones", () => {
     expect(rangeLabel({ type: "number", min: 0, max: 1 })).toBe("[0, 1]");

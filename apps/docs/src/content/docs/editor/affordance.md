@@ -67,8 +67,16 @@ type Affordance =
 | `integer` with both bounds and `max − min + 1 ≤ 5` | `{ kind: "segmented", values: [min..max] }` |
 | otherwise (both bounds) | `{ kind: "slider", min, max, step, integer }`; `step` is `1` for an integer, else `(max − min) / 100` |
 
-For a `number`, the lower bound is `min ?? exclusiveMin` and the upper `max ?? exclusiveMax`. An
-`integer` has only `min` and `max`.
+For a `number`, the lower bound is `min ?? exclusiveMin` and the upper `max ?? exclusiveMax`
+(the module-private `lowerBound` / `upperBound`). An `integer` has only `min` and `max`.
+
+**An exclusive slider end is inset by one step**: `min + step` when the lower bound is
+`exclusiveMin` (no `min`), `max − step` when the upper is `exclusiveMax` (no `max`). Inclusive ends
+are left alone. So every position the slider can rest on is a value `admits` takes:
+`{ exclusiveMin: 0, max: 1 }` gives a slider from `0.01` to `1`, and `{ exclusiveMin: 0,
+exclusiveMax: 1 }` one from `0.01` to `0.99`. With the bound itself as the end, a fast drag landed
+the thumb on a refused value that never committed, and the control then showed a value the draft
+did not hold.
 
 #### `defaultFor`
 
@@ -90,7 +98,8 @@ For a `number`, the lower bound is `min ?? exclusiveMin` and the upper `max ?? e
 
 - `""` for `enum` and `cellList`, and for a `number` with no bounds; `"integer"` for an
   `integer` with no bounds.
-- Otherwise `"<lo>, <hi>"` in brackets, with the ends found as in `affordanceFor`. Each end gets
+- Otherwise `"<lo>, <hi>"` in brackets, with the ends found by the same `lowerBound` /
+  `upperBound` that `affordanceFor` uses. Each end gets
   its own bracket: `[` / `]` where the bound is inclusive, `(` / `)` where it is exclusive or
   absent. A missing end is `−∞` / `∞`. So `{ min: 0, exclusiveMax: 1 }` reads `[0, 1)`.
 
@@ -123,6 +132,9 @@ Callees: none at runtime. It imports only the `ParamSpec` type.
   `[1,2,3]`; `0..100` integer → slider with step `1`; enum → segmented; `cellList` → `cellList`.
 - **`admits`:** exclusive vs inclusive bounds; non-finite refused; fractions refused for
   integers; enum strictness; `cellList` shape.
+- **Slider ends:** an exclusive end is inset by one step (`{ exclusiveMin: 0, max: 1 }` → `min:
+  0.01, max: 1, step: 0.01`), and `admits` takes both ends; both exclusive ends are inset
+  (`0.01`–`0.99`), and inclusive ones are left alone.
 - **`rangeLabel`:** inclusive ends bracketed, exclusive or absent ends parenthesised (including
   `[0, 1)`, the case it used to get wrong); a bare integer reads `"integer"`; an unbounded
   number and an enum read `""`; and `admits` agrees at the ends it calls closed.
@@ -151,6 +163,8 @@ Callees: none at runtime. It imports only the `ParamSpec` type.
   bounded exclusively at both ends would get a slider able to land on an excluded value. See
   [ParamControl](/editor/param-control/). No registered spec triggers it. (possible bug, latent)
   **Fixed in 0.8.1:** the slider now checks `admits` before committing, so an excluded end is
-  never committed.
+  never committed. Since then `affordanceFor` also insets an exclusive end by one step, so no
+  slider position is refused; the `admits` check stays as a guard against a float step that lands
+  a hair past the bound.
 - No test exercises `defaultFor` on a spec with both `exclusiveMin` and an upper bound (the
   midpoint branch). (missing test)

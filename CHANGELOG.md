@@ -20,10 +20,17 @@ An SVG with a `viewBox` and no `width`/`height` drew **shrunk** on the canvas su
 15 px tile in a 48 px cell) and, cover-cropped, **not at all**: Chrome reports it as 150 × 150 but
 lays it out at the destination size when given a source rect. The DOM substrate drew it correctly,
 so the two disagreed silently. Now both refuse it once it loads: the cell is a hole and
-`onAssetError` says to add `width` and `height`, which is the rule the editor already applied at
-attach (**E13**). **This changes output** for a host that used such SVGs on the DOM substrate.
-Detected with `createImageBitmap`, which Chrome refuses for exactly this case; `images.ts` records
-the measurements and the rejected fixes.
+`onAssetError` says to add `width` and `height`. The editor refuses the same pictures at attach
+(**E13**) by running the same check, `requireNaturalSize`, now exported from `render`; its own
+`naturalWidth > 0` test had let Chrome's 150 × 150 through. **This changes output** for a host that
+used such SVGs on the DOM substrate.
+
+Detected with `createImageBitmap`, and only for a picture no larger than the CSS default object size
+(300 × 150) whose probe fails with an `InvalidStateError` naming the missing dimensions. Anything
+else passes: a larger picture is never probed (no second decode of a photo, and Chromium's
+"could not be allocated" error cannot be misread), and an engine that refuses SVG sources for another
+reason draws them as before. `images.ts` records the Chromium 153 measurements and the rejected
+fixes.
 
 ### Fixed: renderer
 
@@ -34,22 +41,36 @@ the measurements and the rejected fixes.
   arrives on a microtask, like every other failure. Its stored rejection is marked handled, so a
   fully culled asset no longer logs an unhandled rejection.
 - **A DOM `<img>` failure is keyed by `src`**, as canvas's `ImageBank` already was. A key that
-  failed once is retried when the host's `provider` or `file` gives it a new `src`.
+  failed once is retried when the host's `provider` or `file` gives it a new `src`. A lazy
+  provider's cell whose drawable rejected or whose `<img>` failed is unmounted whole, so it takes no
+  hits; it used to stay mounted, empty.
+- **A provider failure is reported once**, not again on every reseed or column change. Resolutions
+  are remembered across re-derivations (`DrawableCache`) until the provider or the asset's `meta`
+  changes.
+- **The no-natural-size check binds its cell and `src` when the picture loads**, so a reseed during
+  the probe cannot record the failure against the asset that replaced it.
 - **The first measurement is the laid-out width**, not the on-screen rect, so a tileset under a
-  scaled ancestor no longer starts at the wrong `Wpx`.
+  scaled ancestor no longer starts at the wrong `Wpx`. An unscaled box still takes the exact,
+  fractional rect, so its first frame's keep-out rects are not skewed by `offsetWidth`'s rounding.
 - **`reshapeErrors`** names the effective bleed instead of printing "bleed undefined" when the
-  bleed was inherited.
+  bleed was inherited, rounded for reading, and quotes an explicit bleed as given.
 
 ### Fixed: editor
 
 - **Deleting the last weighted asset is refused**, as zeroing its weight already was; it used to
   leave a file `validate()` rejects.
 - **Undoing a Tile or asset delete brings its picture back.** Deletes no longer free the bytes
-  (the store is reclaimed whole on import or new document), and new ids skip ids the store still
+  (the store is reclaimed whole on import or New document), and new ids skip ids the store still
   holds, so a reused id cannot overwrite them.
+- **New document asks first, and cannot be undone.** It discards everything and reclaims every
+  picture the session held, so ids start again at `t1`. A deliberate exception to **E6**: undoing it
+  would have restored a document whose pictures were gone, and keeping them for undo meant the store
+  was never reclaimed.
 - **Export stamps the current `engineVersion`** (**E2**); an imported file kept the old one.
-- **A repeated asset failure is listed once**; a repeat was a duplicate `{#each}` key.
-- **A parameter's range readout** brackets each end by whether it is admitted, and the slider
+- **A repeated asset failure is listed once**; a repeat was a duplicate `{#each}` key. The renderer
+  no longer repeats it on a reseed either (above); the editor keeps its check as a guard.
+- **A parameter's range readout** brackets each end by whether it is admitted, and a slider's
+  exclusive end is inset by one step, so every position it can rest on is admitted. `slide` still
   checks `admits` before committing.
 
 ### Accepted and left open

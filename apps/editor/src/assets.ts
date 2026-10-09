@@ -33,7 +33,14 @@
  * rather than a source of variation.
  */
 
-import { assetKey, parseAssetKey, type AssetProvider, type AssetRef, type Drawable } from "@fndvit/gen-tilesets/render";
+import {
+  assetKey,
+  parseAssetKey,
+  requireNaturalSize,
+  type AssetProvider,
+  type AssetRef,
+  type Drawable,
+} from "@fndvit/gen-tilesets/render";
 
 /** What one attach produced. `width`/`height` are E13's frozen measurement. */
 export interface StoredAsset {
@@ -95,25 +102,29 @@ export function exportPath(tileId: string, assetId: string, ext: string): string
  * seventh advisory; cropping will, and by then the editor may not be open and
  * the asset may be gone.
  *
- * **A zero dimension is a failed attach.** An SVG carrying only a `viewBox` and
- * no `width`/`height` decodes but has no intrinsic size in some browsers, and
- * writing `0` would satisfy E13's letter while producing exactly the missing
- * measurement it exists to prevent.
+ * **A picture with no natural size is a failed attach.** An SVG carrying only a
+ * `viewBox` and no `width`/`height` decodes, but writing its size would satisfy
+ * E13's letter while producing exactly the missing measurement it exists to
+ * prevent. Some browsers report it as 0; Chrome reports a default of up to
+ * 300 × 150, which only a probe can tell from a real size. So this runs the
+ * renderer's own check, `requireNaturalSize`, rather than a copy of it: the
+ * editor then refuses at attach exactly what `<Tileset>` would refuse at draw,
+ * and a test of `naturalWidth > 0` here once let Chrome's 150 × 150 through.
  */
 export function measure(url: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
-      const width = image.naturalWidth;
-      const height = image.naturalHeight;
-      if (width > 0 && height > 0) resolve({ width, height });
-      else
-        reject(
-          new Error(
-            "decoded with no intrinsic size. An SVG needs `width` and `height` " +
-              "attributes, not only a `viewBox` — E13 writes all three meta keys or fails.",
+      requireNaturalSize(image).then(
+        () => resolve({ width: image.naturalWidth, height: image.naturalHeight }),
+        () =>
+          reject(
+            new Error(
+              "decoded with no intrinsic size. An SVG needs `width` and `height` " +
+                "attributes, not only a `viewBox` — E13 writes all three meta keys or fails.",
+            ),
           ),
-        );
+      );
     };
     image.onerror = () => reject(new Error("could not be decoded as an image"));
     image.src = url;
@@ -150,9 +161,10 @@ export async function attach(tileId: string, assetId: string, file: File): Promi
  * bytes, so `editorProvider` threw, the preview drew a hole and export failed
  * with "no attached file".
  *
- * The cost is a leak bounded by the session: every picture dropped since the
- * last import or new document stays in memory until `replaceAll` swaps the
- * whole store out. That is what the author dropped, and no more.
+ * The cost is a leak bounded by the document: every picture dropped since the
+ * last import or New document stays in memory until `replaceAll` swaps the
+ * whole store out, which both do (`ImportPanel.svelte`, `App.svelte`
+ * `newTileset`). That is what the author dropped, and no more.
  *
  * Rejected: releasing only the entries no undo or redo state still references.
  * It needs this module to read `session`'s history, and a release then has to be

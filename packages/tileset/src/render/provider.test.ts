@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   assetKey,
   defaultProvider,
+  DrawableCache,
   loadBlocked,
   parseAssetKey,
   prefixedProvider,
@@ -216,5 +217,51 @@ describe("load failures are keyed by src — a new src is a new attempt", () => 
     const pending = new Promise<never>(() => {});
     expect(loadBlocked(failed, key, pending)).toBe(false);
     expect(loadBlocked(failed, key, undefined)).toBe(false);
+  });
+
+  it("blocks a settled promise whose src failed, or that rejected — no empty cell", () => {
+    // A regression in 0.8.1's first cut, against 0.8.0: a lazy provider's failed <img> left its `.cell`
+    // mounted and empty, still taking a host's clicks.
+    const failed = new Map([[key, "a.svg"]]);
+    const lazy = new Promise<never>(() => {});
+    expect(loadBlocked(failed, key, lazy, { src: "a.svg", rejected: false })).toBe(true);
+    expect(loadBlocked(failed, key, lazy, { src: "b.svg", rejected: false })).toBe(false);
+    expect(loadBlocked(new Map(), key, lazy, { src: undefined, rejected: true })).toBe(true);
+  });
+});
+
+describe("DrawableCache — a failure is reported once, not on every reseed", () => {
+  const meta = { src: "a.svg" };
+  const r = (m: Record<string, unknown> = meta): AssetRef => ({ tileId: "water", assetId: "a1", meta: m });
+  const throwing: AssetProvider = () => {
+    throw new Error("no file");
+  };
+
+  it("resolves a key once while its provider and meta are unchanged", async () => {
+    const report = vi.fn();
+    const cache = new DrawableCache();
+    const first = cache.resolve(throwing, r(), report);
+    expect(cache.resolve(throwing, r(), report)).toBe(first);
+    await Promise.resolve();
+    expect(report).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves again for a new provider or a new meta", () => {
+    const cache = new DrawableCache();
+    const report = vi.fn();
+    const a = cache.resolve(defaultProvider, r(), report);
+    const other: AssetProvider = (x) => ({ src: `x/${String(x.meta.src)}` });
+    expect(cache.resolve(other, r(), report)).toEqual({ src: "x/a.svg" });
+    expect(cache.resolve(other, r({ src: "b.svg" }), report)).toEqual({ src: "x/b.svg" });
+    expect(a).toEqual({ src: "a.svg" });
+  });
+
+  it("forgets keys the config no longer holds", () => {
+    const cache = new DrawableCache();
+    const provider = vi.fn(defaultProvider);
+    cache.resolve(provider, r(), vi.fn());
+    cache.retain(new Set<string>());
+    cache.resolve(provider, r(), vi.fn());
+    expect(provider).toHaveBeenCalledTimes(2);
   });
 });

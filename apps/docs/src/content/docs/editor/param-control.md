@@ -64,8 +64,9 @@ The label shows a range readout, `rangeLabel(spec)` from [affordance.ts](/editor
 ### Invariants
 
 - **Refuse, never coerce** (`admits`). A typed out-of-range value is held as text, not clamped.
-- **A slider is checked with `admits`, like typed input.** Its ends are the affordance's `min`
-  and `max`, and for an exclusive bound that end is a value the spec refuses.
+- **A slider is checked with `admits`, like typed input.** `affordanceFor` already insets an
+  exclusive end by one step, so no slider position should be refused; the check in `slide()` is
+  the guard for a float step that lands a hair past the bound.
 
 ### Callers / callees
 
@@ -82,7 +83,9 @@ No test file for the component. `controls/affordance.test.ts` pins `admits`: inc
 exclusive bounds are honoured separately; `NaN` and `Infinity` are refused for every numeric spec;
 a fraction is refused where the spec says integer; an enum accepts only its own values (`"0"`
 is not `0`). It also pins `rangeLabel`: each end's bracket, including `{ min: 0, exclusiveMax: 1 }`
-as `[0, 1)`, a bare integer as `"integer"`, and `""` for an unbounded number or an enum.
+as `[0, 1)`, a bare integer as `"integer"`, and `""` for an unbounded number or an enum. And it
+pins the slider's ends: an exclusive end is inset by one step and both ends are admitted, while
+inclusive ends are left alone.
 
 ### Gotchas & rejected alternatives
 
@@ -97,7 +100,8 @@ as `[0, 1)`, a bare integer as `"integer"`, and `""` for an unbounded number or 
   exactly on an excluded end, and `slide()` commits without calling `admits`. No registered
   parameter has two exclusive bounds today (`cellsPerFeature` is `exclusiveMin` only and gets a
   number field). (possible bug, latent) **Fixed in 0.8.1:** `slide()` checks `admits` before
-  committing.
+  committing. Since then `affordanceFor` insets an exclusive end by one step, so the thumb can no
+  longer rest on a refused value at all, and the `admits` check in `slide()` is only a guard.
 - **The readout marks only `exclusiveMin` as open.** An `exclusiveMax` is shown with `]`. (possible
   bug, latent; no registered spec uses `exclusiveMax`) **Fixed in 0.8.1:** `rangeLabel` brackets
   each end on its own.

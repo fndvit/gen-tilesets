@@ -214,6 +214,18 @@ describe("Scheduler", () => {
     expect(seen[0]).toEqual({ width: 400, height: 200, rects: null });
   });
 
+  it("seeds an unscaled box from its exact rect, not the rounded offsetWidth", () => {
+    // 499.6 wide and nothing scaling it: offsetWidth says 500, which paired with
+    // the 499.6 rect would put the first frame's keep-out zoom at 499.6 / 500.
+    const log: Log = [];
+    const { env } = fakeEnv(log);
+    const { box } = page(log);
+    box.rect = { ...box.rect, width: 499.6, height: 200.4 };
+    const seen: Measurement[] = [];
+    new Scheduler(env).track(asEl(box), null, (m) => seen.push(m));
+    expect(seen[0]).toEqual({ width: 499.6, height: 200.4, rects: null });
+  });
+
   it("takes the box width from the ResizeObserver, un-rounded", () => {
     const log: Log = [];
     const { env, resize } = fakeEnv(log);

@@ -59,9 +59,10 @@ export function applied<T>(history: History<T>, f: (value: T) => T, limit = UNDO
 /**
  * Replace the current value outright, keeping it undoable.
  *
- * For the actions that are not transitions of the current file — "New document"
- * is the only one — because **E6** admits no editor action outside the stack and
- * that is the most destructive one there is.
+ * For the actions that are not transitions of the current file: an import
+ * (`session.open`). "New document" used to be one too; it now starts a fresh
+ * history instead (`historyOf`), a confirmed exception to **E6** that
+ * `session.svelte.ts` `reset` explains.
  */
 export function replaced<T>(history: History<T>, value: T, limit = UNDO_LIMIT): History<T> {
   return { past: [...history.past, history.current].slice(-limit), current: value };

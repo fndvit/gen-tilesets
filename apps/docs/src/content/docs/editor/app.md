@@ -124,8 +124,11 @@ Which component renders which, in source order. Conditional children are marked.
   falls back to it, so the preview always shows what a visitor with no host seed would see. A
   separate preview seed "would let the author approve a picture the file does not produce".
 - **`onAssetError` is always wired.** Each failure appends `"<tileId>/<assetId>: <cause>"` to
-  `failures`, listed under the preview. A string already in the list is dropped: the renderer
-  reports a failing provider again each time it re-resolves, and the list is keyed by the string. The empty cell is not filled and no placeholder is drawn.
+  `failures`, listed under the preview. A string already in the list is dropped, because the list
+  is keyed by the string and a repeat would be a duplicate `{#each}` key, which Svelte throws on.
+  The renderer reports a failure once per resolution (`provider.ts` `DrawableCache`), but it
+  resolves again when an asset's `meta` changes, and the same picture can then fail the same way.
+  The empty cell is not filled and no placeholder is drawn.
 - **`renderBox`** is bound out so `PaintLayer` can convert pointer events into render space.
   Since the canvas substrate became the default, the box is the canvas's wrapper `<div>`, which
   is why it is typed `HTMLElement`.
@@ -175,11 +178,21 @@ field. It is disabled when `loadVaries(config)` is false. If any Operation carri
 message in `exportError`. When `drawsNothing(file)` is true, an advisory says so, and the export
 is still allowed.
 
+#### New document
+
+The *New document* button in the Derived panel calls `newTileset`, which is **confirmed and not
+undoable**. It asks with `confirm(...)` first and returns if the author declines. Then it calls
+`session.reset()`, sets `failures = []`, and awaits `replaceAll([])` to reclaim every picture the
+session held. Reset comes first so the outgoing document is already gone from the preview: no
+`<img>` then draws an object URL `replaceAll` has just revoked, and nothing reports those as
+failures.
+
 ### Invariants
 
 - **One preview, the real component** (**S2**). No preview mode and no second implementation.
 - **Every edit is a transition through `session.apply`** and therefore undoable (**E6**). Undo,
-  reset and import are the only other writes, and all three go through `session`.
+  reset and import are the only other writes, and all three go through `session`. Reset (New
+  document) is the one deliberate exception to undoability, and is confirmed first.
 - **Destructive edits confirm only where something is at risk** (**E12**). A config holding only
   procedural Selections applies directly. The comment quotes the reason: "a dialogue that
   appears every time teaches the author to dismiss it before reading".
@@ -206,7 +219,7 @@ Callees, by import (`App.svelte:19`–`69`): from the package, [`selections`](/a
 [`reshape`](/api/index/functions/reshape/), [`activeRules`](/api/index/functions/activerules/),
 [`ruleOverride`](/api/index/functions/ruleoverride/), [`naturalHeight`](/api/render/functions/naturalheight/),
 [`naturalRatio`](/api/render/functions/naturalratio/), `Tileset.svelte`; from the editor,
-`assets.ts` (`editorProvider`), `derive.ts` (`bleed`), `download.ts` (`exportZip`), `export.ts`
+`assets.ts` (`editorProvider`, `replaceAll`), `derive.ts` (`bleed`), `download.ts` (`exportZip`), `export.ts`
 (`drawsNothing`), `document.ts` (sixteen transitions and `ENGINE_VERSION`), `draft.svelte.ts`
 (`toShadowOperation`), `drafting.svelte.ts`, `fields.ts` (four parsers, `RULE_FIELDS`,
 `RULE_PARSERS`), `ids.ts` (`nextOperationId`), `orphans.ts`, `reseed.ts`, `session.svelte.ts`,
@@ -241,16 +254,17 @@ validates.
 
 ### Review notes
 
-- `App.svelte:891` says "what Step 11 will export". The export exists (the download footer at
-  line 771). The comment is stale.
+- `App.svelte:910` says "what Step 11 will export". The export exists (the download footer at
+  line 790). The comment is stale.
 - `failures` is append-only and never cleared, and the list is keyed by the string itself
-  (`{#each failures as failure (failure)}`, line 881). The package calls `onAssetError` from
+  (`{#each failures as failure (failure)}`, line 900). The package calls `onAssetError` from
   inside a derivation (`Tileset.svelte:199`–`204`), so if the same asset fails again on a later
   re-derivation the same string would be appended twice and Svelte's keyed `each` would see a
   duplicate key. Not verified at runtime. **Fixed in 0.8.1:** `onAssetError` drops a failure
   string already in the list, and the package now reports on a microtask, not from inside the
-  derivation.
-- The seed field (line 679) commits on every `input` without `NumericInput`'s draft-text model.
+  derivation. Since then the renderer also reports a failure once per resolution
+  (`DrawableCache`) rather than on every reseed, and New document clears `failures`.
+- The seed field (line 698) commits on every `input` without `NumericInput`'s draft-text model.
   The empty case is safe, because `setDefaultSeed` (`document.ts:325`) trims and refuses `""`.
   But every keystroke that changes the seed is its own undo entry, so undoing a typed seed
   takes one undo per character. The same holds for the tile rename in `TileLibrary`. The source

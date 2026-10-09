@@ -34,9 +34,10 @@ export const NO_NATURAL_SIZE =
  * showed a 15 px tile; a non-square one, cover-cropped, drew nothing at all.
  * The DOM substrate drew both correctly, so the two disagreed silently.
  *
- * Refusing them on **both** substrates is one rule everywhere: the editor
- * already refuses them at attach (**E13**), and now a host gets a hole and an
- * `onAssetError` that names the fix, whichever substrate it chose.
+ * Refusing them on **both** substrates is one rule everywhere: the editor runs
+ * this same function at attach (`apps/editor` `assets.ts` `measure`, **E13**), and
+ * a host gets a hole and an `onAssetError` that names the fix, whichever
+ * substrate it chose.
  *
  * Rejected:
  * - Rasterising onto an offscreen canvas first. It works, but costs memory per
@@ -50,29 +51,77 @@ export const NO_NATURAL_SIZE =
  * ## How it is detected
  *
  * `naturalWidth` cannot tell, since Chrome reports 150. What can is
- * `createImageBitmap(img)`, which Chrome refuses with an `InvalidStateError`
- * for exactly this case ("an SVG image without natural dimensions"). A browser
- * that reports 0 instead is caught by the size check first. Any other failure of
- * the probe passes: it is a question about the probe, not about the picture, and
- * a working picture must not become a hole because of it.
+ * `createImageBitmap(img)`. Measured in Chromium 153, every SVG without natural
+ * dimensions is refused with an `InvalidStateError` reading "The image element
+ * contains an SVG image without natural dimensions, and no resize options are
+ * specified.", and reports at most **300 × 150**: 150 × 150 for a square
+ * `viewBox`, 300 × 100 wide, 50 × 150 tall, 300 × 150 with no `viewBox`. That
+ * is the CSS default object size, which a replaced element with no natural size
+ * falls back to. A browser that reports 0 instead is caught by the size check
+ * first.
+ *
+ * Three things must all hold before a picture is refused, and anything else
+ * passes, because a failed probe is a question about the probe and a working
+ * picture must not become a hole because of it:
+ *
+ * - **It fits in 300 × 150.** A larger picture has a natural size by
+ *   construction, so it is never probed. That keeps the probe cheap (at most a
+ *   180 KB bitmap, where a photo would be decoded a second time in full), and it
+ *   keeps Chromium's *other* `InvalidStateError`s out: "the ImageBitmap could not
+ *   be allocated", for a large image under memory pressure, is the same error
+ *   name.
+ * - **The error is an `InvalidStateError`.**
+ * - **Its message names the missing dimensions** (`natural` or `intrinsic`,
+ *   which older Chromium said). An engine that refuses SVG sources in
+ *   `createImageBitmap` for some other reason then fails open, and its SVGs draw
+ *   as they did before 0.8.1. Matching a message is brittle, but it fails in the
+ *   same safe direction: if the wording changes, detection stops and nothing is
+ *   refused.
+ *
+ * Rejected: telling an SVG apart by its `src`. An object URL or a provider's
+ * opaque URL carries no extension, and fetching it again to sniff the type costs
+ * a request per asset. Probing with a crop or resize option: that is exactly
+ * what Chromium's check exempts, so it never fires.
+ *
+ * `probe` is injectable for tests. `null` means there is no probe, as in Node;
+ * the default is the global `createImageBitmap` where there is one.
  */
 export async function requireNaturalSize(
   img: HTMLImageElement,
-  probe: ((img: HTMLImageElement) => Promise<{ close(): void }>) | undefined =
-    typeof createImageBitmap === "function" ? createImageBitmap : undefined,
+  probe: Probe | null = typeof createImageBitmap === "function" ? createImageBitmap : null,
 ): Promise<void> {
-  if (img.naturalWidth === 0 || img.naturalHeight === 0) throw new Error(NO_NATURAL_SIZE);
-  if (probe === undefined) return;
+  const { naturalWidth: w, naturalHeight: h } = img;
+  if (w === 0 || h === 0) throw new Error(NO_NATURAL_SIZE);
+  if (probe === null || w > DEFAULT_OBJECT_WIDTH || h > DEFAULT_OBJECT_HEIGHT) return;
   let bitmap: { close(): void };
   try {
     bitmap = await probe(img);
   } catch (cause) {
-    if (cause instanceof Error && cause.name === "InvalidStateError") {
-      throw new Error(NO_NATURAL_SIZE, { cause });
-    }
+    if (missingDimensions(cause)) throw new Error(NO_NATURAL_SIZE, { cause });
     return;
   }
   bitmap.close();
+}
+
+/** What `requireNaturalSize` asks; `createImageBitmap` in a browser. */
+export type Probe = (img: HTMLImageElement) => Promise<{ close(): void }>;
+
+/** The CSS default object size: what a picture with no natural size reports, at most. */
+const DEFAULT_OBJECT_WIDTH = 300;
+const DEFAULT_OBJECT_HEIGHT = 150;
+
+/**
+ * Read by shape, not `instanceof Error`: a `DOMException` is an `Error` in
+ * current engines, but that is a WebIDL detail a test double need not copy.
+ */
+function missingDimensions(cause: unknown): boolean {
+  if (typeof cause !== "object" || cause === null) return false;
+  const { name, message } = cause as { name?: unknown; message?: unknown };
+  return (
+    name === "InvalidStateError" &&
+    typeof message === "string" &&
+    /(natural|intrinsic) dimensions/i.test(message)
+  );
 }
 
 /**

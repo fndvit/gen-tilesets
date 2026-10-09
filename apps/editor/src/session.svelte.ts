@@ -24,6 +24,9 @@
  * outside* structural: `apply` is already the only mutator, so an action that
  * escaped the stack would have to escape the document too.
  *
+ * **One exception, on purpose: `reset()`**, the confirmed New document. It
+ * starts a fresh history rather than pushing onto this one; its comment says why.
+ *
  * **Transient UI state** (§4.1) — the create-operation draft, which panel is
  * open, a muted Operation — lives *beside* this, keyed by the identifiers the
  * file already carries. It is session-scoped and does not survive a reload.
@@ -97,17 +100,22 @@ export const session = {
   /**
    * Discard the document and start again from `08` §3.4's valid skeleton.
    *
-   * **Undoable, like everything else.** E6 admits no editor action outside the
-   * stack, and this is the most destructive one there is.
+   * **The one action outside the undo stack** — a deliberate exception to
+   * **E6**. It used to be undoable, but undo restored a file whose pictures it
+   * could not restore: the bytes live in the asset store (`assets.ts`), outside
+   * the file. Keeping them for undo meant the store was never reclaimed and grew
+   * with every new document; reclaiming them meant undo brought back a document
+   * of holes. So a new tileset is a fresh start instead: the caller confirms it
+   * with the author, then empties the store, and the history starts again here.
    */
   reset(): void {
-    history = replaced(history, newDocument());
+    history = historyOf(newDocument());
   },
 
   /**
    * Open an imported document, whole — §12.4.
    *
-   * `reset()` is the precedent and this is the same shape: a *replacement*
+   * `reset()` was the precedent and this is the same shape: a *replacement*
    * rather than a transition, because there is no function from the outgoing
    * file to the incoming one and pretending otherwise would put a `() => file`
    * on the stack that ignores its argument.

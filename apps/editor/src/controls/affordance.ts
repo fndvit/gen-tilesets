@@ -105,13 +105,21 @@ export function affordanceFor(spec: ParamSpec): Affordance {
     return { kind: "segmented", values };
   }
 
+  // A slider needs a granularity; 100 positions is enough for `density` and
+  // costs nothing, and typed entry is exact regardless. A UI constant.
+  const step = integer ? 1 : (max - min) / 100;
+
+  // **An exclusive end is inset by one step**, so every position the slider can
+  // rest on is a value `admits` takes. With the bound itself as the end, a fast
+  // drag landed the thumb on a value that was refused and never committed, and
+  // the control then showed a value the draft did not hold.
+  const exclusiveMin = spec.type === "number" && spec.min === undefined && spec.exclusiveMin !== undefined;
+  const exclusiveMax = spec.type === "number" && spec.max === undefined && spec.exclusiveMax !== undefined;
   return {
     kind: "slider",
-    min,
-    max,
-    // A slider needs a granularity; 100 positions is enough for `density` and
-    // costs nothing, and typed entry is exact regardless. A UI constant.
-    step: integer ? 1 : (max - min) / 100,
+    min: exclusiveMin ? min + step : min,
+    max: exclusiveMax ? max - step : max,
+    step,
     integer,
   };
 }
@@ -198,8 +206,8 @@ export function admits(spec: ParamSpec, value: unknown): boolean {
 export function rangeLabel(spec: ParamSpec): string {
   if (spec.type === "enum" || spec.type === "cellList") return "";
   const number = spec.type === "number";
-  const lo = number ? (spec.min ?? spec.exclusiveMin) : spec.min;
-  const hi = number ? (spec.max ?? spec.exclusiveMax) : spec.max;
+  const lo = lowerBound(spec);
+  const hi = upperBound(spec);
   if (lo === undefined && hi === undefined) return spec.type === "integer" ? "integer" : "";
   const loOpen = lo === undefined || (number && spec.min === undefined);
   const hiOpen = hi === undefined || (number && spec.max === undefined);

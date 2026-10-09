@@ -33,9 +33,9 @@
   }
 
   /**
-   * Checked with `admits` like typed input. A slider's ends are its affordance's
-   * `min` and `max`, and for an exclusive bound that end is a value the spec
-   * refuses: dragged to the end, it would commit it.
+   * Checked with `admits` like typed input. `affordanceFor` already insets an
+   * exclusive end by one step, so no slider position should be refused; this
+   * is the guard for a float step that lands a hair past the bound.
    */
   function slide(text: string): void {
     const n = Number(text);

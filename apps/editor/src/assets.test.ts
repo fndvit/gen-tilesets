@@ -67,3 +67,23 @@ describe("the store outlives a delete — undo needs the bytes", () => {
     expect(() => editorProvider(ref("t9", "a1"))).toThrow(/no attached file/);
   });
 });
+
+describe("attach refuses what the renderer refuses — E13, images.ts requireNaturalSize", () => {
+  it("fails a picture Chrome sizes by default but cannot bitmap — a viewBox-only SVG", async () => {
+    // The FakeImage reports 10 × 10, which a bare `naturalWidth > 0` check passed.
+    const g = globalThis as { createImageBitmap?: unknown };
+    g.createImageBitmap = () =>
+      Promise.reject(
+        Object.assign(new Error("The image element contains an SVG image without natural dimensions."), {
+          name: "InvalidStateError",
+        }),
+      );
+    try {
+      await replaceAll([]);
+      await expect(attach("t1", "a1", file("icon.svg"))).rejects.toThrow(/no intrinsic size/);
+      expect(heldTileIds()).toEqual([]);
+    } finally {
+      delete g.createImageBitmap;
+    }
+  });
+});

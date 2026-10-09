@@ -48,7 +48,7 @@ reads the original bytes back out.
 | `extensionOf(fileName)` | function | Lowercased extension stripped to `[a-z0-9]`, or `"bin"`. |
 | `tileNameOf(fileName)` | function | The filename without its extension. Used as a new Tile's name. |
 | `exportPath(tileId, assetId, ext)` | function | `` `tiles/${tileId}/${assetId}.${ext}` `` |
-| `measure(url)` | function | `Promise<{ width, height }>`. Rejects on decode failure or a zero dimension. |
+| `measure(url)` | function | `Promise<{ width, height }>`. Rejects on decode failure or a picture with no natural size (the renderer's `requireNaturalSize`). |
 | `attach(tileId, assetId, file)` | async function | Measures, stores, returns the `StoredAsset`. Throws if measurement fails. |
 | `Incoming` | interface | `{ tileId, assetId, file }`, one asset an import wants attached. |
 | `AttachFailure` | interface | `{ tileId, assetId, reason }`. |
@@ -68,9 +68,11 @@ Engine types: [`AssetProvider`](/api/render/type-aliases/assetprovider/),
   empty result also returns `"bin"`.
 - **`tileNameOf`.** It strips the last extension, with the same dot-at-0 rule. So `.png` stays
   `.png`.
-- **`measure(url)`.** It loads an `Image`. `onload` resolves with `naturalWidth`/`naturalHeight`
-  only if both are `> 0`. Otherwise it rejects, saying an SVG needs `width` and `height`, not only
-  a `viewBox`. `onerror` rejects with *could not be decoded as an image*.
+- **`measure(url)`.** It loads an `Image`. `onload` runs the renderer's own
+  [`requireNaturalSize`](/renderer/images/) on it, and resolves with `naturalWidth`/`naturalHeight`
+  only if that passes. Otherwise it rejects with *decoded with no intrinsic size*, saying an SVG
+  needs `width` and `height`, not only a `viewBox`. `onerror` rejects with *could not be decoded as
+  an image*.
 - **`attach`.** It creates an object URL and awaits `measure`. On success it stores and returns. On
   failure it **revokes the URL** and rethrows, so the caller commits no transition.
 - **`replaceAll`.** For each incoming file it creates a URL and measures it into a `staged` map.
@@ -89,16 +91,20 @@ Engine types: [`AssetProvider`](/api/render/type-aliases/assetprovider/),
   key on `assetId` alone would resolve one Tile's asset to another's, silently. The package's
   `assetKey` is reused rather than rewritten.
 - **E13: measure or fail.** An attach writes all three `meta` keys (`src`, `width`, `height`) or
-  fails. A zero dimension counts as a failure, because writing `0` would satisfy the letter of the
-  rule and defeat its point.
+  fails. A picture with no natural size counts as a failure, because writing its size would satisfy
+  the letter of the rule and defeat its point. Some browsers report such a picture as 0; Chrome
+  reports a default of up to 300 × 150, which only a probe can tell from a real size. So `measure`
+  runs the renderer's check rather than a copy of it, and the editor refuses at attach exactly what
+  `<Tileset>` refuses at draw. A `naturalWidth > 0` test here once let Chrome's 150 × 150 through.
 - **R2: same ref → same drawable.** There is one object URL per attach, returned on every lookup,
   so the provider is a lookup rather than a source of variation.
 - **The provider throws, never substitutes.** No `null`, no placeholder. `<Tileset>` turns the
   throw into one `onAssetError` call and an empty cell.
 - **A delete keeps the bytes.** There is deliberately no `release()`. Deleting a Tile or asset is
   undoable, so its bytes stay in the store and undo finds them. The cost is a leak bounded by the
-  session: every picture dropped since the last import or new document stays until `replaceAll`
-  swaps the store out.
+  document: every picture dropped since the last import or New document stays until `replaceAll`
+  swaps the store out, which both do (`ImportPanel.svelte`, and `App.svelte` `newTileset` with
+  `replaceAll([])`).
 - **A kept id is not reallocated.** [ids.ts](/editor/ids/) allocates from what the document
   holds, so after a delete it could hand out the deleted Tile's id, and the new attach would
   overwrite bytes undo still needs. `heldTileIds` and `heldAssetIds` are passed to allocation
@@ -115,11 +121,12 @@ Engine types: [`AssetProvider`](/api/render/type-aliases/assetprovider/),
 | `lib/TileLibrary.svelte:91`, `:115` | `heldTileIds()` and `heldAssetIds(tile.id)`, passed to `nextIds` beside the document's ids. |
 | `lib/TileLibrary.svelte:275` | `stored(tile.id, asset.id)` to show a thumbnail. |
 | `lib/ImportPanel.svelte:207` | `replaceAll(incoming)` after validation, before `session.open`. |
-| `App.svelte:827` | `editorProvider` passed as `options.provider` to `<Tileset>`. |
+| `App.svelte:144` | `replaceAll([])` in `newTileset`, after `session.reset()`, to reclaim every picture. |
+| `App.svelte:846` | `editorProvider` passed as `options.provider` to `<Tileset>`. |
 | `download.ts:43` | `stored` to read original bytes for export. |
 | `reference.ts:56` | `measure`, reused for the reference image. |
 
-Callees: `assetKey` and `parseAssetKey` from `@fndvit/gen-tilesets/render`, `URL.createObjectURL` /
+Callees: `assetKey`, `parseAssetKey` and `requireNaturalSize` from `@fndvit/gen-tilesets/render`, `URL.createObjectURL` /
 `revokeObjectURL`, `Image`.
 
 ### Tests
@@ -137,9 +144,13 @@ store's lifetime:
 - a new Tile's id, allocated with `heldTileIds()`, stays clear of a deleted Tile's bytes, and the
   old bytes still resolve;
 - a new asset's id, allocated with `heldAssetIds`, stays clear of a deleted asset's bytes;
-- `replaceAll([])` empties the store, after which `editorProvider` throws *no attached file*.
+- `replaceAll([])` empties the store, after which `editorProvider` throws *no attached file*;
+- `attach` refuses what the renderer refuses: with a stubbed `createImageBitmap` that rejects with
+  Chrome's `InvalidStateError`, a viewBox-only SVG that the stub reports as 10 × 10 fails with
+  *no intrinsic size* and the store holds nothing.
 
-`measure`'s real decode and `replaceAll`'s URL-revocation ordering are still untested.
+`measure`'s real decode in a browser and `replaceAll`'s URL-revocation ordering are still
+untested.
 
 ### Gotchas & rejected alternatives
 
@@ -154,7 +165,9 @@ store's lifetime:
   cell draws nothing.
 - **Undo does not restore bytes across an import.** `session.open` is undoable, but the store
   was swapped with it. `session.svelte.ts` documents this as a known gap. Undoing a delete is
-  fine, because a delete keeps the bytes.
+  fine, because a delete keeps the bytes. New document avoids the gap differently: it is not
+  undoable at all (see [session](/editor/session/)), so emptying the store loses nothing undo could
+  reach.
 - **Rejected: releasing only the bytes no undo or redo state references.** It needs this module
   to read `session`'s history, and to re-run on every transition that drops a state off the end
   of it. That is a second owner for the store's lifetime, for memory `replaceAll` already
@@ -173,4 +186,5 @@ store's lifetime:
 - `measure`, `attach`, `replaceAll` and `editorProvider` have no tests. The URL-revocation
   ordering in `replaceAll` is the subtle part. (missing test) **Partly fixed in 0.8.1:**
   `assets.test.ts` covers `attach`, `editorProvider`, `replaceAll` emptying the store, and the
-  held ids; `measure`'s real decode and the revocation ordering are still untested.
+  held ids; `measure`'s real decode and the revocation ordering are still untested. Since then a
+  test pins that `attach` refuses a viewBox-only SVG through `requireNaturalSize`.
