@@ -1,0 +1,121 @@
+---
+title: TileDecoration.svelte
+description: One shared tileset style placed as a small block of whole tiles at a declared size. reshape with one preset, plus a correctly sized box.
+sidebar:
+  order: 3
+---
+
+import DecorationStory from "../../../stories/DecorationStory.svelte";
+
+
+**Written from:** `packages/tileset/src/render/TileDecoration.svelte`, and the call sites in
+`apps/demo/src/Decorations.svelte` and `apps/demo/src/Responsive.svelte`. There is no test file
+(`.svelte` components cannot be unit-tested in this repo).
+
+## Overview
+
+A decoration is a small block of tiles in a page's margin: a 2 x 2 in a corner, a 3 x 4 beside a
+heading. A page usually has many of them, all drawn in the same style. `<TileDecoration>` lets a
+host take one tileset file (the *style*) and place it at any number of rows and columns, with each
+tile a declared number of CSS pixels.
+
+It is a thin wrapper. It turns the style into a file of the requested shape with no bleed and no
+vertical offset, so the block has clean edges. It then hands that file to an ordinary `<Tileset>`
+inside a box exactly `columns × cellSize` pixels wide. It is not a second renderer: `<Tileset>` still
+does all of the generating and drawing. In the pipeline it sits *before* the component:
+file → **reshape** → `<Tileset>` (load → generate → draw).
+
+## Try it
+
+One style (the docs fixture) placed as a small block. The box is `columns × cellSize` CSS px wide, so each tile is exactly `cellSize` px until the column is narrower than the box. Change the seed to make two placements of the same size differ.
+
+<DecorationStory client:only="svelte" />
+
+## In detail
+
+### Purpose
+
+"It is `reshape` with one preset, plus a box." The preset is `bleed: 0, yOffset: 0`: a decoration
+has an edge the page can see, so there is no design for a bleed to belong to, and a `yOffset` would
+shave its visible top. Zero bleed is also what makes `cellSize` mean CSS px.
+
+What it adds over calling `<Tileset>` directly is **the box**. A decoration's width is not a free
+choice; it is `columns · cellSize`, the same product the preset writes into `referenceWidth`. A host
+sizing the box by hand "has two places to get one number right", and getting it wrong reintroduces
+a bleed silently.
+
+### Public surface
+
+Imported as `@fndvit/gen-tilesets/TileDecoration.svelte` (see `apps/demo/src/Decorations.svelte:31`).
+It is not exported from `render/index.ts`.
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `style` | `TilesetFile` | required | The shared style: parsed, valid, held stable by the host, procedural Selections only. Its own `responsive` rules are dropped. |
+| `rows` | `number` | required | Rows in this placement. |
+| `columns` | `number` | required | Columns in this placement. |
+| `cellSize` | `number` | required | CSS px per tile, and therefore the box width divided by `columns`. |
+| `options` | [`TilesetOptions`](/api/render/interfaces/tilesetoptions/) `\| undefined` | `undefined` | Passed straight through to `<Tileset>`. |
+
+No events, no snippets, and **no `box` binding**, unlike `<Tileset>`.
+
+### Inputs → outputs
+
+1. `shape = { rows, columns, cellSize, bleed: 0, yOffset: 0 }`, as a `$derived`.
+2. `file = reshape(style, shape)`. In a development build it first runs
+   `reshapeErrors(style, shape)` and throws, listing every error, if the style cannot be placed at
+   that size.
+3. Renders `<div class="decoration" style="width: {columns * cellSize}px" data-tileset-wrapper="">`
+   containing `<Tileset {file} {options} />`. The wrapper has `max-width: 100%`.
+
+There is no height. `<Tileset>` declares `aspect-ratio: naturalRatio`, which at zero bleed and no
+`yOffset` is exactly `columns / rows`, and then takes its height from its own child.
+
+### Invariants
+
+- **Not a second renderer** (cited as **S1**). `<Tileset>` is still the only thing that draws and
+  the only caller of `generate()`. "The import graph will not say that, which is why this paragraph
+  is here."
+- **Development-loud, production-trusting**, the same arrangement as `<Tileset>`'s file assertion.
+  A `rect` or `cellList` Selection in a style is the one thing that cannot work at another size, and
+  it fails *quietly*: the Operation lands on cells it was never authored for, or none. `DEV` folds to
+  `false` in production and takes the check with it.
+- **`options.seed` is what makes two same-size decorations differ.** Omitted, every spot of a size
+  draws the identical picture.
+- **The wrapper is marked as the package's** (`WRAPPER_ATTRIBUTE`), so an `options.avoid` selector
+  resolves in the section the decoration sits in, not inside this wrapper.
+
+### Callers / callees
+
+| Caller | Uses |
+| --- | --- |
+| `apps/demo/src/Decorations.svelte:31, 210` | Several decorations from one style, with distinct seeds. |
+| `apps/demo/src/Responsive.svelte:26, 147, 153` | Two 6 x 3 decorations: one that shrinks with its slot, and one passing `responsive: keepTiles(6)` to stay fixed-size and crop below its width. |
+
+No caller in `apps/editor/src` or inside the package. Callees: `reshape`, `reshapeErrors`
+(`../shape.ts`), `DEV` (`../dev.ts`), `WRAPPER_ATTRIBUTE` (`measure.ts`), `<Tileset>`.
+
+### Tests
+
+No test file. `.svelte` components cannot be unit-tested here. The preset is exercised in
+`packages/tileset/src/shape.test.ts:112` (`` `<TileDecoration>`'s preset ``), which belongs to the
+engine section.
+
+### Gotchas & rejected alternatives
+
+- **`max-width: 100%` is a default with a reason.** A 6-column decoration at 96 px is 576 px wide
+  and overflows a phone. A page that scrolls sideways is worse than tiles that come out smaller
+  than declared, and the tileset degrades gracefully: a narrower box is simply a smaller `s`. A host
+  that would rather keep the tile size can pass a rule that switches to fixed sizing below the
+  decoration's width.
+- **A `width`, not a container query,** because a decoration declares its tile size.
+- **No `box` prop.** That exists so an editor can convert pointer events into render space; a
+  decoration is ornament nothing points at. A host that needs the element can wrap this one.
+- **History:** until 0.7.0 this preset (`decorationFile`) was the only way to reuse a style at
+  another size; now it is one caller of the general `reshape`.
+
+### Review notes
+
+- The comment on `box` calls a decoration "`aria-hidden` ornament". This component sets no
+  `aria-hidden` itself; the attribute comes from `<Tileset>`'s render box. Accurate in effect, but
+  the claim depends on the inner component.

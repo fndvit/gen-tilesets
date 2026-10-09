@@ -68,6 +68,20 @@ rule for the hover work is recorded at the template: the hit area is the rest po
 
 `translateX`/`translateY` tracks of `[−1, 1]` cells, soft. New documents are schema v4.
 
+### Docs: a contributor reference site — `apps/docs`
+
+- Astro Starlight, private, port 5175. One page per non-test `.ts`/`.svelte` file in
+  `packages/tileset/src` and `apps/editor/src` (70 module pages), six Concepts pages, and the
+  TypeDoc API reference generated at build time from the two entry points and not committed.
+- **Written from source only:** `.ts`, `.svelte` and tests, never the repository's Markdown or the
+  spec archive. Each page names the files it was written from and opens with a plain-language
+  Overview. Live stories render the real components: `<Tileset>`, `<TileDecoration>`, `reshape`,
+  the responsive cascade, `hash`, the pointer-to-cell path, and four editor controls.
+- `scripts/coverage.ts` runs before every docs build and fails if a source file has no page. CI
+  builds the site. The docs `typecheck` adds `svelte-check`, because `astro check` skips islands.
+- **113 review findings** on `/review-findings/`, 15 of them possible bugs. Nothing in the source
+  was changed by this work.
+
 ---
 
 ## 0.7.0 — one design, many shapes: `reshape`, and responsive rules

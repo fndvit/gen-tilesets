@@ -1,0 +1,122 @@
+---
+title: PaletteBar.svelte
+description: The palette builder for a tileId Operation. One bar segmented by weight, reordered by dragging, because palette order is meaningful.
+sidebar:
+  order: 50
+---
+
+import PaletteBarStory from "../../../stories/PaletteBarStory.svelte";
+
+
+**Written from:** `apps/editor/src/controls/PaletteBar.svelte`, `controls/mapping.test.ts`, and the
+call site in `lib/OperationDraft.svelte`.
+
+## Overview
+
+The palette bar appears in the Attribute step of the operation draft when the author chooses
+`tileId`, which means the operation places tiles. It is a single horizontal bar cut into coloured
+segments, one per palette entry. Each segment's width is its share of the total weight, and its
+label is the tile's name.
+
+The order of the segments matters. Under a smooth Source such as noise or a gradient,
+neighbouring entries become neighbouring regions on the canvas, so water next to sand is said by
+putting water next to sand in the bar. The author drags a segment along the bar to reorder it,
+or selects one and uses the arrows. Under the selected entry are a tile picker (including
+"clear this cell"), a weight box and a delete button. Below are buttons to add an entry.
+
+In the editor's pipeline (import → document → **draft**/history → preview → export), it edits the
+draft's palette. It never touches the document.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone with the docs fixture's tiles and no editor state. The story holds the palette and prints what `onChange` returns. The editor's own stylesheet is not loaded here, so it looks plainer than in the app.
+
+<PaletteBarStory client:only="svelte" />
+
+## In detail
+
+### Purpose
+
+The component edits a [`PaletteEntry`](/api/index/interfaces/paletteentry/)`[]` and reports each
+change through `onChange`. The header comment explains why it is a bar and not a list: a Tile's
+asset list is sorted by id so that dragging cannot reshuffle the canvas, while a palette's order
+is authored and significant (cited as **O6**). "Two adjacent lists in the same editor, with
+opposite rules", so the presentation has to make the difference legible. A bar shows adjacency
+and proportion in one object, and dragging a segment "reads as rearranging a sequence rather than
+sorting a list".
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `palette` | `PaletteEntry[]` | required | The entries, in authored order. |
+| `tiles` | [`Tile`](/api/index/interfaces/tile/)`[]` | required | The library, for names and the picker. |
+| `sourceType` | `string \| null` | required | The draft's Source, for the `random` advisory. |
+| `onChange` | `(palette: PaletteEntry[]) => void` | required | Receives the whole new palette. |
+
+### Inputs → outputs
+
+- `total` is [`paletteTotal`](/api/index/functions/palettetotal/)`(palette)`, taken from the
+  package rather than recomputed.
+- **Segments:** `flex-grow: weight / total`. A zero-weight entry gets the `zero` class and is drawn
+  as a zero-width marker rather than vanishing. The name is drawn inside when the share is over
+  `0.12`. Colour is a hash of the tile id (`null` is a fixed grey), so a segment stays
+  recognisable while dragged.
+- **Threshold row:** every entry's name and rounded percentage.
+- **Drag:** `pointerdown` on a segment captures the pointer; `pointermove` on the bar finds the
+  segment under the pointer by cumulative share (`indexAt`) and calls `move(from, to)` live.
+- **Selected entry:** a `<select>` (`""` is `null`, "∅ clear this cell"), a weight
+  `<input type="number" min="0">`, ← and → (move by one), × (remove).
+- **Add:** "+ entry" appends `{ tileId: tiles[0]?.id ?? null, weight: 1 }`; "+ clear" appends a
+  `null` entry.
+
+| Edit | Refused when |
+| --- | --- |
+| `setWeight` | not finite, negative, or the new palette's total would be `≤ 0` |
+| `remove` | only one entry left, or the remaining total would be `≤ 0` |
+| `move` | destination out of range or unchanged |
+
+A refusal simply does not call `onChange`.
+
+### Invariants
+
+- **Order is authored and never sorted.** Every edit preserves the sequence except `move`.
+- **`null` is an ordinary entry** meaning *clear this cell*. It is offered in the picker beside the
+  Tiles and is not a Tile in the library.
+- **At least one entry, and a total above zero.** The comment cites the file rule that a palette's
+  weights sum to more than zero "or nothing can ever win the walk".
+- **Zero weight is legal**, meaning "listed but never chosen".
+
+### Callers / callees
+
+| Caller | Use |
+| --- | --- |
+| `lib/OperationDraft.svelte:27` | import |
+| `lib/OperationDraft.svelte:314` | `palette={draft.palette}`, `tiles={session.file.config.tiles}`, `sourceType={draft.sourceType}`, writes `draft.palette` |
+
+Callees: [`paletteTotal`](/api/index/functions/palettetotal/) (`PaletteBar.svelte:22`).
+
+### Tests
+
+No test file for the component. `controls/mapping.test.ts` pins the palette's surroundings in the
+draft: changing Target away from `tileId` and back keeps the palette; an empty palette or one
+whose weights sum to zero makes the draft incomplete; a fresh `tileId` draft starts with a legal
+`null` entry even when the library is empty.
+
+### Gotchas & rejected alternatives
+
+- **The `random` advisory.** Under a `random` Source values are uniform, so adjacency means
+  nothing and reordering "reshuffles the canvas with no visible reason". The bar implies a spatial
+  meaning that Source does not deliver. The editor carries this as an advisory rather than having
+  two palette presentations. It shows when `sourceType === "random"` and there is more than one
+  entry.
+- **`current` is derived in the script**, not with `{@const}`, which Svelte allows only as an
+  immediate child of a block. It is `undefined` when `selected` is stale after a removal.
+
+### Review notes
+
+- **A refused weight leaves the box showing the refused value.** `setWeight` returns without
+  calling `onChange`, and the input has no draft-text model like `NumericInput`, so typing `0` on
+  the last non-zero entry shows `0` while the palette keeps the old weight. (inconsistency)
+- The weight input has `step="1"` while weights may be fractional; the browser's spinner moves in
+  whole steps only. Harmless, but it suggests integers. (inconsistency, minor)

@@ -22,3 +22,8 @@ jobs:
       - run: pnpm typecheck
       # Proves the published tarball still builds, which no test covers.
       - run: pnpm --filter @fndvit/gen-tilesets build
+      # The docs site: its coverage check fails when a source file has no page, and the TypeDoc
+      # pass fails when the public entry points stop compiling.
+      - run: pnpm --filter @fndvit/tileset-docs build
+        env:
+          ASTRO_TELEMETRY_DISABLED: "1"

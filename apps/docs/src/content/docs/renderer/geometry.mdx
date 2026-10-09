@@ -1,0 +1,200 @@
+---
+title: geometry.ts
+description: The ideal mapping from grid cells to render-box pixels, and back, as pure functions of Layout, rows, columns and the box width.
+sidebar:
+  order: 8
+---
+
+import CellAtStory from "../../../stories/CellAtStory.svelte";
+
+
+**Written from:** `packages/tileset/src/render/geometry.ts`, `geometry.test.ts`, `sizing.test.ts`,
+and the call sites in `render/Tileset.svelte`, `render/uniform.ts`, `render/breakpoints.ts`,
+`render/occlusion.ts`, the editor and the demo.
+
+## Overview
+
+This module answers the most basic question the renderer has: where on screen does each cell go?
+Given the design's layout (cell size, design width, vertical offset), the grid's rows and columns,
+and the width of the box the tileset is drawn in, it computes each cell's rectangle exactly, in
+fractional pixels. It also answers the reverse: which cell is under this point?
+
+The mapping supports two ways of fitting a design to a box. Under **fluid** sizing (the default)
+the whole picture scales with the box, so a wider box shows bigger cells. Under **fixed** sizing a
+cell stays a fixed number of CSS pixels and the box crops the grid instead, with an alignment
+choosing which side is cropped. Everything here is pure and measures nothing. The two drawing
+substrates then round this ideal mapping to whole device pixels in `uniform.ts`. It is the first
+step of drawing: file → load → generate → **place** → draw.
+
+## Try it
+
+Move the pointer over the tileset. The story converts the client point to render space (`metricsOf` + `toRenderSpace` from [space.ts](/renderer/space/)), finds the cell with `cellAt`, outlines it with `cellBox`, and shows the generated `TileState` at that cell.
+
+<CellAtStory client:only="svelte" />
+
+## In detail
+
+### Purpose
+
+A single implementation of the coordinate mapping (cited as **R1**), exported as pure functions
+(cited as **S10**) so that the component, overlays and tests all read one copy. The header gives
+three reasons for pure functions over component methods: they are testable with no component
+mounted; they are callable from a pointer handler with no component reference; and an editor may
+want a rect before anything is drawn.
+
+### Public surface
+
+All re-exported from `render/index.ts:10-36` (`Lattice` and `CellRange` included).
+
+| Export | Signature | Meaning |
+| --- | --- | --- |
+| [`CellBox`](/api/render/interfaces/cellbox/) | `{ left, top, right, bottom }` | A rect in render space. |
+| [`Sizing`](/api/render/type-aliases/sizing/) | `"fluid" \| "fixed"` | How a cell responds to the box. A **host** choice, not a `Layout` field. |
+| [`AlignX`](/api/render/type-aliases/alignx/) / [`AlignY`](/api/render/type-aliases/aligny/) | `left\|center\|right` / `top\|center\|bottom` | Which edge of the design box is pinned to the render box. |
+| [`GridGeometry`](/api/render/interfaces/gridgeometry/) | `{ layout, rows, columns, Wpx, sizing?, alignX?, alignY?, Hpx? }` | Everything the mapping needs. |
+| [`alignFraction`](/api/render/functions/alignfraction/) | `(align, fallback: 0 \| 0.5) → 0 \| 0.5 \| 1` | How much of the box/design difference lands *before* the design box. |
+| [`scaleFactor`](/api/render/functions/scalefactor/) | `(g) → s` | `Wpx / referenceWidth`, or `1` under fixed. |
+| [`gridWidth`](/api/render/functions/gridwidth/) | `(g) → columns · cellSize` | Design px. Exceeds `referenceWidth` by the bleed. |
+| [`originX`](/api/render/functions/originx/) / [`originY`](/api/render/functions/originy/) | `(g) → number` | The grid's top-left in render space. Negative with bleed / `yOffset`. |
+| [`cellBox`](/api/render/functions/cellbox/) | `(g, x, y) → CellBox` | Forward map. |
+| [`cellAt`](/api/render/functions/cellat/) | `(g, px, py) → { x, y }` | Inverse map. Total, not bound-checked. |
+| [`cellCentre`](/api/render/functions/cellcentre/) | `(box) → { cx, cy }` | What every transform is taken about. |
+| [`CellPlacement`](/api/render/interfaces/cellplacement/) / [`cellPlacementPercent`](/api/render/functions/cellplacementpercent/) | `(layout, columns, x, y) → { leftPercent, topPercent, sidePercent }` | `cellBox` with `Wpx` divided out, fluid only. |
+| [`Affine`](/api/render/interfaces/affine/) / [`CellPlacementAffine`](/api/render/interfaces/cellplacementaffine/) / [`cellPlacementAffine`](/api/render/functions/cellplacementaffine/) | `(g without Wpx/Hpx, x, y, translate?) → { side, left, marginTop, topPct }` | Placement as `pct% + px`, for every sizing and alignment. |
+| [`cssLength`](/api/render/functions/csslength/) | `(Affine) → string` | `N%`, `Npx` or `calc(N% + Mpx)`. |
+| [`Lattice`](/api/render/interfaces/lattice/) | `{ originX, originY, pitch }` | The grid **as a substrate actually draws it**. |
+| [`CellRange`](/api/render/interfaces/cellrange/) / [`latticeRange`](/api/render/functions/latticerange/) | `(lattice, columns, rows, rect) → { x0, x1, y0, y1 }` | Cells a rect meets with positive area, clamped. |
+| [`visibleColumns`](/api/render/functions/visiblecolumns/) | `(lattice, columns, Wpx, margin) → { x0, x1 }` | Columns worth drawing, widened by `margin` cells. |
+| [`naturalHeight`](/api/render/functions/naturalheight/) | `(g) → s · (rows − yOffset) · cellSize` | The box's natural height. |
+| [`naturalRatio`](/api/render/functions/naturalratio/) | `(layout, rows) → referenceWidth / ((rows − yOffset) · cellSize)` | The aspect ratio the box declares. |
+
+### Inputs → outputs
+
+**Scale and origin.**
+
+- `s = Wpx / referenceWidth` under fluid, from **width alone**; height never affects scale. Under
+  fixed, `s = 1`, and "the whole of the mode lives in this line and in `originX`'s pin".
+- `originX`, fluid: `(Wpx − s · gridWidth) / 2`, the grid centred on the box. Fixed:
+  `alignFraction(alignX, 0.5) · (Wpx − s · referenceWidth) + s · (referenceWidth − gridWidth) / 2`,
+  which pins the design box and then places the grid inside it with its designed bleed.
+- `originY`: `−s · yOffset · cellSize`, plus `alignFraction(alignY, 0) · (Hpx − naturalHeight)`
+  when `alignY` is not `"top"` and `Hpx` is given.
+
+**Forward and inverse.** `cellBox` returns four edges: `left = ox + s·x·cellSize`,
+`right = ox + s·(x+1)·cellSize`, and likewise vertically. `cellAt` is
+`floor((p − origin) / (s · cellSize))` on each axis. It may return negative values or values at
+or beyond `columns`/`rows`.
+
+**Placement for CSS.** `cellPlacementPercent` divides `Wpx` out:
+`sidePercent = cellSize / referenceWidth · 100`,
+`leftPercent = ((referenceWidth − columns·cellSize) / (2·cellSize) + x) · sidePercent`,
+`topPercent = (y − yOffset) · sidePercent`. `topPercent` is a fraction of the **width**, not the
+height. `cellPlacementAffine` generalises it:
+
+| Mode | `side` | `left` | `marginTop` | `topPct` |
+| --- | --- | --- | --- | --- |
+| fluid | `sidePercent%` | `leftPercent%` | `topPercent%`, minus `bY · (rows − yOffset) · sidePercent` when `bY ≠ 0` | `bY · 100` |
+| fixed | `cellSize px` | `bX·100% + ((ref − columns·cellSize)/2 − bX·ref + x·cellSize) px` | `((y − yOffset)·cellSize − bY·(rows − yOffset)·cellSize) px` | `bY · 100` |
+
+`side`, `left` and `marginTop` resolve against the box's **width** (a percentage margin does);
+`topPct` is a percentage `top`, the one CSS length that resolves against height. A `translate`
+argument simply moves `(x, y)` by `(translateX, translateY)` before any of this. `cssLength` tests
+`px === 0` first, so a fluid placement is a bare percentage.
+
+**Lattice queries.** `latticeRange` claims cell `x` when
+`floor((left − ox)/p) <= x < ceil((right − ox)/p)`, clamped to `[0, columns]`. `visibleColumns`
+calls it with the box's width padded by `margin · pitch` and rows ignored, and guarantees
+`x1 >= x0`.
+
+### Invariants
+
+- **R5 (cited):** `cellBox` is a function of `Layout`, `rows`, `columns` and `Wpx` alone. No asset
+  and no `TileState` is read, so SSR emits complete geometry and a missing asset leaves a hole
+  rather than collapsing the grid.
+- **R6 (cited): edges, not sizes.** Cell `x`'s right edge and cell `x+1`'s left edge evaluate the
+  identical expression, so no sub-pixel seam can open. The same holds for
+  `leftPercent + sidePercent`.
+- **`referenceWidth` is the divisor, never `columns · cellSize`.** Dividing by the grid width would
+  make the designed bleed vanish, "the outcome the design marks as wrong".
+- **Fluid output is bit-for-bit 0.5.0's.** `originX` keeps its original fluid expression although
+  the general one is equal in exact arithmetic, because they are not always equal "to the last bit".
+  `cellPlacementAffine` under fluid/top returns `cellPlacementPercent`'s numbers.
+- **The renderer never reads `horizontalAlignment`.** Centring on the box produces the author's
+  alignment as a consequence of parity.
+- **`originX <= 0`** is guaranteed by the editor's derivation, but a hand-written config can break
+  it, and the result is well-defined: a narrower grid, centred, with empty margins.
+- **Culling is by column only.** The box's height is taken *from* the grid, so a grid that culled
+  its own rows would change the height it is measured by.
+
+### Callers / callees
+
+| Caller | Uses |
+| --- | --- |
+| `render/Tileset.svelte:356, 364` | `naturalRatio` for the declared ratio, `naturalHeight` (with `sizing: "fixed"`) for `fixedHeight`. |
+| `render/Tileset.svelte:545-550` | `cellPlacementAffine` and `cssLength` for DOM placement before measurement. |
+| `render/Tileset.svelte:713-718, 739` | `visibleColumns` on the ideal lattice (canvas) and on `domLattice` (DOM). |
+| `render/Tileset.svelte:714` | `originX`, `scaleFactor` to build the ideal lattice. |
+| `render/uniform.ts:66-72, 168, 183, 203, 224, 274-281, 414` | `alignFraction`, `originX`, `scaleFactor`, `Lattice`. |
+| `render/breakpoints.ts:19, 106-107` | `naturalHeight` and `naturalRatio` for reservation CSS. |
+| `render/occlusion.ts:61, 170, 182` | `latticeRange`. |
+| `render/transform.ts:21, 118` | `cellCentre` in `transformMatrix`. |
+| `apps/editor/src/paint.ts:34, 71` | `cellAt` for the brush. |
+| `apps/editor/src/lib/PaintLayer.svelte:27-28, 143, 147` and `SelectionOverlay.svelte:37-38, 131, 135` | `cellPlacementPercent`, `naturalHeight` for the overlays. |
+| `apps/editor/src/App.svelte:21, 140, 808` | `naturalHeight` at `Wpx = referenceWidth` (design px), `naturalRatio` for `PreviewFrame`. |
+| `apps/demo/src/Square2x2.svelte:38-40, 242, 269` | `naturalHeight`, `scaleFactor` in a diagnostic table. |
+
+`cellBox` and `gridWidth` have **no caller outside tests and this file** (`gridWidth` is used by
+`originX`). Callees: none.
+
+### Tests
+
+**`geometry.test.ts`** pins a worked example (`cellSize 175`, `referenceWidth 1280`, `yOffset 0.3`,
+8 x 5) at three widths: grid width 1400 and bleed 120; `s`, `originX`, `originY`, side and height
+at `Wpx` 640, 1280, 1920; cell `(3, 2)` exactly; 60 px of bleed each side. Then: scale never uses
+`columns · cellSize` and ignores rows; every quantity is a fixed fraction of `Wpx`; `naturalRatio`
+is a constant of `Layout` and rows; shared edges at awkward widths; `cellPlacementPercent` keeps the
+shared edge, is width-relative vertically, and reads nothing measured; `cellAt` inverts `cellBox`,
+gives a shared edge to the higher-indexed cell, is total, and round-trips; `yOffset` clips row 0
+through a negative origin. (It also covers transforms; see [transform.ts](/renderer/transform/).)
+
+**`sizing.test.ts`** has no `sizing.ts` of its own; it tests `sizing`/`align` across
+`geometry.ts`, `uniform.ts` and `transform.ts` with a seeded PRNG. For this module:
+
+- **Fluid with no alignment is 0.5.0, bit for bit**: `scaleFactor`, `originX`, `originY`,
+  `cellBox` and the placement strings, against the 0.5.0 expressions restated in the test.
+- **Fixed:** `s = 1` and a side of `cellSize` at every width; `"left"` keeps cell `x` still as the
+  box narrows, `"right"` keeps the right-edge distance still, `"center"` crops equally; at the
+  reference width all three pins equal the fluid picture.
+- **`alignY`:** nothing moves at natural height or without `Hpx`; `"bottom"` puts the last row
+  flush; `cellAt` stays `cellBox`'s inverse in every mode.
+- **`cellPlacementAffine`** resolves to `cellBox` at the measured width and height, places a
+  translated cell as if it sat `t` cells over, is byte-identical at `t = 0`, and writes `calc()`
+  only when both terms are present.
+- **`latticeRange` / `visibleColumns`:** touching an edge claims nothing, ranges clamp, fixed-mode
+  columns are culled to the box plus the spill margin, and fluid keeps every column for an ordinary
+  design.
+
+### Gotchas & rejected alternatives
+
+- **`cellAt` returns no `null`.** An editor drawing a `rect` Selection needs the out-of-grid
+  coordinates the drag reached, and "bounding is one comparison and belongs to whoever knows whether
+  it wants bounding".
+- **`naturalHeight` is a default, not a constraint.** A host gets vertical bleed by giving the box
+  less height.
+- **`Lattice` is not `cellBox` under another name.** Each substrate quantises the ideal mapping
+  differently, so the mask and culling must ask for the lattice that was painted.
+- **Rejected: growing `columns` to fill a wide box in fixed mode.** The `Sizing` comment says this
+  was refuted elsewhere "for three reasons that still hold", without restating them.
+- **`naturalRatio` ignores `sizing`.** Under fixed the component reserves `fixedHeight` instead,
+  and `reservationCss` does the same; the ratio is only right for fluid.
+
+### Review notes
+
+- The header (and `render/index.ts:4-7`) says "the component computes placement from" `cellBox`
+  and `cellAt`, and overlays are drawn from them. Neither is true any more: `<Tileset>` places cells
+  with `cellPlacementAffine` and `domGeometry`, the editor overlays use `cellPlacementPercent`, and
+  `cellBox` has no production caller. The rule (one implementation) still holds; the named
+  functions are stale.
+- The editor overlays use `cellPlacementPercent`, which is fluid-and-top only. That is correct for
+  the editor today (its `<Tileset>` passes no `sizing` or `align`), but an overlay would drift if
+  the editor ever hosted the preview fixed or aligned.
