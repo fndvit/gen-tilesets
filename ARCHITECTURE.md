@@ -55,7 +55,7 @@ every push; a `v*` tag publishes the package (`.github/workflows/`). There is no
 here — `citations.mjs` went with the spec to `../gen-tileset-spec-archive/scripts/`, and the
 citations in the source are no longer checked by anything.
 
-`@fndvit/gen-tilesets` is at `0.7.0`. Everything `05` §10 says about version bumps describes a
+`@fndvit/gen-tilesets` is at `0.8.0`. Everything `05` §10 says about version bumps describes a
 future state; `05` §10.3 puts all of V1 at `0.x`, where no bump kind binds. **ADR-004 is the
 release valve that makes vector tables generatable before then, and it expires at 1.0.0.**
 
@@ -94,7 +94,7 @@ rejected.
 | `mapping.ts` | Numeric and tile mapping — gives units to a Source's bare `[0,1]`. Both branches return `max` exactly at the top, and both have a `t = 1` boundary case since **X6** closed. |
 | `selection.ts` | `selection(config, operationId, …) → (x,y) => boolean`. Exists so the editor implements no Selection test (**E8**). |
 | `validate.ts` | Sixteen error codes, strict at every depth, never coerces. Separate from `generate()`, which trusts its input (**C5**). Walks `responsive` too: each rule's fields, `COORDINATE_BOUND_RESIZE`, and every band resolving to a box. |
-| `migrate.ts` | The v1 → v2 → v3 table and its walk. Runs **before** `validate()`, because rewriting a version is a coercion (`06` §9.2). |
+| `migrate.ts` | The v1 → v2 → v3 → v4 table and its walk. Runs **before** `validate()`, because rewriting a version is a coercion (`06` §9.2). |
 | `dev.ts` | Development-build detection. A **provisional** answer to `08` Q3, which is still open. |
 | `registry/` | `registry.ts` (name → type, no public registration API), `sources.ts`, `selections.ts`, `blends.ts`. A Selection declares its `extent` here, beside `stochastic` and `coordinateBound`. |
 
@@ -114,8 +114,8 @@ header of `registry/sources.ts` and `spec/FREEZE.md` A-5.
 | `uniform.ts` | **The uniform square cell.** One integer side on both axes, plus the split between raster and presentation, and the draw list. `canvasPresentation` restricts the raster to the visible columns; `domLattice` is where the DOM actually places cells. `uniformGeometry` quantises with `round` for `"canvas"`; `domGeometry` quantises with `ceil` for `"dom"` so its side residual is always a clip and never a gutter, and reports `gridHeightDev` so that box can take its height from the grid instead of cutting the bottom row. Every substrate draws from this module. |
 | `edges.ts` | What survives of ADR-006: `snap` and `coverRect`. The per-edge snapping it was built around is gone — see `SUBPIXEL-GEOMETRY.md` attempt 1 before reintroducing it. |
 | `warn.ts` | The two asset rules, as development-build warnings. Silent in production. |
-| `transform.ts` | Scale-then-rotate about the centre (**D11**). `sincos` makes quarter turns exact rather than `6.12e-17` off. `maxSpill` is how far any drawable reaches past its cell, which culling widens by. |
-| `occlusion.ts` | **The keep-out mask.** Measured rects → one byte per cell, on the lattice the substrate paints. The lattice cell is the test, not the drawn tile. `stableMask` keeps an unchanged mask's identity, which is what makes a resize touch nothing. |
+| `transform.ts` | Scale-then-rotate about the centre (**D11**). `sincos` makes quarter turns exact rather than `6.12e-17` off. `translationDev` is the one statement of `translateX`/`translateY` in device px: translation is added to a cell's *placement*, never its matrix or CSS `transform`, so a translate-only cell keeps its snapped box. `drawnHalfExtents` is the drawn tile's bounding box at rest; `maxSpill` (how far any drawable reaches past its cell, translation included, which culling widens by) and the keep-out mask both read it. |
+| `occlusion.ts` | **The keep-out mask.** Measured rects → one byte per cell, on the lattice the substrate paints. The test is the **drawn tile at rest** (its bounding box after the generated scale, rotation and translation), not the lattice cell — since 0.8.0; the header says why the old rule went. `drawnTiles` is its per-grid input. `stableMask` keeps an unchanged mask's identity, which is what makes a resize touch nothing. |
 | `space.ts` | Client → render space, including an ancestor's CSS zoom. Moved here from the editor's `paint.ts` when the tracker became its second caller (**R1**). |
 | `measure.ts` | **One scheduler for the page** (an `avoid` selector resolves in `scopeOf(box)`: the nearest ancestor the package did not add, skipping `data-tileset-wrapper`): one `ResizeObserver` (flushed inside its own callback, so geometry and mask land in the frame that caused them), one `MutationObserver` and `document.fonts` (batched to one `requestAnimationFrame`), one `IntersectionObserver` (off-screen tilesets skip their reads). Reads every tracker before writing any. **This is ADR-006's concession, extended** — `07` **R5** says the renderer never measures, and with `options.avoid` it now measures other elements too. |
 | `images.ts` | Decoded bitmaps for the canvas substrate. |
@@ -152,6 +152,13 @@ the quantisation exactly, so what is left to minimise is the residual's *magnitu
   start on exactly the right cell. The full-bleed case — exact box, every column present — is served
   by no substrate here.
 
+  **Hit-testing is the browser's, and it hits the drawn tile.** Each `.cell` is placed by margin
+  (translation included) and carries its scale and rotation as a CSS `transform`, and browser
+  hit-testing follows both — so the hit area is the tile where it is drawn, overlaps resolve by
+  document order (which is paint order, **R10**), and a masked cell takes no hits. `data-x`/`data-y`
+  say which cell was hit. **The hit area is the rest pose:** a hover effect belongs on the `<img>`
+  inside the cell, never on `.cell`, or the hit area moves under the pointer.
+
   **What it does guarantee is the direction of the misfit, on the axis the host owns.** Its cell is
   `ceil(idealCell)`, so the grid always covers its box horizontally and **R9** clips the overhang: the
   outer columns are cut, by an amount that varies with width, and no gutter of page backdrop can open
@@ -169,6 +176,11 @@ the quantisation exactly, so what is left to minimise is the residual's *magnitu
   one it is not split between two edges), which shaved up to `rows` device px off the bottom row. The
   box is now up to `rows` device px taller than `naturalHeight`, which **S8** makes a default rather
   than a constraint; a host that overrides the height gets **R9** back by its own choice.
+
+  **`options.overflow: "visible"` gives the clip up (0.8.0).** The box keeps its size and stops
+  clipping, so a translated tile past the edge shows whole, along with the side bleed and the columns
+  culling builds outside the box for spill. The host's own ancestors become the clip, if any. DOM only:
+  `optionErrors` rejects it with `"canvas"`, which cannot paint outside its bitmap.
 
 The default is `"canvas"` because of who a wrong default hurts: a consumer needing SSR knows it at
 build time, where a consumer silently given `"dom"` gets a fit that is off by a cell, attributed to anything but the
@@ -212,7 +224,7 @@ array. The data model was already size-independent everywhere except the two `co
 Selections; the size was simply not separable from the thing being shared. `reshape` separates it.
 
 **A responsive rule is a reshape with a width condition**, so rules add no concept. The file's
-rules (schema v3) or the host's (`options.responsive`, which replace them) cascade as CSS does;
+rules (schema v3 and later) or the host's (`options.responsive`, which replace them) cascade as CSS does;
 `<Tileset>` resolves them against the render box's measured width, never the viewport. What a
 crossing costs is in `breakpoints.ts`'s header: nothing inside a band, geometry only for a density
 change, one cached `generate()` per new `(rows, columns)`. Before measurement the box's height comes

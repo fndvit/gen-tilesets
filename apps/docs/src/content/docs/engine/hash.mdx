@@ -1,0 +1,149 @@
+---
+title: hash.ts
+description: Positional hashing. Seed strings to integers, (seed, channel, x, y, salt) to a number in [0, 1), and the per-load reseed.
+sidebar:
+  order: 6
+---
+
+import HashStory from "../../../stories/HashStory.svelte";
+
+
+**Written from:** `packages/tileset/src/hash.ts`, `hash.test.ts`, and the call sites in
+`generate.ts`, `selection.ts`, `ctx.ts`, `registry/sources.ts` and `registry/selections.ts`.
+
+## Overview
+
+The hashing module is where all of the engine's randomness comes from. Instead of drawing numbers
+one after another from a random stream, the engine asks for "the random number at this cell, for
+this operation, under this seed", and always gets the same answer back. That is why resizing a grid
+keeps the cells it already had, and why one operation can be rerolled without disturbing the
+others.
+
+It has two stages. The first turns the seed string a person typed into a 32-bit integer, once per
+run. The second mixes that integer with a channel name, the cell's coordinates and a reroll number
+into a value between 0 and 1. A third, small piece mixes in a per-load number for operations
+flagged to change on every page load.
+
+Every number-producing step in generate uses it, and so does the asset choice at the end. The code
+is written so that a port to another language produces bit-identical output.
+
+## Try it
+
+Each square is `hash(plain, channel, x, y, salt)` drawn as a grey level. Change the number of columns: the squares that remain keep their shade, because no cell's value depends on any other cell. The line above the grid runs `generate()` twice on the same inputs and compares the results.
+
+<HashStory client:only="svelte" />
+
+## In detail
+
+### Purpose
+
+`hash.ts` implements `hash(effectiveSeed, channel, x, y, salt) → [0, 1)`. Stage 1 is **xmur3**
+over UTF-16 code units. Stage 2 is a **murmur3 body** (four `fold`s: channel, `x`, `y`, `salt`)
+with an **`fmix32`** finalizer. `mixLoad` is one multiply-xor-shift round combining the seed with
+`loadSalt`. The header records these as implementation choices within a fixed discipline,
+revisable until 1.0.0.
+
+### Public surface
+
+| Symbol | Signature | Notes |
+| --- | --- | --- |
+| [`stage1`](/api/index/functions/stage1/) | `(str: string) → number` | xmur3. Seed string or channel string to `uint32`. |
+| [`channelU32`](/api/index/functions/channelu32/) | `(channel: string) → number` | `stage1`, memoized in a module-level `Map`. |
+| [`hashU32`](/api/index/functions/hashu32/) | `(seedU32, channel, x, y, salt) → number` | The raw `uint32` hash. `channel` is already a number here. |
+| [`hash`](/api/index/functions/hash/) | `(effectiveSeed, channel: string, x, y, salt) → number` | `hashU32(…) / 2^32`, in `[0, 1)`. |
+| [`mixLoad`](/api/index/functions/mixload/) | `(seedU32, loadSalt) → number` | One round, seeded with `0x9e3779b9`. |
+| [`EffectiveSeeds`](/api/index/interfaces/effectiveseeds/) | `{ plain, onLoad }` | `plain = stage1(seed)`, `onLoad = mixLoad(plain, loadSalt)`. |
+| [`effectiveSeeds`](/api/index/functions/effectiveseeds/) | `(seed: string, loadSalt) → EffectiveSeeds` | Both computed every run. |
+| [`pickSeed`](/api/index/functions/pickseed/) | `(seeds, reseedOnLoad: boolean \| undefined) → number` | `onLoad` only when the flag is exactly `true`. |
+| [`ASSET_CHANNEL`](/api/index/variables/asset_channel/) | `"asset"` | The asset channel string. |
+| [`selectionChannel`](/api/index/functions/selectionchannel/) | `(operationId) → string` | `operationId + ":selection"`. |
+
+`fold`, `fmix32`, `TWO_32` and `channelCache` are private.
+
+### Inputs → outputs
+
+- **Channel strings** come in three shapes: an `operationId` (a Source's draws), `operationId +
+  ":selection"` (a `random` Selection's draws), and `"asset"`.
+- **`salt`** is folded as `>>> 0`, so a non-integer or out-of-range salt is truncated. The comment
+  says this is the behaviour the schema is written against, since every consumer truncates.
+- **`x`, `y`** are folded as `>>> 0` too, so negative coordinates are accepted and wrap to large
+  unsigned values. (This follows from `fold`'s first line; no comment discusses it.)
+- **Range.** `hash` returns at most `4294967295 / 4294967296`, never `1`.
+- **`mixLoad(s, 0) !== s`.** `0` is an ordinary load value, not an identity.
+
+### Invariants
+
+The header calls these "the spec more than the choice of function":
+
+- All intermediate state is `uint32`; every step ends with `>>> 0`.
+- Multiplication uses `Math.imul`, **never `*`**, which promotes to float past 2^53 and would
+  diverge from a Rust or Go port.
+- No floating point except the single final division.
+- Strings are read as UTF-16 code units via `charCodeAt`, the same convention as asset ordering. A
+  port must iterate UTF-16 units, not bytes.
+- No vector table is generated here, and a table is never regenerated to make a test pass.
+
+And from the function comments:
+
+- **Half-open output.** `hash` must stay strictly below 1 because the asset weight walk proves its
+  own termination from `h < 1`.
+- **The reroll sits upstream of Stage 2.** `mixLoad` adds no key component; Stage 2's shape is
+  untouched, so every positional guarantee survives the per-load reseed.
+- **One seed resolution for two callers.** `pickSeed` is shared by `generate()` and `selection()`
+  so the overlay cannot show cells the Operation does not act on under the very flag meant to make
+  them differ.
+- **The colon is not a legal identifier character**, so no Operation can be named into another
+  Operation's selection channel.
+
+### Callers / callees
+
+| Symbol | Called from |
+| --- | --- |
+| `hash` | `generate.ts:157` (asset channel), `registry/sources.ts:84` (`random`), `registry/sources.ts:142` (`valueNoise`, per octave), `registry/selections.ts:213` (`random` Selection, selection channel) |
+| `effectiveSeeds` | `generate.ts:71`, `selection.ts:94` |
+| `pickSeed` | `generate.ts:72` (asset channel), `ctx.ts:107` (each Operation) |
+| `selectionChannel` | `registry/selections.ts:213` |
+| `ASSET_CHANNEL` | `generate.ts:157` |
+| `stage1`, `channelU32`, `hashU32`, `mixLoad` | Only inside `hash.ts` (and its test). |
+
+Grep finds no caller in `apps/editor/src` or `apps/demo/src`.
+
+### Tests: `hash.test.ts`
+
+- **`stage1`** returns a `uint32`, is deterministic, and avalanches on near-identical short seeds.
+- **`hash`** lands in `[0, 1)` across a sweep, is deterministic, is positional (not sequential),
+  decorrelates the Source and selection channels and two operations, rerolls on salt only, moves
+  every cell when the seed moves, is roughly uniform, and treats `"asset"` as an ordinary channel.
+- **`Math.imul` rule.** `hashU32(0xffffffff, 0xffffffff, x, y, 0xffffffff)` stays an integer
+  below 2^32.
+- **`mixLoad`** returns a `uint32`, is **not** the identity at `loadSalt 0`, separates two loads,
+  leaves an unflagged channel pinned, moves a flagged channel, and keeps flagged channels
+  uncorrelated though they move together.
+
+### Gotchas & rejected alternatives
+
+- **FNV-1a was rejected for Stage 1.** It avalanches poorly on short, human-typed seeds such as
+  `"sunset-3"`, so near-identical seeds would land in adjacent output regions.
+- **`mixLoad(s, 0)` is deliberately not `s`.** Making `0` an identity would buy an equivalence
+  nothing needs, at the price of a magic value. The golden-ratio constant guarantees the
+  inequality, and a test asserts it.
+- **`onLoad` is always computed**, flagged or not, so the cost of the flag does not depend on
+  whether any Operation carries it.
+- **Channel strings are hashed, not registered**, so there is no table of magic numbers.
+
+### Review notes
+
+- `hash()`'s docstring says X6 makes `1.0` illegal because the palette walk and the stepped mapping
+  prove their termination from `t < 1`. `mapping.ts` says X6 has since opened to `[0, 1]` closed and
+  that both mechanisms now handle `t = 1` explicitly. `hash()` itself still returns `[0, 1)`, and
+  the asset walk still relies on that, so the guarantee holds; the stated reason is stale.
+- `channelCache`'s comment says the set of distinct channel strings is bounded by the operation
+  count. The cache is module-level and never cleared, so in a long-lived process (the editor) it
+  grows with every distinct `operationId` ever generated, not with the current stack. Probably
+  harmless in practice, but the bound as stated is per config, not per process.
+- The doc comment *"The three channel-string shapes. The set is closed at three"* sits above
+  `ASSET_CHANNEL` alone; the other two shapes are an `operationId` and `selectionChannel()`.
+  Placement only.
+- `hash.test.ts` *"never reaches 1.0 even at the top of the uint32 range"* asserts
+  `0xffffffff / 2 ** 32 < 1`, a constant. It does not call `hash`, so it pins arithmetic, not the
+  function.

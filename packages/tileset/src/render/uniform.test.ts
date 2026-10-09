@@ -65,6 +65,8 @@ const identity = (tileId: string | null): TileState => ({
   scaleY: 1,
   rotation: 0,
   opacity: 1,
+  translateX: 0,
+  translateY: 0,
 });
 
 function gridOf(rows: number, columns: number, cell: (i: number) => TileState): Grid<TileState> {
@@ -368,6 +370,67 @@ describe("uniformDrawList — R10, R5, G4", () => {
     const dom = uniformDrawList(geo(827), gridOf(1, 11, () => identity("t1")), 2, u.originXDev, assetKey);
     expect(dom[0]!.dx).toBe(u.originXDev);
   });
+});
+
+describe("translation is placement, not transform — 0.8.0", () => {
+  const DPR_WIDTHS = [827, 615, 1237.3].flatMap((Wpx) => [1, 1.5, 2].map((dpr) => ({ Wpx, dpr })));
+
+  it("draws an untranslated grid exactly as before: t = 0 moves nothing", () => {
+    // `identity` already carries translate 0; the explicit object is the
+    // pre-0.8.0 shape, with the fields absent, which is what a list built
+    // before them computed.
+    for (const { Wpx, dpr } of DPR_WIDTHS) {
+      const grid = gridOf(3, 11, () => identity("t1"));
+      const u = uniformGeometry(geo(Wpx), dpr);
+      for (const item of uniformDrawList(geo(Wpx), grid, dpr, 0, assetKey)) {
+        expect(item.dx).toBe(item.x * u.cellDev);
+        expect(item.dy).toBe(u.originYDev + item.y * u.cellDev);
+        expect(Object.is(item.dx, -0)).toBe(false);
+      }
+    }
+  });
+
+  it("shifts by round(t * cellDev), keeps the matrix null, and keeps every coordinate integral", () => {
+    for (const { Wpx, dpr } of DPR_WIDTHS) {
+      const base = uniformDrawList(geo(Wpx), gridOf(2, 3, () => identity("t1")), dpr, 0, assetKey);
+      const moved = uniformDrawList(
+        geo(Wpx),
+        gridOf(2, 3, () => ({ ...identity("t1"), translateX: 0.37, translateY: -1.25 })),
+        dpr,
+        0,
+        assetKey,
+      );
+      const { cellDev } = uniformGeometry(geo(Wpx), dpr);
+      for (let i = 0; i < base.length; i++) {
+        expect(moved[i]!.dx - base[i]!.dx).toBe(Math.round(0.37 * cellDev));
+        expect(moved[i]!.dy - base[i]!.dy).toBe(Math.round(-1.25 * cellDev));
+        expect(Number.isInteger(moved[i]!.dx) && Number.isInteger(moved[i]!.dy)).toBe(true);
+        expect(moved[i]!.matrix).toBeNull();
+      }
+    }
+  });
+
+  it("keeps the shared edge between neighbours translated by the same amount — R6", () => {
+    for (const { Wpx, dpr } of DPR_WIDTHS) {
+      const grid = gridOf(2, 11, () => ({ ...identity("t1"), translateX: 0.5, translateY: 0.5 }));
+      const list = uniformDrawList(geo(Wpx), grid, dpr, 0, assetKey);
+      for (let i = 0; i + 1 < 11; i++) {
+        expect(list[i]!.dx + list[i]!.side).toBe(list[i + 1]!.dx);
+      }
+    }
+  });
+
+  it("pivots a rotated tile about the centre it was moved to — transform(pos) + t", () => {
+    const grid = gridOf(1, 1, () => ({ ...identity("t1"), rotation: 30, translateX: 2 }));
+    const item = uniformDrawList(geo(827), grid, 2, 0, assetKey)[0]!;
+    const centre = applyMatrix(item.matrix!, item.cx, item.cy);
+    expect(centre.x).toBeCloseTo(item.cx, 9);
+    expect(item.cx).toBe(item.dx + item.side / 2);
+    expect(item.dx).toBe(Math.round(2 * item.side));
+  });
+  // No test that translation leaves the raster or the box alone: `uniformGeometry`,
+  // `domGeometry` and `naturalHeight` take no grid, so no attribute can reach
+  // them, and a test comparing a function of the layout with itself cannot fail.
 });
 
 describe("the quarter turn needs no transposed rect — blitRect's successor is nothing", () => {

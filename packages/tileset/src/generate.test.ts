@@ -53,6 +53,8 @@ describe("generate — 02 §4, §9", () => {
         scaleY: 1,
         rotation: 0,
         opacity: 1,
+        translateX: 0,
+        translateY: 0,
       });
     }
   });
@@ -598,5 +600,67 @@ describe("gradient Operations reach both ends of their range", () => {
     expect(tileStateAt(g, 0, 0)!.scale).toBe(0);
     expect(tileStateAt(g, 7, 0)!.scale).toBeCloseTo(7 / 19, 12);
     expect(tileStateAt(g, 7, 0)!.scale).toBeLessThan(1);
+  });
+});
+
+describe("translateX / translateY — 0.8.0", () => {
+  const jitter = (id: string, target: "translateX" | "translateY"): Operation => ({
+    id,
+    selection: { type: "all" },
+    source: { type: "random" },
+    target,
+    mapping: { range: [-0.25, 0.25] },
+    blend: "add",
+  });
+
+  it("adds a translate Operation without moving any other attribute's value", () => {
+    // The hash channels are keyed by operationId and position, never by the
+    // attribute set, so an Operation that existed before keeps every value.
+    const before = baseConfig({ operations: [paintAll("paint", "leaf")] });
+    const after = baseConfig({
+      operations: [paintAll("paint", "leaf"), jitter("jx", "translateX"), jitter("jy", "translateY")],
+    });
+    const a = generate(before, "sunset-3").cells;
+    const b = generate(after, "sunset-3").cells;
+    for (let i = 0; i < a.length; i++) {
+      const { translateX: _x, translateY: _y, ...rest } = b[i]!;
+      const { translateX: x0, translateY: y0, ...restBefore } = a[i]!;
+      expect(rest).toEqual(restBefore);
+      expect(x0).toBe(0);
+      expect(y0).toBe(0);
+    }
+  });
+
+  it("jitters within the mapped window, deterministically — G1", () => {
+    const c = baseConfig({ operations: [paintAll("paint", "leaf"), jitter("jx", "translateX")] });
+    const g = generate(c, "sunset-3");
+    expect(generate(c, "sunset-3")).toEqual(g);
+    const xs = g.cells.map((cell) => cell.translateX);
+    for (const x of xs) {
+      expect(x).toBeGreaterThanOrEqual(-0.25);
+      expect(x).toBeLessThanOrEqual(0.25);
+    }
+    // Varies cell to cell, and the other axis is untouched.
+    expect(new Set(xs).size).toBeGreaterThan(1);
+    for (const cell of g.cells) expect(cell.translateY).toBe(0);
+  });
+
+  it("is open-domain: a large or negative value is kept, not bounded", () => {
+    const g = generate(
+      baseConfig({
+        operations: [
+          {
+            id: "far",
+            selection: { type: "all" },
+            source: { type: "constant" },
+            target: "translateY",
+            mapping: { range: [-40, -40] },
+            blend: "set",
+          },
+        ],
+      }),
+      "sunset-3",
+    );
+    for (const cell of g.cells) expect(cell.translateY).toBe(-40);
   });
 });

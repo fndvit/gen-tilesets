@@ -51,6 +51,15 @@ export const ATTRIBUTES: Readonly<Record<AttributeName, AttributeSpec>> = {
   scaleY: { default: 1, bounding: "none" },
   rotation: { default: 0, bounding: "wrap", min: 0, max: 360 },
   opacity: { default: 1, bounding: "clamp", min: 0, max: 1 },
+  /**
+   * 0.8.0. Open for `scale`'s reason: a maximum would be a design constant the
+   * engine has no business knowing (`03` §5.1). A tile moved far past the box is
+   * clipped by **R9**, not refused here. The default is the identity — the tile
+   * on its own cell — which is what keeps every file without a translate
+   * Operation drawing exactly as before.
+   */
+  translateX: { default: 0, bounding: "none" },
+  translateY: { default: 0, bounding: "none" },
 };
 
 export const ATTRIBUTE_NAMES = Object.keys(ATTRIBUTES) as AttributeName[];
@@ -65,6 +74,8 @@ export function initialTileState(): TileState {
     scaleY: ATTRIBUTES.scaleY.default,
     rotation: ATTRIBUTES.rotation.default,
     opacity: ATTRIBUTES.opacity.default,
+    translateX: ATTRIBUTES.translateX.default,
+    translateY: ATTRIBUTES.translateY.default,
   };
 }
 

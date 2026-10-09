@@ -40,6 +40,8 @@ export interface Track {
  * | `scaleY`   | `[−2, 2]`, soft | any finite number        |
  * | `rotation` | `[0, 360)`      | any finite number, wraps |
  * | `opacity`  | `[0, 1]`        | `[0, 1]`, the domain     |
+ * | `translateX` | `[−1, 1]`, soft | any finite number      |
+ * | `translateY` | `[−1, 1]`, soft | any finite number      |
  *
  * **The `[−2, 2]` figure is a UI constant with no authority anywhere.** §7.5
  * states it "so the editor is buildable" and nothing cites it. `rotation`'s track
@@ -63,6 +65,11 @@ export const TRACKS: Readonly<Record<AttributeName, Track>> = {
   scaleY: { min: -2, max: 2, soft: true, wraps: false },
   rotation: { min: 0, max: 360, soft: false, wraps: true },
   opacity: { min: 0, max: 1, soft: false, typed: { min: 0, max: 1 }, wraps: false },
+  // 0.8.0. In cells, so one cell either way covers jitter and a half-cell
+  // stagger; the track is soft, so a typed 3 widens it. A UI constant with no
+  // authority, like the `[−2, 2]` above.
+  translateX: { min: -1, max: 1, soft: true, wraps: false },
+  translateY: { min: -1, max: 1, soft: true, wraps: false },
 };
 
 /**

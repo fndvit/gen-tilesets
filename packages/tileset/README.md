@@ -119,7 +119,7 @@ having to think about it.
 
 You cannot skip this. `<Tileset>` imports no validator, so in a production build a file
 `validate()` would reject is **undefined behaviour** (**S3**, as **C5**). The types push you the
-same way: `TilesetFile.schemaVersion` is the literal type `3`, so a JSON import (which widens it to
+same way: `TilesetFile.schemaVersion` is the literal type `4`, so a JSON import (which widens it to
 `number`) never assigns to `TilesetFile` directly. Validation is what earns the cast, and
 `loadTilesetFile` is what performs it:
 
@@ -259,7 +259,9 @@ imports natively, so steps 5 and 6 are otherwise unchanged.
   nodes, so no host-page CSS can reopen a seam, and the residual becomes one isotropic resample of
   one bitmap. Its cost is that it emits an empty box of the right ratio during SSR and fills it after
   mount. Pass `substrate: "dom"` if you need the tiles present in the server-rendered HTML or need to
-  hit-test individual cells — its cost is that the grid does not fit its box exactly, so it always
+  hit-test individual cells — each `.cell` carries `data-x`/`data-y`, and the browser hits it where
+  it is *drawn* (moved, scaled and turned), not on its home square. Animate the `<img>` inside a
+  cell, never `.cell` itself, or the hit area moves under the pointer. Its cost is that the grid does not fit its box exactly, so it always
   overhangs slightly at the sides and the outer columns are cut; its box is also a few pixels taller
   than the natural height, because it sizes itself to the grid rather than cutting the bottom row.
   (`"svg"` was a third substrate until 0.6.0 and is gone — see the changelog.)
@@ -308,6 +310,24 @@ is stable and per-operation reroll is possible (`02` §6.1).
 critical path (**C5**). `migrate()` runs *before* `validate()`, because rewriting a version is a
 coercion and `validate()` never coerces.
 
+### Cell attributes
+
+Operations write these per cell; a fresh cell holds the default.
+
+| Attribute | Default | Domain | What it does |
+| --- | --- | --- | --- |
+| `scale` | `1` | any number | Uniform scale, multiplied into both axes. |
+| `scaleX`, `scaleY` | `1` | any number | Per-axis scale. Negative is a flip. |
+| `rotation` | `0` | degrees, wraps at 360 | Clockwise, about the tile's centre, after scale. |
+| `opacity` | `1` | `[0, 1]`, clamped | |
+| `translateX`, `translateY` | `0` | any number | Moves the drawn tile off its cell, in **cells** (`0.5` is half a cell), `y` down. Applied after scale and rotation, so the tile turns about where it lands. |
+
+A translated tile is still its home cell in every other sense: Selections, hashing and paint
+order go by where it lives, not where it is drawn. It never changes the tileset's size; a tile
+moved past the edge is cut or not visible. The movement is rounded to a whole device pixel, so
+neighbours moved by the same amount still meet with no seam. Jitter is `random` → `[-0.2, 0.2]` →
+`add`.
+
 ## The renderer
 
 `<Tileset file={...} options?={...} bind:box? />` — one component, one entry point (**S1**). It
@@ -322,7 +342,7 @@ quantisation residual goes.
 | `substrate` | Residual goes to | Take it for |
 | --- | --- | --- |
 | `"canvas"` (default) | one isotropic resample of one bitmap, where no internal edge exists to seam | **proportion.** No chord, exact quarter turns, no gaps at any cell size, and seamlessness no host CSS can undo |
-| `"dom"` | the **box** — sideways the grid overhangs and is clipped, so the outer columns are cut; vertically the box takes its height from the grid, so nothing is | **interactivity**, and SSR. The only one you can hit-test per cell |
+| `"dom"` | the **box** — sideways the grid overhangs and is clipped, so the outer columns are cut; vertically the box takes its height from the grid, so nothing is. `overflow: "visible"` lifts the clip | **interactivity**, and SSR. The only one you can hit-test per cell — by the drawn tile, with `data-x`/`data-y` saying which |
 
 `"canvas"` rounds the cell to nearest, because the presentation cancels the quantisation
 and only its magnitude is left to minimise. `"dom"` rounds **up**: it has no presentation to cancel
@@ -358,6 +378,7 @@ one place, `resolveOptions`, and this table is that function's output (`DEFAULT_
 | `seed` | `string` | `file.config.defaultSeed` | Variation between two placements of one file. |
 | `loadSalt` | `number` | `0` | Per-load variation. Draw it once per session, in a `load` function (see above). |
 | `substrate` | `"canvas" \| "dom"` | `"canvas"` | `"dom"` for SSR-complete HTML or per-cell hit-testing. |
+| `overflow` | `"hidden" \| "visible"` | `"hidden"` | `substrate: "dom"` only. `"visible"` stops the box clipping, so a tile translated or scaled past the edge shows whole. Also shows the side bleed, the extra columns culled in for spill, and row 0's `yOffset` crop. Put `overflow: hidden` on an ancestor to clip where you want. An error with `"canvas"`. |
 | `sizing` | `"fluid" \| "fixed"` | `"fluid"` | `"fixed"` keeps cells at `layout.cellSize` CSS px and crops instead of scaling. |
 | `align.x` | `"left" \| "center" \| "right"` | `"center"` | Under `"fixed"`: which side is cropped. No effect under `"fluid"`. |
 | `align.y` | `"top" \| "center" \| "bottom"` | `"top"` | When the host gives the tileset its own height: which rows are cropped. |
@@ -410,8 +431,12 @@ cell overlaps one of them, as whole tiles, and keeps doing so as they move.
 - **It works on both substrates.** Under `"dom"` a hidden cell carries `data-masked` and
   `visibility: hidden`; under `"canvas"` it is skipped when painting. Both update in the same frame
   as the layout change that caused it, so a resize never shows a frame of tiles over the text.
-- **The test is the cell, not the drawn tile.** A tile scaled past its cell can still reach over the
-  text from a neighbouring cell; `padding` is the knob for a design whose tiles spill.
+- **The test is the drawn tile, not the cell.** A tile is hidden when the tile *as drawn* — moved,
+  scaled or turned — meets the element, wherever its home cell is; one whose home is under the text
+  but which is drawn clear of it stays. Turned tiles are tested by their bounding box, so they are
+  hidden slightly early rather than late. Only the generated pose counts: a hover effect that grows
+  a tile over the text does not hide it. `padding` is plain clearance. (Before 0.8.0 the test was
+  the home square and `padding` covered spill; a design that padded for spill may now want less.)
 
 Every tileset on a page shares one `ResizeObserver`, one `MutationObserver` and one
 `IntersectionObserver`, reads all its rects before writing anything, and skips tilesets far off
@@ -496,7 +521,7 @@ A rule is a width condition plus the shape fields it changes:
 
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "config": { "rows": 8, "columns": 25, "…": "…" },
   "layout": { "cellSize": 60, "referenceWidth": 1440, "yOffset": 0, "horizontalAlignment": "column" },
   "responsive": [

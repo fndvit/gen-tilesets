@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 4,
+  "engineVersion": "0.8.0",
+  "config": {
+    "rows": 8,
+    "columns": 25,
+    "defaultSeed": "opal-ridge-80",
+    "assetSalt": 7,
+    "reseedAssetsOnLoad": true,
+    "tiles": [
+      {
+        "id": "solid",
+        "name": "solid",
+        "assets": [
+          { "id": "a1", "weight": 1, "meta": { "src": "tiles/solid-a1.svg" } },
+          { "id": "a2", "weight": 1, "meta": { "src": "tiles/solid-a2.svg" } }
+        ]
+      },
+      {
+        "id": "wedge",
+        "name": "wedge",
+        "assets": [{ "id": "a1", "weight": 1, "meta": { "src": "tiles/wedge-a1.svg" } }]
+      }
+    ],
+    "operations": [
+      {
+        "id": "fill",
+        "salt": 0,
+        "reseedOnLoad": false,
+        "selection": { "type": "all" },
+        "source": { "type": "random" },
+        "target": "tileId",
+        "mapping": {
+          "palette": [
+            { "tileId": "solid", "weight": 2 },
+            { "tileId": "wedge", "weight": 1 },
+            { "tileId": null, "weight": 3 }
+          ]
+        },
+        "blend": "set"
+      },
+      {
+        "id": "spin",
+        "salt": 1,
+        "reseedOnLoad": false,
+        "selection": { "type": "random", "density": 0.5 },
+        "source": { "type": "random" },
+        "target": "rotation",
+        "mapping": { "range": [0, 270], "steps": 4 },
+        "blend": "set"
+      }
+    ]
+  },
+  "layout": { "cellSize": 60, "referenceWidth": 1440, "yOffset": 0, "horizontalAlignment": "column" }
+}

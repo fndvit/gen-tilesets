@@ -51,6 +51,7 @@ describe("migrate — the v1 → current path", () => {
     expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([
       [1, 2],
       [2, 3],
+      [3, 4],
     ]);
   });
 
@@ -105,9 +106,27 @@ describe("migrate — the v2 → v3 path", () => {
     const before = { ...current(), schemaVersion: 2 };
     const outcome = migrate(before);
     if (outcome.kind !== "migrated") throw new Error("expected a migration");
-    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([[2, 3]]);
-    expect(outcome.file).toEqual({ ...before, schemaVersion: 3 });
+    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([
+      [2, 3],
+      [3, 4],
+    ]);
+    expect(outcome.file).toEqual({ ...before, schemaVersion: SCHEMA_VERSION });
     expect("responsive" in (outcome.file as object)).toBe(false);
+    expect(validate(outcome.file)).toEqual([]);
+  });
+});
+
+describe("migrate — the v3 → v4 path", () => {
+  /**
+   * 0.8.0's row. `translateX`/`translateY` only widen `Operation.target`, so a v3
+   * file uses neither and there is nothing to convert.
+   */
+  it("changes nothing but the version number", () => {
+    const before = { ...current(), schemaVersion: 3 };
+    const outcome = migrate(before);
+    if (outcome.kind !== "migrated") throw new Error("expected a migration");
+    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([[3, 4]]);
+    expect(outcome.file).toEqual({ ...before, schemaVersion: 4 });
     expect(validate(outcome.file)).toEqual([]);
   });
 });

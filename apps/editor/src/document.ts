@@ -123,9 +123,9 @@ const NEW_ALIGNMENT = "gutter" as const;
 
 export function newDocument(): TilesetFile {
   return {
-    // Required. Absent or unknown is a load failure (`06` **C2**). 3 since
-    // 0.7.0 added the optional `responsive` rules.
-    schemaVersion: 3,
+    // Required. Absent or unknown is a load failure (`06` **C2**). 4 since
+    // 0.8.0 added the `translateX`/`translateY` Targets.
+    schemaVersion: 4,
     // Required, advisory, never validated against anything (`06` **C3**). E2
     // makes it truthful by construction.
     engineVersion: ENGINE_VERSION,

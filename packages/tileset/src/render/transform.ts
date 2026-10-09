@@ -33,6 +33,52 @@ export interface TransformAttributes {
 }
 
 /**
+ * A cell's translation, in **cells** — `TileState.translateX`/`translateY`.
+ *
+ * **Deliberately not a field of {@link TransformAttributes}.** That interface is
+ * what the cell's *transform* carries — the matrix, the CSS `transform` list —
+ * and translation is not drawn through either. It is added to the cell's
+ * *placement* (see {@link translationDev}), so it stays on the pixel-snapped path
+ * that `isIdentityTransform` guards. Keeping the two types apart keeps every
+ * existing `TransformAttributes` literal valid, too.
+ */
+export interface Translation {
+  translateX: number;
+  translateY: number;
+}
+
+/**
+ * A cell's translation in whole **device px**, on a substrate whose cell is
+ * `cellDev` device px — the one place the conversion and its rounding are
+ * written. Canvas adds it to `dx`/`dy`, the DOM to its px margins, and the
+ * keep-out mask to the drawn bounds it tests, so the three agree to the pixel.
+ *
+ * **Why placement, and why rounded.** Composition is `transform(pos) + t`: the
+ * tile scales and turns about its own centre, then moves in grid axes. Written
+ * as a leading `translate()` in the matrix or the CSS list, every translated cell
+ * would stop being an identity transform, be rasterised at sub-pixel precision,
+ * and reopen at every shared edge the seam `08` §12 removed by placing cells with
+ * margins instead of transforms. Added to the placement and rounded to a device
+ * pixel, a cell that is only translated keeps its snapped box, and two
+ * neighbours translated by the same amount keep their shared edge (**R6**).
+ * Moving the box also moves its centre, so a rotated cell pivots about where it
+ * landed.
+ *
+ * The cost is that translation moves in device-pixel steps. Invisible at rest;
+ * it would show only if translation were ever animated, which is not what this
+ * attribute is for. At `t = 0` this returns `0` (never `-0`), so an untranslated
+ * cell's placement is byte-identical to what it was before 0.8.0.
+ */
+export function translationDev(attrs: Translation, cellDev: number): { tx: number; ty: number } {
+  // `+ 0` folds a `-0` from `Math.round(-0.3)` into `0`, so a placement string
+  // never reads `-0px`.
+  return {
+    tx: Math.round(attrs.translateX * cellDev) + 0,
+    ty: Math.round(attrs.translateY * cellDev) + 0,
+  };
+}
+
+/**
  * The two scale rows of `07` §10.1 folded into the one matrix they describe.
  *
  * `scale` shares `scaleX`/`scaleY`'s ordinal rather than taking a new one: a
@@ -110,6 +156,9 @@ export function applyMatrix(m: Matrix, x: number, y: number): { x: number; y: nu
  * still binds: the whole list must read `translate(...) rotate(...) scale(...)`,
  * because placing the translation last inverts the order.
  *
+ * **0.8.0's `translateX`/`translateY` do not ride here either**, for the same
+ * reason — see {@link translationDev}. They move the margin, not the transform.
+ *
  * The element's `transform-origin` is its own centre (the CSS default), which is
  * the drawable box's centre, as **D11** and **R7** require. Placement by margin
  * does not move that centre — a margin shifts the border box, and the origin is
@@ -136,10 +185,38 @@ export function cssTransform(
  * number. A cell that *is* transformed is deliberately free-floating — `07` §7.1
  * makes spilling the point of the attribute set — and its antialiased edge is
  * correct rather than a defect.
+ *
+ * **Translation is not considered**, on purpose: a translated cell is still an
+ * identity *transform*, because translation is added to its placement and keeps
+ * the snapped box this function exists to protect (`translationDev`). Anything
+ * asking "does this cell reach past its home square?" must ask
+ * {@link drawnHalfExtents} and the translation too — `maxSpill` does.
  */
 export function isIdentityTransform(attrs: TransformAttributes): boolean {
   const { sx, sy } = axes(attrs);
   return attrs.rotation === 0 && sx === 1 && sy === 1;
+}
+
+/**
+ * Half the axis-aligned size of a cell's drawn tile, in **cells**, at its rest
+ * pose — scale and rotation only, about the cell's centre. `0.5` each way for an
+ * untransformed tile.
+ *
+ * The transformed square's axis-aligned half-extent is `(|sx cos| + |sy sin|) / 2`
+ * wide and `(|sx sin| + |sy cos|) / 2` tall. Add the cell's translation to the
+ * centre and this is the tile's bounding box — what `maxSpill` widens culling by
+ * and what the keep-out mask tests (`occlusion.ts`), so the arithmetic exists
+ * once.
+ */
+export function drawnHalfExtents(attrs: TransformAttributes): { halfW: number; halfH: number } {
+  if (isIdentityTransform(attrs)) return { halfW: 0.5, halfH: 0.5 };
+  const { sin, cos } = sincos(attrs.rotation);
+  const sx = Math.abs(attrs.scaleX * attrs.scale);
+  const sy = Math.abs(attrs.scaleY * attrs.scale);
+  return {
+    halfW: (sx * Math.abs(cos) + sy * Math.abs(sin)) / 2,
+    halfH: (sx * Math.abs(sin) + sy * Math.abs(cos)) / 2,
+  };
 }
 
 /**
@@ -148,28 +225,34 @@ export function isIdentityTransform(attrs: TransformAttributes): boolean {
  * that spills into view.
  *
  * **R9** makes the render box the only clip and a cell *not* one, so a tile
- * scaled 1.5x or turned 45 degrees paints into its neighbours. A cell just
- * outside the box can therefore still reach into it, and culling at the box edge
- * exactly would clip a picture the uncropped grid shows.
+ * scaled 1.5x or turned 45 degrees paints into its neighbours, and since 0.8.0 a
+ * translated one may land cells away. A cell just outside the box can therefore
+ * still reach into it, and culling at the box edge exactly would clip a picture
+ * the uncropped grid shows.
  *
- * The transformed square's axis-aligned half-extent, in cell units, is
- * `(|sx cos| + |sy sin|) / 2` wide and `(|sx sin| + |sy cos|) / 2` tall; the spill
- * is how far that exceeds the cell's own half, `0.5`. Rounded **up** to whole
- * cells, because culling is by column.
+ * The spill is how far the drawn bounding box — {@link drawnHalfExtents}, offset
+ * by the cell's translation — exceeds the cell's own half, `0.5`. Rounded **up** to
+ * whole cells, because culling is by column.
+ *
+ * **One number for the whole grid.** A single tile translated 40 cells makes
+ * culling build 40 extra hidden columns each side for every tile. It costs work,
+ * never size or layout — the box does not depend on this — and checking each
+ * tile individually is the optimisation if it ever shows.
  *
  * A function of the grid alone — no width, no DPR — so it is computed once per
- * generation, not per resize.
+ * generation, not per resize. Translation is taken exact here rather than
+ * rounded to a device pixel; `ceil` to whole cells swallows the difference.
  */
-export function maxSpill(grid: { cells: readonly TransformAttributes[] }): number {
+export function maxSpill(grid: {
+  cells: readonly (TransformAttributes & Partial<Translation>)[];
+}): number {
   let spill = 0;
   for (const cell of grid.cells) {
-    if (isIdentityTransform(cell)) continue;
-    const { sin, cos } = sincos(cell.rotation);
-    const sx = Math.abs(cell.scaleX * cell.scale);
-    const sy = Math.abs(cell.scaleY * cell.scale);
-    const halfW = (sx * Math.abs(cos) + sy * Math.abs(sin)) / 2;
-    const halfH = (sx * Math.abs(sin) + sy * Math.abs(cos)) / 2;
-    spill = Math.max(spill, halfW - 0.5, halfH - 0.5);
+    const tx = Math.abs(cell.translateX ?? 0);
+    const ty = Math.abs(cell.translateY ?? 0);
+    if (tx === 0 && ty === 0 && isIdentityTransform(cell)) continue;
+    const { halfW, halfH } = drawnHalfExtents(cell);
+    spill = Math.max(spill, halfW - 0.5 + tx, halfH - 0.5 + ty);
   }
   return Math.ceil(spill);
 }

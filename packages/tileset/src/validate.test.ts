@@ -258,6 +258,20 @@ describe("the V1 codes — 06 §10.3", () => {
     expect(validate(f)).toEqual([]);
   });
 
+  /** 0.8.0 — both translate Targets accept every numeric Blend, `multiply` included. */
+  it("accepts translateX and translateY with set, add and multiply", () => {
+    for (const target of ["translateX", "translateY"]) {
+      for (const blend of ["set", "add", "multiply"]) {
+        const f = broken((f) => {
+          f.config.operations[0].target = target;
+          f.config.operations[0].mapping = { range: [-0.5, 0.5] };
+          f.config.operations[0].blend = blend;
+        });
+        expect(validate(f)).toEqual([]);
+      }
+    }
+  });
+
   it("INVALID_TARGET_BLEND on a numeric Blend applied to tileId", () => {
     expect(codes(broken((f) => (f.config.operations[0].blend = "add")))).toEqual([
       "INVALID_TARGET_BLEND",

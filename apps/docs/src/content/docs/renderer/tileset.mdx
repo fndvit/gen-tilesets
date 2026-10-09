@@ -1,0 +1,334 @@
+---
+title: Tileset.svelte
+description: The renderer's one entry point. Takes a TilesetFile and options, generates the grid, places it for the box, masks it, and paints it on a canvas or as DOM cells.
+sidebar:
+  order: 1
+---
+
+import TilesetStory from "../../../stories/TilesetStory.svelte";
+
+**Written from:** `packages/tileset/src/render/Tileset.svelte`, the tests of the modules it is
+built from (`options.test.ts`, `breakpoints.test.ts`, `measure.test.ts`, `geometry.test.ts`,
+`sizing.test.ts`, `uniform.test.ts`, `occlusion.test.ts`, `edges.test.ts`, `provider.test.ts`), and
+the call sites in `apps/editor/src/App.svelte`, `apps/demo/src` and `render/TileDecoration.svelte`.
+
+## Overview
+
+`<Tileset>` is the component that puts a tileset on a page. A host gives it a tileset file and,
+optionally, a settings object. The component generates the grid of tiles from the file, works out
+where every cell goes for the width of the box it has been given, hides any tiles that would sit on
+top of page content the host asked it to avoid, and paints the result.
+
+It can paint in two ways. The default, **canvas**, draws the whole grid as one bitmap, which is
+seamless and cheap but draws nothing until the page has loaded in the browser. The alternative,
+**DOM**, creates one element per cell, so the server-rendered HTML already contains the full
+picture and each tile can be clicked. Either way the box reserves its correct height before
+anything is drawn, so the page does not jump.
+
+It is the whole of the pipeline in one place: file → load check → generate → measure → place →
+mask → draw. The editor's preview is this same component on the editor's file, and
+`<TileDecoration>` is a thin wrapper around it. The modules this page links to are the pieces it
+is built from; this page is about how they are wired together.
+
+## Try it
+
+<TilesetStory client:only="svelte" />
+
+The story loads `fixtures/basic.json` through `loadTilesetFile` and passes `seed`, `loadSalt`,
+`substrate` and a `prefixedProvider` in `options`. The width slider resizes the box: inside one
+design the picture only rescales, and the grid is never regenerated.
+
+## In detail
+
+### Purpose
+
+The header lists the rules the component exists to keep:
+
+- **S1: one entry point.** It accepts a `TilesetFile` and calls `generate()` itself. Nothing in
+  the package accepts a `Grid<TileState>` as an input.
+- **S2: the editor's preview is this component** on the editor's file. Overlays draw *over* it,
+  never instead of it. There is no preview mode.
+- **S3: no validation on the draw path.** In production it has undefined behaviour on a file
+  `validate()` would reject. In a development build it asserts validity once per file (see
+  *Development checks*).
+- **S7: no random number and no ambient state.** `Math.random()` does not appear, which makes
+  "`loadSalt` is drawn once by the host" structural: the component has no draw to repeat.
+- **Four stages, and only the last is a substrate** (0.6.0): `generate()` makes the grid;
+  `geometry.ts` / `uniform.ts` place it; `occlusion.ts` turns keep-out rects into a mask; one of two
+  template branches paints.
+
+### Public surface
+
+Imported as `@fndvit/gen-tilesets/Tileset.svelte`. It is not exported from
+[`render/index.ts`](/renderer/render-index/).
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `file` | `TilesetFile` | required | Parsed, valid, and held stable by the host (cited as **S3**). |
+| `options` | [`TilesetOptions`](/api/render/interfaces/tilesetoptions/) `\| undefined` | `undefined` | Every setting. Defaults are in `resolveOptions`; see [options.ts](/renderer/options/). |
+| `box` | `HTMLElement \| null` | `null` | **Bindable.** The render box element, for converting pointer events to render space. |
+| `...rest` | anything | none | Collected only so a development build can throw on a pre-0.6.0 prop (`seed`, `loadSalt`, `provider`, `onAssetError`, `substrate`). |
+
+No events and no snippets. Callbacks go through `options.onAssetError`.
+
+**DOM attributes a host can rely on:** the box carries `data-tileset-box` and, once measured,
+`data-measured`. Under `substrate: "dom"` each cell is a `.cell` with `data-x` and `data-y`, and
+`data-masked` when the keep-out mask hides it. With responsive rules, the box sits inside a
+`.container` carrying `data-tileset-wrapper` set to the instance id.
+
+### Inputs → outputs
+
+#### Props and options
+
+`resolved` is `resolveOptions(options)`, after a development-only check. It is then unpacked into
+**one `$derived` per field** (`seedOption`, `loadSalt`, `substrate`, `overflow`, `baseSizing`,
+`baseAlignX`, `baseAlignY`, `hostRules`, `provider`, `padding`). A `$derived` propagates only when
+its value changes, so a host writing `options={{ ... }}` inline does not re-run `generate()` when
+only, say, `avoid.padding` changed. The comment calls this "what keeps R12 true".
+
+- `targets` is the normalised `avoid.targets`, kept at the previous identity while `sameTargets`
+  says nothing changed, so an inline `[a, b]` does not re-register observers.
+- `onAssetError` is read **untracked** at call time (`reportAssetError`), so a new identity of an
+  inline callback does not re-resolve every asset.
+- `effectiveSeed` is `seedOption ?? checked.config.defaultSeed` (cited as **S4**: with no options
+  the picture is fixed).
+
+#### Responsive rules
+
+- `rules = effectiveRules(checked, hostRules)`: the host's rules if given (`[]` included), else the
+  file's, else none.
+- `ruleKey` is `activeKey(rules, measuredWidth)` once measured, else `""`. It changes only when a
+  rule starts or stops matching, and every later derived keys on it, so "a resize inside a band
+  costs nothing".
+- `shaped` is `reshape(checked, ruleOverride(active))` plus the active rules. With no rule active,
+  `reshape` keeps `config` by reference, so a density-only rule never reaches `generate()`.
+- `sizing`, `alignX`, `alignY` come from `renderOverride(base, active)`.
+- `reservation` is `reservationCss(uid, checked, rules, base)` when rules exist, injected as a
+  `<style>` inside the container wrapper. `uid` is `$props.id()`, stable between server and client.
+
+See [breakpoints.ts](/renderer/breakpoints/) for the reservation CSS and the cache.
+
+#### Grid and asset resolution
+
+- `grid = gridCache.get(checked.config, config, effectiveSeed, loadSalt)`. It regenerates when
+  `file.config`, the seed or `loadSalt` change, or a rule produces a `(rows, columns)` not seen
+  before, **and on nothing else**: not a provider change, not a resize, not hydration, not a
+  keep-out change.
+- `spill = maxSpill(grid)` and `drawn = drawnTiles(grid)` are per grid, not per resize.
+- `metaByKey` maps `assetKey(tileId, assetId)` to each `TileAsset`'s `meta` (or `{}`).
+- `drawables` calls `provider(ref)` **once per distinct key** in the grid. A synchronous throw is
+  reported through `onAssetError` and stored as `Promise.reject(cause)`. The comment says memoising
+  makes "the provider is pure" structural rather than an obligation, and records the objection that
+  it "silently repairs an impure provider" and caches a lazy provider's rejection too.
+
+#### Lifecycle and measurement
+
+- `dpr` starts at `currentDpr()` (1 on the server) and is updated by `observeDpr`.
+- One `$effect` registers `box` and `targets` with the page's shared scheduler (`track`). Its
+  callback writes `measuredWidth`, `measuredHeight` and `keepout` together, so geometry and mask
+  come from one measurement in the same frame. See [measure.ts](/renderer/measure/).
+- `geometry` is the `GridGeometry` for the current shape, width, sizing and alignment. `Hpx` is
+  read only when `alignY` is not `"top"`, "so a top-aligned grid does not re-derive everything when
+  its own extent changes the box's height".
+- **Before measurement** (`measuredWidth` 0, which includes the server): the canvas wrapper
+  declares `aspect-ratio: naturalRatio`, or `height: fixedHeight px` under fixed sizing, and the
+  canvas is empty. The DOM box declares the ratio (or an `.extent` of `fixedHeight`) and places every
+  column with affine CSS. With rules, the reservation CSS provides the height instead.
+- **After measurement** the box takes its height from its content: the canvas, or the DOM's
+  `.extent`.
+
+#### Substrate: canvas
+
+```
+uniform      = uniformGeometry(geometry, dpr)             // canvas and measured, else null
+canvasColumns = visibleColumns(ideal lattice, columns, Wpx, spill)
+presentation = canvasPresentation(geometry, uniform, dpr, canvasColumns)
+items        = uniformDrawList(geometry, grid, dpr, 0, assetKey, presentation)
+```
+
+- `sources` maps each key to its `src`. A promise from a lazy provider is awaited and lands in the
+  map when it settles; keys no longer referenced are dropped.
+- `bank.sync(sources, …)` decodes images ([images.ts](/renderer/images/)); a decode failure is
+  turned back into a pair with `parseAssetKey` and reported.
+- **Paint** (`$effect`): sizes the backing store to `rasterWidthDev x rasterHeightDev`, clears it,
+  enables high-quality smoothing, then for each item: skip if masked; skip if no decoded image
+  (cited as **R3**: no placeholder, no sibling asset); compute `coverRect` against the square cell;
+  then either a plain `drawImage` (identity, opaque) or `save` / `globalAlpha` / `transform(matrix)`
+  / `drawImage` / `restore`. While `pending` it clears and draws nothing.
+- **Template:** a `.tileset` wrapper (the box) containing one `<canvas class="presented">` styled
+  `width: widthCss; margin-left: leftCss`, plus `position: relative; top: topCss` for a non-top
+  `alignY`. The canvas's `height` is `auto`.
+
+#### Substrate: DOM
+
+```
+domCell    = domGeometry(geometry, dpr)                   // dom and measured, else null
+domColumns = visibleColumns(domLattice(domCell), …)       // every column before measurement
+shownCells = non-empty cells in domColumns, row-major
+```
+
+- Each shown cell renders `<div class="cell" style={cellStyle(...)} data-x data-y data-masked>`
+  around `{#await drawables.get(key)}` an `<img alt="" loading="lazy" draggable="false">`. A
+  rejected drawable renders nothing. An `<img>` `error` adds the key to `loadFailed`, which unmounts
+  every cell using that key and reports once.
+- `cellStyle` = `domPlacement` + `transform: cssTransform(cell)` only when not an identity +
+  `opacity` only when below 1.
+- `domPlacement`, **before measurement:** `cellPlacementAffine` as `width`, `margin-left`,
+  `margin-top`, and `top: N%` for a non-top `alignY`. Under fluid/top these are bare percentages,
+  byte-identical to 0.5.0. **After measurement:** px from `domCell`, with the translation added as
+  `translationDev` device px.
+- `.extent` (a zero-width in-flow child) carries the height: `gridHeightDev / dpr` once measured,
+  `fixedHeight` before that under fixed sizing.
+- Each block is keyed by `` `${x},${y}` ``, not by flat index, so a breakpoint that changes
+  `columns` keeps every cell present in both grids mounted.
+
+#### Keep-out (`avoid`) and `pending`
+
+- `lattice` is the lattice the active substrate painted: `presentation.lattice` for canvas,
+  `domLattice(domCell)` for DOM.
+- `paintedCellDev` is that substrate's integer cell.
+- `mask` is `stableMask(lastMask, occlusionMask(…))`, called with the lattice, the grid size,
+  `keepout`, `padding`, and `drawn` with `paintedCellDev`. It is `null` until all inputs exist. See
+  [occlusion.ts](/renderer/occlusion/).
+- `pending` is true while `avoid` is set and there is no mask yet, **or** while rules exist and
+  nothing has been measured. Canvas draws nothing; the DOM box gets `visibility: hidden`. Space is
+  still reserved, so nothing reflows when it appears.
+
+#### Development checks
+
+All are guarded by `DEV` from `../dev.ts`, which folds to `false` in a production build.
+
+| Check | Throws or warns |
+| --- | --- |
+| `legacyPropErrors(rest)` + `optionErrors(options)` | Throws, listing every message. |
+| `assertValidFile(file, …)` as `checked` | Throws with a hint to use `loadTilesetFile()`. |
+| `rulesReshapeErrors(checked, rules)`, only for host rules | Throws. A file's own rules were already checked by `assertValidFile`. |
+| `FlipFlop` on `ruleKey` | Warns once that a breakpoint is flipping, naming `scrollbar-gutter: stable`. |
+| `inertCellSizeRules` | Warns once per rule that only changes `cellSize` under fluid. |
+| `cellTooSmall`, `assetTooSmall` (canvas paint only) | Warns once per cell size / per asset. See [warn.ts](/renderer/warn/). |
+
+### Invariants
+
+- **Assert before generating, structurally.** Every derived reads `checked`, never `file`. A
+  derived that existed only for its throw "is the line a later refactor deletes as dead"; here the
+  assertion cannot be dropped without dropping the data.
+- **S8: the box declares its natural ratio** and no explicit height until it has something to
+  measure. Host CSS may override the height; `align.y` then chooses which rows are cropped.
+- **S9: no padding and no border** on the box, so `Wpx` is unambiguously its width.
+- **R9: the box is the only clipping boundary** (`overflow: hidden`). A cell is *not* one
+  (`.cell { overflow: visible }`), because scale and rotation exist to spill. `yOffset`'s clip and
+  the horizontal bleed are both just a negative origin meeting the box edge. Since 0.8.0,
+  `overflow: "visible"` (DOM only) hands that one boundary to the host.
+- **R10: row-major paint order**, for free from `grid.cells` order in both substrates.
+- **R5: geometry is committed before resolution** and never revised by it, so a missing asset
+  leaves a hole rather than collapsing the grid.
+- **R6: shared edges.** DOM cells are placed by margins, not transforms, so the substrate snaps
+  their border boxes and one number gives one snapped edge; canvas draws on integer device pixels.
+- **Decorative output (cited as §4.5).** The box is `aria-hidden="true"` and every image has
+  `alt=""`. "Meaningful content is never a tile."
+- **`box` is the box, not the canvas.** Under canvas they are different elements of different
+  widths, and binding the canvas would hand a pointer conversion a rect wider than the render box.
+
+### Callers / callees
+
+| Caller | How |
+| --- | --- |
+| `apps/editor/src/App.svelte:20, 820-824` | `<Tileset {file} options={{ loadSalt, provider: editorProvider, onAssetError }} bind:box={renderBox} />`, the editor preview (cited as **S2**). |
+| `render/TileDecoration.svelte:36, 124` | `<Tileset {file} {options} />` on a reshaped style. |
+| `apps/demo/src/App.svelte:21, 146` | `seed`, `loadSalt`, `substrate`, `provider`, `onAssetError`. |
+| `apps/demo/src/Hosting.svelte:26, 162` | A full `options` object built from controls (sizing, align, substrate). |
+| `apps/demo/src/Responsive.svelte:27, 131` | A responsive hero. |
+| `apps/demo/src/Square2x2.svelte:35, 221` | With `bind:box`, beside a geometry readout. |
+| `apps/demo/src/Kelp.svelte:71` | `substrate: "dom"` with `overflow`. |
+| `apps/docs/src/stories/TilesetStory.svelte` | The *Try it* story above. |
+
+**Callees**, by module: `assertValidFile` (`../load.ts`); `activeKey`, `ruleOverride`,
+`rulesReshapeErrors` (`../responsive.ts`); `reshape` (`../shape.ts`); `DEV` (`../dev.ts`);
+[geometry.ts](/renderer/geometry/), [transform.ts](/renderer/transform/),
+[edges.ts](/renderer/edges/), [uniform.ts](/renderer/uniform/), [warn.ts](/renderer/warn/),
+[measure.ts](/renderer/measure/), [breakpoints.ts](/renderer/breakpoints/),
+[occlusion.ts](/renderer/occlusion/), [options.ts](/renderer/options/),
+[images.ts](/renderer/images/), [provider.ts](/renderer/provider/), and the `RenderRect` type from
+[space.ts](/renderer/space/).
+
+### Tests
+
+No test file. `.svelte` components cannot be unit-tested in this repo, which is why the logic lives
+in the `.ts` modules above and each has its own tests. What is *not* covered by any test is the
+wiring on this page: which derived feeds which, the gating on substrate and measurement, the
+template's height arrangement, and the asset-error paths. `svelte-check`, the two apps and the
+story above are its only coverage.
+
+### Gotchas & rejected alternatives
+
+- **No `width`, `config` or `layout` prop.** Every quantity is a fixed fraction of `Wpx`, so the
+  host's CSS decides the width. Splitting the file across two props would let a host pair
+  mismatched halves.
+- **Placement by margin, not `transform: translate()`.** A transformed element is rasterised at
+  sub-pixel precision, so at any fractional cell size every edge was antialiased, and two partial
+  coverages "never sum to one", leaving a sliver of backdrop at every seam. A percentage margin
+  resolves against the containing block's *width*, vertically too, so placement stays a fraction of
+  `Wpx` and a host-set height cannot stretch a cell.
+- **`transform` is omitted for an identity cell**, and **`opacity` at 1**, because opacity below 1
+  forces a stacking context on every cell.
+- **No `will-change: transform`.** It promoted every cell to its own layer with its own pixel
+  snapping, which is "compute each cell's left and size independently, round both" reached through
+  the compositor.
+- **The canvas `height` is `auto` on purpose,** "the one line not to tidy". The canvas's intrinsic
+  ratio makes the vertical scale equal the horizontal one; writing a height would make cells
+  non-square again.
+- **The ratio is declared only until there is something to measure.** `naturalRatio` and the
+  quantised grid height differ by up to half a CSS pixel at a fractional `yOffset`; declaring the
+  ratio permanently would show a hairline under the bottom row (canvas) or shave the bottom row
+  (DOM). `min-height` was rejected because it would stretch the picture anisotropically.
+- **The `.extent` child, not an inline height on the box.** An inline style would beat a host
+  stylesheet's `height` and break vertical bleed.
+- **Vertical alignment moves the canvas with `position: relative; top`**, never a margin, so the
+  wrapper's height does not move with the shift. A bottom-aligned margin "would be a fixed point at
+  any value".
+- **One `<canvas>`, conditionally styled,** not two `{#if}` arms, so the backing store is not
+  discarded at the first measurement.
+- **The container wrapper exists only when rules do.** `container-type: inline-size` gives an
+  element no width from its content, so in a shrink-to-fit context it would collapse.
+- **The hit area is the rest pose.** Animate the `<img>` inside a `.cell`, never the `.cell`, or the
+  hit area moves under the pointer.
+- **The keep-out mask is an attribute, not part of the style string**, which is rewritten on every
+  resize. Masked cells use `visibility: hidden`: no layout change, the image stays decoded, and the
+  cell takes no hits.
+- **There were three substrates until 0.6.0.** `"svg"` measured nothing but showed a backdrop
+  hairline at every shared edge (the comment cites "+52% leak, the worst measured"), and every new
+  feature would have had to be built a third time for it. It was removed rather than left at a lower
+  feature level.
+
+### Review notes
+
+- **Async provider rejections are never reported.** `drawables` reports only a *synchronous* throw.
+  A provider that returns a promise which rejects is swallowed by `.catch(() => {})` on canvas
+  (line 634) and rendered as nothing by `{:catch}` on DOM (line 1220), with no `onAssetError` call
+  on either path. The comment at line 632 says the rejection "has already been reported … where the
+  provider threw", which holds only for a synchronous throw. `TilesetOptions.onAssetError` promises
+  it "fires for a resolution failure and a load failure alike".
+- **Unhandled rejections on the DOM substrate.** A synchronous throw is stored as
+  `Promise.reject(cause)`. Under DOM, only cells that are mounted `{#await}` it, so a failing asset
+  whose cells are all culled, or all in `loadFailed`, leaves a rejection with no handler. The error
+  is already reported; this would only add console noise.
+- **`loadFailed` is never cleared.** Once an `<img>` fails for a key, every cell using that key stays
+  unmounted for the component's lifetime, even if the host changes `provider` or `file`. On canvas
+  the equivalent (`ImageBank`'s failed set) is cleared when the `src` changes.
+- **Stale template comment** (lines 1009-1013): "under `substrate="canvas"` the render box *is* the
+  canvas: one element". Since the split the box is the wrapper and the canvas is a separate, wider
+  element, as the comment at line 1044 and the `box` prop's docstring say.
+- **Stale comment** (lines 373-379): "Placement is `cellPlacementPercent`'s … called per cell from
+  `cellStyle`". Placement now goes through `domPlacement`, which calls `cellPlacementAffine` before
+  measurement and `domGeometry` after.
+- **Detached docstring** (lines 771-780): the doc comment describing `mask` and `lastMask` is
+  followed directly by the doc comment for `drawn`, so it is attached to nothing (and tools will
+  associate neither comment with `mask`).
+- **Stale CSS comment** on `.cell` (lines 1308-1311): "`width` is set inline as a percentage … and
+  `margin-left` / `margin-top` … as percentages". That is only true before measurement; afterwards
+  they are px from `domGeometry`.
+- **Slightly inaccurate comment** (lines 174-175): "Nothing below this block reads `resolved` or
+  `options` again, except the one `untrack`ed read in `reportAssetError`". The `targets` derived
+  just below (line 193) also reads `resolved.avoid`.
+- **No softness warnings under DOM.** `cellTooSmall` and `assetTooSmall` run only in the canvas
+  paint effect.

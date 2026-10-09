@@ -23,8 +23,19 @@ export type Identifier = string;
  * `scale` arrived by that route in ADR-005 and carried `schemaVersion` to 2. It
  * is uniform and **composes with** the two axes rather than replacing them:
  * `S(scaleX · scale, scaleY · scale)`.
+ *
+ * `translateX` and `translateY` arrived by the same route in 0.8.0 and carried
+ * `schemaVersion` to 4. They move the drawn tile off its home cell, in **cell
+ * units** and grid axes — see {@link TileState.translateX}.
  */
-export type AttributeName = "scale" | "scaleX" | "scaleY" | "rotation" | "opacity";
+export type AttributeName =
+  | "scale"
+  | "scaleX"
+  | "scaleY"
+  | "rotation"
+  | "opacity"
+  | "translateX"
+  | "translateY";
 
 /** `06` §7. The attributes plus the structural `tileId`. Closed by `05` §4.2. */
 export type TargetName = "tileId" | AttributeName;
@@ -52,6 +63,24 @@ export interface TileState {
   scaleY: number;
   rotation: number;
   opacity: number;
+  /**
+   * How far the drawn tile is moved off its home cell, in **cells** — `1` is one
+   * cell side, whatever the cell's size in pixels. Grid axes, `y` increasing
+   * downward (`02` §5), applied *after* scale and rotation: the tile turns about
+   * its own centre and the result moves. Per-cell scale does not multiply it.
+   *
+   * Cell units because the engine never sees a pixel (`02` §4.2): a design-px
+   * value would make the renderer read `cellSize` to interpret an attribute, and
+   * would change meaning whenever a responsive rule changed `cellSize`.
+   *
+   * **Not `Layout.yOffset`'s sign.** That shifts the whole grid *up* for a
+   * positive value; this moves one tile *down*. The names differ on purpose.
+   *
+   * The cell stays where it is in every other sense — its Selection membership,
+   * its hashes, its index, its paint order (`07` **R10**). Only the drawing moves.
+   */
+  translateX: number;
+  translateY: number;
 }
 
 /**
@@ -281,12 +310,13 @@ export interface TilesetFile {
   /**
    * Required. Absent or unknown is a load failure (`06` **C2**).
    *
-   * **3 since 0.7.0**, which added `responsive`. 2 was ADR-005's, which added the
-   * `scale` attribute. `migrate()` lifts a v2 file to 3 with nothing to rewrite —
-   * the field is optional — and an engine before 0.7.0 rejects a v3 file, which is
-   * what **C2** says an unknown version is.
+   * **4 since 0.8.0**, which added the `translateX`/`translateY` attributes and
+   * so widened `Operation.target`. 3 was 0.7.0's, which added `responsive`; 2 was
+   * ADR-005's, which added the `scale` attribute. `migrate()` lifts each to the
+   * next with nothing to rewrite, and an older engine rejects a newer file by its
+   * version, which is what **C2** says an unknown version is.
    */
-  schemaVersion: 3;
+  schemaVersion: 4;
   /** Required, advisory, never validated against anything (`06` **C3**). */
   engineVersion: string;
   config: TilesetConfig;

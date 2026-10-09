@@ -284,11 +284,22 @@ export interface CellPlacementAffine {
   topPct: number;
 }
 
+/**
+ * @param translate the cell's `translateX`/`translateY`, in cells. Placement is
+ *   linear in the cell's position with the side as its coefficient, so a
+ *   translation is the position moved by `t` — exact here, because nothing before
+ *   measurement is quantised; after measurement the DOM rounds it to a device
+ *   pixel with everything else (`translationDev`). Omitted, it is `0`, and every
+ *   number is the one this function returned before 0.8.0.
+ */
 export function cellPlacementAffine(
   g: Omit<GridGeometry, "Wpx" | "Hpx">,
-  x: number,
-  y: number,
+  cellX: number,
+  cellY: number,
+  translate: { translateX: number; translateY: number } = { translateX: 0, translateY: 0 },
 ): CellPlacementAffine {
+  const x = cellX + translate.translateX;
+  const y = cellY + translate.translateY;
   const { layout, rows, columns } = g;
   const bY = alignFraction(g.alignY, 0);
   const topPct = bY * 100;

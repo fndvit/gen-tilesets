@@ -1,0 +1,95 @@
+---
+title: ParamFields.svelte
+description: Every control for one registered Selection or Source, generated from its parameter schema alone.
+sidebar:
+  order: 47
+---
+
+import ParamFieldsStory from "../../../stories/ParamFieldsStory.svelte";
+
+
+**Written from:** `apps/editor/src/controls/ParamFields.svelte`, `controls/affordance.test.ts`,
+and the call sites in `lib/OperationDraft.svelte`.
+
+## Overview
+
+`ParamFields` is the block of settings that appears under the type buttons in the Selection and
+Source steps of the operation draft. Pick `everyNth`, for example, and it shows fields for `axis`,
+`n` and `offset`; pick `valueNoise` and it shows `cellsPerFeature` and `octaves`.
+
+It knows nothing about any particular type. It reads the type's declared list of parameters and
+draws one control per parameter, choosing a slider, a number box or a row of buttons from what
+each parameter allows. The one exception is a list of cells, which cannot be typed: for that it
+shows a line telling the author to paint on the preview instead.
+
+In the editor's pipeline (import → document → **draft**/history → preview → export), it edits the
+draft's parameters. Nothing reaches the document until the draft is committed.
+
+## Try it
+
+Pick any registered Selection or Source: the form is built from its `ParamSchema` alone. The editor's own stylesheet is not loaded here.
+
+<ParamFieldsStory client:only="svelte" />
+
+## In detail
+
+### Purpose
+
+The component makes **E9** true in the UI: the mapping from a parameter spec to a control is
+total, so a newly registered Selection or Source gets working controls with no editor code. Its
+header comment: "There is no code here that knows what `everyNth` or `valueNoise` is."
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `schema` | [`ParamSchema`](/api/index/type-aliases/paramschema/) | required | The registered type's parameter schema. |
+| `values` | `Record<string, unknown>` | required | The draft's current parameters, by name. |
+| `onChange` | `(name: string, value: unknown) => void` | required | Called with one parameter's new value. |
+
+### Inputs → outputs
+
+- An empty schema renders "No parameters."
+- Otherwise, for each `[name, spec]` of `Object.entries(schema)`, keyed by name:
+  - `affordanceFor(spec)` from [affordance.ts](/editor/affordance/);
+  - `kind === "cellList"`: a paragraph "**name** is painted on the preview, not typed", with the
+    current count when `values[name]` is an array;
+  - anything else: [ParamControl](/editor/param-control/) with `name`, `spec`, `affordance`,
+    `value={values[name]}` and `onChange={(v) => onChange(name, v)}`.
+
+Order follows the schema's own key order.
+
+### Invariants
+
+- **No hand-written panel per registered type.** The component branches on the affordance kind
+  only.
+- **`cellList` is routed here, not in `ParamControl`.** That is why `ParamControl` narrows its
+  last branch on `kind === "number"` rather than a bare `else`.
+
+### Callers / callees
+
+| Caller | Use |
+| --- | --- |
+| `lib/OperationDraft.svelte:28` | import |
+| `lib/OperationDraft.svelte:239` | Selection step: `schema={selectionSchema}`, `values={draft.selectionParams}`, writes `draft.selectionParams[name]` |
+| `lib/OperationDraft.svelte:281` | Source step: `schema={sourceSchema}`, `values={draft.sourceParams}`, writes `draft.sourceParams[name]` |
+
+Callees: `affordanceFor` (`affordance.ts`, line 12), `ParamControl.svelte` (line 13).
+
+### Tests
+
+No test file for the component. `controls/affordance.test.ts`'s sweep is the test of what this
+component promises: for every Selection and Source in the **real** registries, every parameter
+gets one of `slider`, `number`, `segmented` or `cellList`, and `defaultParams` produces a value
+for every declared parameter that the schema admits. It also guards the sweep against an empty
+registry by pinning the registered names, and checks that no schema declares a parameter called
+`type`.
+
+### Gotchas & rejected alternatives
+
+- **The painted note is all this component does for `cellList`.** The brush is
+  [PaintLayer](/editor/paint-layer/), mounted by `App.svelte` over the preview.
+
+### Review notes
+
+None found.

@@ -97,6 +97,16 @@ export const TARGETS: Readonly<Record<TargetName, TargetSpec>> = {
    */
   rotation: { type: "numeric", default: "set", vetoes: ["multiply"] },
   opacity: { type: "numeric", default: "set", vetoes: [] },
+  /**
+   * **No veto** — **X2**'s review, carried out. `add` is the natural Blend
+   * (jitter: `random` mapped to `[-0.2, 0.2]`, added). `multiply` is kept although
+   * on a fresh cell it is a no-op, because the default is `0` and `0 * v` is `0`:
+   * it only acts on a translation an earlier `set` or `add` wrote, where it damps
+   * or amplifies it. That is a real use, and lifting a veto later would have been
+   * a pure widening anyway; the editor surfaces the no-op by drawing the track.
+   */
+  translateX: { type: "numeric", default: "set", vetoes: [] },
+  translateY: { type: "numeric", default: "set", vetoes: [] },
 };
 
 /**

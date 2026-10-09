@@ -1,0 +1,176 @@
+---
+title: shape.ts
+description: One design, drawn at any size. reshape() overrides rows, columns, cellSize, bleed and yOffset and shares everything else by reference.
+sidebar:
+  order: 11
+---
+
+import ReshapeStory from "../../../stories/ReshapeStory.svelte";
+
+
+**Written from:** `packages/tileset/src/shape.ts`, `shape.test.ts`, and the call sites in
+`render/Tileset.svelte`, `render/TileDecoration.svelte`, `render/breakpoints.ts`,
+`render/options.ts`, `validate.ts`, `apps/editor/src/App.svelte` and `apps/editor/src/document.ts`.
+
+## Overview
+
+The shape module separates *what* a tileset draws from *how big* it is. A tileset file holds a
+design (its tiles, its operations, its seed) and a shape (how many rows and columns, how big a
+cell is, how far the grid overhangs its box, and a small vertical offset). The design stays fixed;
+the shape can be overridden.
+
+Its main function takes a file and a few new shape values and returns a new file with those values
+swapped in, sharing everything else with the original. That is how one authored design becomes a
+phone layout, a desktop layout, or a small decoration, without writing a second file.
+
+There is one limit. An operation that picks cells by hand, by their coordinates, only makes sense
+at the grid size it was drawn for, so a file containing one cannot change its rows or columns. The
+module has a companion checker that reports this and other bad values.
+
+It sits between load and generate: the renderer reshapes the loaded file before generating, and
+validation uses the same rules.
+
+## Try it
+
+The fixture as authored, next to the same file reshaped. Both use one seed, so wherever the two grids share a cell they draw the same tile. Ask for a shape the file cannot take and `reshapeErrors` lists why.
+
+<ReshapeStory client:only="svelte" />
+
+## In detail
+
+### Purpose
+
+The shape spans two objects on disk: `rows` and `columns` in `TilesetConfig` (the engine loops over
+them), `cellSize`, `referenceWidth` and `yOffset` in `Layout` (only the renderer reads them).
+`reshape` hides that split. Overrides speak `bleed`, in cells, instead of `referenceWidth`. The
+module replaces 0.5.0's `decoration.ts`, whose `decorationFile` was
+`reshape(style, {rows, columns, cellSize, bleed: 0, yOffset: 0})`.
+
+### Public surface
+
+| Symbol | Signature | Exported from `index.ts`? |
+| --- | --- | --- |
+| [`SHAPE_FIELDS`](/api/index/variables/shape_fields/) | `readonly ["rows", "columns", "cellSize", "bleed", "yOffset"]` | yes |
+| [`shapeOf`](/api/index/functions/shapeof/) | `(file) → Shape`, with `bleed = columns - referenceWidth / cellSize` | yes |
+| [`reshape`](/api/index/functions/reshape/) | `(file, s: Partial<Shape>) → TilesetFile` | yes |
+| [`reshapeErrors`](/api/index/functions/reshapeerrors/) | `(file, s: Partial<Shape>) → string[]` | yes |
+| [`coordinateBoundOperations`](/api/index/functions/coordinateboundoperations/) | `(operations) → Operation[]` | yes |
+| `shapeFieldProblem` | `(field, value) → { code, message } \| null` | no |
+| `coordinateBoundMessage` | `(op) → string` | no |
+
+### Inputs → outputs
+
+**`reshape(file, s)`.** Fields in `s` replace the file's; absent ones are kept. `referenceWidth`
+is derived in this order:
+
+1. `bleed` given → `(columns - bleed) * cellSize`. At `bleed: 0` that is exactly
+   `columns * cellSize`.
+2. `bleed` absent, `columns` and `cellSize` unchanged → the file's `referenceWidth`, **verbatim**.
+3. `bleed` absent otherwise → the file's bleed in cells is kept:
+   `(referenceWidth / cellSize + (columns - oldColumns)) * cellSize`.
+
+Then:
+
+- Nothing changed and the file has no `responsive` → returns **the same file object**.
+- Otherwise a new file without `responsive`. `config` is the **same object** when `rows` and
+  `columns` are unchanged; `layout` is the same object when `cellSize`, `referenceWidth` and
+  `yOffset` are unchanged. `tiles`, `operations` and every other field pass through by reference.
+  `horizontalAlignment` passes through untouched.
+
+**`shapeFieldProblem(field, value)`.** `TYPE_MISMATCH` for a non-number, `NOT_FINITE` for
+`NaN`/`±Infinity`. Then: `rows`/`columns` must be safe integers `>= 1` (`NOT_AN_INTEGER`,
+`OUT_OF_RANGE`); `cellSize > 0`; `yOffset` in `[0, 1)`; `bleed` always passes here, because its
+bound (`columns - bleed > 0`) depends on the resolved shape.
+
+**`coordinateBoundOperations(ops)`.** The Operations whose Selection registration has
+`coordinateBound: true`, in stack order. An unregistered type is skipped, not reported.
+
+**`reshapeErrors(file, s)`** returns messages, empty when sound:
+
+1. Each key of `s` that is not a shape field. `referenceWidth` gets its own message pointing to
+   `bleed`.
+2. Each bad value, via `shapeFieldProblem`.
+3. If all values are good: reshape, and report if the resulting `referenceWidth` is not `> 0`.
+4. If `s` names `rows` or `columns`: one message per coordinate-bound Operation, listing the
+   procedural Selections as the alternative.
+
+### Invariants
+
+- **The design is shared, never overridden.** Shape fields only.
+- **Reference identity is the signal.** `<Tileset>` tells a density change (geometry only) from a
+  size change (regenerate) by whether `config` is the same object. This is safe because nothing
+  downstream mutates a config.
+- **`reshape` validates nothing (C5).** `reshapeErrors` is the separate check. `<Tileset>` (for
+  host rules) and `<TileDecoration>` call it under `DEV` and throw; production does not.
+- **Read the registry flag, never a list of names.** The registry is open, and a list would
+  silently classify a later Selection as reusable.
+- **One statement of each field's domain.** `shapeFieldProblem` is read by `reshapeErrors`,
+  `validate()` and `render/options.ts`, so they cannot disagree.
+- **`validate.ts` depends on this module, not the reverse,** which is why `shapeFieldProblem`'s
+  `code` is a string union rather than an import of `ErrorCode`.
+
+### Callers / callees
+
+| Symbol | Caller |
+| --- | --- |
+| `reshape` | `render/Tileset.svelte:297`, `render/TileDecoration.svelte:92`, `render/breakpoints.ts:102`, `validate.ts:870`, `apps/editor/src/App.svelte:88` |
+| `reshapeErrors` | `render/TileDecoration.svelte:84` (under `DEV`); `responsive.ts:130` (inside `rulesReshapeErrors`) |
+| `shapeOf` | `apps/editor/src/document.ts:701`, `:754` |
+| `SHAPE_FIELDS` | `render/options.ts:321`, `:467`; `validate.ts:810`, `:831`, `:838`; `responsive.ts:80` |
+| `shapeFieldProblem` | `render/options.ts:470`, `validate.ts:834` |
+| `coordinateBoundOperations` | `validate.ts:862` |
+| `coordinateBoundMessage` | `validate.ts:843` |
+
+Callees: `selections.has`, `selections.get`, `selections.all` (`registry/selections.ts`).
+
+### Tests: `shape.test.ts`
+
+The file states that it asserts properties, not fixed expected values.
+
+- **`shapeOf`** reads bleed back in cells, and round-trips through `reshape` to the last bit on a
+  layout whose bleed is not a round number.
+- **Derivations:** every named field is taken; bleed in cells is kept when `columns` or `cellSize`
+  changes; `horizontalAlignment` passes through; `responsive` is dropped.
+- **Sharing:** an empty or equal override returns the file itself; `config` kept by reference when
+  `rows`/`columns` unchanged; `layout` kept when only `rows` changes; `tiles` and `operations`
+  shared; other fields pass through; the input is not mutated.
+- **Validity:** `validate()` passes on the output at decoration sizes and page-scale shapes.
+- **Decoration preset:** `referenceWidth === columns * cellSize`; `yOffset` zeroed; `originX` exactly
+  0 and `scaleFactor` exactly 1 at the decoration's own width (strict equality); no presentation
+  residual at integer DPR; box ratio `columns : rows`.
+- **Determinism and resize:** deterministic in `(file, override, seed)`; growing or shrinking leaves
+  existing cells untouched; `gradient` is the documented exception and stretches; generated output
+  includes empty cells.
+- **`shapeFieldProblem`** accepts the domain and names what is outside it.
+- **`reshapeErrors`:** passes a procedural file at any shape; flags `rect`/`cellList` when
+  `rows`/`columns` are named (by name, not value; one message per Operation in stack order); lets a
+  pinned file change `cellSize`, `bleed`, `yOffset`; follows the registry, not a name list; leaves
+  an unknown Selection type to `validate()`; reports bad values, unknown keys and a no-box bleed,
+  including an inherited bleed that no longer fits.
+
+### Gotchas & rejected alternatives
+
+- **Sharing, not cloning.** Twelve reshapes hold one `tiles` array, so nothing can drift.
+- **`referenceWidth` kept verbatim** when nothing it depends on moved: `ref / cell * cell` need not
+  equal `ref` to the last bit, and an override that changes only `rows` must not move a pixel.
+- **Bleed in cells, not `referenceWidth`,** because every `columns` change would otherwise be a sum
+  the caller redoes by hand, and a wrong sum silently adds or removes a bleed.
+- **`responsive` is dropped** because those rules were written against the shape this call
+  replaces. A host that wants rules on a reshaped file passes its own via `options.responsive`.
+- **"Names", not "changes".** An override that *mentions* `rows` is checked even if the value is
+  unchanged, so the rule is predictable from the override alone.
+- **One exception to "resizing keeps cells":** `gradient` normalizes over the extent, so a ramp
+  across 40 columns becomes a 3-step ramp across 3. `valueNoise` keeps its feature size in cells.
+
+### Review notes
+
+- `reshapeErrors` reports a box-less result as `` `bleed ${String(s.bleed)} leaves no box` ``. When
+  the problem comes from an **inherited** bleed (`s.bleed` absent, `columns` reduced), the message
+  reads *"bleed undefined leaves no box: …"*. The test (`shape.test.ts`, *"reports an inherited
+  bleed that no longer fits"*) only checks that the message contains `columns - bleed`, so the
+  wording is unpinned.
+- `coordinateBoundOperations` guards with `selections.has` so an unknown type is skipped. The
+  header says `apps/editor/src/orphans.ts`'s `atRisk()` "reads the same flag for the same reason",
+  but `atRisk` (`orphans.ts:44`) calls `selections.get` without the guard, so it throws on an
+  unknown type. In practice the editor only holds validated configs, so the difference is latent.
+  Not this file's code, but the comment presents the two as equivalent.

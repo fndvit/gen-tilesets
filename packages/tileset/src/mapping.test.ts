@@ -264,6 +264,8 @@ describe("Blends and Targets — 04 §7.2, ADR-001", () => {
       scaleY: ["set", "add", "multiply"],
       rotation: ["set", "add"],
       opacity: ["set", "add", "multiply"],
+      translateX: ["set", "add", "multiply"],
+      translateY: ["set", "add", "multiply"],
     };
     for (const [target, accepted] of Object.entries(expected)) {
       expect(acceptedBlends(target as TargetName).sort()).toEqual([...accepted].sort());

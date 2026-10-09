@@ -1,0 +1,108 @@
+---
+title: Determinism and positional hashing
+description: Why the same file and seed always give the same picture, and why the randomness is addressed by position rather than drawn from a sequence.
+sidebar:
+  order: 3
+---
+
+import HashStory from "../../../stories/HashStory.svelte";
+
+**Written from:** `packages/tileset/src/generate.ts`, `packages/tileset/src/hash.ts`,
+`packages/tileset/src/ctx.ts`, `packages/tileset/src/registry/sources.ts`,
+`packages/tileset/src/registry/selections.ts`, `packages/tileset/src/render/occlusion.ts`,
+`apps/editor/src/reseed.ts`. Concept page: it names no module of its own.
+
+## Overview
+
+A tileset looks random, but it is not. Give the engine the same file, the same seed and the same
+per-load number and it produces exactly the same picture, on any machine and at any time. That is
+the property the rest of the package is built around: a page that reloads keeps its picture, a
+saved file means one thing, and a test can pin a result.
+
+The randomness comes from a hash function rather than a random-number generator. A generator
+hands out numbers one after another, so each cell's number depends on how many cells came before
+it. A hash takes a cell's position, plus a few other values, and turns them straight into a
+number. No cell depends on any other.
+
+That choice buys two things. Resizing a grid keeps the existing cells as they were, because adding
+a column does not shift anyone else's number. And a single operation can be re-rolled by changing
+its own salt, without disturbing any other operation, because each operation hashes on its own
+channel.
+
+## Try it
+
+<HashStory client:only="svelte" />
+
+## In detail
+
+### The contract
+
+`generate.ts` states it in its header: *given the same `(config, seed, loadSalt)` triple it
+returns a structurally identical result, on any machine, in any runtime, at any time*. The file
+cites this as invariant **G1**: nothing reads the clock, calls `Math.random()` or touches ambient
+state. `loadSalt` does not weaken it, because it is a number the caller passes in, not a reading
+of the world.
+
+Anything that changes the output for an unchanged triple changes what every saved file draws.
+`schemaVersion` does not record that (see [Versioning](/concepts/versioning/)).
+
+### The hash
+
+From [hash.ts](/engine/hash/):
+
+```
+value = hash(effectiveSeed, channel, x, y, salt) → [0, 1)
+```
+
+- **Stage 1**, run once per generation, turns the seed *string* into a `uint32` (xmur3, reading
+  UTF-16 code units). The same function turns channel strings into integers, so channels need no
+  registry of magic numbers.
+- **Stage 2** folds `(seed, channel, x, y, salt)` with a murmur3 body and an `fmix32` finaliser,
+  then divides once by 2³². The result is half-open: it never reaches 1.
+- **Portability rules** (the header calls them "the spec more than the choice of function"):
+  every intermediate is `uint32` and ends with `>>> 0`, multiplication is `Math.imul` and never
+  `*`, and there is no floating point before the final division. A port to another language must
+  follow the same rules to reproduce the output.
+
+### Channels: who hashes what
+
+| Consumer | Seed | Channel | Salt |
+| --- | --- | --- | --- |
+| `random` Source (`sources.ts:84`) | the Operation's effective seed | `operationId` | `Operation.salt` |
+| `valueNoise` lattice (`sources.ts:142`) | the same | `operationId` | per-octave salt |
+| `random` Selection (`selections.ts:213`) | the same | `operationId + ":selection"` | `Operation.salt` |
+| Asset walk (`generate.ts`, step 3) | the assets' effective seed | `"asset"` | `config.assetSalt` |
+
+Because the channel is part of the key, two Operations never share a stream of numbers, and an
+Operation's Selection and its Source are independent. Changing `Operation.salt` rerolls that
+Operation's Source *and* Selection and nothing else. That is the editor's per-Operation reroll
+(`reseed.ts`, which increments the salt and wraps at 2³²). `assetSalt` does the same for the asset
+choice alone.
+
+### The effective seed and `loadSalt`
+
+`effectiveSeeds(seed, loadSalt)` returns two numbers: `plain` (`stage1(seed)`) and `onLoad`
+(`mixLoad(plain, loadSalt)`). Each channel picks one by its own flag (`pickSeed`): an Operation
+with `reseedOnLoad: true` uses `onLoad`, and the asset channel follows
+`config.reseedAssetsOnLoad`. So an author can make *some* layers vary from one page load to the
+next while the rest stay fixed. `mixLoad(s, 0)` is deliberately not `s`. The comment explains that
+`0` is an ordinary value, not an identity.
+
+`operationCtx` (`ctx.ts`) resolves the seed once per Operation, for both `generate()` and
+`selection()`. If those two built it differently, the editor's selection overlay could disagree
+with the picture next to it.
+
+### What resize does and does not keep
+
+Positional hashing makes *hash-addressed* values independent of grid size: a `random` Source, a
+`random` Selection, `valueNoise` and the asset walk give an existing cell the same number after a
+resize. A **`gradient`** normalises across `ctx.extent` (`sources.ts:250`), which defaults to the
+whole grid, so adding columns changes a gradient. That is by design: a gradient spans whatever it
+is laid over.
+
+### Order does not matter, and nothing is cached across calls
+
+`generate.ts` walks cells row-major, but its comment notes that any order would do: every step is
+a pure function of `(x, y)`. In the renderer, `occlusion.ts`'s header makes the same point from the
+other side: hiding cells under page content never re-runs `generate()`, so the generated output for
+an unchanged triple is not disturbed by layout.

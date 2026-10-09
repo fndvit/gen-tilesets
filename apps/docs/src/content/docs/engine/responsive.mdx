@@ -1,0 +1,123 @@
+---
+title: responsive.ts
+description: Which shape override holds at a render-box width. A CSS-style cascade over reshape(), pure and measurement-free.
+sidebar:
+  order: 12
+---
+
+import ResponsiveStory from "../../../stories/ResponsiveStory.svelte";
+
+
+**Written from:** `packages/tileset/src/responsive.ts`, `responsive.test.ts`, and the call sites in
+`render/Tileset.svelte`, `render/breakpoints.ts`, `validate.ts`, `apps/editor/src/App.svelte`,
+`apps/editor/src/lib/PreviewFrame.svelte` and `apps/demo/src/Responsive.svelte`.
+
+## Overview
+
+The responsive module lets a designer say "below 500 pixels wide, use 9 columns and 14 rows". Each
+such rule is a width condition plus some shape values. Given the width of the box the tileset is
+drawn in, this module works out which rules apply and merges them into one set of overrides,
+which the shape module then applies.
+
+The merging works like CSS media queries: every matching rule applies, in the order written, and a
+later rule wins where two set the same value. A phone rule can therefore build on a tablet rule.
+
+The module never measures anything. The width is handed in, which keeps it pure and lets
+validation check every width range a file's rules produce without a browser. In the pipeline it
+sits just before reshape: the renderer measures its box, this module picks the override, reshape
+applies it, then generate runs.
+
+## Try it
+
+The cascade example from the module's own header comment. Move the width and watch which rules hold, the key they produce and the merged override. The same rules are passed to `<Tileset>` as `options.responsive` in a box that wide.
+
+<ResponsiveStory client:only="svelte" />
+
+## In detail
+
+### Purpose
+
+A rule is `reshape` with a condition and adds no concept of its own. The header gives the worked
+example: `[{ maxWidth: 900, columns: 15 }, { maxWidth: 500, columns: 9, rows: 14 }]` gives 9 × 14
+at 400px, 15 columns with the base's rows at 700px, and the base above 900px.
+
+### Public surface
+
+| Function | Signature | Result |
+| --- | --- | --- |
+| [`matches`](/api/index/functions/matches/) | `(rule, width) → boolean` | Both bounds inclusive; an absent bound always holds. |
+| [`activeRules`](/api/index/functions/activerules/) | `<R extends ResponsiveRule>(rules: readonly R[], width) → R[]` | The matching rules, in array order. |
+| [`activeKey`](/api/index/functions/activekey/) | `(rules, width) → string` | Indices of matching rules, comma-joined; `""` means none. |
+| [`ruleOverride`](/api/index/functions/ruleoverride/) | `(rules) → Partial<Shape>` | Shape fields merged in order, later wins. |
+| [`bandWidths`](/api/index/functions/bandwidths/) | `(rules) → number[]` | One width inside every band. |
+| [`rulesReshapeErrors`](/api/index/functions/rulesreshapeerrors/) | `(file, rules) → string[]` | `reshapeErrors` at every band, deduplicated. |
+
+### Inputs → outputs
+
+- **`ruleOverride`** copies only `SHAPE_FIELDS`. Conditions (`minWidth`, `maxWidth`) and any
+  host-only field a caller's rule type adds are dropped. A field absent from every rule is absent
+  from the result, meaning *the base's*. `[]` gives `{}`, which `reshape` returns as the base file.
+- **`bandWidths`** collects every `minWidth`/`maxWidth`, sorts them, and returns `0`, each bound
+  (skipping `0`, already present), a midpoint strictly between each consecutive distinct pair, and
+  `largest + 1`. With no rules, `[0, 1]`.
+- **`rulesReshapeErrors`** runs `reshapeErrors(file, ruleOverride(activeRules(rules, w)))` for each
+  `w` from `bandWidths`, collecting messages in a `Set`.
+
+### Invariants
+
+- **The width is the render box's, in CSS px, never the viewport's** (from `ResponsiveRule` in
+  `types.ts`).
+- **The cascade is CSS's.** Every match applies, array order, later wins field by field. Overlaps
+  need no special case.
+- **Pure.** No measurement; the measuring belongs to `render/measure.ts`.
+- **`bandWidths` is exhaustive.** The active set is constant between consecutive bounds, and since
+  bounds are inclusive each bound is its own band (a `maxWidth: 500` rule and a `minWidth: 500`
+  rule both hold at exactly 500). That is what lets `validate()` check every width without
+  sampling.
+- **Errors are checked per band, not per rule,** because a cascade whose `bleed` and `columns` leave
+  no box between two breakpoints is a property of the cascade, not of any one rule.
+
+### Callers / callees
+
+| Symbol | Caller |
+| --- | --- |
+| `activeKey` | `render/Tileset.svelte:287` (from the measured width); `apps/demo/src/Responsive.svelte:105` |
+| `ruleOverride` | `render/Tileset.svelte:297`, `render/breakpoints.ts:102`, `validate.ts:870`, `apps/editor/src/App.svelte:88` |
+| `activeRules` | `render/breakpoints.ts:119`, `:195`; `validate.ts:869`; `apps/editor/src/App.svelte:88`; `apps/editor/src/lib/PreviewFrame.svelte:187` |
+| `bandWidths` | `render/breakpoints.ts:185`, `validate.ts:868` |
+| `rulesReshapeErrors` | `render/Tileset.svelte:261`, under `DEV` for host rules |
+| `matches` | Only inside `responsive.ts` (and its test). |
+
+Callees: `reshapeErrors`, `SHAPE_FIELDS` (`shape.ts`).
+
+### Tests: `responsive.test.ts`
+
+The header says the cascade is asserted against the module header's own worked example so the prose
+and behaviour cannot drift.
+
+- **`matches`** is inclusive at both bounds; a rule with no condition holds everywhere.
+- **Cascade:** both rules at 400px with the later winning `columns`; the first alone at 700px,
+  inheriting `rows`; nothing above 900px; array order, not width order, decides overlaps; only
+  shape fields are copied.
+- **`activeKey`** is constant within a band, changes only at a bound, and names the same rules as
+  `activeRules`.
+- **`bandWidths`** visits every distinct active set a 0.25px sweep from 0 to 1200 would; includes
+  the base above and below every bound; is just the base for no rules.
+
+`rulesReshapeErrors` has no test in this file. Grep finds no other test calling it.
+
+### Gotchas & rejected alternatives
+
+- **`activeKey` is what makes a resize inside a band free.** The width changes every frame of a
+  drag; the key changes only when a rule starts or stops matching. A consumer that derives its
+  override from the key hands the same object downstream for the whole band.
+- **Rejected: exactly one rule applies, each written against the base.** Simpler, but a phone rule
+  could not inherit from a tablet rule.
+- **Rejected: numeric object keys** (`{500: {…}}`). They leave min versus max unsaid and give
+  JavaScript key order no meaning.
+
+### Review notes
+
+- `rulesReshapeErrors` has no direct test: no test file in `packages/` or `apps/` calls it. Its
+  parts (`bandWidths`, `ruleOverride`, `reshapeErrors`) are tested separately, but the
+  deduplication and the per-band composition are not.

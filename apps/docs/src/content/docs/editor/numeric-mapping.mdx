@@ -1,0 +1,112 @@
+---
+title: NumericMapping.svelte
+description: Two handles on one track that set a numeric Operation's range, a continuous/stepped switch, and the rotation wrap advisory.
+sidebar:
+  order: 51
+---
+
+import NumericMappingStory from "../../../stories/NumericMappingStory.svelte";
+
+
+**Written from:** `apps/editor/src/controls/NumericMapping.svelte`, `controls/mapping.test.ts`, and
+the call site in `lib/OperationDraft.svelte`.
+
+## Overview
+
+This control appears in the Attribute step of the operation draft when the author picks a
+number attribute such as `rotation`, `scaleX` or `opacity`. It is a track with two handles. The
+handles mark the lowest and highest value the operation will write, and each cell gets a value
+between them according to its Source. Exact numbers can be typed in two boxes underneath.
+
+The handles may cross. Crossing them reverses the effect, which is the only way to invert a
+Source. A switch below chooses between **continuous** (any value in between) and **stepped** (a
+fixed number of evenly spaced values). When the Source is `constant`, the two handles become one,
+because a fixed value is a range whose ends are equal.
+
+The author never sees the word "mapping". In the editor's pipeline (import → document →
+**draft**/history → preview → export), it edits the draft's numeric mapping.
+
+## Try it
+
+Pick an attribute to see its track, and tick *collapsed* to see what the editor shows under a `constant` Source. The editor's own stylesheet is not loaded here.
+
+<NumericMappingStory client:only="svelte" />
+
+## In detail
+
+### Purpose
+
+The component edits a [`NumericMapping`](/api/index/interfaces/numericmapping/) for one
+[`AttributeName`](/api/index/type-aliases/attributename/). The track spans that attribute's
+authoring range from [controls/mapping.ts](/editor/controls-mapping/). The header comment lists
+three rules "each easy to get backwards": the handles cross rather than clamp; `steps` is a
+separate control whose absence means *continuous*; the handles collapse to one under `constant`.
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `target` | `AttributeName` | required | Which attribute's track to draw. |
+| `mapping` | `NumericMapping` | required | `{ range: [a, b], steps? }`. |
+| `collapsed` | `boolean` | required | One handle, writing both ends. |
+| `onChange` | `(mapping: NumericMapping) => void` | required | Receives the whole new mapping. |
+
+### Inputs → outputs
+
+- `track = trackFor(target, mapping.range)`: a soft track widens to contain the current values;
+  a hard one does not. The slider step is `(max − min) / 200`.
+- The hint reads "soft track" or "domain" and `[min, max]` (`)` for a wrapping track), or "fixed
+  value — the Source is `constant`" when collapsed.
+- The filled span runs between the two handles whichever way round they are.
+- `setEnd(index, value)`: refused unless `admitsTyped(target, value)`. Sets that end, and the other
+  end too when collapsed. Calls `onChange({ ...mapping, range })`.
+- Typed ends: per-end draft text; a non-empty finite parse goes through `setEnd`; blur clears the
+  draft.
+- `setStepped(true)` sets `steps: mapping.steps ?? 2`. `setStepped(false)` **removes the key**.
+- `setSteps(text)`: accepts only an integer `≥ MIN_STEPS` (2).
+- Under continuous, a note says continuous never reaches the far end (`t < 1`), so a flip needs
+  stepped `[−1, 1] × 2`.
+- When `endpointsCoincide(target, mapping)`, the rotation advisory is shown.
+
+### Invariants
+
+- **Crossing is legal.** "Preventing the crossing would remove the only way any Source is
+  inverted."
+- **`steps` absent is a meaning, not a blank.** It is the one field exempt from writing everything
+  explicitly, and `steps: null` would be invalid, so the key is omitted.
+- **Collapsed means `min === max`.** The alternative, a `value` parameter on `constant`, "would put
+  two controls in the UI meaning the same thing".
+- **Typed values are checked, never clamped.** Only `opacity` has a bounded typed entry.
+- **The rotation advisory never blocks** (**E16**).
+
+### Callers / callees
+
+| Caller | Use |
+| --- | --- |
+| `lib/OperationDraft.svelte:26` | `import NumericMappingControl from "../controls/NumericMapping.svelte"` |
+| `lib/OperationDraft.svelte:321` | `target={draft.target as AttributeName}`, `mapping={draft.numeric}`, `{collapsed}`, writes `draft.numeric` |
+
+Callees (`NumericMapping.svelte:26`): `admitsTyped`, `endpointsCoincide`, `MIN_STEPS`, `trackFor`
+from [controls/mapping.ts](/editor/controls-mapping/).
+
+### Tests
+
+No test file for the component. `controls/mapping.test.ts` pins every function it calls: the
+track table, soft widening and hard non-widening, typed-entry bounds, `MIN_STEPS === 2`, the
+rotation advisory, and (with the package's
+[`applyNumericMapping`](/api/index/functions/applynumericmapping/)) that stepped `[−1, 1] × 2`
+reaches both ends while continuous `[−1, 1]` at `t = 0.5` gives `0`.
+
+### Gotchas & rejected alternatives
+
+- **The track is a drawing decision, not a domain.** Typing beyond a soft track widens it.
+- **A collapsed control does not rewrite an uncollapsed range.** `collapsed` only changes which
+  handles are drawn and makes `setEnd` write both ends; a range set earlier stays until the author
+  moves the single handle.
+
+### Review notes
+
+- `setSteps` has no draft-text model, unlike the two range boxes. Typing `1` on the way to `12`
+  is ignored (fine), but an emptied box is not reverted on blur. (inconsistency, minor)
+- `step = (track.max − track.min) / 200` here, while `affordance.ts` uses `/ 100` for generated
+  sliders. Both are UI constants; neither comment mentions the other. (inconsistency, minor)

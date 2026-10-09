@@ -1,0 +1,112 @@
+---
+title: BlendControl.svelte
+description: Shows the Target's default Blend and reveals the accepted alternatives on request. For tileId it shows no control at all.
+sidebar:
+  order: 53
+---
+
+import BlendControlStory from "../../../stories/BlendControlStory.svelte";
+
+
+**Written from:** `apps/editor/src/controls/BlendControl.svelte`, `blend.test.ts`, and the call
+site in `lib/OperationDraft.svelte`.
+
+## Overview
+
+The Blend control is the last step of the operation draft. It answers how the new value combines
+with whatever earlier operations left in the cell: replace it, add to it, multiply it, and so on.
+
+At rest it shows one word, the current blend, and says whether that is the default for this
+attribute. A button reveals the other blends this attribute accepts; another returns to the
+default. For `tileId` there is nothing to choose, since a tile can only be replaced, so instead of
+a control the step shows one sentence saying why.
+
+In the editor's pipeline (import → document → **draft**/history → preview → export), it sets the
+draft's `blend`.
+
+## Try it
+
+Pick a Target to see which Blends it accepts. `tileId` accepts only `set`, so it offers no choice. The editor's own stylesheet is not loaded here.
+
+<BlendControlStory client:only="svelte" />
+
+## In detail
+
+### Purpose
+
+The component renders one Target's Blend choice. Its header comment gives "two rules that are the
+whole component":
+
+1. **The accepted set is computed, never listed**: [`acceptedBlends`](/api/index/functions/acceptedblends/)
+   from the package. A Blend registered later is therefore available on every numeric Target
+   at once; "an editor holding its own table would be the thing that failed to notice."
+2. **`tileId` gets no control at all.** "A control with one option is a control that teaches the
+   author nothing." The branch asks whether the accepted set has one member, so a second tile
+   Blend would open the control without editing this file.
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `target` | [`TargetName`](/api/index/type-aliases/targetname/) | required | Which Target's accepted set and default to use. |
+| `blend` | [`BlendName`](/api/index/type-aliases/blendname/) | required | The draft's current Blend. |
+| `onChange` | `(blend: BlendName) => void` | required | Called with the chosen Blend. |
+
+### Inputs → outputs
+
+- `accepted = acceptedBlends(target)`; `fallback = TARGETS[target].default` (from
+  [`TARGETS`](/api/index/variables/targets/)).
+- **`accepted.length <= 1`:** a paragraph: `<fallback>` is "the only Blend the **&lt;type>** type
+  accepts", and a palette entry replaces what is under it.
+- **Otherwise:**
+  - the current blend in `<code>`;
+  - "the default for `<target>`" when `blend === fallback`, else a "back to `<fallback>`" button;
+  - a disclosure button (`aria-expanded`) toggling `revealed`, labelled "other blends" / "hide";
+  - when revealed, one button per accepted Blend (the default marked), and a note that `subtract`
+    and `divide` are absent because the mapping expresses both (`add` over `[−5, −5]` subtracts
+    five).
+
+`revealed` starts `false` and stays where the author put it.
+
+### Invariants
+
+- **A vetoed Blend is not shown at all**, not shown disabled. The comment: `multiply` is vetoed on
+  `rotation` "rather than leaving it as a trap", and "a greyed-out button is the trap with a
+  tooltip".
+- **Default first, alternatives on request** (§7.7's one sentence on presentation).
+
+### Callers / callees
+
+| Caller | Use |
+| --- | --- |
+| `lib/OperationDraft.svelte:24` | import |
+| `lib/OperationDraft.svelte:343` | `target={draft.target}`, `blend={draft.blend}`, writes `draft.blend`; only rendered when both are non-null |
+
+Callees: [`acceptedBlends`](/api/index/functions/acceptedblends/),
+[`TARGETS`](/api/index/variables/targets/) (`BlendControl.svelte:24`).
+
+### Tests: `blend.test.ts`
+
+The component has no test; `blend.test.ts` pins the editor's obligations around it:
+
+- A new draft's Blend is `null`; after `retarget`, every Target's Blend is its declared default.
+- Retargeting keeps a Blend the new Target accepts, and falls back to the default on a veto
+  (`multiply` → `rotation`) or when the type accepts nothing else (`add` → `tileId`;
+  `acceptedBlends("tileId")` is `["set"]`).
+- `isComplete` refuses a Blend outside the accepted set and an unregistered Blend; `toOperation`
+  carries the Blend through.
+- **Derived, never listed:** registering a test Blend for `numeric` makes it appear in
+  `acceptedBlends("scaleX")` while `tileId` stays `["set"]`. The block is last in the file because
+  there is no `unregister`.
+
+### Gotchas & rejected alternatives
+
+- **The single-option sentence names the type, not the Target.** It reads `TARGETS[target].type`,
+  so it would say "tile" for any Target of that type.
+
+### Review notes
+
+- The single-option sentence (lines 47–49) hard-codes the reason "A palette entry replaces what is
+  under it". It is shown whenever `accepted.length <= 1`, which the header comment says is derived
+  so that it applies to any such Target. If a numeric Target ever vetoed all but one Blend, the
+  sentence would talk about palettes. Not reachable today. (inconsistency, latent)

@@ -54,6 +54,7 @@ export {
   effectiveRules,
   renderOverride,
   type HostRule,
+  type Overflow,
   type Substrate,
   type TilesetOptions,
 } from "./options.js";
@@ -94,12 +95,15 @@ export { refresh, track, type Measurement } from "./measure.js";
 export {
   applyMatrix,
   cssTransform,
+  drawnHalfExtents,
   isIdentityTransform,
   maxSpill,
   sincos,
   transformMatrix,
+  translationDev,
   type Matrix,
   type TransformAttributes,
+  type Translation,
 } from "./transform.js";
 
 export { coverRect, snap } from "./edges.js";
