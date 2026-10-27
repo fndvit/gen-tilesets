@@ -76,10 +76,10 @@ All four are re-exported from the renderer entry point (`render/index.ts:147`).
 
 | Caller | Uses |
 | --- | --- |
-| `render/Tileset.svelte:860` | `const warnings = new WarnOnce()`, one per component instance. |
-| `render/Tileset.svelte:916` | `warnings.say(`cell:${u.cellDev}`, cellTooSmall(u.cellDev))` in the canvas paint effect, `DEV` only. |
-| `render/Tileset.svelte:941-944` | `assetTooSmall(…, img.naturalWidth, img.naturalHeight, u.cellDev)`, keyed on the asset key alone, `DEV` only. |
-| `render/Tileset.svelte:331` | The same `warnings` instance also dedupes the *inert `cellSize` rule* warning from `breakpoints.ts`. |
+| `render/Tileset.svelte:864` | `const warnings = new WarnOnce()`, one per component instance. |
+| `render/Tileset.svelte:920` | `warnings.say(`cell:${u.cellDev}`, cellTooSmall(u.cellDev))` in the canvas paint effect, `DEV` only. |
+| `render/Tileset.svelte:945-948` | `assetTooSmall(…, img.naturalWidth, img.naturalHeight, u.cellDev)`, keyed on the asset key alone, `DEV` only. |
+| `render/Tileset.svelte:336` | The same `warnings` instance also dedupes the *inert `cellSize` rule* warning from `breakpoints.ts`. |
 
 No caller in `apps/editor/src` or `apps/demo/src`, although the entry point's comment invites a
 host to call the checks directly. Callees: none.
@@ -91,7 +91,7 @@ but no such test exists.
 
 ### Gotchas & rejected alternatives
 
-- **The asset warning is keyed on the asset, not on `(asset, cellDev)`.** `Tileset.svelte:935`
+- **The asset warning is keyed on the asset, not on `(asset, cellDev)`.** `Tileset.svelte:939`
   says keying on the pair "emitted the same five lines on every step of a resize drag, which is
   exactly how a real warning gets tuned out". The cost is that an asset that becomes *more*
   undersized as the box grows is reported only once, at the first size that tripped it.

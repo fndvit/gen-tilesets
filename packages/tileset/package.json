@@ -1,6 +1,6 @@
 {
   "name": "@fndvit/gen-tilesets",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Procedural tileset generator: a pure, deterministic engine and a Svelte renderer.",
   "license": "MIT",
   "repository": {

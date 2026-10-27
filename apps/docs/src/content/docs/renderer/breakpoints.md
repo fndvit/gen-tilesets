@@ -91,10 +91,10 @@ and `renderOverride(base, active)`. It is `height: naturalHeight px` where the b
 
 | Caller | Uses |
 | --- | --- |
-| `render/Tileset.svelte:349-351` | `gridCache.get(checked.config, config, effectiveSeed, loadSalt)`. |
-| `render/Tileset.svelte:308-312, 1254` | `reservationCss(uid, checked, rules, base)` into a `<style>` via `{@html}`, only when rules exist. |
-| `render/Tileset.svelte:316-327` | `FlipFlop.record(ruleKey, performance.now())`, `DEV` only, then `console.warn` naming `scrollbar-gutter: stable`. |
-| `render/Tileset.svelte:328-338` | `inertCellSizeRules`, `DEV` only, through `WarnOnce`. |
+| `render/Tileset.svelte:354-356` | `gridCache.get(checked.config, config, effectiveSeed, loadSalt)`. |
+| `render/Tileset.svelte:313-317, 1267` | `reservationCss(uid, checked, rules, base)` into a `<style>` via `{@html}`, only when rules exist. |
+| `render/Tileset.svelte:321-332` | `FlipFlop.record(ruleKey, performance.now())`, `DEV` only, then `console.warn` naming `scrollbar-gutter: stable`. |
+| `render/Tileset.svelte:333-343` | `inertCellSizeRules`, `DEV` only, through `WarnOnce`. |
 
 Callees: `generate`; `activeRules`, `bandWidths`, `ruleOverride` (`../responsive.ts`); `reshape`
 (`../shape.ts`); `naturalHeight`, `naturalRatio` (`geometry.ts`); `renderOverride` (`options.ts`).

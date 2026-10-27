@@ -130,17 +130,17 @@ calls it with the box's width padded by `margin · pitch` and rows ignored, and 
 
 | Caller | Uses |
 | --- | --- |
-| `render/Tileset.svelte:356, 364` | `naturalRatio` for the declared ratio, `naturalHeight` (with `sizing: "fixed"`) for `fixedHeight`. |
-| `render/Tileset.svelte:545-550` | `cellPlacementAffine` and `cssLength` for DOM placement before measurement. |
-| `render/Tileset.svelte:713-718, 739` | `visibleColumns` on the ideal lattice (canvas) and on `domLattice` (DOM). |
-| `render/Tileset.svelte:714` | `originX`, `scaleFactor` to build the ideal lattice. |
+| `render/Tileset.svelte:361, 369` | `naturalRatio` for the declared ratio, `naturalHeight` (with `sizing: "fixed"`) for `fixedHeight`. |
+| `render/Tileset.svelte:547-552` | `cellPlacementAffine` and `cssLength` for DOM placement before measurement. |
+| `render/Tileset.svelte:717-722, 743` | `visibleColumns` on the ideal lattice (canvas) and on `domLattice` (DOM). |
+| `render/Tileset.svelte:718` | `originX`, `scaleFactor` to build the ideal lattice. |
 | `render/uniform.ts:66-72, 168, 183, 203, 224, 274-281, 414` | `alignFraction`, `originX`, `scaleFactor`, `Lattice`. |
 | `render/breakpoints.ts:19, 106-107` | `naturalHeight` and `naturalRatio` for reservation CSS. |
 | `render/occlusion.ts:61, 170, 182` | `latticeRange`. |
 | `render/transform.ts:21, 118` | `cellCentre` in `transformMatrix`. |
 | `apps/editor/src/paint.ts:34, 71` | `cellAt` for the brush. |
 | `apps/editor/src/lib/PaintLayer.svelte:27-28, 143, 147` and `SelectionOverlay.svelte:37-38, 131, 135` | `cellPlacementPercent`, `naturalHeight` for the overlays. |
-| `apps/editor/src/App.svelte:21, 140, 808` | `naturalHeight` at `Wpx = referenceWidth` (design px), `naturalRatio` for `PreviewFrame`. |
+| `apps/editor/src/App.svelte:21, 145, 813` | `naturalHeight` at `Wpx = referenceWidth` (design px), `naturalRatio` for `PreviewFrame`. |
 | `apps/demo/src/Square2x2.svelte:38-40, 242, 269` | `naturalHeight`, `scaleFactor` in a diagnostic table. |
 
 `cellBox` and `gridWidth` have **no caller outside tests and this file** (`gridWidth` is used by

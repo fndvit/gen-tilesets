@@ -146,6 +146,12 @@ export {
  */
 export { assetTooSmall, cellTooSmall, SOFT_CELL_DEV, WarnOnce } from "./warn.js";
 
+/**
+ * The natural-size rule both substrates apply to a loaded picture, exported so
+ * the editor refuses at attach exactly what the renderer refuses at draw.
+ */
+export { NO_NATURAL_SIZE, requireNaturalSize, type Probe } from "./images.js";
+
 export {
   assetKey,
   defaultProvider,

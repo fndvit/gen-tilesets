@@ -72,34 +72,49 @@ batch never repeats an id.
   channel."*
 - **Opaque counters, not slugs.** A name-derived id would disagree with its own Tile after a
   rename, and the editor must never block a rename.
+- **…except the highest one, once it is gone.** `nextId` scans what the file holds now, so
+  deleting `op3` from `op1, op2, op3` hands `op3` to the next Operation, which then draws with the
+  deleted one's hash channels. Accepted: the reused id only matches an Operation that no longer
+  exists, so no two Operations *in a file* share a channel.
+- **Tile and asset ids are kept clear of the asset store by the caller.** There a reuse would
+  overwrite bytes undo still needs, so `TileLibrary` adds [assets.ts](/editor/assets/)'
+  `heldTileIds()` / `heldAssetIds(tileId)` to `taken`.
 
 ### Callers / callees
 
 | Caller | Uses |
 | --- | --- |
-| `App.svelte:637` | `nextOperationId(config.operations.map((o) => o.id))` when a create-draft opens |
-| `lib/TileLibrary.svelte:87-91` | `nextIds(files.length, tiles.map(t => t.id), nextTileId)` for a drop on the library |
-| `lib/TileLibrary.svelte:98` | `nextAssetId([])`: a new Tile's first asset is always `a1` |
-| `lib/TileLibrary.svelte:110-114` | `nextIds(files.length, tile.assets.map(a => a.id), nextAssetId)` for a drop onto a Tile |
+| `App.svelte:642` | `nextOperationId(config.operations.map((o) => o.id))` when a create-draft opens |
+| `lib/TileLibrary.svelte:89-93` | `nextIds(files.length, [...tiles.map(t => t.id), ...heldTileIds()], nextTileId)` for a drop on the library |
+| `lib/TileLibrary.svelte:101` | `nextAssetId([])`: a new Tile's first asset is always `a1` |
+| `lib/TileLibrary.svelte:113-117` | `nextIds(files.length, [...tile.assets.map(a => a.id), ...heldAssetIds(tile.id)], nextAssetId)` for a drop onto a Tile |
 
 Callees: none. The package's `validate.ts:99` has its own private copy of the same `IDENTIFIER`
 regex.
 
 ### Tests
 
-There is no `ids.test.ts`. `library.test.ts` (block *generated ids*, lines 44–74) pins:
+There is no `ids.test.ts`. `library.test.ts` (block *generated ids*, lines 44–80) pins:
 
 - all three match `IDENTIFIER` and contain no colon;
 - no collision with taken ids (`["t1", "t2"]` → `t3`, `["a1", "a4"]` → `a5`, `["op7"]` → `op8`);
 - non-matching ids are ignored (`["grass", "water-2", "t3"]` → `t4`; `["grass", "water"]` → `t1`);
 - a batch of four from `["t1"]` is `t2…t5`, all distinct;
-- after deleting `t2` from `t1, t2, t3`, the next id is `t4`.
+- after deleting `t2` from `t1, t2, t3`, the next id is `t4`;
+- the highest id is handed back once deleted (`["op1", "op2"]` → `op3`), pinned so a change to it
+  is deliberate.
+
+`assets.test.ts` pins the held-id case: allocating with `heldTileIds()` / `heldAssetIds` skips a
+deleted Tile's or asset's bytes.
 
 ### Gotchas & rejected alternatives
 
 - **Rejected: a counter held beside the document.** It would be editor state with nowhere legal to
   live. `meta` is forbidden and every other option is postponed. *"The file already carries the
   answer."*
+- **Rejected: also scanning the ids in undo and redo history.** History is not saved with the
+  file, so after a reload the id is free again anyway. It would buy the guarantee for one session
+  at the cost of threading `session` state into a pure allocator.
 - **Ids collide across documents by construction.** Every session allocates `t1`, `t2`, … from
   scratch. That is why [assets.ts](/editor/assets/)' `replaceAll` swaps the store wholesale rather
   than clearing and re-attaching.
@@ -111,6 +126,8 @@ There is no `ids.test.ts`. `library.test.ts` (block *generated ids*, lines 44–
   **highest** id once it is deleted. Remove `op3` from `[op1, op2, op3]` and the next Operation
   is `op3` again; likewise for `t…` and `a…`. Nothing dangles, because a referenced Tile cannot
   be deleted. But a new Operation then draws with the deleted one's hash channels. The source
-  does not say whether that matters. (possible bug)
+  does not say whether that matters. (possible bug) **Accepted in 0.8.1:** the header now says
+  so; no two Operations in one file share a channel, and Tile and asset ids also skip the asset
+  store's held ids.
 - `IDENTIFIER` duplicates `packages/tileset/src/validate.ts:99`, which is not exported, so the two
   can drift. (inconsistency)

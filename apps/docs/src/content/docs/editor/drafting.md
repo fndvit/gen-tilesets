@@ -71,12 +71,12 @@ controls write the other fields.
 
 | Caller | Uses |
 | --- | --- |
-| `App.svelte:637` | `drafting.start(nextOperationId(...))` from the stack's *create* |
-| `App.svelte:638` | `drafting.edit(op)` from a stack row |
-| `App.svelte:639`, `:646`, `:647` | `drafting.editing` passed to `OperationStack` and `OperationDraft` |
-| `App.svelte:642-648` | `drafting.draft` mounts the panel; `onClose={() => drafting.discard()}` |
-| `App.svelte:236`, `:267`, `:332` | `drafting.draft` for the brush's `painting`, the overlay's `shadow`, and `paintCells` |
-| `App.svelte:295-297` | `$effect`: if an edit-draft's id has left `config.operations`, `drafting.discard()` |
+| `App.svelte:642` | `drafting.start(nextOperationId(...))` from the stack's *create* |
+| `App.svelte:643` | `drafting.edit(op)` from a stack row |
+| `App.svelte:644`, `:651`, `:652` | `drafting.editing` passed to `OperationStack` and `OperationDraft` |
+| `App.svelte:647-653` | `drafting.draft` mounts the panel; `onClose={() => drafting.discard()}` |
+| `App.svelte:241`, `:272`, `:337` | `drafting.draft` for the brush's `painting`, the overlay's `shadow`, and `paintCells` |
+| `App.svelte:300-302` | `$effect`: if an edit-draft's id has left `config.operations`, `drafting.discard()` |
 | `lib/ImportPanel.svelte:213` | `drafting.discard()` after `session.open`, since the draft names ids the new document lacks |
 
 Callees: `newDraft`, `fromOperation` from [draft.svelte.ts](/editor/draft/).
@@ -93,7 +93,7 @@ logic is tested through [draft.svelte.ts](/editor/draft/).
   threading it through the preview would put a create-operation concern into the component whose
   only job is drawing the file.
 - **Stale edit-drafts are discarded, not converted.** Falling back to `addOperation` would
-  resurrect a deleted Operation (`App.svelte:279-292`).
+  resurrect a deleted Operation (`App.svelte:284-297`).
 
 ### Review notes
 

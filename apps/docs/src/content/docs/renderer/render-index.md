@@ -48,8 +48,9 @@ each is public.
 Generated API pages for every one of these are under `/api/render/`, except `sincos`, which is
 documented with the engine at [`/api/index/functions/sincos/`](/api/index/functions/sincos/).
 
-**Not exported** from this entry point, although exported from their modules: `ImageBank`
-(`images.ts`); `drawnTiles`, `DrawnTiles` (`occlusion.ts`); `Scheduler`, `MeasureEnv`,
+**Not exported** from this entry point, although exported from their modules: `ImageBank`,
+`NaturalSizeChecks`, `requireNaturalSize`, `NO_NATURAL_SIZE` (`images.ts`); `resolveDrawable`,
+`recordLoadFailure`, `loadBlocked` (`provider.ts`); `drawnTiles`, `DrawnTiles` (`occlusion.ts`); `Scheduler`, `MeasureEnv`,
 `browserEnv`, `WRAPPER_ATTRIBUTE`, `scopeOf`, `currentDpr`, `observeDpr` (`measure.ts`); `GridCache`,
 `FlipFlop`, `inertCellSizeRules` (`breakpoints.ts`).
 
@@ -72,7 +73,7 @@ None. The file only re-exports.
 | `apps/editor/src/lib/PaintLayer.svelte:26-30` | `cellPlacementPercent`, `naturalHeight`, `GridGeometry`. |
 | `apps/editor/src/lib/SelectionOverlay.svelte:36-40` | `cellPlacementPercent`, `naturalHeight`, `GridGeometry`. |
 | `apps/editor/src/App.svelte:21` | `naturalHeight`, `naturalRatio`, `AssetRef`. |
-| `apps/editor/src/assets.ts:36` | `assetKey`, `AssetProvider`, `AssetRef`, `Drawable`. |
+| `apps/editor/src/assets.ts:36` | `assetKey`, `parseAssetKey`, `AssetProvider`, `AssetRef`, `Drawable`. |
 | `apps/editor/src/download.ts:21` | `assetKey`. |
 | `apps/demo/src/App.svelte:22`, `Decorations.svelte:32` | `prefixedProvider`, `AssetRef`. |
 | `apps/demo/src/Hosting.svelte:27-34` | `prefixedProvider`, `AlignX`, `AlignY`, `Sizing`, `Substrate`, `TilesetOptions`. |

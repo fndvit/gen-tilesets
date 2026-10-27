@@ -119,4 +119,4 @@ only what the editor owns.
 
 - `strandedCells` is exported and tested but never called. Its docstring says it supplies *"what
   §9.3's confirmation needs to say"*. The confirmation and the advisories use `orphans()` from
-  [orphans.ts](/editor/orphans/) instead (`App.svelte:219`, `:226`). (dead code)
+  [orphans.ts](/editor/orphans/) instead (`App.svelte:224`, `:231`). (dead code)

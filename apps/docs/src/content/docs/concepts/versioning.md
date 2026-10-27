@@ -34,7 +34,7 @@ That rule is called invariant E2 throughout the source.
 | Field | Type | Who writes it | Who reads it |
 | --- | --- | --- | --- |
 | `schemaVersion` | the literal `4` (`types.ts:319`) | the editor's `newDocument()` and every migration step | [`migrate()`](/api/index/functions/migrate/), then [`validate()`](/api/index/functions/validate/), which require it to equal [`SCHEMA_VERSION`](/api/index/variables/schema_version/) |
-| `engineVersion` | `string` | the editor, from `ENGINE_VERSION` (`document.ts:131`) | nobody. `validate.ts:919–923` requires it to be present and a string, and checks nothing else |
+| `engineVersion` | `string` | the editor, from `ENGINE_VERSION` (`document.ts:131`, and again on export at `export.ts:75`) | nobody. `validate.ts:919–923` requires it to be present and a string, and checks nothing else |
 
 `SCHEMA_VERSION` is declared once, at `validate.ts:96`, with its history in the comment: 4 since
 0.8.0 (`translateX`/`translateY`), 3 since 0.7.0 (`responsive`), 2 from ADR-005 (`scale`).
@@ -65,10 +65,11 @@ How it is enforced:
 1. `vite.config.ts` reads `packages/tileset/package.json` at config time and defines
    `__ENGINE_VERSION__` as its `version`.
 2. `document.ts:90–91` declares that global and exports it as `ENGINE_VERSION`.
-3. `newDocument()` writes it into `engineVersion` (`document.ts:131`). `serialize` writes the
-   in-memory file out as it is (`export.ts:69`), and its comment (`export.ts:56`) calls the stamp
-   "truthful by construction rather than by being remembered".
-4. `App.svelte:341` shows `ENGINE_VERSION` and the file's `schemaVersion` in the editor's footer.
+3. `newDocument()` writes it into `engineVersion` (`document.ts:131`). `serialize` stamps it
+   again at export (`export.ts:75`), over the existing key so the key keeps its place, and leaves
+   the in-memory document as imported. Its comment (`export.ts:57`) calls the stamp "truthful by
+   construction rather than by being remembered".
+4. `App.svelte:346` shows `ENGINE_VERSION` and the file's `schemaVersion` in the editor's footer.
 
 No file contains the version number written out by hand. Adding one would be the second source of
 truth that E2 exists to prevent.
@@ -77,7 +78,8 @@ truth that E2 exists to prevent.
 imported file is opened as it is (`session.svelte.ts:128`, `replaced(history, file)`). Nothing in
 `apps/editor/src` writes `engineVersion` except `newDocument()`. So a file written by 0.6.0,
 imported into the 0.8.0 editor, edited and exported, still says `"0.6.0"`. That is the case E2's
-own quotation warns about. Also listed in [Review findings](/review-findings/).
+own quotation warns about. Also listed in [Review findings](/review-findings/). **Fixed in
+0.8.1:** `serialize` stamps the current `ENGINE_VERSION` on every export.
 
 ### Releasing
 

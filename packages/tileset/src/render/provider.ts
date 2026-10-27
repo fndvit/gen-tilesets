@@ -141,3 +141,140 @@ export function parseAssetKey(key: string): { tileId: string; assetId: string } 
   if (at < 0) return null;
   return { tileId: key.slice(0, at), assetId: key.slice(at + 1) };
 }
+
+/**
+ * Calls `provider` once for `ref` and makes **every** failure reach `report`,
+ * whichever way it arrives. `TilesetOptions.onAssetError` promises it "fires for
+ * a resolution failure and a load failure alike", and `AssetProvider` may fail
+ * in two shapes:
+ *
+ * - **It throws.** Reported on a microtask, not now: this runs inside the
+ *   component's `$derived`, and a host whose `onAssetError` writes `$state` (the
+ *   editor's does) then died with Svelte's `state_unsafe_mutation` instead of
+ *   showing the failure. Every other failure already arrived asynchronously, so
+ *   this makes the one timing a host has to allow for. The throw is stored as a
+ *   rejected promise so the DOM
+ *   substrate's `{#await}` still takes its `{:catch}` branch. That promise is
+ *   marked handled: a key whose cells are all culled has no `{#await}` mounted
+ *   to handle it, and an unhandled rejection is a second, misleading report of
+ *   the same failure, in the console instead of through `onAssetError`.
+ * - **It returns a promise that rejects.** Reported when it rejects. Before
+ *   this, only the synchronous throw was reported: the canvas substrate
+ *   swallowed the rejection with `.catch(() => {})` and the DOM one rendered it
+ *   as `{:catch}`'s nothing, so a lazy provider's failure was silent.
+ *
+ * The promise handed back is the provider's own, not the reporting chain, so
+ * consumers still see the rejection and take the R3 path: the cell draws nothing.
+ */
+export function resolveDrawable(
+  provider: AssetProvider,
+  ref: AssetRef,
+  report: (ref: AssetRef, cause: unknown) => void,
+): Drawable | Promise<Drawable> {
+  let value: Drawable | Promise<Drawable>;
+  try {
+    value = provider(ref);
+  } catch (cause) {
+    queueMicrotask(() => report(ref, cause));
+    value = Promise.reject(cause);
+    value.catch(() => {});
+    return value;
+  }
+  if (value instanceof Promise) value.catch((cause: unknown) => report(ref, cause));
+  return value;
+}
+
+/**
+ * The DOM substrate's record of `<img>` load failures: `(tileId, assetId)` key
+ * to the `src` that failed.
+ *
+ * **Keyed by `src` as well as by key, as canvas's `ImageBank` is.** It used to
+ * be a set of keys, only ever added to, so an asset whose `<img>` failed once
+ * stayed unmounted for the life of the component, even after the host changed
+ * `provider` or `file` and the key now resolved somewhere that would load. A
+ * failure is a fact about one `src`; a new `src` for the key is a new attempt.
+ *
+ * Returns the next map, or `null` when this `src` has already failed for this
+ * key, so the caller reports each failure once and does not churn `$state`.
+ */
+export function recordLoadFailure(
+  failed: ReadonlyMap<string, string>,
+  key: string,
+  src: string,
+): Map<string, string> | null {
+  if (failed.get(key) === src) return null;
+  return new Map(failed).set(key, src);
+}
+
+/**
+ * Whether a key's cell is not mounted at all, because it can never draw: its
+ * provider rejected, or its `src` already failed to load (`08` **S6**: a broken
+ * `<img>` renders the browser's placeholder glyph, a drawable the renderer did
+ * not choose). Unmounting the whole `.cell`, not only its `<img>`, matters since
+ * 0.8.0 made the drawn tile the unit of hitting: an empty cell would still take
+ * a host's clicks.
+ *
+ * A promise's `src` is not on the promise, so the caller passes what it settled
+ * to (`settled`) and whether it rejected (`rejected`), both recorded by the
+ * component as the promise settles. A pending promise is never blocked.
+ */
+export function loadBlocked(
+  failed: ReadonlyMap<string, string>,
+  key: string,
+  value: Drawable | Promise<Drawable> | undefined,
+  settled?: { src: string | undefined; rejected: boolean },
+): boolean {
+  if (value === undefined) return false;
+  if (value instanceof Promise) {
+    if (settled === undefined) return false;
+    if (settled.rejected) return true;
+    return settled.src !== undefined && failed.get(key) === settled.src;
+  }
+  return failed.get(key) === value.src;
+}
+
+/**
+ * {@link resolveDrawable}, remembered per `(tileId, assetId)` key across
+ * re-derivations.
+ *
+ * The component re-derives its drawables whenever the grid changes, which a
+ * reseed or a column change does without touching any asset. Resolving afresh
+ * each time called the provider again and, for a failing one, reported the same
+ * failure through `onAssetError` on every reseed. A host that keyed a list by
+ * the report (the editor did) crashed on the duplicate; one that counted them
+ * over-counted.
+ *
+ * A key is resolved again only when what it was resolved *from* changed: the
+ * provider's identity, or the identity of the asset's `meta`. That is `07`
+ * **R2** held across derivations, not only within one. Plain, rune-free, and
+ * mutated from inside a `$derived`, which is safe because nothing reads it
+ * reactively.
+ */
+export class DrawableCache {
+  readonly #byKey = new Map<
+    string,
+    { provider: AssetProvider; meta: AssetRef["meta"]; value: Drawable | Promise<Drawable> }
+  >();
+
+  resolve(
+    provider: AssetProvider,
+    ref: AssetRef,
+    report: (ref: AssetRef, cause: unknown) => void,
+  ): Drawable | Promise<Drawable> {
+    const key = assetKey(ref.tileId, ref.assetId);
+    const hit = this.#byKey.get(key);
+    if (hit !== undefined && hit.provider === provider && hit.meta === ref.meta) return hit.value;
+    const value = resolveDrawable(provider, ref, report);
+    this.#byKey.set(key, { provider, meta: ref.meta, value });
+    return value;
+  }
+
+  /**
+   * Forgets every key not in `live`. Called with the keys the config still
+   * holds, not the ones on the grid: an asset that is only culled for a frame
+   * keeps its resolution, and so does not report its failure twice.
+   */
+  retain(live: { has(key: string): boolean }): void {
+    for (const key of this.#byKey.keys()) if (!live.has(key)) this.#byKey.delete(key);
+  }
+}

@@ -134,7 +134,7 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 | `lib/OperationDraft.svelte:146` | `isComplete` |
 | `lib/OperationDraft.svelte:169` | `toOperation` on commit, then `replaceOperation`/`addOperation` (`:171`) |
 | `lib/OperationDraft.svelte:305` | `retarget(draft, target)` |
-| `App.svelte:269` | `toShadowOperation(draft)` for the overlay's shadow config |
+| `App.svelte:274` | `toShadowOperation(draft)` for the overlay's shadow config |
 
 `mappingOf` is used internally (`:350`) and by `controls/mapping.test.ts`.
 

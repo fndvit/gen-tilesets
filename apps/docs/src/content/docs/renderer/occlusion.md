@@ -89,9 +89,9 @@ Rects are OR'd. `sameMask` compares length and bytes. `stableMask` returns `prev
 
 | Caller | Uses |
 | --- | --- |
-| `render/Tileset.svelte:786` | `drawn = drawnTiles(grid)`, per grid. |
-| `render/Tileset.svelte:794-801` | `mask`: `stableMask(lastMask, occlusionMask(lattice, columns, rows, keepout, padding, { tiles: drawn, cellDev: paintedCellDev }))`, or `null` without `avoid`, a lattice or a painted cell size. |
-| `render/Tileset.svelte:820-822, 926, 1202` | Read as `mask[i] === 1`: the DOM sets `data-masked`, the canvas skips the item. |
+| `render/Tileset.svelte:790` | `drawn = drawnTiles(grid)`, per grid. |
+| `render/Tileset.svelte:798-805` | `mask`: `stableMask(lastMask, occlusionMask(lattice, columns, rows, keepout, padding, { tiles: drawn, cellDev: paintedCellDev }))`, or `null` without `avoid`, a lattice or a painted cell size. |
+| `render/Tileset.svelte:824-826, 930, 1206` | Read as `mask[i] === 1`: the DOM sets `data-masked`, the canvas skips the item. |
 
 No caller in `apps/editor/src` or `apps/demo/src`. Callees: `latticeRange` (`geometry.ts`);
 `drawnHalfExtents`, `isIdentityTransform`, `maxSpill`, `translationDev` (`transform.ts`).

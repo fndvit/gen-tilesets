@@ -46,7 +46,8 @@ branches live in [Tileset.svelte](/renderer/tileset/), under *Substrate: canvas*
 | Keep-out mask | masked cells are skipped in the paint loop | `data-masked`, `visibility: hidden` |
 | Hit testing | none (one element) | each `.cell` with `data-x`/`data-y` |
 | Softness warnings (`cellTooSmall`, `assetTooSmall`) | yes | no (a [review finding](/review-findings/)) |
-| A failed image | the bank reports it and clears it when `src` changes | the key goes into `loadFailed`, which is never cleared (a [review finding](/review-findings/)) |
+| A failed image | the bank reports it and retries when `src` changes | `loadFailed` records the key's failed `src` and reports it; a new `src` is retried (since 0.8.1) |
+| A picture with no natural size (a viewBox-only SVG) | refused after decode and reported | refused on `load` and reported, through the same check (since 0.8.1) |
 
 ### Why the rounding differs
 

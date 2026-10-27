@@ -83,7 +83,7 @@ the draft panel as a snippet and decides only where it goes.
 | Caller | Use |
 | --- | --- |
 | `App.svelte:61` | import |
-| `App.svelte:636`–`652` | `onCreate` → `drafting.start(nextOperationId(...))`; `onEdit` → `drafting.edit(op)`; `editingId` from `drafting.editing`; `draftPanel` renders [OperationDraft](/editor/operation-draft/) |
+| `App.svelte:641`–`657` | `onCreate` → `drafting.start(nextOperationId(...))`; `onEdit` → `drafting.edit(op)`; `editingId` from `drafting.editing`; `draftPanel` renders [OperationDraft](/editor/operation-draft/) |
 
 Callees (`OperationStack.svelte:39`–`48`): [`TARGETS`](/api/index/variables/targets/);
 `moveOperation`, `removeOperation`, `rerollOperation`, `setReseedOnLoad` from `document.ts`;

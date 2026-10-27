@@ -86,10 +86,13 @@
     type TilesetOptions,
   } from "./options.js";
   import type { RenderRect } from "./space.js";
-  import { ImageBank } from "./images.js";
+  import { ImageBank, NaturalSizeChecks } from "./images.js";
   import {
     assetKey,
+    DrawableCache,
+    loadBlocked,
     parseAssetKey,
+    recordLoadFailure,
     type AssetRef,
     type Drawable,
   } from "./provider.js";
@@ -196,9 +199,11 @@
   });
 
   /**
-   * `onAssetError`, read at call time and **untracked**. It is called from inside
-   * `drawables`' derivation, and a tracked read there would make every new
-   * identity of a host's inline callback re-resolve every asset.
+   * `onAssetError`, read at call time and **untracked**. It was called from inside
+   * `drawables`' derivation, where a tracked read made every new identity of a
+   * host's inline callback re-resolve every asset. Every report now arrives
+   * asynchronously (`provider.ts` `resolveDrawable`), and the read stays untracked
+   * so that moving a call back into a derivation cannot bring that back.
    */
   function reportAssetError(ref: AssetRef, cause: unknown): void {
     untrack(() => resolved.onAssetError)?.(ref, cause);
@@ -378,12 +383,16 @@
   // below rather than hoisted into a `$derived`: it reads `layout` and
   // `config.columns`, so it re-evaluates with them.
 
+  // One shared empty `meta`, so an asset without one keeps the same identity
+  // across derivations and `resolutions` below does not resolve it again.
+  const NO_META: Record<string, unknown> = Object.freeze({});
+
   // `meta` lookup, keyed by the (tileId, assetId) pair per `07` §4.1.
   const metaByKey = $derived.by(() => {
     const map = new Map<string, Record<string, unknown>>();
     for (const tile of checked.config.tiles) {
       for (const asset of tile.assets) {
-        map.set(assetKey(tile.id, asset.id), asset.meta ?? {});
+        map.set(assetKey(tile.id, asset.id), asset.meta ?? NO_META);
       }
     }
     return map;
@@ -395,10 +404,16 @@
   // also load-bearing here, because an unmemoized call in the template would
   // re-invoke the provider on every re-render.
   //
+  // The memo outlives this derivation (`provider.ts` `DrawableCache`): a reseed
+  // re-derives `drawables` without changing any asset, and resolving afresh then
+  // reported a failing provider again on every reseed.
+  //
   // Q1's recorded objection stands: this silently repairs an impure provider
   // instead of surfacing it, and a lazy provider's rejection is cached too.
+  const resolutions = new DrawableCache();
   const drawables = $derived.by(() => {
     const map = new Map<string, Drawable | Promise<Drawable>>();
+    resolutions.retain(metaByKey);
     for (const cell of grid.cells) {
       if (cell.tileId === null || cell.assetId === null) continue;
       const key = assetKey(cell.tileId, cell.assetId);
@@ -406,31 +421,43 @@
       const ref: AssetRef = {
         tileId: cell.tileId,
         assetId: cell.assetId,
-        meta: metaByKey.get(key) ?? {},
+        meta: metaByKey.get(key) ?? NO_META,
       };
-      try {
-        map.set(key, provider(ref));
-      } catch (cause) {
-        // R3: a failure to obtain a drawable never substitutes one. The cell
-        // draws nothing and the failure is reported.
-        reportAssetError(ref, cause);
-        map.set(key, Promise.reject(cause));
-      }
+      // R3: a failure to obtain a drawable never substitutes one. The cell
+      // draws nothing and the failure is reported, thrown or rejected alike.
+      map.set(key, resolutions.resolve(provider, ref, reportAssetError));
     }
     return map;
   });
 
-  // Cells whose <img> failed to load. `08` **S6**: the substrate substitutes on
-  // its own — a broken <img> renders the browser's placeholder glyph, which is a
-  // drawable the renderer did not choose, in a cell **R3** says must draw
-  // nothing.
-  let loadFailed = $state(new Set<string>());
+  // Keys whose <img> failed to load, and the `src` that failed (`provider.ts`
+  // `recordLoadFailure` says why the `src`). `08` **S6**: the substrate
+  // substitutes on its own — a broken <img> renders the browser's placeholder
+  // glyph, which is a drawable the renderer did not choose, in a cell **R3**
+  // says must draw nothing.
+  let loadFailed = $state(new Map<string, string>());
 
-  function handleLoadError(cell: TileState, cause: unknown): void {
+  /**
+   * A picture with no natural size is refused on the DOM substrate too, so it
+   * agrees with canvas (`images.ts` `requireNaturalSize`). It shows until the
+   * probe settles, about one frame.
+   *
+   * `cell` and `src` are parameters, so they are bound when `load` fires. The
+   * template's `cell` and `drawable` are live bindings of a keyed `{#each}` and
+   * `{#await}`: read in the probe's `.catch` instead, a reseed during the probe
+   * had moved them to the cell's *new* asset, and the failure was recorded
+   * against a healthy one.
+   */
+  function checkLoaded(cell: TileState, src: string, img: HTMLImageElement): void {
+    sizeChecks.check(src, img).catch((cause: unknown) => handleLoadError(cell, src, cause));
+  }
+
+  function handleLoadError(cell: TileState, src: string, cause: unknown): void {
     if (cell.tileId === null || cell.assetId === null) return;
     const key = assetKey(cell.tileId, cell.assetId);
-    if (loadFailed.has(key)) return;
-    loadFailed = new Set(loadFailed).add(key);
+    const next = recordLoadFailure(loadFailed, key, src);
+    if (next === null) return;
+    loadFailed = next;
     reportAssetError(
       { tileId: cell.tileId, assetId: cell.assetId, meta: metaByKey.get(key) ?? {} },
       cause,
@@ -594,7 +621,9 @@
   // ADR-006. Everything below is inert under `substrate="dom"`.
 
   let canvas = $state<HTMLCanvasElement | null>(null);
-  const bank = new ImageBank();
+  // One set of checks for both substrates, so a src is probed once (`images.ts`).
+  const sizeChecks = new NaturalSizeChecks();
+  const bank = new ImageBank(sizeChecks);
   /** Bumped when a decode lands, so the paint effect re-runs. `bank` is plain. */
   let bankVersion = $state(0);
 
@@ -609,8 +638,29 @@
    */
   let sources = $state(new Map<string, string>());
 
+  /**
+   * What each pending drawable settled to, tagged with the promise it came from
+   * so a newer promise for the same key is never judged by an older one's
+   * outcome. The DOM substrate reads it in `loadBlocked`: a lazy provider's `src`
+   * is not on the promise, and without this a cell whose drawable rejected or
+   * whose `<img>` failed stayed mounted, empty, and still took a host's clicks.
+   */
+  let settled = $state(
+    new Map<string, { from: Promise<Drawable>; src: string | undefined; rejected: boolean }>(),
+  );
+
+  /** `settled`'s entry for `value`, or nothing if it is pending or not a promise. */
+  function settledFor(
+    key: string,
+    value: Drawable | Promise<Drawable> | undefined,
+  ): { src: string | undefined; rejected: boolean } | undefined {
+    const entry = settled.get(key);
+    return entry !== undefined && entry.from === value ? entry : undefined;
+  }
+
+  // Runs on **both** substrates: canvas needs `sources` for the bank, and the DOM
+  // needs `settled` to unmount a lazy cell that can never draw.
   $effect(() => {
-    if (substrate !== "canvas") return;
     const seen = drawables;
     let live = true;
 
@@ -622,16 +672,30 @@
       sources = next;
     };
 
+    const record = (key: string, from: Promise<Drawable>, src: string | undefined): void => {
+      if (!live) return;
+      settled = new Map(settled).set(key, { from, src, rejected: src === undefined });
+    };
+
     // Drop keys the config no longer references, so a deleted Tile stops drawing.
     if ([...sources.keys()].some((key) => !seen.has(key))) {
       sources = new Map([...sources].filter(([key]) => seen.has(key)));
     }
+    if ([...settled.keys()].some((key) => !seen.has(key))) {
+      settled = new Map([...settled].filter(([key]) => seen.has(key)));
+    }
 
     for (const [key, value] of seen) {
       if (value instanceof Promise) {
-        // A rejection has already been reported through `onAssetError` where the
-        // provider threw, or is reported by the bank if the URL fails to load.
-        void value.then((d) => settle(key, d.src)).catch(() => {});
+        // A rejection is reported through `onAssetError` by `resolveDrawable`,
+        // and a URL that fails to load is reported by the bank or the `<img>`.
+        void value.then(
+          (d) => {
+            settle(key, d.src);
+            record(key, value, d.src);
+          },
+          () => record(key, value, undefined),
+        );
       } else {
         settle(key, value.src);
       }
@@ -1193,7 +1257,7 @@
       -->
       {#each shownCells as { cell, i, x, y } (`${x},${y}`)}
         {@const key = assetKey(cell.tileId!, cell.assetId!)}
-        {#if !loadFailed.has(key)}
+        {#if !loadBlocked(loadFailed, key, drawables.get(key), settledFor(key, drawables.get(key)))}
             <div
               class="cell"
               style={cellStyle(cell, x, y)}
@@ -1208,13 +1272,16 @@
                 asset leaves a hole in a laid-out grid rather than collapsing it.
               -->
               {#await drawables.get(key) then drawable}
-                {#if drawable}
+                <!-- `loadBlocked` above sees a lazy provider's `src` only once
+                     `settled` records it, an effect later; this covers that gap. -->
+                {#if drawable && loadFailed.get(key) !== drawable.src}
                   <img
                     src={drawable.src}
                     alt=""
                     loading="lazy"
                     draggable="false"
-                    onerror={(e) => handleLoadError(cell, e)}
+                    onerror={(e) => handleLoadError(cell, drawable.src, e)}
+                    onload={(e) => checkLoaded(cell, drawable.src, e.currentTarget as HTMLImageElement)}
                   />
                 {/if}
               {:catch}

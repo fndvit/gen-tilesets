@@ -57,7 +57,7 @@ has length `>= 1`, which `config.defaultSeed` requires.
 | Caller | Uses |
 | --- | --- |
 | `document.ts:142` | `newDocument()` gives every fresh document a memorable seed |
-| `document.ts:341` | `rerollSeed()`, behind the *New seed* button (`App.svelte:676`) |
+| `document.ts:341` | `rerollSeed()`, behind the *New seed* button (`App.svelte:681`) |
 
 Callees: `Math.random`.
 

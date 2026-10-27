@@ -65,7 +65,7 @@ original bytes.
 | Caller | Uses |
 | --- | --- |
 | `App.svelte:25` | imports `exportZip` |
-| `App.svelte:315` | `await exportZip(file)` in `runExport()`. A throw is caught and shown as `exportError` beside the preview. |
+| `App.svelte:320` | `await exportZip(file)` in `runExport()`. A throw is caught and shown as `exportError` beside the preview. |
 
 `zipOf` is used only inside this module (`:72`). `import.test.ts` defines its own local helper of
 the same name.

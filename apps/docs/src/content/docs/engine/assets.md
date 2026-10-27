@@ -65,7 +65,7 @@ per generation, and for each cell select the first asset whose cumulative weight
 | --- | --- |
 | `prepareTile` | `generate.ts:85`, once per Tile per generation |
 | `walkWeights` | `generate.ts:158` |
-| `canonicalAssets` | `assets.ts:43` (inside `prepareTile`); `apps/editor/src/lib/TileLibrary.svelte:225`, so the editor lists assets in the engine's order rather than a local sort |
+| `canonicalAssets` | `assets.ts:43` (inside `prepareTile`); `apps/editor/src/lib/TileLibrary.svelte:232`, so the editor lists assets in the engine's order rather than a local sort |
 
 No callees beyond types.
 

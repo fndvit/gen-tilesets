@@ -70,7 +70,7 @@ calls that "the entire subpixel fix": the crop was never wrong, the rect it was 
 
 | Caller | Uses |
 | --- | --- |
-| `render/Tileset.svelte:66, 952` | `coverRect(img.naturalWidth, img.naturalHeight, item.side, item.side)` in the canvas paint loop. A zero-size result skips the cell. |
+| `render/Tileset.svelte:66, 956` | `coverRect(img.naturalWidth, img.naturalHeight, item.side, item.side)` in the canvas paint loop. A zero-size result skips the cell. |
 | `render/warn.ts` (comment) | Rule 1 compares the smaller intrinsic dimension *because* `coverRect` crops the long axis. |
 
 `snap` has **no caller** in `packages/tileset/src`, `apps/editor/src` or `apps/demo/src` outside
@@ -82,7 +82,8 @@ its test. Callees: none.
   a device pixel.
 - `coverRect` returns the whole source when the ratios match, crops the sides (centred) of a wide
   source and the top and bottom (centred) of a tall one, never letterboxes, and returns zeros rather
-  than `NaN` for a `0 x 0` source.
+  than `NaN` for a `0 x 0` source. That case is a last guard: a picture with no natural size is
+  refused before anything is drawn ([images.ts](/renderer/images/)).
 - The file also tests `sincos` from `transform.ts` (exact at every multiple of 90°, including
   negative and wrapped angles; identical to `Math` elsewhere). See [transform.ts](/renderer/transform/).
 
@@ -106,7 +107,9 @@ its test. Callees: none.
   dimensions reports 0". Verified in headless Chrome while building these docs: an SVG with only a
   `viewBox` reports `naturalWidth`/`naturalHeight` 150 × 150, but `drawImage` with that source rect
   paints the artwork into the top-left third of the destination. A 48 px cell showed a 16 px tile.
-  The canvas substrate (`Tileset.svelte:952`) therefore draws viewBox-only SVGs shrunk; the DOM
+  The canvas substrate (`Tileset.svelte:956`) therefore draws viewBox-only SVGs shrunk; the DOM
   substrate's `<img>` with `object-fit` is unaffected. Every SVG in `apps/demo` declares
   `width`/`height`, which is why no app shows it; the docs fixture did not, until it was given
-  them. (possible bug)
+  them. (possible bug) **Fixed in 0.8.1:** `images.ts` `requireNaturalSize` refuses an SVG with
+  no natural size on both substrates and reports it through `onAssetError`; the test comment
+  (now lines 83-86) says Chrome reports 150 and calls `coverRect`'s zero case a last guard.

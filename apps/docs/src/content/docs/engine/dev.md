@@ -69,7 +69,7 @@ Evaluated once, at module load:
 | Caller | Use |
 | --- | --- |
 | `registry/sources.ts:326` | `evalSource` throws if a Source returns outside `[0, 1]` (or non-finite). |
-| `render/Tileset.svelte:158`, `:218`, `:260`, `:319`, `:329`, `:916`, `:934` | `DEV`-only checks and warnings, including the `assertValidFile` assertion (`:218`) and `rulesReshapeErrors` for host rules (`:260`). |
+| `render/Tileset.svelte:161`, `:223`, `:265`, `:324`, `:334`, `:920`, `:938` | `DEV`-only checks and warnings, including the `assertValidFile` assertion (`:223`) and `rulesReshapeErrors` for host rules (`:265`). |
 | `render/TileDecoration.svelte:83` | `reshapeErrors` check. |
 | `registry/registry.test.ts:473` | Asserts a Source-range throw only when `DEV`. |
 

@@ -7,8 +7,19 @@
  * substrate as `undefined` — resolution never substitutes.
  */
 
-import { describe, expect, it } from "vitest";
-import { assetKey, parseAssetKey, defaultProvider, prefixedProvider, type AssetRef } from "./provider.js";
+import { describe, expect, it, vi } from "vitest";
+import {
+  assetKey,
+  defaultProvider,
+  DrawableCache,
+  loadBlocked,
+  parseAssetKey,
+  prefixedProvider,
+  recordLoadFailure,
+  resolveDrawable,
+  type AssetProvider,
+  type AssetRef,
+} from "./provider.js";
 
 const ref = (meta: Record<string, unknown>, tileId = "water", assetId = "a1"): AssetRef => ({
   tileId,
@@ -132,5 +143,125 @@ describe("parseAssetKey — assetKey's inverse", () => {
     // is the one shape that cannot be used by accident.
     expect(parseAssetKey("grass a1")).toBeNull();
     expect(parseAssetKey("")).toBeNull();
+  });
+});
+
+describe("resolveDrawable — onAssetError fires for every failure shape", () => {
+  const r = ref({ src: "a.svg" });
+
+  it("passes a drawable through and reports nothing", () => {
+    const report = vi.fn();
+    expect(resolveDrawable(defaultProvider, r, report)).toEqual({ src: "a.svg" });
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it("reports a synchronous throw and stores a handled rejection", async () => {
+    const report = vi.fn();
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    try {
+      const value = resolveDrawable(defaultProvider, ref({}), report);
+      // Not synchronously: the caller is a `$derived`, where a host writing
+      // `$state` from `onAssetError` would throw state_unsafe_mutation.
+      expect(report).not.toHaveBeenCalled();
+      await Promise.resolve();
+      expect(report).toHaveBeenCalledTimes(1);
+      expect(value).toBeInstanceOf(Promise);
+      // Nothing awaits it, as when every cell for the key is culled.
+      await new Promise((done) => setTimeout(done, 0));
+      expect(unhandled).not.toHaveBeenCalled();
+      await expect(value).rejects.toThrow();
+    } finally {
+      process.off("unhandledRejection", unhandled);
+    }
+  });
+
+  it("reports a returned promise that rejects, once, and still hands back the rejection", async () => {
+    const report = vi.fn();
+    const cause = new Error("404");
+    const lazy: AssetProvider = () => Promise.reject(cause);
+    const value = resolveDrawable(lazy, r, report);
+    await expect(value).rejects.toBe(cause);
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report).toHaveBeenCalledWith(r, cause);
+  });
+
+  it("reports nothing for a returned promise that resolves", async () => {
+    const report = vi.fn();
+    const lazy: AssetProvider = async () => ({ src: "a.svg" });
+    await expect(resolveDrawable(lazy, r, report)).resolves.toEqual({ src: "a.svg" });
+    expect(report).not.toHaveBeenCalled();
+  });
+});
+
+describe("load failures are keyed by src — a new src is a new attempt", () => {
+  const key = assetKey("water", "a1");
+
+  it("records a failure once per src", () => {
+    const once = recordLoadFailure(new Map(), key, "a.svg");
+    expect(once?.get(key)).toBe("a.svg");
+    expect(recordLoadFailure(once!, key, "a.svg")).toBeNull();
+    expect(recordLoadFailure(once!, key, "b.svg")?.get(key)).toBe("b.svg");
+  });
+
+  it("blocks only the src that failed", () => {
+    const failed = new Map([[key, "a.svg"]]);
+    expect(loadBlocked(failed, key, { src: "a.svg" })).toBe(true);
+    // The host changed provider or file: the key resolves elsewhere and is retried.
+    expect(loadBlocked(failed, key, { src: "b.svg" })).toBe(false);
+    expect(loadBlocked(failed, assetKey("water", "a2"), { src: "a.svg" })).toBe(false);
+  });
+
+  it("never blocks a pending promise, whose src is not known yet", () => {
+    const failed = new Map([[key, "a.svg"]]);
+    const pending = new Promise<never>(() => {});
+    expect(loadBlocked(failed, key, pending)).toBe(false);
+    expect(loadBlocked(failed, key, undefined)).toBe(false);
+  });
+
+  it("blocks a settled promise whose src failed, or that rejected — no empty cell", () => {
+    // A regression in 0.8.1's first cut, against 0.8.0: a lazy provider's failed <img> left its `.cell`
+    // mounted and empty, still taking a host's clicks.
+    const failed = new Map([[key, "a.svg"]]);
+    const lazy = new Promise<never>(() => {});
+    expect(loadBlocked(failed, key, lazy, { src: "a.svg", rejected: false })).toBe(true);
+    expect(loadBlocked(failed, key, lazy, { src: "b.svg", rejected: false })).toBe(false);
+    expect(loadBlocked(new Map(), key, lazy, { src: undefined, rejected: true })).toBe(true);
+  });
+});
+
+describe("DrawableCache — a failure is reported once, not on every reseed", () => {
+  const meta = { src: "a.svg" };
+  const r = (m: Record<string, unknown> = meta): AssetRef => ({ tileId: "water", assetId: "a1", meta: m });
+  const throwing: AssetProvider = () => {
+    throw new Error("no file");
+  };
+
+  it("resolves a key once while its provider and meta are unchanged", async () => {
+    const report = vi.fn();
+    const cache = new DrawableCache();
+    const first = cache.resolve(throwing, r(), report);
+    expect(cache.resolve(throwing, r(), report)).toBe(first);
+    await Promise.resolve();
+    expect(report).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves again for a new provider or a new meta", () => {
+    const cache = new DrawableCache();
+    const report = vi.fn();
+    const a = cache.resolve(defaultProvider, r(), report);
+    const other: AssetProvider = (x) => ({ src: `x/${String(x.meta.src)}` });
+    expect(cache.resolve(other, r(), report)).toEqual({ src: "x/a.svg" });
+    expect(cache.resolve(other, r({ src: "b.svg" }), report)).toEqual({ src: "x/b.svg" });
+    expect(a).toEqual({ src: "a.svg" });
+  });
+
+  it("forgets keys the config no longer holds", () => {
+    const cache = new DrawableCache();
+    const provider = vi.fn(defaultProvider);
+    cache.resolve(provider, r(), vi.fn());
+    cache.retain(new Set<string>());
+    cache.resolve(provider, r(), vi.fn());
+    expect(provider).toHaveBeenCalledTimes(2);
   });
 });

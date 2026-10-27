@@ -20,7 +20,7 @@
   import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
   import { naturalHeight, naturalRatio, type AssetRef } from "@fndvit/gen-tilesets/render";
   import { activeRules, reshape, ruleOverride, type TilesetFile } from "@fndvit/gen-tilesets";
-  import { editorProvider } from "./assets.js";
+  import { editorProvider, replaceAll } from "./assets.js";
   import { bleed } from "./derive.js";
   import { exportZip } from "./download.js";
   import { drawsNothing } from "./export.js";
@@ -117,7 +117,31 @@
    * failure is reported *beside* the preview, not inside it.
    */
   function onAssetError(ref: AssetRef, cause: unknown): void {
-    failures = [...failures, `${ref.tileId}/${ref.assetId}: ${String(cause)}`];
+    const failure = `${ref.tileId}/${ref.assetId}: ${String(cause)}`;
+    // The list below is keyed by the string, and a repeat would be a duplicate
+    // `{#each}` key, which Svelte throws on. The renderer reports a failure once
+    // per resolution (`provider.ts` `DrawableCache`), but it resolves again when
+    // an asset's `meta` changes, and the same picture can then fail the same way.
+    if (failures.includes(failure)) return;
+    failures = [...failures, failure];
+  }
+
+  /**
+   * Starts a new tileset, **confirmed and not undoable** (`session.reset`). It
+   * discards everything, so it asks first, and it then reclaims every picture
+   * the session held.
+   *
+   * Reset first, then empty the store: the outgoing document is then already
+   * gone from the preview, so no `<img>` draws an object URL `replaceAll` has
+   * just revoked, and nothing reports those as failures.
+   */
+  async function newTileset(): Promise<void> {
+    if (!confirm("Start a new tileset? All progress in the current one is lost, and this cannot be undone.")) {
+      return;
+    }
+    session.reset();
+    failures = [];
+    await replaceAll([]);
   }
 
   const currentBleed = $derived(bleed(layout.referenceWidth, layout.cellSize, config.columns));
@@ -612,7 +636,7 @@
             <dt>operations</dt>
             <dd>{config.operations.length}</dd>
           </dl>
-          <button onclick={() => session.reset()}>New document</button>
+          <button onclick={newTileset}>New document</button>
         </Section>
 
         <Section title="Tiles">

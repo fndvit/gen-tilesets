@@ -53,8 +53,10 @@ exported from the module for the package's own use and for tests.
 
 ### Inputs → outputs
 
-**`Scheduler.track(box, targets, onMeasure)`** creates a tracker with the box's
-`getBoundingClientRect()` size, observes the box with the shared `ResizeObserver`, and, if
+**`Scheduler.track(box, targets, onMeasure)`** creates a tracker seeded with the box's laid-out
+size: the exact `getBoundingClientRect()` width and height when they round to
+`offsetWidth`/`offsetHeight` (the box is unscaled), and otherwise `offsetWidth`/`offsetHeight`. It
+observes the box with the shared `ResizeObserver`, and, if
 `targets` is not `null`, also observes the scope, rebuilds the `MutationObserver`, observes the box
 with the `IntersectionObserver` and binds `document.fonts`' `loadingdone`. It then calls
 `flush()`, so `onMeasure` runs **synchronously once** before `track` returns.
@@ -93,6 +95,14 @@ a no-op teardown.
 - **Flushed inside the ResizeObserver callback**, which runs after layout and before paint, so the
   geometry and mask are painted in the same frame as the resize. Deferring to
   `requestAnimationFrame` "would show one frame of tiles over the text on every resize step".
+- **Seeded from the laid-out size, not the on-screen rect.** Under a scaled ancestor (the
+  editor's `PreviewFrame`) `getBoundingClientRect()` carried the zoom into `Wpx` until the first
+  ResizeObserver entry. `offsetWidth` is the laid-out size but rounded to an integer, so the rect
+  is still used when it rounds to `offsetWidth`, which means nothing scales the box and the rect is
+  the exact, fractional width. Seeding from `offsetWidth` alone paired a rounded `layoutWidth` with
+  the fractional `clientWidth` in `flush`, and put the first frame's keep-out zoom (their ratio) off
+  by up to half a pixel's worth for a box nothing scales. Under a real scale the rounded width
+  stands until the first entry brings the un-rounded `borderBoxSize`.
 - **Width and rects in one callback**, so the geometry and mask come from one measurement.
 - **A selector never matches inside the box.** Otherwise `"div"` would select every DOM cell, "which
   would then hide itself".
@@ -105,9 +115,9 @@ a no-op teardown.
 
 | Caller | Uses |
 | --- | --- |
-| `render/Tileset.svelte:563-572` | An `$effect` calls `track(box, targets, m => { measuredWidth, measuredHeight, keepout = … })`, re-made when the box or the targets (by content) change. |
-| `render/Tileset.svelte:246, 557` | `currentDpr()` initialises `dpr`; `observeDpr` updates it. |
-| `render/Tileset.svelte:1253` | Puts `WRAPPER_ATTRIBUTE` (value: the instance id) on the responsive container. |
+| `render/Tileset.svelte:565-574` | An `$effect` calls `track(box, targets, m => { measuredWidth, measuredHeight, keepout = … })`, re-made when the box or the targets (by content) change. |
+| `render/Tileset.svelte:251, 559` | `currentDpr()` initialises `dpr`; `observeDpr` updates it. |
+| `render/Tileset.svelte:1266` | Puts `WRAPPER_ATTRIBUTE` (value: the instance id) on the responsive container. |
 | `render/TileDecoration.svelte:34, 123` | Puts `WRAPPER_ATTRIBUTE` (value `""`) on its sized wrapper. |
 
 `refresh` has no caller in `apps/editor/src` or `apps/demo/src`. Callees: `rectToRenderSpace`
@@ -121,6 +131,8 @@ Run against fake elements and observers; "nothing here is a browser".
 - Without targets, measures only the box: no mutation or intersection observers.
 - One ResizeObserver is shared across every tileset.
 - Every tracker is read before any is called back.
+- The first measurement is seeded from the laid-out width, not the zoomed rect.
+- An unscaled box is seeded from its exact rect (499.6 × 200.4), not the rounded `offsetWidth`.
 - The box width comes from the ResizeObserver, un-rounded.
 - No callback when nothing measured changed.
 - A selector is re-resolved when the section's children change.
@@ -157,4 +169,7 @@ Run against fake elements and observers; "nothing here is a browser".
   per `space.ts`) the synchronous first callback therefore reports a zoomed `Wpx` until the
   ResizeObserver's first entry corrects it. This is possibly a one-frame wrong geometry; the
   `Measurement.width` doc says "un-rounded layout width", which the first value is not.
+  **Fixed in 0.8.1:** `track` seeds from `offsetWidth`/`offsetHeight`, the laid-out size. Since
+  then it seeds from the exact rect when that rounds to `offsetWidth`/`offsetHeight` (unscaled),
+  so an unscaled box's first frame is not half a pixel off either.
 - `observeDpr` and `currentDpr` have no test.

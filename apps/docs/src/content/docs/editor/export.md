@@ -47,7 +47,7 @@ each other.
 | `ExportEntry` | `{ path: string; bytes: Uint8Array }` | One file in the zip. |
 | `BytesFor` | `(tileId: string, asset: TileAsset) → Uint8Array \| undefined` | Bytes looked up by the pair, never by `assetId` alone. |
 | `FILE_NAME` | `"tileset.json"` | Also used by [import.ts](/editor/import/). |
-| `serialize(file)` | `(TilesetFile) → string` | `JSON.stringify(file, null, 2) + "\n"` |
+| `serialize(file)` | `(TilesetFile) → string` | `JSON.stringify({ ...file, engineVersion: ENGINE_VERSION }, null, 2) + "\n"` |
 | `entries(file, bytesFor)` | `(TilesetFile, BytesFor) → ExportEntry[]` | The JSON first, then one entry per asset. Throws on any gap. |
 | `drawsNothing(file)` | `(TilesetFile) → boolean` | The *document draws nothing* advisory. |
 
@@ -56,9 +56,11 @@ Engine types: [`TilesetFile`](/api/index/interfaces/tilesetfile/),
 
 ### Inputs → outputs
 
-**`serialize`** writes the in-memory file exactly. Everything the export rules require is
+**`serialize`** writes the in-memory file exactly, except that it stamps the current
+`ENGINE_VERSION` over `engineVersion` (invariant E2). Everything else the export rules require is
 already true of it, which is invariant E3 paying off: there is no projection that could disagree
-with the preview. It uses two-space indentation and a trailing newline, because the result is a
+with the preview. The stamp is spread over the existing key, so the key keeps its place, and the
+in-memory document is left as imported. It uses two-space indentation and a trailing newline, because the result is a
 text file a human may open, diff and commit.
 
 **`entries(file, bytesFor)`**, for each tile and asset in document order:
@@ -97,11 +99,11 @@ A document with no tiles yields only `[tileset.json]`.
 | --- | --- |
 | `download.ts:23`, `:68` | `entries(file, …)` with a `BytesFor` backed by the asset store |
 | `import.ts:35`, `:68` | `FILE_NAME` |
-| `App.svelte:26`, `:324` | `drawsNothing(file)`, the advisory |
+| `App.svelte:26`, `:329` | `drawsNothing(file)`, the advisory |
 
-`serialize` is called only by `entries` (`:90`) and by tests.
+`serialize` is called only by `entries` (`:96`) and by tests.
 
-Callees: `JSON.stringify`, `TextEncoder`.
+Callees: `ENGINE_VERSION` from [document.ts](/editor/document/), `JSON.stringify`, `TextEncoder`.
 
 ### Tests
 
@@ -109,7 +111,8 @@ Callees: `JSON.stringify`, `TextEncoder`.
   untested. These tests cover what goes in.
   - *The file.* It carries `schemaVersion: 4` and a string `engineVersion`, writes `assetSalt`,
     `reseedAssetsOnLoad` and `yOffset` explicitly, omits `steps` and contains no `null`, and ends
-    in `}\n`.
+    in `}\n`. An imported file stamped `0.6.0` is written with the current `ENGINE_VERSION`, the
+    in-memory file keeps `0.6.0`, and the keys keep their order.
   - *The folder.* It holds the JSON plus one file per asset, keeps two Tiles' `a1` apart, takes
     the path from `meta.src`, and refuses a missing `meta.src`, two assets on one path, and
     missing bytes. A document with no tiles exports as just the JSON.
@@ -126,13 +129,14 @@ Callees: `JSON.stringify`, `TextEncoder`.
 
 ### Review notes
 
-- `serialize`'s docstring (`export.ts:55`) says *"`schemaVersion: 2` — required"*. The document is
+- `serialize`'s docstring (`export.ts:56`) says *"`schemaVersion: 2` — required"*. The document is
   `schemaVersion: 4` (`document.ts:128`, and `export.test.ts` asserts 4). (stale comment)
-- User-facing error messages here (`export.ts:100-101`, `:116-117`), in `import.ts:71-72` and in
-  `assets.ts:241-242` cite spec sections (`09 §11.1`, `E14`, `09 §15 Q8`). The spec is archived
+- User-facing error messages here (`export.ts:106-107`, `:122-123`), in `import.ts:71-72` and in
+  `assets.ts:278-279` cite spec sections (`09 §11.1`, `E14`, `09 §15 Q8`). The spec is archived
   and not available to the author reading the message. (doc gap)
 - **An imported document's `engineVersion` is never restamped.** The `engineVersion` bullet
-  (`export.ts:56`) calls the stamp "truthful by construction", but only `newDocument()` writes it
+  (`export.ts:57`) calls the stamp "truthful by construction", but only `newDocument()` writes it
   (`document.ts:131`). An imported file opens as it is (`session.svelte.ts:128`) and `serialize`
   writes it as it is (`:69`). A file from 0.6.0, edited and exported here, still says `"0.6.0"`.
-  See [Versioning](/concepts/versioning/). (possible bug)
+  See [Versioning](/concepts/versioning/). (possible bug) **Fixed in 0.8.1:** `serialize` stamps
+  the current `ENGINE_VERSION` at export.

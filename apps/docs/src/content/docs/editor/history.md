@@ -15,8 +15,9 @@ file, and the editor keeps the previous copies. So undo simply goes back to the 
 is nothing to reverse and nothing else to reset, because the picture is drawn entirely from the
 file.
 
-Every action is undoable, including the destructive ones such as changing the design width and
-starting a new document. That matters, because undo is the only repair the editor offers when a
+Every action is undoable, including the destructive ones such as changing the design width. The
+one exception is starting a new document, which asks first and then starts a fresh history. That
+matters, because undo is the only repair the editor offers when a
 change strands work the author placed by hand. An edit that the editor refused, which left the
 file exactly as it was, adds nothing to the history, so undo never appears to do nothing.
 
@@ -68,17 +69,19 @@ including the design-width change.*
   slider dragged across frames changes the file every frame, so an unbounded stack would hold
   every intermediate value of every drag.
 - **`replaced` exists for actions that are not transitions of the current file.** The comment
-  names *New document* as the only one. Import (`session.open`) now uses it too.
+  names an import (`session.open`). *New document* used to be one too; it now starts a fresh
+  history with `historyOf` instead, a confirmed exception to **E6** that `session.svelte.ts`
+  `reset` explains (see [session](/editor/session/)).
 
 ### Callers / callees
 
 | Caller | Uses |
 | --- | --- |
-| `session.svelte.ts:39` | imports `applied`, `historyOf`, `replaced`, `undone`, `History` |
-| `session.svelte.ts:49` | `historyOf(newDocument())` |
-| `session.svelte.ts:81` | `applied(history, transition)` in `apply` |
-| `session.svelte.ts:94` | `undone(history)` in `undo` |
-| `session.svelte.ts:104`, `:128` | `replaced(history, …)` in `reset` and `open` |
+| `session.svelte.ts:42` | imports `applied`, `historyOf`, `replaced`, `undone`, `History` |
+| `session.svelte.ts:52`, `:112` | `historyOf(newDocument())`, initially and in `reset` |
+| `session.svelte.ts:84` | `applied(history, transition)` in `apply` |
+| `session.svelte.ts:97` | `undone(history)` in `undo` |
+| `session.svelte.ts:136` | `replaced(history, file)` in `open` |
 
 Callees: none.
 
@@ -87,7 +90,8 @@ Callees: none.
 - **Whole values.** It starts with nothing to undo. It restores the previous value in full (two
   edits, one undo restores `yOffset` and keeps `rows`, a second undo is `toEqual` the start). It
   undoes a design-width change (`columns` 20 → 10). It restores a coordinate-bound `cellList`
-  Selection with the file. *New document* (`replaced`) is undoable.
+  Selection with the file. `replaced` is undoable (the test is still titled after *New document*;
+  see the review notes).
 - **Refusals.** `setRows("0")`, `setRows("abc")` and `setYOffset("1.4")` leave the history `toBe`
   identical. `setRows("5")` on a file already at 5 rows **does** push an entry.
 - **Bounded.** It keeps the most recent entries and drops the oldest. `UNDO_LIMIT` is 100.
@@ -107,5 +111,9 @@ Callees: none.
   include `setHorizontalAlignment` to the current alignment and `setDefaultSeed` with the same
   trimmed text. These push undo entries identical to the current file. See
   [document.ts](/editor/document/). (inconsistency)
-- `replaced`'s docstring says *"'New document' is the only one"*. `session.open` (import) also
-  uses `replaced`. (stale comment)
+- `replaced`'s docstring said *"'New document' is the only one"*, though `session.open` (import)
+  also used `replaced`. (stale comment) **Fixed:** the docstring now names the import, and says
+  New document starts a fresh history instead.
+- `history.test.ts:70` was titled *"New document is undoable — no editor action is outside the
+  stack"* after `session.reset` stopped calling `replaced`. (stale test name) **Fixed:** it is now
+  titled for import's path, which still uses `replaced`.

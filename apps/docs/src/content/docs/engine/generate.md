@@ -98,7 +98,7 @@ Output: `{ rows, columns, cells }` with `cells.length === rows * columns`.
 | Caller | How |
 | --- | --- |
 | `render/breakpoints.ts:60` | `GridCache.get` calls `generate(config, seed, loadSalt)` once per `rows × columns` seen, and clears its cache when the base config, seed or `loadSalt` changes. |
-| `render/Tileset.svelte:349–351` | Creates the `GridCache` and derives `grid` from `gridCache.get(checked.config, config, effectiveSeed, loadSalt)`. |
+| `render/Tileset.svelte:354–356` | Creates the `GridCache` and derives `grid` from `gridCache.get(checked.config, config, effectiveSeed, loadSalt)`. |
 | `apps/editor`, `apps/demo` | **Not callers.** Grep finds no direct call; both draw through `<Tileset>`. |
 
 Callees: `initialTileState`, `writeAttribute` (`attributes.ts`); `prepareTile`, `walkWeights`

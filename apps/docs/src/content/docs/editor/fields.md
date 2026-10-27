@@ -84,9 +84,9 @@ treats them identically.
 | Caller | Uses |
 | --- | --- |
 | `document.ts:50-58` | `parseCellSize`, `parseReferenceWidth`, `parseRows`, `parseWeight`, `parseYOffset`, `RULE_PARSERS`, `RuleField` |
-| `App.svelte:433`, `:441`, `:452`, `:458` | `parseRows`, `parseYOffset`, `parseReferenceWidth`, `parseCellSize` as a `NumericInput`'s `parse` prop |
-| `App.svelte:527`, `:532`, `:543`, `:549` | `RULE_FIELDS`, `RULE_PARSERS` for the Breakpoints rows |
-| `lib/TileLibrary.svelte:191`, `:291` | `parseWeight`, to explain a refused zero and as a `parse` prop |
+| `App.svelte:438`, `:446`, `:457`, `:463` | `parseRows`, `parseYOffset`, `parseReferenceWidth`, `parseCellSize` as a `NumericInput`'s `parse` prop |
+| `App.svelte:532`, `:537`, `:548`, `:554` | `RULE_FIELDS`, `RULE_PARSERS` for the Breakpoints rows |
+| `lib/TileLibrary.svelte:198`, `:298` | `parseWeight`, to explain a refused zero and as a `parse` prop |
 | `lib/NumericInput.svelte:61` | `format(value)` for the reverted text |
 
 `parseWidth` and `parseBleed` are reached only through `RULE_PARSERS` (`fields.ts:140-145`).

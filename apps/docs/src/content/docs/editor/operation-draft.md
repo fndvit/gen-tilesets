@@ -110,7 +110,7 @@ one "appends to the end of the stack, where it runs last".
 | Caller | Use |
 | --- | --- |
 | `App.svelte:60` | import |
-| `App.svelte:644`–`649` | inside `OperationStack`'s `draftPanel` snippet: `draft`, `editing={drafting.editing}`, `nested={drafting.editing}`, `onClose={() => drafting.discard()}` |
+| `App.svelte:649`–`654` | inside `OperationStack`'s `draftPanel` snippet: `draft`, `editing={drafting.editing}`, `nested={drafting.editing}`, `onClose={() => drafting.discard()}` |
 
 Callees (`OperationDraft.svelte:23`–`39`): [`selections`](/api/index/variables/selections/),
 [`sources`](/api/index/variables/sources/), [`TARGETS`](/api/index/variables/targets/);

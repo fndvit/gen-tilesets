@@ -1,7 +1,7 @@
 import { selections, sources, type ParamSpec } from "@fndvit/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { defaultParams } from "../draft.svelte.js";
-import { admits, affordanceFor, defaultFor } from "./affordance.js";
+import { admits, affordanceFor, defaultFor, rangeLabel } from "./affordance.js";
 
 /**
  * **Invariant E9** — the `ParamSpec` → affordance mapping is total. A registered
@@ -183,5 +183,45 @@ describe("E9 — totality over the actual registries", () => {
     for (const [, name, schema] of registered) {
       expect(Object.keys(schema), name).not.toContain("type");
     }
+  });
+});
+
+describe("slider ends — every position is admitted", () => {
+  it("insets an exclusive end by one step", () => {
+    const spec: ParamSpec = { type: "number", exclusiveMin: 0, max: 1 };
+    const a = affordanceFor(spec);
+    expect(a).toMatchObject({ kind: "slider", min: 0.01, max: 1, step: 0.01 });
+    if (a.kind !== "slider") return;
+    expect(admits(spec, a.min)).toBe(true);
+    expect(admits(spec, a.max)).toBe(true);
+  });
+
+  it("insets both exclusive ends, and leaves inclusive ones alone", () => {
+    const both = affordanceFor({ type: "number", exclusiveMin: 0, exclusiveMax: 1 });
+    expect(both).toMatchObject({ min: 0.01, max: 0.99 });
+    expect(affordanceFor({ type: "number", min: 0, max: 1 })).toMatchObject({ min: 0, max: 1 });
+  });
+});
+
+describe("rangeLabel — each end says whether it is admitted", () => {
+  it("brackets inclusive ends and parenthesises exclusive or absent ones", () => {
+    expect(rangeLabel({ type: "number", min: 0, max: 1 })).toBe("[0, 1]");
+    expect(rangeLabel({ type: "number", exclusiveMin: 0 })).toBe("(0, ∞)");
+    // The case it used to get wrong: an exclusive upper end read as closed.
+    expect(rangeLabel({ type: "number", min: 0, exclusiveMax: 1 })).toBe("[0, 1)");
+    expect(rangeLabel({ type: "number", exclusiveMin: 0, exclusiveMax: 1 })).toBe("(0, 1)");
+    expect(rangeLabel({ type: "integer", max: 4 })).toBe("(−∞, 4]");
+  });
+
+  it("names a bare integer and says nothing for enum or cellList", () => {
+    expect(rangeLabel({ type: "integer" })).toBe("integer");
+    expect(rangeLabel({ type: "number" })).toBe("");
+    expect(rangeLabel({ type: "enum", values: ["a"] } as ParamSpec)).toBe("");
+  });
+
+  it("agrees with admits at every end it calls closed", () => {
+    const spec: ParamSpec = { type: "number", min: 0, exclusiveMax: 1 };
+    expect(admits(spec, 0)).toBe(true);
+    expect(admits(spec, 1)).toBe(false);
   });
 });

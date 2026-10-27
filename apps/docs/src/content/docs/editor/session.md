@@ -17,7 +17,8 @@ the session applies it, and it remembers the previous file so the change can be 
 
 Nothing outside can overwrite the file directly. That guarantees the editor never holds an
 invalid file. The session also supports starting a new document and opening an imported one. Both
-replace the file outright, and both can still be undone.
+replace the file outright. Opening an import can be undone; starting a new document cannot, on
+purpose, so the editor asks first.
 
 In the editor's pipeline, import → document → draft/**history** → preview → export, this is the
 live state at the centre. Import opens files into it, the document's edits are applied to it,
@@ -31,7 +32,9 @@ the preview draws from it, and export reads from it.
 initialised with `historyOf(newDocument())`. It exposes the current file read-only. Invariant
 **E5** is enforced structurally: `apply()` is the only mutator, so every caller has to hand over a
 `TilesetFile → TilesetFile`. E6 becomes structural for the same reason. An action that escaped
-the undo stack would have to escape the document too.
+the undo stack would have to escape the document too. There is **one exception, on purpose:
+`reset()`**, the confirmed New document, which starts a fresh history instead of pushing onto this
+one.
 
 ### Public surface
 
@@ -43,7 +46,7 @@ the undo stack would have to escape the document too.
 | `canUndo` | getter, `boolean` | `history.past.length > 0`. Drives the Undo button. |
 | `apply(transition)` | method | `history = applied(history, transition)` |
 | `undo()` | method | `history = undone(history)` |
-| `reset()` | method | `history = replaced(history, newDocument())` |
+| `reset()` | method | `history = historyOf(newDocument())`. Not undoable. |
 | `open(file)` | method | `history = replaced(history, file)` |
 
 ### Inputs → outputs
@@ -51,7 +54,12 @@ the undo stack would have to escape the document too.
 - **`apply`** takes a `Transition` from [document.ts](/editor/document/). If it returns its input
   by identity, nothing is pushed.
 - **`undo`** restores the previous whole file. At the bottom of the stack it does nothing.
-- **`reset`** replaces the document with a fresh valid skeleton, and is undoable.
+- **`reset`** replaces the document with a fresh valid skeleton and starts a **fresh history**: it
+  is not undoable, a deliberate exception to **E6**. It used to be undoable, but undo restored a
+  file whose pictures it could not restore, because the bytes live in the asset store
+  ([assets.ts](/editor/assets/)), outside the file. Keeping them for undo meant the store was
+  never reclaimed and grew with every new document; reclaiming them meant undo brought back a
+  document of holes. So the caller confirms with the author, resets, then empties the store.
 - **`open(file)`** takes an already-validated `TilesetFile` and replaces the document. It is
   undoable.
 
@@ -73,13 +81,13 @@ the undo stack would have to escape the document too.
 | Caller | Uses |
 | --- | --- |
 | `App.svelte:71` | `session.file` → `file`, `config`, `layout` |
-| `App.svelte:209`, `:214` | `session.apply` direct, and from `confirmPending` after E12 confirmation |
-| `App.svelte:349` | Undo button: `disabled={!session.canUndo}`, `session.undo()` |
-| `App.svelte:434-698` | `session.apply(...)` for layout, rule, seed and asset-salt transitions |
-| `App.svelte:615` | `session.reset()`, the *New document* button |
+| `App.svelte:233`, `:238` | `session.apply` direct, and from `confirmPending` after E12 confirmation |
+| `App.svelte:373` | Undo button: `disabled={!session.canUndo}`, `session.undo()` |
+| `App.svelte:458-722` | `session.apply(...)` for layout, rule, seed and asset-salt transitions |
+| `App.svelte:142` | `session.reset()` in `newTileset`, after `confirm`, for the *New document* button (`:639`) |
 | `lib/ImportPanel.svelte:210` | `session.open(file as TilesetFile)` after validate and `replaceAll` |
-| `lib/TileLibrary.svelte:46`, `:165`, `:188-191` | `session.file` reads, and the before/after identity check that detects a refused weight |
-| `lib/TileLibrary.svelte:105`, `:125`, `:175`, `:184`, `:189`, `:244` | `session.apply` for library transitions |
+| `lib/TileLibrary.svelte:47`, `:168`, `:195-198` | `session.file` reads, and the before/after identity check that detects a refused weight |
+| `lib/TileLibrary.svelte:108`, `:128`, `:178`, `:187`, `:196`, `:251` | `session.apply` for library transitions |
 | `lib/OperationStack.svelte:88` | `session.file.config.operations` |
 | `lib/OperationStack.svelte:153-226` | `session.apply` for move, reroll, remove, and the reseed flag |
 | `lib/OperationDraft.svelte:71`, `:316` | `session.file` reads (rules, tiles) |
@@ -98,15 +106,19 @@ of `history.ts` (tested in `history.test.ts`) and `document.ts`.
 
 - **`open` is a replacement, not a transition.** There is no function from the outgoing file to
   the incoming one. Pretending otherwise would put a `() => file` on the stack that ignores its
-  argument. `reset()` is the precedent.
+  argument. `reset()` was the precedent; it now starts a fresh history instead, so `open` is the
+  only remaining user of `replaced`.
+- **New document cannot be undone, on purpose.** The comment records the trade: an undoable reset
+  either leaked every picture for the session or restored a document of holes. Confirming first
+  (`App.svelte` `newTileset`) is what makes the exception acceptable.
 - **Undo after import does not restore asset bytes.** The bytes live in the session-scoped store
   ([assets.ts](/editor/assets/)) and were swapped with the document. The source calls this the
   same gap a reload has always had, not a defect in the undo stack.
-- **Refusals are detected by identity.** `TileLibrary.svelte:188-191` compares `session.file`
+- **Refusals are detected by identity.** `TileLibrary.svelte:195-198` compares `session.file`
   before and after `apply` to learn that a weight change was refused.
 
 ### Review notes
 
-- The `apply` docstring (`session.svelte.ts:69-78`) repeats `history.ts`'s claim that *"an
+- The `apply` docstring (`session.svelte.ts:72-81`) repeats `history.ts`'s claim that *"an
   unchanged file *is* the same object"*. Some no-change transitions return a new object and so
   push an entry. See [history.ts](/editor/history/). (inconsistency)

@@ -240,8 +240,18 @@ export function reshapeErrors(file: TilesetFile, s: Partial<Shape>): string[] {
   if (valuesOk) {
     const out = reshape(file, s);
     if (!(out.layout.referenceWidth > 0)) {
+      // The caller's bleed verbatim when they gave one, so the message quotes
+      // what they wrote. An inherited bleed (rule 3 of `reshape`) is absent from
+      // `s` and is read back from the result instead; this used to print "bleed
+      // undefined" for exactly the case most likely to surprise. It is derived
+      // from `referenceWidth / cellSize`, so it is rounded for reading: 7/6 of a
+      // column printed as 1.1666666666666679.
+      const which =
+        s.bleed === undefined
+          ? `the file's bleed (${Number(shapeOf(out).bleed.toFixed(4))} columns, kept)`
+          : `bleed ${s.bleed}`;
       errors.push(
-        `bleed ${String(s.bleed)} leaves no box: columns - bleed must be > 0 (columns is ${out.config.columns}).`,
+        `${which} leaves no box: columns - bleed must be > 0 (columns is ${out.config.columns}).`,
       );
     }
   }

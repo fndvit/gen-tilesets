@@ -213,7 +213,7 @@ Optional array. The source describes four layers:
 | `load.ts:25`, `migrate.ts:35` | `SCHEMA_VERSION` | The version to compare against and migrate to. |
 | `apps/editor/src/lib/ImportPanel.svelte:195` | `validate` | After `migrate()`; a non-empty list is shown and the file is not opened. |
 | `apps/editor/src/document.ts:239` | `validate` | `keepsRulesLegal`: when the file has responsive rules, an edit is kept only if the result validates. |
-| `apps/editor/src/document.ts:685` | `validate` | `withRules`: a rules edit is kept only if the result validates. |
+| `apps/editor/src/document.ts:690` | `validate` | `withRules`: a rules edit is kept only if the result validates. |
 | `index.ts:121–126` | re-export | Public API. |
 
 Callees: `acceptedBlends`, `TARGETS` (`registry/blends.ts`); `selections`, `sources` (their

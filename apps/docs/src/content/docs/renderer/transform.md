@@ -88,9 +88,9 @@ All re-exported from `render/index.ts:95-107`.
 
 | Caller | Uses |
 | --- | --- |
-| `render/Tileset.svelte:65, 482` | `isIdentityTransform` to omit `transform` entirely, and `cssTransform(cell)` (no translate) otherwise. |
-| `render/Tileset.svelte:371` | `maxSpill(grid)` widens culling. |
-| `render/Tileset.svelte:537` | `translationDev(cell, u.cellDev)` adds the translation to the DOM margins after measurement. |
+| `render/Tileset.svelte:65, 484` | `isIdentityTransform` to omit `transform` entirely, and `cssTransform(cell)` (no translate) otherwise. |
+| `render/Tileset.svelte:376` | `maxSpill(grid)` widens culling. |
+| `render/Tileset.svelte:539` | `translationDev(cell, u.cellDev)` adds the translation to the DOM margins after measurement. |
 | `render/uniform.ts:73, 524, 538, 561` | `translationDev`, `isIdentityTransform` and `sincos` in `uniformDrawList` and its private `cellMatrix`. |
 | `render/occlusion.ts:63-70, 110, 115, 120, 196` | `maxSpill`, `drawnHalfExtents`, `isIdentityTransform`, `translationDev` for the keep-out mask. |
 

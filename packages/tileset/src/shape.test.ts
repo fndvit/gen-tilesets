@@ -375,6 +375,22 @@ describe("shapeFieldProblem", () => {
 });
 
 describe("reshapeErrors", () => {
+  it("names an inherited bleed that leaves no box, rather than `undefined`", () => {
+    // hero() overhangs by one column; one column minus one is nothing.
+    const [message] = reshapeErrors(hero(), { columns: 1 });
+    expect(message).toContain("the file's bleed (1 columns, kept)");
+    expect(message).not.toContain("undefined");
+    expect(reshapeErrors(hero(), { columns: 2, bleed: 2 })[0]).toMatch(/^bleed 2 leaves no box/);
+  });
+
+  it("rounds an inherited fractional bleed for reading", () => {
+    // 22 columns of 48 px over a 1000 px box overhang by 56/48 = 7/6 columns.
+    const file = hero();
+    const wide = { ...file, config: { ...file.config, columns: 22 }, layout: { ...file.layout, referenceWidth: 1000, cellSize: 48 } };
+    const [message] = reshapeErrors(wide, { columns: 1 });
+    expect(message).toContain("the file's bleed (1.1667 columns, kept)");
+  });
+
   it("passes a procedural file at any shape", () => {
     expect(reshapeErrors(style(), decoration(spot))).toEqual([]);
     expect(reshapeErrors(hero(), { rows: 14, columns: 9 })).toEqual([]);

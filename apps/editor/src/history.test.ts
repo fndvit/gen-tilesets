@@ -67,7 +67,7 @@ describe("a stack of whole values — 09 §4.4", () => {
     });
   });
 
-  it("New document is undoable — no editor action is outside the stack", () => {
+  it("a replacement is undoable — import's path (New document no longer takes it)", () => {
     const start = newDocument();
     const h = replaced(applied(historyOf(start), setRows("7")), newDocument());
     expect(h.current.config.rows).toBe(5);

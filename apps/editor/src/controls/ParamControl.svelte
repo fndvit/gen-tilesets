@@ -8,7 +8,7 @@
 -->
 <script lang="ts">
   import type { ParamSpec } from "@fndvit/gen-tilesets";
-  import { admits, type Affordance } from "./affordance.js";
+  import { admits, rangeLabel, type Affordance } from "./affordance.js";
 
   interface Props {
     name: string;
@@ -32,20 +32,17 @@
     if (text.trim() !== "" && Number.isFinite(n) && admits(spec, n)) onChange(n);
   }
 
-  /** A slider cannot produce a value its own bounds exclude, so it commits directly. */
+  /**
+   * Checked with `admits` like typed input. `affordanceFor` already insets an
+   * exclusive end by one step, so no slider position should be refused; this
+   * is the guard for a float step that lands a hair past the bound.
+   */
   function slide(text: string): void {
-    onChange(Number(text));
+    const n = Number(text);
+    if (admits(spec, n)) onChange(n);
   }
 
-  /** The bounds, spelled out, so the author can see what the control admits. */
-  const range = $derived.by(() => {
-    if (spec.type === "enum" || spec.type === "cellList") return "";
-    const lo = spec.type === "number" ? (spec.min ?? spec.exclusiveMin) : spec.min;
-    const hi = spec.type === "number" ? (spec.max ?? spec.exclusiveMax) : spec.max;
-    if (lo === undefined && hi === undefined) return spec.type === "integer" ? "integer" : "";
-    const open = spec.type === "number" && spec.exclusiveMin !== undefined;
-    return `${open ? "(" : "["}${lo ?? "−∞"}, ${hi ?? "∞"}${hi === undefined ? ")" : "]"}`;
-  });
+  const range = $derived(rangeLabel(spec));
 </script>
 
 <div class="param" class:pending>

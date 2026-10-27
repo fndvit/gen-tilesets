@@ -72,12 +72,12 @@ the transitions in `document.ts` parse again on their own terms.
 
 | Caller | Field | `parse` |
 | --- | --- | --- |
-| `App.svelte:429` | rows | `parseRows` |
-| `App.svelte:436` | y offset (`note="[0, 1) — clips row 0"`) | `parseYOffset` |
-| `App.svelte:449` | design width | `parseReferenceWidth` |
-| `App.svelte:455` | cell size | `parseCellSize` |
-| `App.svelte:529` | each breakpoint rule field | `RULE_PARSERS[field]` |
-| `lib/TileLibrary.svelte:287` | asset weight | `parseWeight` |
+| `App.svelte:434` | rows | `parseRows` |
+| `App.svelte:441` | y offset (`note="[0, 1) — clips row 0"`) | `parseYOffset` |
+| `App.svelte:454` | design width | `parseReferenceWidth` |
+| `App.svelte:460` | cell size | `parseCellSize` |
+| `App.svelte:534` | each breakpoint rule field | `RULE_PARSERS[field]` |
+| `lib/TileLibrary.svelte:294` | asset weight | `parseWeight` |
 
 Callees: `format` and the `ParseResult` type from `fields.ts:27`.
 
@@ -97,6 +97,6 @@ test file of its own; `document.test.ts` is the test that imports them.
 ### Review notes
 
 - The `note` prop's doc comment (line 37) says it is "Used for the destructive three of §9.3". The
-  only caller that passes `note` is the **y offset** field (`App.svelte:439`), which is not one of
+  only caller that passes `note` is the **y offset** field (`App.svelte:444`), which is not one of
   the destructive three. The comment is stale.
 - Line 54 refers to "an undo at Step 10". Undo exists. The reference to a build step is stale.
