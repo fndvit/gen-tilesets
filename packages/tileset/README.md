@@ -58,7 +58,7 @@ environment, never from the file:
 ```
 
 ```sh
-pnpm add @fndvit/gen-tilesets@0.7.0 svelte
+pnpm add @fndvit/gen-tilesets@0.8.1 svelte
 ```
 
 - **Pin the exact version.** `0.x` promises nothing about output stability (`/CLAUDE.md`), so a
