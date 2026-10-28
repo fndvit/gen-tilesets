@@ -35,3 +35,5 @@ Thumbs.db
 *.log
 npm-debug.log*
 pnpm-debug.log*
+# Demo screenshot captures (apps/demo/scripts/capture.mjs)
+.shots/
