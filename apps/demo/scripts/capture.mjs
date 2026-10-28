@@ -17,7 +17,7 @@
  * pixels. Capture both sides in one sitting.
  */
 import { chromium } from "playwright";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 const out = process.argv[2];
 const base = process.argv[3] ?? "http://localhost:4173/";
@@ -27,6 +27,25 @@ mkdirSync(out, { recursive: true });
 const WIDTHS = [360, 777, 1013, 1280];
 const DPRS = [1, 2];
 const SUBSTRATES = ["canvas", "dom"];
+// Crosses the demo's responsive breakpoints in both directions.
+const RESIZES = [777, 360, 1013, 1280];
+
+/**
+ * A full-page screenshot resizes the page to its full height while it captures,
+ * which fires every tileset's ResizeObserver: the capture can land mid-repaint,
+ * and whether it does depends on how long a repaint takes. Measured on this demo:
+ * the settled picture was identical, while single captures differed by a few
+ * hundred pixels from run to run. So capture until two consecutive shots agree.
+ */
+async function stableShot(page, path) {
+  let prev = await page.screenshot({ fullPage: true, animations: "disabled" });
+  for (let i = 0; i < 6; i++) {
+    const next = await page.screenshot({ fullPage: true, animations: "disabled" });
+    if (next.equals(prev)) break;
+    prev = next;
+  }
+  writeFileSync(path, prev);
+}
 
 const browser = await chromium.launch({ channel: "chrome" });
 for (const dpr of DPRS) {
@@ -51,7 +70,21 @@ for (const dpr of DPRS) {
       await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(800);
       const name = `${substrate}-w${width}-dpr${dpr}.png`;
-      await page.screenshot({ path: `${out}/${name}`, fullPage: true, animations: "disabled" });
+      await stableShot(page, `${out}/${name}`);
+      console.log(name);
+    }
+  }
+  // The reactive path: one page load, then resized in place. A fresh load at each
+  // width (above) never exercises what a stale memo would get wrong; this does.
+  for (const substrate of SUBSTRATES) {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`${base}?substrate=${substrate}`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(800);
+    for (const width of RESIZES) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.waitForTimeout(500);
+      const name = `resize-${substrate}-w${width}-dpr${dpr}.png`;
+      await stableShot(page, `${out}/${name}`);
       console.log(name);
     }
   }
