@@ -8,11 +8,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TilesetFile } from "../types.js";
 import { SCHEMA_VERSION } from "../validate.js";
-import { ImageBank } from "./images.js";
+import type { ImageBank as Bank } from "./images.js";
 import type { Measurement } from "./measure.js";
 import type { NormalizedTargets, TilesetOptions } from "./options.js";
 import type { AssetProvider } from "./provider.js";
-import { TilesetRenderer } from "./renderer.js";
+import type { TilesetRenderer as Renderer } from "./renderer.js";
+
+// Fresh modules per test: `styles.ts` remembers which documents block inline
+// styles, and happy-dom has one document, so a strict-CSP test would otherwise
+// send every later test down the adopted-sheet path.
+let TilesetRenderer: typeof Renderer;
+let ImageBank: typeof Bank;
 
 interface FakeTrack {
   box: HTMLElement;
@@ -79,7 +85,10 @@ const tick = () => new Promise<void>((r) => setTimeout(r, 0));
 let clears: number;
 let draws: number;
 
-beforeEach(() => {
+beforeEach(async () => {
+  vi.resetModules();
+  ({ TilesetRenderer } = await import("./renderer.js"));
+  ({ ImageBank } = await import("./images.js"));
   fake.tracks.length = 0;
   fake.dprStops.length = 0;
   fake.first = { width: 600, height: 240 };
@@ -167,7 +176,7 @@ describe("TilesetRenderer", () => {
 
   it("draws nothing while `avoid` has no rects yet, then draws around them", async () => {
     // Every wanted key decoded at once, so what is drawn is down to the mask.
-    vi.spyOn(ImageBank.prototype, "sync").mockImplementation(function (this: ImageBank, wanted) {
+    vi.spyOn(ImageBank.prototype, "sync").mockImplementation(function (this: Bank, wanted) {
       for (const key of wanted.keys()) {
         this.ready.set(key, { naturalWidth: 64, naturalHeight: 64 } as HTMLImageElement);
       }
@@ -281,6 +290,71 @@ describe("TilesetRenderer", () => {
     expect(sync.mock.lastCall![0].size).toBe(0);
     await tick();
     expect([...sync.mock.lastCall![0].values()]).toEqual(["/lazy/t.png"]);
+  });
+
+  it("drops a source whose new lazy drawable rejects, so the old picture is not drawn", async () => {
+    const sync = vi.spyOn(ImageBank.prototype, "sync");
+    const { r } = mount({ provider }, hero(["t"]));
+    expect([...sync.mock.lastCall![0].values()]).toEqual(["/t/a.png"]);
+    const failing: AssetProvider = () => Promise.reject(new Error("gone"));
+    r.update({ options: { provider: failing, onAssetError: () => {} } });
+    await tick();
+    expect(sync.mock.lastCall![0].size).toBe(0);
+  });
+
+  it("does not repaint for an update whose responsive rules are equal but new", async () => {
+    const rules = () => ({ provider, responsive: [{ maxWidth: 800, columns: 6, align: { x: "left" as const } }] });
+    const { r } = mount(rules());
+    await tick();
+    clears = 0;
+    r.update({ options: rules() });
+    await tick();
+    expect(clears).toBe(0);
+  });
+
+  it("re-tracks when a renderer built detached is attached, so `avoid` resolves in the page", async () => {
+    const host = document.createElement("div");
+    host.setAttribute("data-tileset-wrapper", "");
+    const r = new TilesetRenderer(host, { file: hero(), options: { provider, avoid: { targets: "h2" } } });
+    expect(fake.tracks).toHaveLength(1);
+
+    const section = document.createElement("section");
+    section.append(document.createElement("h2"), host);
+    document.body.append(section);
+    fake.tracks[0]!.onMeasure({ width: 610, height: 240, rects: [] });
+    await tick();
+    expect(fake.tracks).toHaveLength(2);
+    expect(fake.tracks[1]!.box).toBe(r.box);
+    expect(fake.tracks[0]!.stop).toHaveBeenCalledOnce();
+  });
+
+  it("leaves nothing behind when the first render throws", () => {
+    const host = document.createElement("div");
+    const real = fake.first;
+    // A measurement the fake cannot report: the first render throws from `track`.
+    Object.defineProperty(fake, "first", {
+      configurable: true,
+      get() {
+        throw new Error("measure failed");
+      },
+    });
+    try {
+      expect(() => new TilesetRenderer(host, { file: hero(), options: { provider } })).toThrow(/measure failed/);
+    } finally {
+      Object.defineProperty(fake, "first", { configurable: true, writable: true, value: real });
+    }
+    expect(host.childNodes).toHaveLength(0);
+    expect(fake.dprStops.at(-1)).toHaveBeenCalledOnce();
+  });
+
+  it("throws a responsive rule the file cannot take to the caller", () => {
+    const file = hero();
+    file.config.operations[0]!.selection = { type: "rect", x: 0, y: 0, width: 2, height: 2 } as never;
+    const host = document.createElement("div");
+    const r = new TilesetRenderer(host, { file, options: { provider } });
+    expect(() => r.update({ options: { provider, responsive: [{ maxWidth: 500, rows: 8 }] } })).toThrow(
+      /cannot be applied/,
+    );
   });
 
   it("throws on the DOM substrate, which it does not draw yet, without touching the host", () => {

@@ -78,6 +78,9 @@ instance's id. `new InstanceStyle(parent)`, `.set(css)`, `.remove()`.
   documents, so a strict-CSP page is tried once in all. The sheet is per instance, its text is
   swapped with `replaceSync`, and `remove()` un-adopts it. That adopted sheets cascade late does not
   matter here, because no host writes rules against these id-scoped selectors.
+- **Only a missing sheet marks the document blocked.** An empty one may be rules that did not
+  parse, such as an id that breaks the selectors. That instance still falls back to a sheet, but
+  `injectStyles` keeps using `<style>` elsewhere in the document.
 - **It is judged once it is connected.** A detached `<style>` has no sheet whatever the policy.
   `set()` runs on every render and judges the first time it finds the `<style>` connected.
 

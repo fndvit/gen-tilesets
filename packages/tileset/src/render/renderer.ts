@@ -60,7 +60,7 @@ import type { TilesetFile } from "../types.js";
 import { FlipFlop, inertCellSizeRules } from "./breakpoints.js";
 import { coverRect } from "./edges.js";
 import { ImageBank, NaturalSizeChecks } from "./images.js";
-import { currentDpr, observeDpr, track, WRAPPER_ATTRIBUTE, type Measurement } from "./measure.js";
+import { currentDpr, observeDpr, scopeOf, track, WRAPPER_ATTRIBUTE, type Measurement } from "./measure.js";
 import { TilesetModel } from "./model.js";
 import type { OcclusionMask } from "./occlusion.js";
 import { copyOptions, type NormalizedTargets, type TilesetOptions } from "./options.js";
@@ -142,6 +142,8 @@ export class TilesetRenderer {
   #untrack: (() => void) | null = null;
   /** `undefined` until the first track, so the first render always tracks. */
   #tracked: NormalizedTargets | null | undefined = undefined;
+  /** The scope the tracker resolved `avoid` in, as of the last track. */
+  #trackedScope: Element | null = null;
   #stopDpr: (() => void) | null = null;
 
   // --------------------------------------------------------------- the DOM ---
@@ -195,7 +197,6 @@ export class TilesetRenderer {
    */
   readonly #warnings = new WarnOnce();
   readonly #flips = new FlipFlop();
-  #lastRuleKey: string | null = null;
   #lastRules: unknown = null;
 
   /**
@@ -243,6 +244,12 @@ export class TilesetRenderer {
       injectStyles(this.#box);
       this.#stopDpr = observeDpr(this.#onDpr);
       this.#render();
+    } catch (cause) {
+      // No instance reaches the caller to `destroy()`, so this does: otherwise
+      // the box stays in the host and the tracker and the DPR listener keep a
+      // half-built renderer alive for the life of the page.
+      this.destroy();
+      throw cause;
     } finally {
       this.#rendering = false;
     }
@@ -344,6 +351,9 @@ export class TilesetRenderer {
   #check(): void {
     if (!DEV) return;
     void this.#model.checked;
+    // The rules too: one that reshapes a file that cannot be reshaped throws
+    // from `rules`, which nothing else here reads before the microtask.
+    void this.#model.rules;
     if (this.#model.substrate === "dom") {
       throw new Error(
         'TilesetRenderer: `substrate: "dom"` is not supported here yet. Use `<Tileset>` for it, or `"canvas"`.',
@@ -365,11 +375,17 @@ export class TilesetRenderer {
     this.#structure();
 
     // One registration with the page's shared scheduler, re-made when the
-    // targets change — by content; see the model's `targets`. The box never
-    // changes, so it is not a reason to re-track.
+    // targets change — by content; see the model's `targets` — or when the
+    // scope they resolve in does. The box never changes, but its ancestors can:
+    // a renderer built on a detached element (the Observable case) is tracked
+    // before it has a page around it, and the tracker reads the scope once, at
+    // `track()`. The first measurement after attaching renders, and re-tracks
+    // here. Only with targets: without them nothing is resolved in a scope.
     const targets = model.targets;
-    if (targets !== this.#tracked) {
+    const scope = targets === null ? null : scopeOf(this.#box);
+    if (targets !== this.#tracked || scope !== this.#trackedScope) {
       this.#tracked = targets;
+      this.#trackedScope = scope;
       this.#untrack?.();
       this.#untrack = track(this.#box, targets, this.#onMeasure);
     }
@@ -384,8 +400,20 @@ export class TilesetRenderer {
 
     if (DEV) this.#devChecks();
 
-    // Production under "dom": nothing is drawn (see the header).
-    if (substrate !== "canvas") return;
+    // Production under "dom": nothing is drawn (see the header). A renderer
+    // switched to it from "canvas" would otherwise leave its last picture on
+    // screen, frozen, so the canvas is emptied and hidden, and forgotten so a
+    // switch back restyles and repaints it.
+    if (substrate !== "canvas") {
+      if (this.#canvasStyle !== "display: none;") {
+        this.#canvasStyle = "display: none;";
+        this.#canvas.setAttribute("style", this.#canvasStyle);
+        this.#canvas.width = 0;
+        this.#canvas.height = 0;
+        this.#painted = null;
+      }
+      return;
+    }
 
     const presentation = model.presentation;
     this.#attributes(presentation);
@@ -455,7 +483,16 @@ export class TilesetRenderer {
             this.#sources = new Map(this.#sources).set(key, d.src);
             this.#schedule();
           },
-          () => {},
+          // A key re-resolved lazily keeps drawing its previous src while the
+          // promise is pending, so a meta edit does not flash. A rejection
+          // must drop it: R3, the cell draws nothing — not the old picture.
+          () => {
+            if (this.#destroyed || epoch !== this.#epoch || !this.#sources.has(key)) return;
+            const next = new Map(this.#sources);
+            next.delete(key);
+            this.#sources = next;
+            this.#schedule();
+          },
         );
       } else if ((next ?? this.#sources).get(key) !== value.src) {
         next ??= new Map(this.#sources);
@@ -511,16 +548,13 @@ export class TilesetRenderer {
   #devChecks(): void {
     const model = this.#model;
     if (!model.hasRules) return;
-    const key = model.ruleKey;
-    if (key !== this.#lastRuleKey) {
-      this.#lastRuleKey = key;
-      if (this.#flips.record(key, performance.now())) {
-        console.warn(
-          "TilesetRenderer: a responsive breakpoint is flipping back and forth on its own. Changing " +
-            "`rows` probably adds or removes the page scrollbar, which moves the box back across " +
-            "the breakpoint. `scrollbar-gutter: stable` on the page root stops it.",
-        );
-      }
+    // `record` ignores a key equal to the last, so calling it every render is fine.
+    if (this.#flips.record(model.ruleKey, performance.now())) {
+      console.warn(
+        "TilesetRenderer: a responsive breakpoint is flipping back and forth on its own. Changing " +
+          "`rows` probably adds or removes the page scrollbar, which moves the box back across " +
+          "the breakpoint. `scrollbar-gutter: stable` on the page root stops it.",
+      );
     }
     const rules = model.rules;
     if (rules !== this.#lastRules) {

@@ -27,7 +27,8 @@ r.destroy();
 ```
 
 **It draws the canvas substrate only.** Under `substrate: "dom"` it throws in a development build
-and draws nothing in production. `<Tileset>` does not use it yet: the component becomes a wrapper
+and draws nothing in production. A renderer switched to `"dom"` empties and hides its canvas, so
+its last picture does not stay on screen, frozen. `<Tileset>` does not use it yet: the component becomes a wrapper
 around it once it draws both substrates.
 
 ## In detail
@@ -88,6 +89,10 @@ section that holds the headings to avoid. A wrapper component that adds its own 
 it `data-tileset-wrapper`, so the scope moves past it to the page's element, as it does for
 `<Tileset>`.
 
+The tracker reads the scope once, when it registers. A renderer built on a detached element (the
+Observable case) has no page around it yet, so `#render` re-tracks whenever the scope it would
+resolve in has changed. The first measurement after the element is attached triggers that render.
+
 ### The instance id
 
 `new TilesetRenderer(host, { file, options, id? })`. `id` scopes the reservation stylesheet's
@@ -103,6 +108,10 @@ A provider may return a promise. `#settle` subscribes to each one and writes its
 handler subscribed before a later settle drops its result. Keys the config no longer references are
 dropped, so a deleted Tile stops drawing.
 
+A key that is re-resolved lazily keeps its previous `src` while the new promise is pending, so a
+`meta` edit does not flash. If that promise rejects, the key is dropped: **R3**, the cell draws
+nothing, not the old picture. `Tileset.svelte` does the same.
+
 Nothing here reports a failure. A rejection is reported by `resolveDrawable`, and a failed decode
 by the bank, through `model.report`, which reads `onAssetError` at call time.
 
@@ -115,7 +124,8 @@ The order matters:
 2. **The measurement and the DPR listener**, so no new callback arrives.
 3. **The reservation sheet and the renderer's tree**, leaving the host as it was found.
 
-It is idempotent. `update()` after it throws in a development build.
+It is idempotent. `update()` after it throws in a development build. A constructor whose first
+render throws calls it before rethrowing, since no instance reaches the caller to do so.
 
 ### Public surface
 
@@ -134,14 +144,17 @@ Not yet exported from `render/index.ts`. Exporting it is part of the packaging s
   re-track measures synchronously, before the mask is read.
 - **The host keeps its identity and its attributes.** Only children the renderer added are ever
   removed.
-- **Development checks throw to the caller.** `update()` reads the model's file and options checks
-  eagerly, so an invalid input throws there and not from the microtask.
+- **Development checks throw to the caller.** `update()` reads the model's file, options and
+  responsive-rule checks eagerly, so an invalid input throws there and not from the microtask.
+- **An update that changes nothing repaints nothing**, responsive rules included: the model
+  compares them by content (`sameRules` in `options.ts`), because the options are copied on every
+  `update()`.
 
 ### Callers / callees
 
 | Caller | Uses |
 | --- | --- |
-| `apps/demo/src/parity/Mount.svelte` | The parity page's stand-in for `<Tileset>`: one renderer per mount, `update()` on every prop change. |
+| `apps/demo/src/parity/Mount.svelte` | The parity page's stand-in for `<Tileset>`: one renderer per mount, built inside `untrack`, and `update()` on every prop change. |
 
 Callees: `model.ts` (`TilesetModel`), `measure.ts` (`track`, `observeDpr`, `currentDpr`),
 `styles.ts` (`injectStyles`, `InstanceStyle`), `images.ts` (`ImageBank`, `NaturalSizeChecks`),
@@ -156,15 +169,23 @@ stubbed. It covers:
 - The box: mounted and rendered before the constructor returns, and the same element across
   `update()`, rules appearing and rules going.
 - Re-tracking when the `avoid` targets change, and nothing drawn while `pending`.
-- Several triggers in one tick paint once, and an update that changes nothing does not repaint.
+- Several triggers in one tick paint once, and an update that changes nothing does not repaint,
+  with or without responsive rules.
+- Re-tracking when a renderer built detached is attached.
 - `destroy()`: the observers and the DPR listener stop, the host is left empty, nothing in flight
   paints, and a second call is a no-op.
 - Reporting: a provider rejection once, to the `onAssetError` held now.
-- Sources: a deleted Tile's is dropped, and a lazy provider's lands when it settles.
-- The development throws: the DOM substrate, and an invalid `update()`.
+- Sources: a deleted Tile's is dropped, a lazy provider's lands when it settles, and one whose new
+  lazy drawable rejects is dropped.
+- The development throws: the DOM substrate, an invalid `update()`, and a responsive rule the file
+  cannot take. A first render that throws leaves the host empty.
+- Each test imports fresh modules, because `styles.ts` remembers blocked documents and happy-dom
+  has only one.
 - Ids, and the reservation's per-instance sheet under a strict CSP.
 
 **The picture is checked by the parity page.** `apps/demo/parity.html` draws each case twice, with
 `<Tileset>` and with `TilesetRenderer`, and compares the two canvases pixel for pixel.
-`apps/demo/scripts/parity.mjs` drives it across widths and DPRs, and exits non-zero on any
-difference.
+`apps/demo/scripts/parity.mjs` drives it across widths and DPRs, then reseeds every case in place
+so the comparison also runs through `update()`. The widths are chosen for the box, so the sweep
+crosses both of the page's breakpoints in both directions. It exits non-zero on any difference, and
+on a canvas with no opaque pixel, since two empty canvases of one size hash alike.

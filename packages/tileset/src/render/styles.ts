@@ -229,10 +229,14 @@ export class InstanceStyle {
     this.#judged = true;
     if (!isBlocked(style)) return;
     const root = rootOf(style);
+    // Only a missing sheet is evidence about the page's policy. An empty one may
+    // be rules that did not parse — an id that breaks its selectors — and must
+    // not mark the document blocked for every `injectStyles` after it.
+    const policy = style.sheet === null;
     style.remove();
     this.#style = null;
     if (root === null) return;
-    blocked.add(docOf(root));
+    if (policy) blocked.add(docOf(root));
     this.#adopt(root);
   }
 

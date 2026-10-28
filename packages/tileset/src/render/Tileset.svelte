@@ -400,7 +400,17 @@
             settle(key, d.src);
             record(key, value, d.src);
           },
-          () => record(key, value, undefined),
+          () => {
+            record(key, value, undefined);
+            // R3: a rejection draws nothing. A key re-resolved lazily kept its
+            // previous src while pending, and without this it drew that
+            // picture for good. `renderer.ts` `#settle` does the same.
+            if (live && sources.has(key)) {
+              const next = new Map(sources);
+              next.delete(key);
+              sources = next;
+            }
+          },
         );
       } else {
         settle(key, value.src);

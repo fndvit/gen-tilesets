@@ -4,19 +4,23 @@
  *   pnpm --filter @fndvit/tileset-demo dev               # port 5173
  *   node apps/demo/scripts/parity.mjs [http://localhost:5173/parity.html]
  *
- * Exits non-zero on any difference. Each width is reached by resizing a live
- * page, so the renderer's update path is exercised, not only its first render;
- * the sequence crosses the parity page's breakpoints (700, 800) both ways.
+ * Exits non-zero on any difference, or on a canvas that drew nothing. Each
+ * width is reached by resizing a live page, so the renderer's update path is
+ * exercised, not only its first render.
+ *
+ * The rules match the *box*, which on this two-column page is about
+ * `(viewport - 24) / 2`, so the viewports are chosen for their box widths: the
+ * sweep crosses both breakpoints (700, 800) in both directions, 10px either side.
  */
 import { chromium } from "playwright";
 
 const url = process.argv[2] ?? "http://localhost:5173/parity.html";
-const WIDTHS = [1280, 777, 360, 1013, 701, 699, 1600];
+const boxes = [628, 376, 168, 494, 810, 790, 710, 690, 810, 628];
+const WIDTHS = boxes.map((b) => 2 * b + 24);
 const DPRS = [1, 2, 1.5];
 
 const browser = await chromium.launch({ channel: "chrome" });
 let failed = 0;
-let blank = 0;
 for (const dpr of DPRS) {
   const ctx = await browser.newContext({ deviceScaleFactor: dpr, viewport: { width: WIDTHS[0], height: 900 } });
   const page = await ctx.newPage();
@@ -27,11 +31,21 @@ for (const dpr of DPRS) {
   for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 900 });
     const diffs = await page.evaluate(() => window.parity());
-    // A comparison of two empty canvases proves nothing.
-    blank += await page.evaluate(
-      () => [...document.querySelectorAll("canvas")].filter((c) => c.width === 0 || c.height === 0).length,
-    );
-    const label = `dpr ${dpr} width ${width}`;
+    // The box widths the sweep is meant to produce, so a layout change that
+    // moves them off the breakpoints is seen rather than silently tested less.
+    const box = await page.evaluate(() => document.querySelector("[data-side] [data-tileset-box]").getBoundingClientRect().width);
+    const label = `dpr ${dpr} width ${width} (box ${Math.round(box)})`;
+    if (diffs.length === 0) console.log(`ok   ${label}`);
+    else {
+      failed++;
+      console.log(`DIFF ${label}\n${diffs.join("\n")}`);
+    }
+  }
+  // Then through `update()`: every case reseeded in place, at the last width.
+  for (let i = 0; i < 2; i++) {
+    await page.evaluate(() => window.reseed());
+    const diffs = await page.evaluate(() => window.parity());
+    const label = `dpr ${dpr} reseed ${i + 1}`;
     if (diffs.length === 0) console.log(`ok   ${label}`);
     else {
       failed++;
@@ -45,5 +59,4 @@ for (const dpr of DPRS) {
   await ctx.close();
 }
 await browser.close();
-console.log(blank === 0 ? "every canvas drew" : `${blank} canvases were empty`);
-process.exit(failed > 0 || blank > 0 ? 1 : 0);
+process.exit(failed > 0 ? 1 : 0);

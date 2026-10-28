@@ -44,12 +44,18 @@
     ];
   });
 
+  /** Sides whose canvas has no opaque pixel yet: nothing has decoded. */
+  let blank = 0;
+
   function pixels(c: HTMLCanvasElement | null): string {
     if (c === null) return "no canvas";
     if (c.width === 0 || c.height === 0) return `${c.width}x${c.height}`;
     const d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
     let h = 2166136261;
+    let opaque = false;
     for (let i = 0; i < d.length; i++) h = Math.imul(h ^ d[i]!, 16777619);
+    for (let i = 3; i < d.length && !opaque; i += 4) opaque = d[i]! > 0;
+    if (!opaque) blank++;
     return `${c.width}x${c.height}:${h >>> 0}`;
   }
 
@@ -76,24 +82,37 @@
     do {
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 50)));
       diffs = [];
+      blank = 0;
       for (const row of document.querySelectorAll("[data-case]")) {
         const [left, right] = row.querySelectorAll("[data-side]");
         const l = signature(left!);
         const r = signature(right!);
         if (l !== r) diffs.push(`${row.getAttribute("data-case")}:\n  svelte   ${l}\n  renderer ${r}`);
       }
-    } while (diffs.length > 0 && performance.now() < until);
+    // Two transparent canvases of one size hash alike, so a match before
+    // anything decoded proves nothing: wait for pixels as well as agreement.
+    } while ((diffs.length > 0 || blank > 0) && performance.now() < until);
+    if (blank > 0) diffs.push(`${blank} canvases drew nothing`);
     return diffs;
   }
 
-  (window as unknown as { parity: typeof parity }).parity = parity;
+  /**
+   * Reseeds every case on both sides, so the comparison after it runs through
+   * `TilesetRenderer.update()` rather than its constructor.
+   */
+  let generation = $state(0);
+  const reseed = (): void => void generation++;
+  const optionsOf = (c: Case): TilesetOptions =>
+    generation === 0 ? c.options : { ...c.options, seed: `parity-${generation}` };
+
+  Object.assign(window, { parity, reseed });
 </script>
 
 {#each cases as c (c.name)}
   <section data-case={c.name}>
     <div class="pair">
-      <div data-side="svelte"><h2>{c.name}</h2><Tileset file={c.file} options={c.options} /></div>
-      <div data-side="renderer"><h2>{c.name}</h2><Mount file={c.file} options={c.options} /></div>
+      <div data-side="svelte"><h2>{c.name}</h2><Tileset file={c.file} options={optionsOf(c)} /></div>
+      <div data-side="renderer"><h2>{c.name}</h2><Mount file={c.file} options={optionsOf(c)} /></div>
     </div>
   </section>
 {/each}
