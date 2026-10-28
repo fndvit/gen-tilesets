@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  copyOptions,
   DEFAULT_OPTIONS,
   effectiveRules,
   legacyPropErrors,
@@ -12,7 +13,7 @@ import {
   type TilesetOptions,
 } from "./options.js";
 import type { TilesetFile } from "../types.js";
-import { defaultProvider } from "./provider.js";
+import { defaultProvider, type AssetProvider } from "./provider.js";
 
 /** Stand-ins for elements: `normalizeTargets` only asks for `nodeType`. */
 const el = (name: string) => ({ nodeType: 1, name }) as unknown as Element;
@@ -204,5 +205,51 @@ describe("renderOverride", () => {
         { maxWidth: 500, align: { y: "bottom" } },
       ]),
     ).toEqual({ sizing: "fixed", alignX: "left", alignY: "bottom" });
+  });
+});
+
+describe("copyOptions", () => {
+  const provider: AssetProvider = (ref) => ({ src: ref.assetId });
+
+  it("is undefined for undefined", () => {
+    expect(copyOptions(undefined)).toBeUndefined();
+  });
+
+  it("returns a new object wherever the host's was one, and keeps everything else by identity", () => {
+    const onAssetError = () => {};
+    const rules: HostRule[] = [{ maxWidth: 500, columns: 9, align: { x: "left" } }];
+    const o: TilesetOptions = {
+      seed: "s",
+      provider,
+      onAssetError,
+      align: { x: "left" },
+      avoid: { targets: "h1", padding: 4 },
+      responsive: rules,
+    };
+    const c = copyOptions(o)!;
+    expect(c).not.toBe(o);
+    expect(c).toEqual(o);
+    expect(c.provider).toBe(provider);
+    expect(c.onAssetError).toBe(onAssetError);
+    expect(c.align).not.toBe(o.align);
+    expect(c.avoid).not.toBe(o.avoid);
+    expect(c.responsive).not.toBe(rules);
+    expect(c.responsive![0]).not.toBe(rules[0]);
+    expect(c.responsive![0]!.align).not.toBe(rules[0]!.align);
+  });
+
+  it("copies a list of targets, and leaves a selector as a selector", () => {
+    const el = { nodeType: 1 } as unknown as Element;
+    const list = [el];
+    expect(copyOptions({ avoid: { targets: "h1" } })!.avoid!.targets).toBe("h1");
+    expect(copyOptions({ avoid: { targets: el } })!.avoid!.targets).toBe(el);
+    const copied = copyOptions({ avoid: { targets: list } })!.avoid!.targets as Element[];
+    expect(copied).not.toBe(list);
+    expect(copied).toEqual([el]);
+  });
+
+  it("keeps unknown keys, so the development check still sees them", () => {
+    const o = { sed: "typo" } as unknown as TilesetOptions;
+    expect(optionErrors(copyOptions(o))).toEqual(optionErrors(o));
   });
 });

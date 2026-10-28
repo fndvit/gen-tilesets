@@ -269,7 +269,7 @@ export interface Affine {
  *
  * `side`, `left` and `marginTop` are against the render box's **width** (a
  * percentage margin resolves against the containing block's width, which is the
- * trick `Tileset.svelte`'s `cellStyle` comment explains). `topPct` is against its
+ * trick `model.ts`'s `cellStyle` comment explains). `topPct` is against its
  * **height**: it is what a non-top `alignY` needs, and a percentage `top` is the
  * one CSS length that resolves against height.
  *

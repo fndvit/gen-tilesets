@@ -14,12 +14,12 @@
   production build has undefined behaviour on a file `06`'s `validate()` would
   reject. A host must never hold an invalid file, not even between keystrokes.
 
-  **In a development build it asserts that, once per file** — see `checked`
-  below. S3 as originally written forbade this outright, and `08` §3.4 gave the
-  reason: "a component that validated would be doing at sixty frames per second
-  what belongs at load, once." That rules out validating **per frame**, which a
-  `$derived` keyed on `file` does not do — it runs when the file changes, at the
-  same cadence as `generate()` itself. The cost the objection names is not the
+  **In a development build it asserts that, once per file** — see `#checked` in
+  `./model.ts`. S3 as originally written forbade this outright, and `08` §3.4 gave
+  the reason: "a component that validated would be doing at sixty frames per
+  second what belongs at load, once." That rules out validating **per frame**,
+  which a stage keyed on `file` does not do — it runs when the file changes, at
+  the same cadence as `generate()` itself. The cost the objection names is not the
   cost this pays.
 
   **C5** is untouched. `generate()` still trusts its input, and validation is
@@ -52,8 +52,8 @@
   import { assetTooSmall, cellTooSmall, WarnOnce } from "./warn.js";
   import { currentDpr, observeDpr, track, WRAPPER_ATTRIBUTE } from "./measure.js";
   import { FlipFlop, inertCellSizeRules } from "./breakpoints.js";
-  import { cellStyle as placeCell, TilesetModel } from "./model.js";
-  import { legacyPropErrors, type TilesetOptions } from "./options.js";
+  import { cellStyle as placeCell, TilesetModel, type ModelInputs } from "./model.js";
+  import { copyOptions, legacyPropErrors, optionErrors, type TilesetOptions } from "./options.js";
   import type { RenderRect } from "./space.js";
   import { ImageBank, NaturalSizeChecks } from "./images.js";
   import {
@@ -135,73 +135,88 @@
   // measurement, the asset settling, the image bank, the paint — and the markup.
   //
   // **How runes drive a plain class without a second copy of the graph.** One
-  // `$derived` pushes every input into the model and returns a fresh version.
-  // Each output below is its own `$derived`, re-read when the version moves and
-  // compared by identity, so an effect re-runs only when *its* output changed —
-  // the fine-grained behaviour the `$derived` chain had. The model's stages
-  // memoize the same way the chain did (`Object.is` per input), so a push that
-  // changed nothing a stage reads costs a comparison.
+  // `$derived` gathers the inputs into a plain object, and each output below is
+  // its own `$derived` that hands those inputs to the model and reads one output.
+  // The model's stages memoize the way the chain did (`Object.is` per input), so a
+  // read after a push that changed nothing it depends on costs a comparison, and
+  // an output derived keeps its value — and so stops there — unless its output's
+  // identity moved.
+  //
+  // **What this does not keep is the chain's scheduling.** Every output derived
+  // depends on `inputs`, so every input change *marks* all of them, and every
+  // effect reading any of them is dirty-checked, where the chain only reached the
+  // effects downstream of what changed. Measured on the demo's sixteen tilesets,
+  // script time per resize, against the chain: within noise under both substrates.
+  // It was +12% (canvas) and +20% (dom) until the model stopped doing work the
+  // chain never did — the mask's buffers without `avoid`, and a new cell list on
+  // every frame of a resize — which the profile showed as Svelte bookkeeping
+  // because that work fanned out through it. If it comes back, look there first.
+  // The marking goes entirely when the component stops owning the DOM.
+  //
+  // **Why the model is set inside each output read, not once in `inputs`.** A
+  // `$derived` may be evaluated speculatively — Svelte's async batches and `fork()`
+  // evaluate one inside a batch that may never commit. `inputs` is therefore pure,
+  // and each read sets the model to the inputs *it* sees before reading, so a
+  // speculative read cannot leave the model holding inputs a committed read then
+  // trusts. Setting identical inputs is a no-op (`TilesetModel.set`).
   //
   // Rejected: exporting the stage functions and keeping the `$derived` chain here.
   // That is two wirings of one graph, which is `07` **R1**'s drift by a new route.
 
-  /** SSR-stable, so the server's reservation CSS and the client's agree. */
-  const uid = $props.id();
-  const model = new TilesetModel(
-    uid,
-    untrack(() => ({
-      file,
-      options,
-      width: measuredWidth,
-      height: measuredHeight,
-      rects: keepout,
-      dpr,
-    })),
-  );
+  /**
+   * The options, copied so that an edit made in place is seen — `copyOptions`
+   * says why. Its own `$derived`, so the copy is made when an option changes and
+   * not on every resize.
+   */
+  const opts = $derived(copyOptions(options));
 
-  let pushes = 0;
-  const version = $derived.by(() => {
-    // The props that moved into `options` in 0.6.0 — a Svelte question, so it is
-    // asked here and not in the model. Read before the push so it throws first.
+  const inputs = $derived.by((): ModelInputs => {
+    // The props that moved into `options` in 0.6.0 are a Svelte question, so they
+    // are asked here; the options are asked again by the model, for a host that
+    // has no component. Both here, so one throw reports everything that is wrong
+    // with the props at once, as it did before the model existed.
     if (DEV) {
-      const errors = legacyPropErrors(rest);
+      const errors = [...legacyPropErrors(rest), ...optionErrors(opts)];
       if (errors.length > 0) {
         throw new Error(
           "`<Tileset>`'s props are not valid:\n" + errors.map((e) => `  - ${e}`).join("\n"),
         );
       }
     }
-    model.set({ file, options, width: measuredWidth, height: measuredHeight, rects: keepout, dpr });
-    return ++pushes;
+    return { file, options: opts, width: measuredWidth, height: measuredHeight, rects: keepout, dpr };
   });
 
-  /** One model output, re-read when anything was pushed and kept while its identity holds. */
-  function out<T>(v: number, read: () => T): T {
-    void v;
+  /** SSR-stable, so the server's reservation CSS and the client's agree. */
+  const uid = $props.id();
+  const model = new TilesetModel(uid, untrack(() => inputs));
+
+  /** One model output, at the inputs this read sees. */
+  function out<T>(at: ModelInputs, read: () => T): T {
+    model.set(at);
     return read();
   }
 
-  const substrate = $derived(out(version, () => model.substrate));
-  const overflow = $derived(out(version, () => model.overflow));
-  const targets = $derived(out(version, () => model.targets));
-  const base = $derived(out(version, () => model.base));
-  const rules = $derived(out(version, () => model.rules));
-  const hasRules = $derived(out(version, () => model.hasRules));
-  const ruleKey = $derived(out(version, () => model.ruleKey));
-  const reservation = $derived(out(version, () => model.reservation));
-  const sizing = $derived(out(version, () => model.sizing));
-  const ratio = $derived(out(version, () => model.ratio));
-  const fixedHeight = $derived(out(version, () => model.fixedHeight));
-  const metaByKey = $derived(out(version, () => model.metaByKey));
-  const drawables = $derived(out(version, () => model.drawables));
-  const uniform = $derived(out(version, () => model.uniform));
-  const domCell = $derived(out(version, () => model.domCell));
-  const presentation = $derived(out(version, () => model.presentation));
-  const shownCells = $derived(out(version, () => model.shownCells));
-  const placement = $derived(out(version, () => model.placement));
-  const mask = $derived(out(version, () => model.mask));
-  const pending = $derived(out(version, () => model.pending));
-  const items = $derived(out(version, () => model.items));
+  const substrate = $derived(out(inputs, () => model.substrate));
+  const overflow = $derived(out(inputs, () => model.overflow));
+  const targets = $derived(out(inputs, () => model.targets));
+  const base = $derived(out(inputs, () => model.base));
+  const rules = $derived(out(inputs, () => model.rules));
+  const hasRules = $derived(out(inputs, () => model.hasRules));
+  const ruleKey = $derived(out(inputs, () => model.ruleKey));
+  const reservation = $derived(out(inputs, () => model.reservation));
+  const sizing = $derived(out(inputs, () => model.sizing));
+  const ratio = $derived(out(inputs, () => model.ratio));
+  const fixedHeight = $derived(out(inputs, () => model.fixedHeight));
+  const metaByKey = $derived(out(inputs, () => model.metaByKey));
+  const drawables = $derived(out(inputs, () => model.drawables));
+  const uniform = $derived(out(inputs, () => model.uniform));
+  const domCell = $derived(out(inputs, () => model.domCell));
+  const presentation = $derived(out(inputs, () => model.presentation));
+  const shownCells = $derived(out(inputs, () => model.shownCells));
+  const placement = $derived(out(inputs, () => model.placement));
+  const mask = $derived(out(inputs, () => model.mask));
+  const pending = $derived(out(inputs, () => model.pending));
+  const items = $derived(out(inputs, () => model.items));
 
   /** `onAssetError`, read at call time — see `TilesetModel.report`. */
   const reportAssetError = model.report;

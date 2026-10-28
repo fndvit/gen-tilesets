@@ -186,6 +186,14 @@ describe("TilesetModel: the keep-out mask", () => {
     expect(m.pending).toBe(false);
   });
 
+  it("builds nothing a mask needs for a tileset without avoid", () => {
+    const m = model({ width: 1200 });
+    void m.items;
+    void m.pending;
+    void m.mask;
+    expect(m.runs.drawn).toBe(0);
+  });
+
   it("holds the picture (pending) until a mask exists", () => {
     const m = model({ options: avoid });
     expect(m.pending).toBe(true);
@@ -272,6 +280,14 @@ describe("TilesetModel: substrates", () => {
     expect(d.domCell).toBeNull();
   });
 
+  it("keeps the shown cells by identity across a resize that culls the same columns", () => {
+    const m = model({ options: { provider, substrate: "dom" }, width: 1200 });
+    const shown = m.shownCells;
+    m.set({ width: 1150 });
+    expect(m.domCell).not.toBeNull();
+    expect(m.shownCells).toBe(shown);
+  });
+
   it("mounts every column before measurement and culls after, under fixed", () => {
     const m = model({ options: { provider, substrate: "dom", sizing: "fixed" } });
     const all = m.shownCells.length;
@@ -314,8 +330,20 @@ describe("TilesetModel: development-build checks", () => {
   });
 
   it("throws on host rules the file cannot take", () => {
-    const m = model({ options: { provider, responsive: [{ maxWidth: 500, columns: 0 }] } });
-    expect(() => m.rules).toThrow();
+    // Valid as options — `optionErrors` passes it — and wrong only for this file:
+    // a rule naming `rows` under a coordinate-bound `rect`. That is the check only
+    // `rulesReshapeErrors` can make.
+    const file = hero();
+    file.config.operations.push({
+      id: "box",
+      selection: { type: "rect", x: 0, y: 0, width: 4, height: 2 },
+      source: { type: "constant" },
+      target: "tileId",
+      mapping: { palette: [{ tileId: "t", weight: 1 }] },
+      blend: "set",
+    });
+    const m = model({ file, options: { provider, responsive: [{ maxWidth: 500, rows: 14 }] } });
+    expect(() => m.rules).toThrow(/cannot be applied to this file/);
   });
 });
 

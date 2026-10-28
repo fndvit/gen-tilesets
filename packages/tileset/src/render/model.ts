@@ -192,7 +192,6 @@ export class TilesetModel {
     this.#in = init;
   }
 
-  /** Replace some inputs. Nothing is computed until an output is read. */
   /** Moves only when an input changed — see {@link Memo}'s `clock`. */
   #tick = 0;
 
@@ -446,9 +445,8 @@ export class TilesetModel {
    * reserves its ratio.
    */
   readonly #fixedHeight = this.#memo(
-    () => [this.#layout.get(), this.#config.get()],
-    (layout, config) =>
-      naturalHeight({ layout, rows: config.rows, columns: config.columns, Wpx: 0, sizing: "fixed" }),
+    () => [this.#layout.get(), this.#config.get().rows, this.#config.get().columns],
+    (layout, rows, columns) => naturalHeight({ layout, rows, columns, Wpx: 0, sizing: "fixed" }),
   );
 
   /**
@@ -549,9 +547,9 @@ export class TilesetModel {
    * from.
    */
   readonly #uniform = this.#memo(
-    () => [this.#substrate.get(), this.#in.width, this.#geometry.get(), this.#in.dpr],
-    (substrate, width, geometry, dpr) =>
-      substrate === "canvas" && width > 0 ? uniformGeometry(geometry, dpr) : null,
+    () => [this.#substrate.get(), this.#geometry.get(), this.#in.dpr],
+    (substrate, geometry, dpr) =>
+      substrate === "canvas" && geometry.Wpx > 0 ? uniformGeometry(geometry, dpr) : null,
   );
 
   /**
@@ -574,9 +572,9 @@ export class TilesetModel {
    * the SSR-complete substrate.
    */
   readonly #domCell = this.#memo(
-    () => [this.#substrate.get(), this.#in.width, this.#geometry.get(), this.#in.dpr],
-    (substrate, width, geometry, dpr) =>
-      substrate === "dom" && width > 0 ? domGeometry(geometry, dpr) : null,
+    () => [this.#substrate.get(), this.#geometry.get(), this.#in.dpr],
+    (substrate, geometry, dpr) =>
+      substrate === "dom" && geometry.Wpx > 0 ? domGeometry(geometry, dpr) : null,
   );
 
   /**
@@ -628,9 +626,20 @@ export class TilesetModel {
         : visibleColumns(domLattice(domCell, dpr), columns, width, spill),
   );
 
+  /**
+   * `#domColumns` by value. It is a new object on every resize frame, and the
+   * range inside a band is almost always the same one — so without this, every
+   * frame rebuilt `shownCells` and handed the keyed list hundreds of fresh entries
+   * to reconcile for a range that had not moved.
+   */
+  readonly #domRange = this.#memo(
+    () => [this.#domColumns.get().x0, this.#domColumns.get().x1],
+    (x0, x1) => ({ x0, x1 }),
+  );
+
   /** The cells the DOM substrate mounts, in row-major order (**R10**). */
   readonly #shownCells = this.#memo(
-    () => [this.#grid.get(), this.#domColumns.get()],
+    () => [this.#grid.get(), this.#domRange.get()],
     (grid, { x0, x1 }) => {
       const out: ShownCell[] = [];
       for (let i = 0; i < grid.cells.length; i++) {
@@ -650,17 +659,20 @@ export class TilesetModel {
         this.#domCell.get(),
         this.#in.dpr,
         this.#layout.get(),
-        this.#config.get(),
+        this.#config.get().rows,
+        this.#config.get().columns,
         this.#sizing.get(),
         this.#alignX.get(),
         this.#alignY.get(),
       ],
-    (domCell, dpr, layout, config, sizing, alignX, alignY): Placement => ({
+    // `rows` and `columns`, not the config: an Operation edit is a new config with
+    // the same size, and a new placement would restyle every mounted cell.
+    (domCell, dpr, layout, rows, columns, sizing, alignX, alignY): Placement => ({
       domCell,
       dpr,
       layout,
-      rows: config.rows,
-      columns: config.columns,
+      rows,
+      columns,
       sizing,
       alignX,
       alignY,
@@ -711,18 +723,23 @@ export class TilesetModel {
    */
   #lastMask: OcclusionMask | null = null;
   readonly #mask = this.#memo(
-    () =>
-      [
-        this.#in.rects,
-        this.#lattice.get(),
-        this.#paintedCellDev.get(),
+    () => {
+      // Without `avoid` there are no rects, and nothing else is read: the lattice,
+      // and `drawnTiles`' four buffers per grid, are work only a mask needs.
+      const rects = this.#in.rects;
+      const on = rects !== null;
+      return [
+        rects,
+        on ? this.#lattice.get() : null,
+        on ? this.#paintedCellDev.get() : null,
         this.#config.get().columns,
         this.#config.get().rows,
         this.#padding.get(),
-        this.#drawn.get(),
-      ],
+        on ? this.#drawn.get() : null,
+      ];
+    },
     (rects, lattice, cellDev, columns, rows, padding, drawn): OcclusionMask | null => {
-      if (rects === null || lattice === null || cellDev === null) return null;
+      if (rects === null || lattice === null || cellDev === null || drawn === null) return null;
       this.#lastMask = stableMask(
         this.#lastMask,
         occlusionMask(lattice, columns, rows, rects, padding, { tiles: drawn, cellDev }),
@@ -746,7 +763,11 @@ export class TilesetModel {
    * hiding the cells until the key is real costs no layout shift.
    */
   readonly #pending = this.#memo(
-    () => [this.#targets.get(), this.#mask.get(), this.#rules.get().length > 0, this.#in.width],
+    () => {
+      const targets = this.#targets.get();
+      // The mask only when it can matter, for `#mask`'s reason.
+      return [targets, targets === null ? null : this.#mask.get(), this.#rules.get().length > 0, this.#in.width];
+    },
     (targets, mask, hasRules, width) => (targets !== null && mask === null) || (hasRules && width === 0),
   );
 
@@ -809,8 +830,9 @@ export class TilesetModel {
   get items() { return this.#items.get(); }
 
   /** Run counts per stage, for tests. */
-  get runs(): Readonly<Record<"resolved" | "grid" | "drawables" | "geometry" | "mask" | "items", number>> {
+  get runs(): Readonly<Record<"resolved" | "grid" | "drawables" | "geometry" | "mask" | "drawn" | "items", number>> {
     return {
+      drawn: this.#drawn.runs,
       resolved: this.#resolved.runs,
       grid: this.#grid.runs,
       drawables: this.#drawables.runs,
