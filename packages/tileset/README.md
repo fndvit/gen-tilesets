@@ -270,6 +270,15 @@ imports natively, so steps 5 and 6 are otherwise unchanged.
 - **An SVG asset must declare `width` and `height`**, not only a `viewBox`. One without them has
   no natural size, and from 0.8.1 both substrates refuse it: an empty cell and an `onAssetError`
   saying so. (Canvas could not draw it the right size, and the two substrates disagreed.)
+- **The styles load themselves.** A Svelte bundler picks up the component's `tileset.css`.
+  Anywhere else, the renderer adds a `<style>` at mount, first in `<head>` or first in the shadow
+  root it is in, unless the same rules already reach it. You can link the file yourself
+  instead: `import "@fndvit/gen-tilesets/tileset.css"`. To override a rule, match or beat its
+  selector, for example `.cell[data-tileset-cell] img`. A rule of equal specificity wins because
+  it comes later. **Under a strict CSP** (`style-src` without `'unsafe-inline'`) that `<style>` is
+  blocked. The renderer then adopts a constructed stylesheet instead, which cascades after yours,
+  so an override needs one more class or attribute than the rule it overrides. Tilesets with
+  responsive rules also lose their pre-measurement height under such a policy, for now.
 - **`<Tileset>` validates its `file` in a development build, and throws.** It is keyed on the file,
   so it runs when the file changes rather than per frame, and it compiles out of a production build
   along with the validator itself. If it fires, the fix is `loadTilesetFile` — the message says so.
@@ -607,7 +616,7 @@ apply. "Fluid down to 800px, then stop shrinking and crop both sides":
 .hero-slot { flex: none; width: max(100%, 800px); } /* the tileset's parent */
 ```
 
-Style a wrapper you own, not the tileset's box (its class is scoped). What CSS controls is the
+Style a wrapper you own, not the tileset's box, which the package styles. What CSS controls is the
 **box**; a fluid cell is always the same fraction of it. CSS cannot change the number of rows or
 columns, or switch to exact-pixel cells — those are shape overrides and `sizing`, above. (The crop
 above freezes cells at their 800px size, which looks like `sizing: "fixed"` at that scale.)
