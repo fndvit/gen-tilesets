@@ -65,8 +65,9 @@ No events, no snippets, and **no `box` binding**, unlike `<Tileset>`.
 2. `file = reshape(style, shape)`. In a development build it first runs
    `reshapeErrors(style, shape)` and throws, listing every error, if the style cannot be placed at
    that size.
-3. Renders `<div class="decoration" style="width: {columns * cellSize}px" data-tileset-wrapper="">`
-   containing `<Tileset {file} {options} />`. The wrapper has `max-width: 100%`.
+3. Renders `<div class="decoration" style="width: {columns * cellSize}px" data-tileset-decoration=""
+   data-tileset-wrapper="">` containing `<Tileset {file} {options} />`. The wrapper has
+   `max-width: 100%`, from `tileset.css` ([styles.ts](/renderer/styles/)).
 
 There is no height. `<Tileset>` declares `aspect-ratio: naturalRatio`, which at zero bleed and no
 `yOffset` is exactly `columns / rows`, and then takes its height from its own child.

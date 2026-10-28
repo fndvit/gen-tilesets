@@ -118,15 +118,15 @@
   `data-tileset-wrapper` marks this element as the package's, so an
   `options.avoid` selector resolves in the section the decoration sits in rather
   than in here, where the only thing to find is the box (`measure.ts`'s
-  `scopeOf`; `RESPONSIVE-HOSTING.md` §8.2).
+  `scopeOf`; `RESPONSIVE-HOSTING.md` §8.2). `.decoration[data-tileset-decoration]` is
+  what `tileset.css` styles.
 -->
-<div class="decoration" style="width: {columns * cellSize}px;" {...{ [WRAPPER_ATTRIBUTE]: "" }}>
+<div
+  class="decoration"
+  style="width: {columns * cellSize}px;"
+  data-tileset-decoration=""
+  {...{ [WRAPPER_ATTRIBUTE]: "" }}
+>
   <Tileset {file} {options} />
 </div>
 
-<style>
-  .decoration {
-    /* See the template comment. `width` is inline because it is data. */
-    max-width: 100%;
-  }
-</style>

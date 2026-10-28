@@ -8,6 +8,34 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## Unreleased — the framework-agnostic core (in progress, `vanilla-core`)
+
+### Changed: the renderer's styles are one global stylesheet, `tileset.css`
+
+The `<style>` blocks of `<Tileset>` and `<TileDecoration>` are now `src/render/tileset.css`,
+shipped as `@fndvit/gen-tilesets/tileset.css`. Each selector is the element's old class plus a
+`data-tileset-*` attribute (`.cell[data-tileset-cell]`, `.tileset[data-tileset-box]`, …). The
+attribute keeps the rule off a host's own `.cell` or `.container`, and the class keeps the
+specificity Svelte's scoped selectors had. An attribute-only version was tried first: a theme's
+`.card div { padding: 1rem }` beat it and gave the box padding.
+
+The Svelte components import the file, so the bundler styles server-rendered HTML.
+`injectStyles` adds the rules at mount only when they do not already reach the box. It detects
+them by a sentinel, `--gen-tilesets: v<hash of the rules>`, so a Svelte host still loads them
+once, and another package version's copy does not count. It adds a `<style data-gen-tilesets>`
+first in the document, iframe or shadow root, so a host override at equal specificity wins. If a
+strict CSP blocks that `<style>`, it adopts a constructed sheet instead, once per document.
+
+`sideEffects` is now `["**/*.css"]`. Vite keeps a CSS import from a side-effect-free package
+anyway (measured), but webpack drops it.
+
+### Fixed: a host's `canvas { max-width: 100% }` reset shrank the canvas substrate
+
+The presented canvas is wider than its box by the bleed, and its inline `width` is what places
+it. A common reset (`img, canvas { max-width: 100%; height: auto }`) clamped it to the box and
+scaled the whole picture down. The canvas now sets `max-width: none`. Measured: a canvas 100 px
+wider than its box drew at 777 px of 877 before, and at 877 px now.
+
 ## 0.8.1 — the possible bugs from the docs review
 
 **The case.** Writing the contributor docs (`apps/docs`) turned up fifteen findings that looked like

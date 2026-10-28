@@ -46,6 +46,11 @@
 -->
 <script lang="ts">
   import { untrack } from "svelte";
+  // The bundler puts this in `<head>`, server-rendered pages included, so a
+  // Svelte host's first paint is already styled. `injectStyles` below finds it
+  // there and adds nothing; it adds the rules only where this copy cannot reach,
+  // such as a shadow root or an iframe (`./styles.ts`).
+  import "./tileset.css";
   import { DEV } from "../dev.js";
   import type { TileState, TilesetFile } from "../types.js";
   import { coverRect } from "./edges.js";
@@ -56,6 +61,7 @@
   import { copyOptions, legacyPropErrors, optionErrors, type TilesetOptions } from "./options.js";
   import type { RenderRect } from "./space.js";
   import { ImageBank, NaturalSizeChecks } from "./images.js";
+  import { injectStyles } from "./styles.js";
   import {
     assetKey,
     loadBlocked,
@@ -287,6 +293,12 @@
   }
 
   // ----------------------------------------------------------- measurement ---
+
+  // Before `track` registers, so the first measurement is of a styled box: the
+  // box's `width: 100%` and `padding: 0` are what make its width `Wpx` (S9).
+  $effect(() => {
+    if (box !== null) injectStyles(box);
+  });
 
   $effect(() => observeDpr((next) => (dpr = next)));
 
@@ -679,6 +691,7 @@
       -->
       <canvas
         class="presented"
+        data-tileset-canvas=""
         style={presentation === null
           ? ""
           : `width: ${presentation.widthCss}px; margin-left: ${presentation.leftCss}px;` +
@@ -768,6 +781,7 @@
         {#if !loadBlocked(loadFailed, key, drawables.get(key), settledFor(key, drawables.get(key)))}
             <div
               class="cell"
+              data-tileset-cell=""
               style={cellStyle(cell, x, y)}
               data-x={x}
               data-y={y}
@@ -816,9 +830,9 @@
         nothing, so a host height still wins and only the tiles show past it.
       -->
       {#if domCell !== null}
-        <div class="extent" style="height: {domCell.gridHeightDev / dpr}px"></div>
+        <div class="extent" data-tileset-extent="" style="height: {domCell.gridHeightDev / dpr}px"></div>
       {:else if sizing === "fixed"}
-        <div class="extent" style="height: {fixedHeight}px"></div>
+        <div class="extent" data-tileset-extent="" style="height: {fixedHeight}px"></div>
       {/if}
     </div>
   {/if}
@@ -833,93 +847,3 @@
   {@render body()}
 {/if}
 
-<style>
-  .container {
-    container-type: inline-size;
-  }
-
-  .tileset {
-    position: relative;
-    display: block;
-    width: 100%;
-    /* The canvas's `width`/`height` attributes are its backing store, in device
-       pixels; these two keep the *layout* size the box S8 and S9 describe. */
-    height: auto;
-    max-width: 100%;
-    /* S9 — the component owns this element and styles it with no padding and no
-       border, so Wpx is unambiguously its width. */
-    padding: 0;
-    border: 0;
-    /* R9 — the only clipping boundary in the system. */
-    overflow: hidden;
-  }
-
-  /* `options.overflow: "visible"`, DOM only: the clip is handed to the host's own
-     ancestors. The box keeps its size; only what paints past it changes. */
-  .tileset.overflow-visible {
-    overflow: visible;
-  }
-
-  .presented {
-    display: block;
-    /* Left `auto` on purpose -- see the template comment. A canvas has an
-       intrinsic ratio from its backing store, so the vertical presentation scale
-       equals the horizontal one with no second calculation to disagree with the
-       first. Writing a `height` here is the one edit that makes cells non-square
-       again. */
-    height: auto;
-  }
-
-  /* Height only. See the template comment -- it is what the box measures. */
-  .extent {
-    width: 0;
-    pointer-events: none;
-  }
-
-  .cell {
-    position: absolute;
-    top: 0;
-    left: 0;
-    /* Cells are square (02 §7); `width` is set inline as a percentage of the
-       render box and the height follows. `margin-left` / `margin-top` carry the
-       placement, both as percentages of the render box's *width* — see
-       `cellStyle`. */
-    aspect-ratio: 1;
-    /* D11 / R7 — every transform is about the drawable box's centre. */
-    transform-origin: 50% 50%;
-    /* R9 again, from the other side: a cell is NOT a clipping boundary. A bare
-       45deg rotation already spills (07 §6.3), and scale is unbounded, so
-       clipping per cell would clip the two features the attribute set exists to
-       provide (07 §7.1). */
-    overflow: visible;
-    /*
-      No `will-change: transform`. It promoted every cell to its own composited
-      layer, and a layer is rasterized and composited with its own independent
-      device-pixel snapping — which is `07` §5.6's forbidden "compute each cell's
-      left and size independently, round both" reached through the compositor
-      instead of through the arithmetic. It also made the seam depend on DPR and
-      on which rasterization path the browser chose, and cost one layer per cell
-      in a grid that is routinely hundreds of cells.
-    */
-  }
-
-  /* The keep-out mask. `visibility` rather than `display: none`: it changes no
-     layout, keeps the image decoded for when the cell is uncovered again, and
-     takes the cell out of hit-testing. */
-  .cell[data-masked] {
-    visibility: hidden;
-  }
-
-  .cell img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    /* R8 — an asset is centre-cropped to the drawable box before any transform,
-       and no attribute value changes the crop. `object-fit: cover` expresses it
-       declaratively, so no measurement happens and the renderer never learns an
-       aspect ratio (07 §6.4). Stretch would distort silently; letterbox would
-       break R7's tangency claim for some assets and not others. */
-    object-fit: cover;
-    user-select: none;
-  }
-</style>

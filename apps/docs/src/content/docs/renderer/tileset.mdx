@@ -75,7 +75,10 @@ No events and no snippets. Callbacks go through `options.onAssetError`.
 **DOM attributes a host can rely on:** the box carries `data-tileset-box` and, once measured,
 `data-measured`. Under `substrate: "dom"` each cell is a `.cell` with `data-x` and `data-y`, and
 `data-masked` when the keep-out mask hides it. With responsive rules, the box sits inside a
-`.container` carrying `data-tileset-wrapper` set to the instance id.
+`.container` carrying `data-tileset-wrapper` set to the instance id. The package's stylesheet
+(`tileset.css`, see [styles.ts](/renderer/styles/)) selects on each element's class *and* its
+`data-tileset-*` attribute (`data-tileset-cell`, `data-tileset-canvas` and `data-tileset-extent`
+too), so its rules never reach a host's own `.cell` or `.container`.
 
 ### Inputs → outputs
 
