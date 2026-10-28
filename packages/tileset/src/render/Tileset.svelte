@@ -14,12 +14,12 @@
   production build has undefined behaviour on a file `06`'s `validate()` would
   reject. A host must never hold an invalid file, not even between keystrokes.
 
-  **In a development build it asserts that, once per file** — see `checked`
-  below. S3 as originally written forbade this outright, and `08` §3.4 gave the
-  reason: "a component that validated would be doing at sixty frames per second
-  what belongs at load, once." That rules out validating **per frame**, which a
-  `$derived` keyed on `file` does not do — it runs when the file changes, at the
-  same cadence as `generate()` itself. The cost the objection names is not the
+  **In a development build it asserts that, once per file** — see `#checked` in
+  `./model.ts`. S3 as originally written forbade this outright, and `08` §3.4 gave
+  the reason: "a component that validated would be doing at sixty frames per
+  second what belongs at load, once." That rules out validating **per frame**,
+  which a stage keyed on `file` does not do — it runs when the file changes, at
+  the same cadence as `generate()` itself. The cost the objection names is not the
   cost this pays.
 
   **C5** is untouched. `generate()` still trusts its input, and validation is
@@ -47,53 +47,20 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { DEV } from "../dev.js";
-  import { assertValidFile } from "../load.js";
-  import { activeKey, ruleOverride, rulesReshapeErrors } from "../responsive.js";
-  import { reshape } from "../shape.js";
   import type { TileState, TilesetFile } from "../types.js";
-  import {
-    cellPlacementAffine,
-    cssLength,
-    naturalHeight,
-    naturalRatio,
-    originX,
-    scaleFactor,
-    visibleColumns,
-    type GridGeometry,
-    type Lattice,
-  } from "./geometry.js";
-  import { cssTransform, isIdentityTransform, maxSpill, translationDev } from "./transform.js";
   import { coverRect } from "./edges.js";
-  import {
-    canvasPresentation,
-    domGeometry,
-    domLattice,
-    uniformDrawList,
-    uniformGeometry,
-  } from "./uniform.js";
   import { assetTooSmall, cellTooSmall, WarnOnce } from "./warn.js";
   import { currentDpr, observeDpr, track, WRAPPER_ATTRIBUTE } from "./measure.js";
-  import { FlipFlop, GridCache, inertCellSizeRules, reservationCss } from "./breakpoints.js";
-  import { drawnTiles, occlusionMask, stableMask, type OcclusionMask } from "./occlusion.js";
-  import {
-    effectiveRules,
-    legacyPropErrors,
-    optionErrors,
-    renderOverride,
-    resolveOptions,
-    sameTargets,
-    type NormalizedTargets,
-    type TilesetOptions,
-  } from "./options.js";
+  import { FlipFlop, inertCellSizeRules } from "./breakpoints.js";
+  import { cellStyle as placeCell, TilesetModel, type ModelInputs } from "./model.js";
+  import { copyOptions, legacyPropErrors, optionErrors, type TilesetOptions } from "./options.js";
   import type { RenderRect } from "./space.js";
   import { ImageBank, NaturalSizeChecks } from "./images.js";
   import {
     assetKey,
-    DrawableCache,
     loadBlocked,
     parseAssetKey,
     recordLoadFailure,
-    type AssetRef,
     type Drawable,
   } from "./provider.js";
 
@@ -151,170 +118,108 @@
   let { file, options, box = $bindable(null), ...rest }: Props = $props();
 
   /**
-   * The options, checked in a development build and resolved to their defaults.
-   *
-   * Checked here and not in `resolveOptions` for **C5**'s reason: resolving trusts
-   * its input, and the check is what earns the trust. Production skips it, as it
-   * skips `assertValidFile`.
-   */
-  const resolved = $derived.by(() => {
-    if (DEV) {
-      const errors = [...legacyPropErrors(rest), ...optionErrors(options)];
-      if (errors.length > 0) {
-        throw new Error(
-          "`<Tileset>`'s props are not valid:\n" + errors.map((e) => `  - ${e}`).join("\n"),
-        );
-      }
-    }
-    return resolveOptions(options);
-  });
-
-  // **One derived per field, and that is what keeps R12 true.** A host writing
-  // `options={{ ... }}` inline hands over a new object whenever any field in it
-  // changes. A `$derived` propagates only when its *value* changes, so unpacking
-  // here means a change to `avoid.padding` reaches the mask and stops there,
-  // instead of re-running `generate()` through a dependency on `options` itself.
-  // Nothing below this block reads `resolved` or `options` again, except the one
-  // `untrack`ed read in `reportAssetError`.
-  const seedOption = $derived(resolved.seed);
-  const loadSalt = $derived(resolved.loadSalt);
-  const substrate = $derived(resolved.substrate);
-  const overflow = $derived(resolved.overflow);
-  const baseSizing = $derived(resolved.sizing);
-  const baseAlignX = $derived(resolved.alignX);
-  const baseAlignY = $derived(resolved.alignY);
-  const hostRules = $derived(resolved.responsive);
-  const provider = $derived(resolved.provider);
-  const padding = $derived(resolved.avoid?.padding ?? 0);
-
-  // The targets are compared by content (`sameTargets`), because an inline
-  // `targets: [a, b]` is a new array every time and each new identity would tear
-  // down and re-register the tracker's observers. `lastTargets` is a plain
-  // variable on purpose: it is a memo, not state.
-  let lastTargets: NormalizedTargets | null = null;
-  const targets = $derived.by(() => {
-    const next = resolved.avoid?.targets ?? null;
-    if (!sameTargets(lastTargets, next)) lastTargets = next;
-    return lastTargets;
-  });
-
-  /**
-   * `onAssetError`, read at call time and **untracked**. It was called from inside
-   * `drawables`' derivation, where a tracked read made every new identity of a
-   * host's inline callback re-resolve every asset. Every report now arrives
-   * asynchronously (`provider.ts` `resolveDrawable`), and the read stays untracked
-   * so that moving a call back into a derivation cannot bring that back.
-   */
-  function reportAssetError(ref: AssetRef, cause: unknown): void {
-    untrack(() => resolved.onAssetError)?.(ref, cause);
-  }
-
-  // **S3's development assertion.** Keyed on `file` alone: a `seed` or
-  // `loadSalt` change moves no config, so re-validating on one would be work
-  // with no question attached. In a production build this is `file` itself, by
-  // identity, and costs a boolean test.
-  //
-  // Every derived below reads `checked`, never `file`, and that is deliberate —
-  // it makes "assert before generating" structural. A `$derived` that existed
-  // only for its throw would have to be read back for its side effect, and a
-  // read whose value is discarded is the line a later refactor deletes as dead.
-  // Here the assertion cannot be dropped without also dropping the data.
-  const checked = $derived(
-    DEV
-      ? assertValidFile(
-          file,
-          "`<Tileset>`'s `file` prop",
-          "Pass the file through `loadTilesetFile()` before handing it to `<Tileset>`. " +
-            "This check runs in development builds only; in production the same file is " +
-            "undefined behaviour (S3).",
-        )
-      : file,
-  );
-
-  // **Invariant S4** — with no optional props the picture is fixed:
-  // seed = defaultSeed, loadSalt = 0. Variation between loads is always an
-  // explicit act by the host. The reverse default would make every page
-  // nondeterministic by accident, including under SSR.
-  const effectiveSeed = $derived(seedOption ?? checked.config.defaultSeed);
-
-  /**
-   * What `measure.ts` reports, and nothing else about the page is read.
-   *
-   * Width and DPR are ADR-006's two numbers. Height is read so a non-top `alignY`
-   * has something to align against. `keepout` is the rects of `options.avoid`'s
-   * targets in render space, and stays `null` without it — in which case nothing
-   * outside the box is measured at all.
+   * What `measure.ts` reports, and nothing else about the page is read. See
+   * `ModelInputs` in `./model.ts` for what each one is for.
    */
   let measuredWidth = $state(0);
   let measuredHeight = $state(0);
   let keepout = $state.raw<RenderRect[] | null>(null);
   let dpr = $state(currentDpr());
 
-  // ------------------------------------------------------- responsive rules ---
+  // ------------------------------------------------------------------ model ---
+  //
+  // **Everything this component derives is `TilesetModel`'s** (`./model.ts`):
+  // the options, the S3 assertion, the responsive rules, the grid, the geometry,
+  // the keep-out mask and the draw list, each with the reasoning that shaped it.
+  // What is left here is what owns an element or waits on something — the
+  // measurement, the asset settling, the image bank, the paint — and the markup.
+  //
+  // **How runes drive a plain class without a second copy of the graph.** One
+  // `$derived` gathers the inputs into a plain object, and each output below is
+  // its own `$derived` that hands those inputs to the model and reads one output.
+  // The model's stages memoize the way the chain did (`Object.is` per input), so a
+  // read after a push that changed nothing it depends on costs a comparison, and
+  // an output derived keeps its value — and so stops there — unless its output's
+  // identity moved.
+  //
+  // **What this does not keep is the chain's scheduling.** Every output derived
+  // depends on `inputs`, so every input change *marks* all of them, and every
+  // effect reading any of them is dirty-checked, where the chain only reached the
+  // effects downstream of what changed. Measured on the demo's sixteen tilesets,
+  // script time per resize, against the chain: within noise under both substrates.
+  // It was +12% (canvas) and +20% (dom) until the model stopped doing work the
+  // chain never did — the mask's buffers without `avoid`, and a new cell list on
+  // every frame of a resize — which the profile showed as Svelte bookkeeping
+  // because that work fanned out through it. If it comes back, look there first.
+  // The marking goes entirely when the component stops owning the DOM.
+  //
+  // **Why the model is set inside each output read, not once in `inputs`.** A
+  // `$derived` may be evaluated speculatively — Svelte's async batches and `fork()`
+  // evaluate one inside a batch that may never commit. `inputs` is therefore pure,
+  // and each read sets the model to the inputs *it* sees before reading, so a
+  // speculative read cannot leave the model holding inputs a committed read then
+  // trusts. Setting identical inputs is a no-op (`TilesetModel.set`).
+  //
+  // Rejected: exporting the stage functions and keeping the `$derived` chain here.
+  // That is two wirings of one graph, which is `07` **R1**'s drift by a new route.
 
   /**
-   * The rules in force — the host's if it passed any, else the file's
-   * (`effectiveRules`). A file's own rules were checked by `assertValidFile`
-   * above; a host's are checked here, against the file they will reshape, for the
-   * same development-loud / production-trusting reason. What only the file can
-   * answer — a `rect` pinning `rows`, a cascade whose bleed leaves no box — is
-   * `rulesReshapeErrors`'.
+   * The options, copied so that an edit made in place is seen — `copyOptions`
+   * says why. Its own `$derived`, so the copy is made when an option changes and
+   * not on every resize.
    */
-  const rules = $derived.by(() => {
-    const r = effectiveRules(checked, hostRules);
-    if (DEV && hostRules !== undefined) {
-      const errors = rulesReshapeErrors(checked, r);
+  const opts = $derived(copyOptions(options));
+
+  const inputs = $derived.by((): ModelInputs => {
+    // The props that moved into `options` in 0.6.0 are a Svelte question, so they
+    // are asked here; the options are asked again by the model, for a host that
+    // has no component. Both here, so one throw reports everything that is wrong
+    // with the props at once, as it did before the model existed.
+    if (DEV) {
+      const errors = [...legacyPropErrors(rest), ...optionErrors(opts)];
       if (errors.length > 0) {
         throw new Error(
-          "`<Tileset>`'s `options.responsive` cannot be applied to this file:\n" +
-            errors.map((e) => `  - ${e}`).join("\n"),
+          "`<Tileset>`'s props are not valid:\n" + errors.map((e) => `  - ${e}`).join("\n"),
         );
       }
     }
-    return r;
+    return { file, options: opts, width: measuredWidth, height: measuredHeight, rects: keepout, dpr };
   });
-  const hasRules = $derived(rules.length > 0);
 
   /** SSR-stable, so the server's reservation CSS and the client's agree. */
   const uid = $props.id();
+  const model = new TilesetModel(uid, untrack(() => inputs));
 
-  /**
-   * Which rules hold at the measured width, as `activeKey`'s string. **This is
-   * the line that makes a resize inside a band cost nothing**: the width moves on
-   * every frame, the key only when a rule starts or stops matching, and every
-   * derived below keys on it rather than on the width.
-   *
-   * Before measurement — on the server, and on the first client frame — it is
-   * `""`, the base shape. That is not a guess shown to anyone: the box reserves
-   * the right height by container query (`reservationCss`) and draws nothing until
-   * the key is real (`pending`).
-   */
-  const ruleKey = $derived(hasRules && measuredWidth > 0 ? activeKey(rules, measuredWidth) : "");
+  /** One model output, at the inputs this read sees. */
+  function out<T>(at: ModelInputs, read: () => T): T {
+    model.set(at);
+    return read();
+  }
 
-  /**
-   * The file at this width — `reshape(file, cascade)`, and the active rules for
-   * the render half of the cascade. With no rule active the override is `{}`,
-   * and `reshape` keeps the file's `config` by reference, so a density-only rule
-   * never reaches `generate()`.
-   */
-  const shaped = $derived.by(() => {
-    const active = ruleKey === "" ? [] : ruleKey.split(",").map((i) => rules[Number(i)]!);
-    return { file: reshape(checked, ruleOverride(active)), active };
-  });
+  const substrate = $derived(out(inputs, () => model.substrate));
+  const overflow = $derived(out(inputs, () => model.overflow));
+  const targets = $derived(out(inputs, () => model.targets));
+  const base = $derived(out(inputs, () => model.base));
+  const rules = $derived(out(inputs, () => model.rules));
+  const hasRules = $derived(out(inputs, () => model.hasRules));
+  const ruleKey = $derived(out(inputs, () => model.ruleKey));
+  const reservation = $derived(out(inputs, () => model.reservation));
+  const sizing = $derived(out(inputs, () => model.sizing));
+  const ratio = $derived(out(inputs, () => model.ratio));
+  const fixedHeight = $derived(out(inputs, () => model.fixedHeight));
+  const metaByKey = $derived(out(inputs, () => model.metaByKey));
+  const drawables = $derived(out(inputs, () => model.drawables));
+  const uniform = $derived(out(inputs, () => model.uniform));
+  const domCell = $derived(out(inputs, () => model.domCell));
+  const presentation = $derived(out(inputs, () => model.presentation));
+  const shownCells = $derived(out(inputs, () => model.shownCells));
+  const placement = $derived(out(inputs, () => model.placement));
+  const mask = $derived(out(inputs, () => model.mask));
+  const pending = $derived(out(inputs, () => model.pending));
+  const items = $derived(out(inputs, () => model.items));
 
-  const rendered = $derived(
-    renderOverride({ sizing: baseSizing, alignX: baseAlignX, alignY: baseAlignY }, shaped.active),
-  );
-  const sizing = $derived(rendered.sizing);
-  const alignX = $derived(rendered.alignX);
-  const alignY = $derived(rendered.alignY);
-
-  /** The reservation stylesheet. Empty without rules, when there is no wrapper to hold it. */
-  const reservation = $derived(
-    hasRules
-      ? reservationCss(uid, checked, rules, { sizing: baseSizing, alignX: baseAlignX, alignY: baseAlignY })
-      : "",
-  );
+  /** `onAssetError`, read at call time — see `TilesetModel.report`. */
+  const reportAssetError = model.report;
 
   // Development only: name the scrollbar feedback loop, and a rule that changes
   // nothing. Neither changes what is drawn.
@@ -332,7 +237,7 @@
   });
   $effect(() => {
     if (!DEV || !hasRules) return;
-    for (const i of inertCellSizeRules(rules, { sizing: baseSizing, alignX: baseAlignX, alignY: baseAlignY })) {
+    for (const i of inertCellSizeRules(rules, base)) {
       warnings.say(
         `inert:${i}`,
         `<Tileset>: responsive rule ${i} changes only \`cellSize\`, and the tileset is fluid ` +
@@ -340,94 +245,6 @@
           "`columns`; `cellSize` is CSS px only under `sizing: \"fixed\"`.",
       );
     }
-  });
-
-  // ------------------------------------------------------------------ grid ---
-
-  // Regenerates when `file.config`, `seed`, or `loadSalt` changes, or a rule
-  // changes `rows` or `columns` to a size this instance has not generated yet —
-  // and on nothing else: not a `provider` change, not a viewport resize, not
-  // hydration (`08` §5.2, `07` §9.1), and **not a keep-out change**: the mask is
-  // applied at paint, downstream of this. A viewport resize inside a band changes
-  // `s` and nothing else, so every cell keeps its TileState and moves to a new
-  // rect. `GridCache` says why `(rows, columns)` is a sufficient key.
-  const gridCache = new GridCache();
-  const config = $derived(shaped.file.config);
-  const grid = $derived(gridCache.get(checked.config, config, effectiveSeed, loadSalt));
-
-  const layout = $derived(shaped.file.layout);
-  const rows = $derived(config.rows);
-  const columns = $derived(config.columns);
-  const ratio = $derived(naturalRatio(layout, rows));
-
-  /**
-   * The box's height under `"fixed"`, in CSS px: the design box at `s = 1`.
-   * Constant, so it is known before anything is measured — which is what lets a
-   * fixed-size tileset reserve exact space in the server HTML the way a fluid one
-   * reserves its ratio.
-   */
-  const fixedHeight = $derived(naturalHeight({ layout, rows, columns, Wpx: 0, sizing: "fixed" }));
-
-  /**
-   * How far, in whole cells, any drawable in this grid spills past its own cell.
-   * Culling widens by this so a scaled or rotated neighbour just outside the box
-   * still paints the part of it that reaches in. Per grid, not per resize.
-   */
-  const spill = $derived(maxSpill(grid));
-
-  // Placement is `cellPlacementPercent`'s, not a second copy of it (**S10**).
-  // This component used to open-code `sidePercent` and `leftBase` here, which
-  // meant the pure geometry and the only renderer that ships reached the same
-  // numbers by two routes and could drift apart without anything reporting it —
-  // the exact failure `07` **R1** names. It is called per cell from `cellStyle`
-  // below rather than hoisted into a `$derived`: it reads `layout` and
-  // `config.columns`, so it re-evaluates with them.
-
-  // One shared empty `meta`, so an asset without one keeps the same identity
-  // across derivations and `resolutions` below does not resolve it again.
-  const NO_META: Record<string, unknown> = Object.freeze({});
-
-  // `meta` lookup, keyed by the (tileId, assetId) pair per `07` §4.1.
-  const metaByKey = $derived.by(() => {
-    const map = new Map<string, Record<string, unknown>>();
-    for (const tile of checked.config.tiles) {
-      for (const asset of tile.assets) {
-        map.set(assetKey(tile.id, asset.id), asset.meta ?? NO_META);
-      }
-    }
-    return map;
-  });
-
-  // Resolution is memoized per session on the (tileId, assetId) pair — `08` open
-  // question 1, which leans yes: it makes `07` **R2** structural rather than a
-  // provider obligation the component cannot check, and it costs one map. It is
-  // also load-bearing here, because an unmemoized call in the template would
-  // re-invoke the provider on every re-render.
-  //
-  // The memo outlives this derivation (`provider.ts` `DrawableCache`): a reseed
-  // re-derives `drawables` without changing any asset, and resolving afresh then
-  // reported a failing provider again on every reseed.
-  //
-  // Q1's recorded objection stands: this silently repairs an impure provider
-  // instead of surfacing it, and a lazy provider's rejection is cached too.
-  const resolutions = new DrawableCache();
-  const drawables = $derived.by(() => {
-    const map = new Map<string, Drawable | Promise<Drawable>>();
-    resolutions.retain(metaByKey);
-    for (const cell of grid.cells) {
-      if (cell.tileId === null || cell.assetId === null) continue;
-      const key = assetKey(cell.tileId, cell.assetId);
-      if (map.has(key)) continue;
-      const ref: AssetRef = {
-        tileId: cell.tileId,
-        assetId: cell.assetId,
-        meta: metaByKey.get(key) ?? NO_META,
-      };
-      // R3: a failure to obtain a drawable never substitutes one. The cell
-      // draws nothing and the failure is reported, thrown or rejected alike.
-      map.set(key, resolutions.resolve(provider, ref, reportAssetError));
-    }
-    return map;
   });
 
   // Keys whose <img> failed to load, and the `src` that failed (`provider.ts`
@@ -464,128 +281,18 @@
     );
   }
 
-  /**
-   * The cell's whole inline style: placement, then its own transform, then its
-   * opacity.
-   *
-   * **Placement is by percentage margin, not by `transform: translate()`**
-   * (`08` §12). §6.3 illustrated the translate, and it drew seams: a transformed
-   * element is rasterized at sub-pixel precision — the substrate is not permitted
-   * to snap it — so at any width where `s * cellSize` is fractional, every cell
-   * edge landed mid-pixel and was antialiased. Two adjacent antialiased edges each
-   * contribute *partial* coverage to the shared boundary pixel, and source-over of
-   * two partial coverages never sums to one, so a sliver of the backdrop survived
-   * at every seam. That is `07` §5.6's "faint grid of seams across the whole
-   * background… invisible at some widths and obvious at others", reached through
-   * the substrate rather than through the arithmetic.
-   *
-   * A **percentage margin resolves against the containing block's width** — this
-   * is true of `margin-top` as well as `margin-left`, and it is why the vertical
-   * offset a percentage `top` could not carry (§6.3's objection) is carried here
-   * anyway. So placement stays a fixed fraction of `Wpx` per `07` §5.3, nothing
-   * is measured, and **S8** is untouched: a host overriding the box height still
-   * gets square cells clipped by **R9**, never stretched ones.
-   *
-   * **The `transform` property is omitted entirely for an identity cell.** That is
-   * what earns the snap: an untransformed border box is pixel-snapped, and
-   * **R6**'s shared edge survives the snap because cell `x`'s right edge and cell
-   * `x+1`'s left edge are one number, and `round()` of one number is one number.
-   * Neither a gap nor an overlap can open, at any `Wpx`.
-   *
-   * **`opacity` is omitted at 1** for the same reason: a value below 1 forces a
-   * stacking context, and emitting it unconditionally imposed one on every cell in
-   * the grid for no gain.
-   *
-   * `07` §6.3 and `08` §6.3's ordering warning still binds what `cssTransform`
-   * emits — **a CSS transform list applies right to left**, so it must read
-   * `rotate(...) scale(...)` for **D11**'s scale-before-rotation to hold. The list
-   * is `cssTransform`'s and not a second copy of it: this component used to spell
-   * it out inline, which meant the pure function and the only renderer that ships
-   * could disagree — and they would have, the moment ADR-005 added `scale` to one
-   * of them.
-   */
+  /** The cell's whole inline style — `cellStyle` in `./model.ts` says why each part is what it is. */
   function cellStyle(cell: TileState, x: number, y: number): string {
-    let style = domPlacement(cell, x, y);
-    if (!isIdentityTransform(cell)) style += ` transform: ${cssTransform(cell)};`;
-    if (cell.opacity < 1) style += ` opacity: ${cell.opacity};`;
-    return style;
-  }
-
-  /**
-   * The DOM substrate's placement, in two regimes.
-   *
-   * **Before measurement — and therefore in the server-rendered HTML — this is
-   * affine CSS lengths**, `cellPlacementAffine`: correct at every width with
-   * nothing measured, per `07` §5.3. Under `"fluid"` with top alignment that is
-   * bare percentages, byte-identical to what 0.5.0 emitted; `"fixed"` adds a px
-   * term and a pinned percentage (`calc(50% + 12px)`), and a non-top `alignY` a
-   * percentage `top`. That the initial HTML carries complete geometry in every
-   * mode is the whole reason the `"dom"` substrate exists.
-   *
-   * **After measurement it is px from `domGeometry`'s square cell**, pinned in the
-   * box at an integer origin. Neighbours share an edge here too — cell `x`'s right
-   * edge is `originXDev + (x+1) * cellDev`, which is identically cell `x+1`'s left
-   * edge (**R6**) — and the widths are equal as well as adjacent, so `object-fit:
-   * cover` crops a square asset by nothing.
-   *
-   * **`domGeometry` and not `uniformGeometry`**, which is the one place this
-   * substrate's geometry parts company with the canvas's: its cell is rounded
-   * **up**, so the grid always covers its box and the residual can only ever be a
-   * cut. `uniformGeometry`'s `round` left the residual's sign free, and at about
-   * half of all widths that showed as a band of page backdrop down each side.
-   * Under `"fixed"` at an integer DPR the ideal cell is already whole and the two
-   * roundings agree — the residual this paragraph is about is then zero.
-   *
-   * The **vertical** residual is not answered by any of that. It is answered by the
-   * box taking its height from `gridHeightDev` — see the template comment on
-   * `.extent`, which is why the bottom row is no longer shaved.
-   *
-   * **`blitRect` is gone and needs no successor.** It transposed the fill rect
-   * under a quarter turn because per-edge snapping made the device rect 133 x 132,
-   * and rotating *that* left a hairline down each side. A square rect quarter-turned
-   * **is** the same rect, so the uniform cell removes the special case rather than
-   * needing it — predicted before it was read, and confirmed.
-   *
-   * The swap happens on mount, and it is no longer the sub-pixel nudge it was under
-   * `round`: `ceil` grows the cell by up to a whole device pixel, so the grid
-   * widens by up to `columns` device px and its edges move outward by half of that.
-   * The picture stays put — the shift is symmetric about the box's centre and lands
-   * outside it, in the region **R9** clips — and `08` **S8**'s reserved space is the
-   * box's, not the cells', so nothing reflows around it either.
-   */
-  function domPlacement(cell: TileState, x: number, y: number): string {
-    const u = domCell;
-    if (u !== null) {
-      const side = u.cellDev / dpr;
-      // 0.8.0's translation rides on the margin, in whole device px, for the
-      // reason `translationDev` gives: a cell that is only translated keeps its
-      // snapped box. Moving the border box is also what moves the hit area, so a
-      // translated tile is hit where it is drawn, by the browser, for nothing.
-      const { tx, ty } = translationDev(cell, u.cellDev);
-      return (
-        `width: ${side}px; ` +
-        `height: ${side}px; ` +
-        `margin-left: ${(u.originXDev + x * u.cellDev + tx) / dpr}px; ` +
-        `margin-top: ${(u.originYDev + y * u.cellDev + ty) / dpr}px;`
-      );
-    }
-    const p = cellPlacementAffine({ layout, rows, columns, sizing, alignX, alignY }, x, y, cell);
-    return (
-      `width: ${cssLength(p.side)}; ` +
-      `margin-left: ${cssLength(p.left)}; ` +
-      `margin-top: ${cssLength(p.marginTop)};` +
-      (p.topPct === 0 ? "" : ` top: ${p.topPct}%;`)
-    );
+    return placeCell(placement, cell, x, y);
   }
 
   // ----------------------------------------------------------- measurement ---
 
-
   $effect(() => observeDpr((next) => (dpr = next)));
 
   // One registration with the page's shared scheduler, re-made when the box or
-  // the targets change (the targets by content — see `targets`). The three
-  // writes happen in one callback, so the geometry and the mask below are derived
+  // the targets change (the targets by content — see the model's `targets`). The
+  // three writes happen in one callback, so the geometry and the mask are derived
   // from one consistent measurement, in the same frame.
   $effect(() => {
     const el = box;
@@ -602,19 +309,6 @@
   // the template bind it directly. Under `"canvas"` that is the *wrapper*, not
   // the canvas: since the split they are different elements of different widths,
   // and the box is the one that means `Wpx`.
-
-  const geometry = $derived<GridGeometry>({
-    layout,
-    rows,
-    columns,
-    Wpx: measuredWidth,
-    sizing,
-    alignX,
-    alignY,
-    // Read only when it can matter, so a top-aligned grid does not re-derive
-    // everything when its own extent changes the box's height.
-    Hpx: alignY === "top" ? undefined : measuredHeight,
-  });
 
   // ---------------------------------------------------------------- canvas ---
   //
@@ -724,195 +418,9 @@
     );
   });
 
-  /**
-   * The uniform square cell, and where the residual went — `uniform.ts`, and the
-   * substance of the whole fix.
-   *
-   * `null` until the box has been measured, and **`null` under `"dom"`**. The gate
-   * is on the substrate as well as on the measurement for `domCell`'s reason: the
-   * width observer is not itself gated — `box` is bound in both branches — so
-   * `measuredWidth` alone would leave this non-null under `"dom"`, computing a
-   * quantisation it does not draw from.
-   */
-  const uniform = $derived(
-    substrate === "canvas" && measuredWidth > 0 ? uniformGeometry(geometry, dpr) : null,
-  );
-
-  /**
-   * The **DOM** substrate's cell — `domGeometry`, and the one thing it does not
-   * share with the canvas.
-   *
-   * `uniformGeometry`'s `round` leaves the residual's sign free, so at about half
-   * of all widths the grid came out *narrower* than its box and the page backdrop
-   * showed through a band down each side. This substrate has no presentation to
-   * undo the quantisation with, so it rounds the cell up instead: the grid always
-   * covers its box and **R9** clips the overhang. It cuts at the sides, and it never
-   * gutters.
-   *
-   * Its `gridHeightDev` is the other half of the same problem: the box's height is
-   * taken from it rather than declared independently, so the vertical residual has
-   * nowhere to land as a shaved bottom row.
-   *
-   * Gated on the substrate as well as on the measurement so the canvas never
-   * computes it, and so `null` still selects the affine placement that makes this
-   * the SSR-complete substrate.
-   */
-  const domCell = $derived(
-    substrate === "dom" && measuredWidth > 0 ? domGeometry(geometry, dpr) : null,
-  );
-
-  /**
-   * Which columns the canvas rasterises — those that meet the box, widened by
-   * `spill`. Computed on the **ideal** lattice, which is where the canvas presents
-   * its cells (the presentation cancels the quantisation).
-   *
-   * Under `"fluid"` this is every column for any ordinary design, and then the
-   * presentation below is 0.5.0's exactly. Under `"fixed"` in a narrow box it is a
-   * handful, and the canvas stays the size of what can be seen instead of the size
-   * of the grid — see `canvasPresentation`.
-   */
-  const canvasColumns = $derived(
-    uniform === null
-      ? null
-      : visibleColumns(
-          { originX: originX(geometry), originY: 0, pitch: scaleFactor(geometry) * layout.cellSize },
-          columns,
-          measuredWidth,
-          spill,
-        ),
-  );
-
-  const presentation = $derived(
-    uniform !== null && canvasColumns !== null
-      ? canvasPresentation(geometry, uniform, dpr, canvasColumns)
-      : null,
-  );
-
-  /**
-   * The DOM substrate's columns, culled the same way on its own lattice. Before
-   * measurement — and so on the server — every column, since nothing is known
-   * about the box yet and the affine placement is correct at every width.
-   *
-   * Culled cells are **unmounted**, not hidden: under `"fixed"` a 76-column grid on
-   * a phone mounts about a tenth of its nodes. Keyed by cell index, so a resize
-   * mounts and unmounts only the columns at the edges.
-   */
-  const domColumns = $derived(
-    domCell === null
-      ? { x0: 0, x1: columns }
-      : visibleColumns(domLattice(domCell, dpr), columns, measuredWidth, spill),
-  );
-
-  /** The cells the DOM branch mounts, in row-major order (**R10**). */
-  const shownCells = $derived.by(() => {
-    const out: Array<{ cell: TileState; i: number; x: number; y: number }> = [];
-    const { x0, x1 } = domColumns;
-    for (let i = 0; i < grid.cells.length; i++) {
-      const cell = grid.cells[i]!;
-      if (cell.tileId === null || cell.assetId === null) continue;
-      const x = i % grid.columns;
-      if (x < x0 || x >= x1) continue;
-      out.push({ cell, i, x, y: Math.floor(i / grid.columns) });
-    }
-    return out;
-  });
-
-  // ------------------------------------------------------------ keep-out ---
-
-  /**
-   * The lattice each substrate actually paints on — the mask must agree with the
-   * picture to the pixel, so it asks for this rather than recomputing the ideal
-   * mapping. See `Lattice` in `geometry.ts`.
-   */
-  const lattice = $derived<Lattice | null>(
-    substrate === "canvas"
-      ? (presentation?.lattice ?? null)
-      : domCell !== null
-        ? domLattice(domCell, dpr)
-        : null,
-  );
-
-  /**
-   * The keep-out mask — `occlusion.ts`. `null` without `options.avoid`, and until
-   * there is both a measurement and a lattice.
-   *
-   * `stableMask` hands back the previous object when the cells hidden did not
-   * change. The rects move on every frame of a resize, the mask only when a rect
-   * crosses a cell edge, and that identity is what stops the DOM branch touching
-   * an attribute and the canvas repainting for a mask that did not move.
-   * `lastMask` is a plain variable for `lastTargets`' reason: a memo, not state.
-   */
-  /**
-   * Each cell's drawn tile at rest, for the mask — per grid, like `spill`, because
-   * the mask tests the tile and not the lattice square since 0.8.0 (see
-   * `occlusion.ts`'s header). The rest pose only: no animation ever reaches it.
-   */
-  const drawn = $derived(drawnTiles(grid));
-
-  /** The device-px cell `lattice` was painted with — what the mask rounds a translation by. */
-  const paintedCellDev = $derived(
-    substrate === "canvas" ? (uniform?.cellDev ?? null) : (domCell?.cellDev ?? null),
-  );
-
-  let lastMask: OcclusionMask | null = null;
-  const mask = $derived.by((): OcclusionMask | null => {
-    if (keepout === null || lattice === null || paintedCellDev === null) return null;
-    lastMask = stableMask(
-      lastMask,
-      occlusionMask(lattice, columns, rows, keepout, padding, { tiles: drawn, cellDev: paintedCellDev }),
-    );
-    return lastMask;
-  });
-
-  /**
-   * **Nothing is shown over the page until the mask exists.** With `avoid` set,
-   * tiles drawn before the first measurement would sit on top of the text for a
-   * frame — and under SSR for the whole of hydration — which is exactly the
-   * failure the option exists to prevent. The canvas already draws nothing before
-   * it is measured; the DOM branch hides its box. Without `avoid`, this is always
-   * `false` and SSR is unchanged.
-   *
-   * **Responsive rules hold it too, until the first measurement.** The server
-   * cannot know which rule applies, so the cells it could emit are the base
-   * shape's — the wrong picture on a phone, swapped a frame later. The height is
-   * already right by container query (`reservationCss`), so hiding the cells
-   * until the key is real costs no layout shift, only the pre-hydration picture
-   * the canvas substrate never had either.
-   */
-  const pending = $derived((targets !== null && mask === null) || (hasRules && measuredWidth === 0));
-
   function masked(i: number): boolean {
     return mask !== null && mask[i] === 1;
   }
-
-  /**
-   * The draw list, in device px on the raster's own pixel grid.
-   *
-   * `0` for the x origin, not `uniform.originXDev`: under `"canvas"` the canvas
-   * *is* the grid — its visible columns — so there is no box to centre in. The
-   * centring moved to the presentation, where it happens at the ideal fractional
-   * `leftCss` and so reproduces the author's designed bleed to the pixel rather
-   * than to the nearest device pixel.
-   *
-   * Recomputed when the grid, the width, or the DPR changes, and on nothing else
-   * — in particular not when an image finishes decoding. Geometry is committed
-   * before resolution is attempted and never revised as a result of it, which is
-   * `07` **R5**'s substance and the reason a missing asset leaves a hole in a
-   * laid-out grid rather than collapsing it.
-   *
-   * Gated on `presentation`, so it is the empty list under `"dom"`. Only the paint
-   * effect reads it, and this is one object per non-empty visible cell — 760 of
-   * them on the demo's 76x10 preset — rebuilt on every resize tick, which is not
-   * work to do for a substrate that discards it.
-   *
-   * The mask is **not** applied here. It changes independently of geometry, and
-   * filtering at paint keeps a mask change from rebuilding the list.
-   */
-  const items = $derived(
-    presentation !== null
-      ? uniformDrawList(geometry, grid, dpr, 0, assetKey, presentation)
-      : [],
-  );
 
   /**
    * The two asset rules, in a development build only —

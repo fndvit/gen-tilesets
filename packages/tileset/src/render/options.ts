@@ -506,3 +506,53 @@ export function legacyPropErrors(rest: Record<string, unknown>): string[] {
     (k) => `\`${k}\` is no longer a prop of <Tileset>; pass it as \`options={{ ${k} }}\` (0.6.0).`,
   );
 }
+
+/**
+ * A copy of `o` that reads every field a host could change in place — a fresh
+ * object wherever the host's was an object, the same value wherever it was not.
+ *
+ * **What this is for: Svelte's deeply reactive state.** A host may hold its
+ * options in `$state` and edit them where they are — `opts.seed = "b"`,
+ * `bind:value={opts.avoid.padding}`, `opts.responsive[0].columns = 9`. The object
+ * keeps its identity through all of that, and `TilesetModel` compares its inputs
+ * by identity, so handed the host's object as-is it saw the first value and none
+ * after (reproduced on Svelte 5.56.8). A `$derived` around this call reads every
+ * field — so the edit is tracked — and returns a new object — so the model sees
+ * one. A renderer whose host has no deep reactivity never needs it: a new options
+ * object is a change, the same one is not.
+ *
+ * It is also why the model's `report` cannot be made reactive by accident: the
+ * model holds this plain copy, never the host's proxy, so `onAssetError` read
+ * from it is never a tracked read (the `untrack` the component used to need).
+ *
+ * Functions, elements and `undefined` pass through by identity: copying a
+ * provider would make every copy a new provider, and `DrawableCache` would
+ * re-resolve every asset on every edit. The fields of a `HostRule` are copied
+ * shallowly, `align` included. Unknown keys are kept, so the development check
+ * still sees a misspelt option.
+ */
+export function copyOptions(o: TilesetOptions | undefined): TilesetOptions | undefined {
+  if (o === undefined || o === null || typeof o !== "object") return o;
+  const out: Record<string, unknown> = { ...o };
+  const avoid = o.avoid;
+  if (avoid !== undefined && avoid !== null && typeof avoid === "object") {
+    const t = avoid.targets;
+    out.avoid = {
+      ...avoid,
+      // A string is iterable and an element is not a list: only a list is copied.
+      targets:
+        typeof t === "string" || t === null || typeof t !== "object" || typeof (t as Element).nodeType === "number"
+          ? t
+          : [...(t as Iterable<Element>)],
+    };
+  }
+  if (Array.isArray(o.responsive)) {
+    out.responsive = o.responsive.map((r) =>
+      r !== null && typeof r === "object"
+        ? { ...r, ...(r.align !== undefined && r.align !== null ? { align: { ...r.align } } : {}) }
+        : r,
+    );
+  }
+  if (o.align !== undefined && o.align !== null && typeof o.align === "object") out.align = { ...o.align };
+  return out as TilesetOptions;
+}
