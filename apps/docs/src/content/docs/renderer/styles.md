@@ -68,6 +68,19 @@ Otherwise it styles the root:
   Adopted sheets cascade after the page's own, so under a strict CSP a host override needs more
   specificity than ours.
 
+### `InstanceStyle`
+
+One tileset instance's own stylesheet: the responsive reservation, whose selectors carry the
+instance's id. `new InstanceStyle(parent)`, `.set(css)`, `.remove()`.
+
+- **A `<style>` first in `parent`**, which is the markup `<Tileset>` has always rendered.
+- **A constructed sheet if that `<style>` is blocked.** It shares `injectStyles`' memory of blocked
+  documents, so a strict-CSP page is tried once in all. The sheet is per instance, its text is
+  swapped with `replaceSync`, and `remove()` un-adopts it. That adopted sheets cascade late does not
+  matter here, because no host writes rules against these id-scoped selectors.
+- **It is judged once it is connected.** A detached `<style>` has no sheet whatever the policy.
+  `set()` runs on every render and judges the first time it finds the `<style>` connected.
+
 ### Invariants
 
 - **The rules are loaded once per root.** A Svelte host does not get a second, injected copy,
@@ -81,10 +94,12 @@ Otherwise it styles the root:
 | Caller | Uses |
 | --- | --- |
 | `render/Tileset.svelte` | `import "./tileset.css"`, and `injectStyles(box)` in an effect that runs before `track` registers, so the first measurement is of a styled box. |
+| `render/renderer.ts` | `injectStyles(box)` in the constructor, before `track`. One `InstanceStyle` per wrapper, while the options have responsive rules. |
 
 ### Gotchas
 
 - A linked file that has not loaded yet is not seen, so the rules are injected as well. That is
   harmless, because the two copies hold the same rules.
-- The responsive reservation `<style>` (`breakpoints.ts`) is still inline and still blocked by a
-  strict CSP. The renderer will move it to the same route.
+- `<Tileset>`'s responsive reservation is still an inline `{@html}` `<style>`, and still blocked by
+  a strict CSP. `TilesetRenderer` uses `InstanceStyle`, and the component gets it when it wraps the
+  renderer.
