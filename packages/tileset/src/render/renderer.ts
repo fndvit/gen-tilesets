@@ -5,9 +5,10 @@
  * holds an element or waits on something: the DOM it adds to the host, the
  * measurement, the DPR listener, the settling of lazy drawables, the image bank,
  * the canvas paint, the responsive wrapper with its reservation stylesheet, and
- * the development warnings. It is `Tileset.svelte`'s side of the split, moved out
- * of the component so that a host with no Svelte — Observable Framework, a plain
- * page — gets the same renderer rather than a second one.
+ * the development warnings. It is *the* renderer: `<Tileset>` and
+ * `<TileDecoration>` are thin Svelte wrappers over it (0.9.0), so a host with no
+ * Svelte — Observable Framework, a plain page — gets the same renderer rather
+ * than a second one.
  *
  * ```ts
  * const r = new TilesetRenderer(el, { file, options });
@@ -18,6 +19,45 @@
  * Both substrates: `"canvas"` paints one `<canvas>`, `"dom"` keeps one `.cell`
  * element per shown cell (see `#cells`). Switching between them at runtime keeps
  * the box.
+ *
+ * ## The invariants it carries
+ *
+ * **S1 — one entry point.** It accepts a `TilesetFile` and calls `generate()`
+ * (through the model) itself. Nothing in the package accepts a `Grid<TileState>`
+ * as an input.
+ *
+ * **S2 — the editor's preview is this renderer on the editor's file**, drawing
+ * the complete operation stack. Overlays draw *over* it, never instead of it.
+ * There is no preview mode and no second renderer.
+ *
+ * **S3 — no validation on the draw path.** It reads `schemaVersion` and
+ * `engineVersion` for nothing, substitutes nothing, and in a production build has
+ * undefined behaviour on a file `06`'s `validate()` would reject. A host must
+ * never hold an invalid file, not even between keystrokes. **In a development
+ * build it asserts that, once per file** (`#checked` in `./model.ts`). S3 as
+ * written forbade even that, and `08` §3.4 gave the reason: "a component that
+ * validated would be doing at sixty frames per second what belongs at load,
+ * once." That rules out validating *per frame*, which a stage keyed on `file`
+ * does not do — it runs when the file changes, at the cadence of `generate()`
+ * itself. **C5** is untouched: `generate()` still trusts its input and
+ * validation still lives in `../load.ts`; this only calls it, so skipping
+ * `loadTilesetFile()` stops being silent. This is `08` open question 3's
+ * renderer half; `../dev.ts`'s build detection is still the provisional answer it
+ * says it is.
+ *
+ * **S7 — no random number, no ambient state** on the draw path, which makes
+ * **R12** structural: there is no draw to repeat on a regeneration, so `loadSalt`
+ * cannot be redrawn. (`freshId` below draws one, for an instance id that never
+ * reaches the grid.)
+ *
+ * **There were three substrates until 0.6.0.** `"svg"` — one inline `<svg>`
+ * under a single `viewBox` — measured nothing and so was the most SSR-complete,
+ * and it showed a backdrop hairline at every shared edge (+52% leak, the worst
+ * measured; `SUBPIXEL-GEOMETRY.md`). It was never going to be the default, and
+ * fixed sizing, alignment and the keep-out mask would each have had to be built a
+ * third time for it. It was removed rather than left behind at a lower feature
+ * level, which would have made "which options work with which substrate" a
+ * question every user had to ask.
  *
  * ## Scheduling: one microtask, for everything
  *
@@ -61,7 +101,15 @@ import { FlipFlop, inertCellSizeRules } from "./breakpoints.js";
 import { coverRect } from "./edges.js";
 import { ImageBank, NaturalSizeChecks } from "./images.js";
 import { currentDpr, observeDpr, scopeOf, track, WRAPPER_ATTRIBUTE, type Measurement } from "./measure.js";
-import { cellStyle as placeCell, domBoxStyle, extentStyle, TilesetModel, type Placement, type ShownCell } from "./model.js";
+import {
+  canvasBoxStyle,
+  cellStyle as placeCell,
+  domBoxStyle,
+  extentStyle,
+  TilesetModel,
+  type Placement,
+  type ShownCell,
+} from "./model.js";
 import type { OcclusionMask } from "./occlusion.js";
 import { copyOptions, type NormalizedTargets, type TilesetOptions } from "./options.js";
 import {
@@ -102,12 +150,37 @@ export interface TilesetRendererInit extends TilesetRendererInputs {
  * tilesets the same reservation selector.
  *
  * `Math.random()` is not **S7**'s concern: an id is not generated output and
- * never reaches the grid. It is drawn once, at module load.
+ * never reaches the grid. It is drawn once, **on the first instance built
+ * without an `id`** — not at module load. Drawn at load, importing the package
+ * took a value from the host's `Math.random`, so a host that seeds it (the
+ * demo's screenshot harness does, to pin its per-load `loadSalt`) drew a
+ * different salt and a different picture. The Svelte wrappers always pass an
+ * id, so under them it is never drawn at all.
  */
-const ID_PREFIX = `gts-${Math.random().toString(36).slice(2, 7)}-`;
+let idPrefix: string | null = null;
 let nextId = 1;
 
-/** The canvas's inline style for a presentation, or none before measurement. */
+function freshId(): string {
+  idPrefix ??= `gts-${Math.random().toString(36).slice(2, 7)}-`;
+  return `${idPrefix}${nextId++}`;
+}
+
+/**
+ * The canvas's inline style for a presentation, or none before measurement.
+ *
+ * `leftCss` is negative whenever there is bleed: the canvas is the grid's
+ * visible columns at the ideal fractional width, hanging off both sides of the
+ * box by the bleed the author designed.
+ *
+ * **Vertical alignment moves the canvas with `position: relative; top`**, never
+ * with a margin. A relative offset is visual only: the box still takes its
+ * height from the canvas's unshifted box, so the height the shift is measured
+ * against does not move with the shift. A bottom-aligned margin would be a
+ * fixed point at any value.
+ *
+ * No `height`, on purpose — `tileset.css` says why that is the one line not to
+ * tidy.
+ */
 function canvasStyle(pr: CanvasPresentation | null): string {
   if (pr === null) return "";
   return (
@@ -282,7 +355,7 @@ export class TilesetRenderer {
    * `width: 100%` of it.
    */
   constructor(host: HTMLElement, init: TilesetRendererInit) {
-    const id = init.id ?? `${ID_PREFIX}${nextId++}`;
+    const id = init.id ?? freshId();
     if (DEV && /["\\]/.test(id)) {
       throw new Error(`TilesetRenderer: \`id\` must not contain \`"\` or \`\\\`; got ${JSON.stringify(id)}.`);
     }
@@ -300,11 +373,43 @@ export class TilesetRenderer {
     // here without leaving half a tree in the host.
     this.#check();
 
+    // **The render box.** S9 — no padding and no border (`tileset.css`), so its
+    // content box and border box coincide and `Wpx` is unambiguous. Host
+    // styling applies from the outside; padding or a border on it is
+    // unsupported rather than interpreted.
+    //
+    // S8 — it declares its natural aspect ratio and no explicit height, so
+    // height follows width with no measurement and no script (until measured:
+    // `canvasBoxStyle`, `domBoxStyle`). Host CSS may override the height, and
+    // `07` §7.3's vertical bleed then costs one line, `options.align.y` choosing
+    // which rows that line crops. Under `sizing: "fixed"` the natural height is a
+    // constant, reserved as one.
+    //
+    // R9 — the render box is the only clipping boundary. That disposes of two
+    // cases without special-casing them: `yOffset`'s clipping of row 0 is the
+    // box's top edge meeting a negative `originY`, and the horizontal bleed is
+    // its side edges meeting a negative `originX`. Since 0.8.0 the DOM box can
+    // hand that clip to the host (`options.overflow: "visible"`), whose own
+    // ancestor is then the boundary if it wants one; both cases above come back
+    // into view with it. It stays one boundary, never one per cell.
+    //
+    // §4.5 — the output is decorative: the box is `aria-hidden` and every
+    // `<img>` has `alt=""`. Meaningful content is never a tile.
     const doc = host.ownerDocument;
     this.#box = doc.createElement("div");
     this.#box.className = "tileset";
     this.#box.setAttribute("aria-hidden", "true");
     this.#box.setAttribute("data-tileset-box", "");
+    // ADR-006 — **the canvas is the grid; the box is the box.** Two elements
+    // because these are two jobs: the box is what `Wpx` means, carries R9's clip
+    // and reserves S8's space; the canvas's backing store is exactly the grid in
+    // device px — its visible columns since 0.6.0 (`canvasPresentation`), which
+    // under `"fixed"` in a narrow box is the difference between a canvas the size
+    // of the screen and one many times wider.
+    //
+    // **One canvas for the renderer's life**, restyled as it is measured, never
+    // replaced. Building a new one at the first measurement would discard the
+    // backing store for a difference of one attribute.
     this.#canvas = doc.createElement("canvas");
     this.#canvas.className = "presented";
     this.#canvas.setAttribute("data-tileset-canvas", "");
@@ -333,6 +438,18 @@ export class TilesetRenderer {
    * not the canvas, which is the grid and hangs past it by the bleed. The same
    * element for the renderer's whole life, so a host may hold it, and
    * `toRenderSpace` converts pointer events against it.
+   *
+   * **The host measures; the renderer does not.** `07` **R5** forbids the
+   * renderer consulting or measuring anything to compute a cell box. Converting
+   * a pointer event into render space is `07` §8.2's caller work, and it needs
+   * the box's position on screen, so the element is exposed: "an editor calling
+   * `getBoundingClientRect()` on it is doing something **R5** does not touch".
+   * Handing out the canvas instead would give that conversion a rect wider than
+   * the render box — §8.2's "single most likely place to get this wrong".
+   *
+   * That is the whole of what `09` needs beyond `cellBox` and `cellAt`. There is
+   * **no exported grid**: an overlay shows the cells an Operation *selects*,
+   * derived from the Operation, never from the drawn output.
    */
   get box(): HTMLElement {
     return this.#box;
@@ -489,7 +606,7 @@ export class TilesetRenderer {
     const model = this.#model;
     if (substrate === "canvas") {
       const presentation = model.presentation;
-      this.#attributes(this.#canvasBoxStyle(presentation));
+      this.#attributes(canvasBoxStyle(model));
       const cs = canvasStyle(presentation);
       if (cs !== this.#canvasStyle) {
         this.#canvasStyle = cs;
@@ -640,23 +757,14 @@ export class TilesetRenderer {
 
   readonly #onDecodeError = (key: string, cause: unknown): void => {
     if (this.#destroyed) return;
+    // `parseAssetKey`, not `key.split(" ")`, which the component once had: the
+    // key has never contained a space — `assetKey` joins with `\0` — so the
+    // `assetId` came back `undefined`, the guard returned, and a failed decode
+    // reported nothing. Silent, the opposite of this package's posture.
     const ref = parseAssetKey(key);
     if (ref === null) return;
     this.#model.report({ ...ref, meta: this.#model.metaByKey.get(key) ?? {} }, cause);
   };
-
-  /**
-   * The box's style under `"canvas"`. It declares a ratio only until it has a
-   * canvas to measure, then takes its height from the canvas —
-   * `Tileset.svelte`'s template comment says why a permanent ratio would leave
-   * a hairline under the bottom row. With rules, the reservation stylesheet
-   * declares it instead.
-   */
-  #canvasBoxStyle(presentation: CanvasPresentation | null): string {
-    const model = this.#model;
-    if (presentation !== null || model.hasRules) return "";
-    return model.sizing === "fixed" ? `height: ${model.fixedHeight}px;` : `aspect-ratio: ${model.ratio};`;
-  }
 
   /** Each written only when its string changed, so a resize touches what moved. */
   #attributes(boxStyle: string): void {
@@ -702,9 +810,12 @@ export class TilesetRenderer {
    * presentation, the mask, `pending`, or the bank.
    *
    * **The backing store is the grid, not the box**, and the context is left
-   * unscaled: the draw list is already in device px. `Tileset.svelte` carries
-   * the full reasoning for every line below; the two are the same paint until
-   * the component wraps this class.
+   * unscaled: the draw list is already in device px, and scaling by the DPR to
+   * draw in CSS px would put integer arithmetic back into floating point for no
+   * gain. There is no origin to round and nothing to centre: every coordinate
+   * is an exact multiple of `cellDev`, and the residual between grid and box is
+   * carried by the CSS width the canvas is presented at — one isotropic
+   * resample of one surface, where no internal edge exists to seam.
    */
   #paint(presentation: CanvasPresentation | null): void {
     const model = this.#model;
@@ -815,8 +926,12 @@ export class TilesetRenderer {
    * shared edge is arithmetic between two margins, not a flow relationship — so
    * without it `height: auto` would collapse the box. An inline height on the
    * box would beat a host's stylesheet and break **S8**'s vertical bleed; a
-   * child leaves the host's `height` winning. It is kept last, after every cell
-   * (`#paintCells` inserts before it).
+   * child leaves the host's `height` winning, with this simply overflowing into
+   * **R9**'s clip — the relationship the canvas has with the box. Under
+   * `overflow: "visible"` there is no clip for it to overflow into, but it is
+   * `width: 0` and draws nothing, so a host height still wins and only the tiles
+   * show past it. It is kept last, after every cell (`#paintCells` inserts
+   * before it).
    */
   #domBox(): void {
     const model = this.#model;
@@ -937,6 +1052,18 @@ export class TilesetRenderer {
 
     let node = this.#cells.get(id);
     if (node === undefined) {
+      // **`data-x` / `data-y` are the cell's identity, and this is the
+      // interactive substrate.** The browser hit-tests each `.cell` by its border
+      // box under its transform — by the drawn tile, translated, scaled and
+      // turned, not by its home square — and resolves overlaps by document order,
+      // which is paint order. What it cannot say is *which* cell was hit; a host
+      // delegating one listener on the box reads it here. The canvas is one
+      // element and stays decorative.
+      //
+      // **The hit area is the rest pose.** `.cell` carries the generated
+      // transform and must not be animated: a hover effect that scaled `.cell`
+      // would move the hit area under the pointer and flicker at the edge.
+      // Animate the `<img>` inside it, and the cell stays where it is hit.
       const el = this.#box.ownerDocument.createElement("div");
       el.className = "cell";
       el.setAttribute("data-tileset-cell", "");

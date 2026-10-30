@@ -40,7 +40,7 @@ All re-exported from `render/index.ts:43-60`.
 | --- | --- | --- | --- |
 | `seed` | `string` | `file.config.defaultSeed` | Absent means a fixed picture (cited as **S4**). |
 | `loadSalt` | `number` | `0` | Per-load variation, drawn once per session by the host. |
-| `substrate` | [`Substrate`](/api/render/type-aliases/substrate/) | `"canvas"` | `"canvas"` (one bitmap, seamless, draws nothing until measured) or `"dom"` (one element per cell, hit-testable, SSR-complete). |
+| `substrate` | [`Substrate`](/api/render/type-aliases/substrate/) | `"canvas"` | `"canvas"` (one bitmap, seamless, draws nothing until measured) or `"dom"` (one element per cell, hit-testable). |
 | `overflow` | [`Overflow`](/api/render/type-aliases/overflow/) | `"hidden"` | `"visible"` hands the clip to the host. **DOM only.** |
 | `sizing` | `Sizing` | `"fluid"` | `"fixed"` keeps `layout.cellSize` CSS px and crops. |
 | `align` | `{ x?: AlignX; y?: AlignY }` | `center` / `top` | Which edge of the design box stays put. |

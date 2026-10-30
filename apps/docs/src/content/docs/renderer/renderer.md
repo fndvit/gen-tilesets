@@ -27,8 +27,9 @@ r.destroy();
 ```
 
 **It draws both substrates.** Under `"canvas"` it paints one `<canvas>`; under `"dom"` it keeps one
-`.cell` element per shown cell. A switch between them at runtime keeps the box. `<Tileset>` does not
-use it yet: the component becomes a wrapper around it in Block 5.
+`.cell` element per shown cell. A switch between them at runtime keeps the box. `<Tileset>` and
+`<TileDecoration>` are thin Svelte wrappers around it (0.9.0), and `TileDecorationRenderer`
+(`decoration.ts`) is the plain-JS decoration.
 
 ## In detail
 
@@ -159,7 +160,7 @@ dropped, so a deleted Tile stops drawing.
 
 A key that is re-resolved lazily keeps its previous `src` while the new promise is pending, so a
 `meta` edit does not flash. If that promise rejects, the key is dropped: **R3**, the cell draws
-nothing, not the old picture. `Tileset.svelte` does the same.
+nothing, not the old picture.
 
 Nothing here reports a failure. A rejection is reported by `resolveDrawable`, and a failed decode
 by the bank, through `model.report`, which reads `onAssetError` at call time.

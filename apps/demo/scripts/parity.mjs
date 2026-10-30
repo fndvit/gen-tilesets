@@ -1,5 +1,5 @@
 /**
- * `<Tileset>` against `TilesetRenderer`, case by case, across widths and DPRs.
+ * The frozen pre-Block-5 `<Tileset>` against today's, case by case, across widths and DPRs.
  *
  *   pnpm --filter @fndvit/tileset-demo dev               # port 5173
  *   node apps/demo/scripts/parity.mjs [http://localhost:5173/parity.html]

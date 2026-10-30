@@ -380,6 +380,19 @@ describe("TilesetRenderer", () => {
     expect(host.firstElementChild!.getAttribute("data-tileset-wrapper")).toBe("s1");
   });
 
+  it("takes nothing from the host's Math.random on import, or when it is given an id", async () => {
+    // A host that seeds `Math.random` (the demo's screenshot harness pins its
+    // per-load salt that way) must draw the same values with the package loaded.
+    vi.resetModules();
+    const random = vi.spyOn(Math, "random");
+    const { TilesetRenderer: Fresh } = await import("./renderer.js");
+    new Fresh(document.createElement("div"), { file: hero(), options: { provider }, id: "s1" });
+    expect(random).not.toHaveBeenCalled();
+    new Fresh(document.createElement("div"), { file: hero(), options: { provider } });
+    new Fresh(document.createElement("div"), { file: hero(), options: { provider } });
+    expect(random).toHaveBeenCalledOnce();
+  });
+
   it("moves the reservation to a per-instance sheet under a strict CSP, and removes it on destroy()", () => {
     vi.spyOn(HTMLStyleElement.prototype, "sheet", "get").mockReturnValue(null);
     const host = document.createElement("div");

@@ -73,10 +73,14 @@ export interface TilesetOptions {
    * - `"canvas"` — one bitmap. Seamless by construction (adjacent tiles are
    *   neighbouring pixels of one surface, so no host CSS can open a boundary),
    *   and the cheaper of the two for large grids. Draws nothing until the box is
-   *   measured, so the server HTML is an empty box of the right size.
-   * - `"dom"` — one element per cell. Hit-testable per cell, and SSR-complete: the
-   *   server HTML carries every cell's geometry. Its grid can overhang the box by
-   *   up to a device pixel per cell, clipped at the sides.
+   *   measured.
+   * - `"dom"` — one element per cell. Hit-testable per cell. Its grid can
+   *   overhang the box by up to a device pixel per cell, clipped at the sides.
+   *
+   * Under either, a server-rendered page carries an empty box of the right size
+   * and the tiles arrive in the browser (`placeholder.ts`). Until 0.9.0 the DOM
+   * substrate's server HTML carried every cell; that waits on a server-side
+   * `renderHtml()`, whose seam is `affineCellStyle`.
    */
   substrate?: Substrate | undefined;
 
