@@ -8,6 +8,7 @@ import {
   optionErrors,
   resolveOptions,
   renderOverride,
+  sameRules,
   sameTargets,
   type HostRule,
   type TilesetOptions,
@@ -251,5 +252,22 @@ describe("copyOptions", () => {
   it("keeps unknown keys, so the development check still sees them", () => {
     const o = { sed: "typo" } as unknown as TilesetOptions;
     expect(optionErrors(copyOptions(o))).toEqual(optionErrors(o));
+  });
+});
+
+describe("sameRules", () => {
+  it("compares rules field by field, align one level down", () => {
+    const a = () => [{ maxWidth: 800, columns: 9, align: { x: "left" as const } }];
+    expect(sameRules(a(), a())).toBe(true);
+    expect(sameRules(undefined, undefined)).toBe(true);
+    expect(sameRules(a(), undefined)).toBe(false);
+    expect(sameRules(a(), [{ maxWidth: 800, columns: 8, align: { x: "left" } }])).toBe(false);
+    expect(sameRules(a(), [{ maxWidth: 800, columns: 9, align: { x: "right" } }])).toBe(false);
+    expect(sameRules(a(), [{ maxWidth: 800, columns: 9 }])).toBe(false);
+    expect(sameRules(a(), [...a(), { minWidth: 1 }])).toBe(false);
+  });
+
+  it("counts an unknown key, so a misspelt field still reaches the development check", () => {
+    expect(sameRules([{ maxWidth: 1 }], [{ maxWidth: 1, colums: 3 } as never])).toBe(false);
   });
 });

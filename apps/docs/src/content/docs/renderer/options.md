@@ -108,6 +108,7 @@ All re-exported from `render/index.ts:43-60`.
 | --- | --- |
 | `render/Tileset.svelte:160-170` | `legacyPropErrors(rest)` and `optionErrors(options)` (DEV), then `resolveOptions(options)`. |
 | `render/Tileset.svelte:195-199` | `sameTargets` to keep the targets' identity when an inline array is rebuilt. |
+| `render/model.ts` | `sameRules`, internal (not exported from `render/index.ts`), to keep the host rules' identity when `copyOptions` rebuilds the array. |
 | `render/Tileset.svelte:264` | `effectiveRules(checked, hostRules)`. |
 | `render/Tileset.svelte:305-307` | `renderOverride(base, shaped.active)`. |
 | `render/breakpoints.ts:20, 103, 197` | `renderOverride` in `reservationCss` and `inertCellSizeRules`. |
@@ -125,6 +126,8 @@ Callees: `shapeFieldProblem`, `SHAPE_FIELDS` (`../shape.ts`); `defaultProvider` 
   overrides on its own (including both `avoid` shapes).
 - `normalizeTargets` decides the shape once and treats an iterable element as one element;
   `sameTargets` compares by content and order.
+- `sameRules` compares responsive rules field by field, `align` one level down, and counts an
+  unknown key as a difference.
 - `optionErrors` accepts thirteen valid objects and rejects thirty-one invalid ones, each with a
   message containing its path.
 - `legacyPropErrors` names each legacy prop and its new place, and is silent when there are none.

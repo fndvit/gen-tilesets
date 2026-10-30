@@ -61,6 +61,7 @@ import {
   optionErrors,
   renderOverride,
   resolveOptions,
+  sameRules,
   sameTargets,
   type NormalizedTargets,
   type ResolvedOptions,
@@ -278,7 +279,15 @@ export class TilesetModel {
   readonly #loadSalt = this.#memo(() => [this.#resolved.get().loadSalt], (v) => v);
   readonly #substrate = this.#memo(() => [this.#resolved.get().substrate], (v) => v);
   readonly #overflow = this.#memo(() => [this.#resolved.get().overflow], (v) => v);
-  readonly #hostRules = this.#memo(() => [this.#resolved.get().responsive], (v) => v);
+  // By content, like the targets below: `sameRules` says why.
+  #lastHostRules: ResolvedOptions["responsive"] | undefined;
+  readonly #hostRules = this.#memo(
+    () => [this.#resolved.get().responsive],
+    (next) => {
+      if (!sameRules(this.#lastHostRules, next)) this.#lastHostRules = next;
+      return this.#lastHostRules;
+    },
+  );
   readonly #provider = this.#memo(() => [this.#resolved.get().provider], (v) => v);
   readonly #padding = this.#memo(() => [this.#resolved.get().avoid?.padding ?? 0], (v) => v);
 

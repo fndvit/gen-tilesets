@@ -301,6 +301,41 @@ export function sameTargets(a: NormalizedTargets | null, b: NormalizedTargets | 
   return a.elements.length === be.length && a.elements.every((el, i) => el === be[i]);
 }
 
+/**
+ * Whether two `responsive` lists hold the same rules, field by field.
+ *
+ * For the same reason as {@link sameTargets}: `copyOptions` returns a new array
+ * on every call, so a renderer that copies on every `update()` hands the model a
+ * new identity each time. Compared by identity, an active rule then re-shaped the
+ * config and re-derived the layout, the geometry and the draw list, and the
+ * canvas was cleared and redrawn for an update that changed nothing.
+ *
+ * Every own key is compared, unknown ones included, so a misspelt field still
+ * counts as a change and reaches the development check. `align` is compared one
+ * level down, which is all a `HostRule` nests.
+ */
+export function sameRules(a: readonly HostRule[] | undefined, b: readonly HostRule[] | undefined): boolean {
+  if (a === b) return true;
+  if (a === undefined || b === undefined || a.length !== b.length) return false;
+  return a.every((r, i) => sameFlat(r, b[i]!, (x, y, k) => k === "align" && sameFlat(x, y)));
+}
+
+function sameFlat(
+  a: unknown,
+  b: unknown,
+  nested: (x: unknown, y: unknown, key: string) => boolean = () => false,
+): boolean {
+  if (Object.is(a, b)) return true;
+  if (a === null || b === null || typeof a !== "object" || typeof b !== "object") return false;
+  const ka = Object.keys(a);
+  if (ka.length !== Object.keys(b).length) return false;
+  return ka.every((k) => {
+    const x = (a as Record<string, unknown>)[k];
+    const y = (b as Record<string, unknown>)[k];
+    return k in b && (Object.is(x, y) || nested(x, y, k));
+  });
+}
+
 const SUBSTRATES: readonly string[] = ["canvas", "dom"];
 const OVERFLOWS: readonly string[] = ["hidden", "visible"];
 const SIZINGS: readonly string[] = ["fluid", "fixed"];

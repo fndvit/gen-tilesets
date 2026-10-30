@@ -43,6 +43,33 @@ const DOCUMENT_NODE = 9;
 const DOCUMENT_FRAGMENT_NODE = 11;
 
 /**
+ * Where a stylesheet for `el` has to go: its shadow root, its document, or —
+ * for a node not yet attached anywhere — its `ownerDocument`.
+ */
+function rootOf(el: Element): Document | ShadowRoot | null {
+  const top = el.getRootNode();
+  return top.nodeType === DOCUMENT_NODE
+    ? (top as Document)
+    : top.nodeType === DOCUMENT_FRAGMENT_NODE && "host" in top
+      ? (top as ShadowRoot)
+      : el.ownerDocument;
+}
+
+function docOf(root: Document | ShadowRoot): Document {
+  return root.nodeType === DOCUMENT_NODE ? (root as Document) : root.ownerDocument!;
+}
+
+/**
+ * Whether a connected `<style>` with non-empty rules was refused by the page's
+ * policy. Chrome leaves a blocked element with no sheet. Firefox and Safari were
+ * not measured, so an empty sheet counts as blocked too; the caller only asks
+ * about non-empty rules, so an empty sheet cannot be a successful parse of them.
+ */
+function isBlocked(style: HTMLStyleElement): boolean {
+  return style.sheet === null || style.sheet.cssRules.length === 0;
+}
+
+/**
  * Makes sure the renderer's rules reach `box`, the tileset's render box. Every
  * instance calls it; all but the first in a root find the rules and return.
  *
@@ -89,15 +116,9 @@ const DOCUMENT_FRAGMENT_NODE = 11;
  * help only pages with a strict policy.
  */
 export function injectStyles(box: Element): void {
-  const top = box.getRootNode();
-  const root: Document | ShadowRoot | null =
-    top.nodeType === DOCUMENT_NODE
-      ? (top as Document)
-      : top.nodeType === DOCUMENT_FRAGMENT_NODE && "host" in top
-        ? (top as ShadowRoot)
-        : box.ownerDocument;
+  const root = rootOf(box);
   if (root === null) return;
-  const doc = root.nodeType === DOCUMENT_NODE ? (root as Document) : root.ownerDocument!;
+  const doc = docOf(root);
 
   const adopted = sheets.get(doc);
   if (adopted !== undefined && root.adoptedStyleSheets?.includes(adopted)) return;
@@ -117,10 +138,7 @@ export function injectStyles(box: Element): void {
     // or none, so there is nothing to judge yet. The element stays and applies
     // once the root is connected.
     if (!style.isConnected) return;
-    // Chrome leaves a blocked element with no sheet. Firefox and Safari were not
-    // measured, so an empty sheet counts as blocked too; the rules are not empty,
-    // so an empty sheet cannot be a successful parse of them.
-    if (style.sheet !== null && style.sheet.cssRules.length > 0) return;
+    if (!isBlocked(style)) return;
     style.remove();
     blocked.add(doc);
   }
@@ -144,4 +162,107 @@ export function injectStyles(box: Element): void {
     sheets.set(doc, sheet);
   }
   root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+}
+
+/**
+ * One tileset instance's own stylesheet: the responsive reservation, whose
+ * selectors carry the instance's id (`reservationCss`). It lives exactly as long
+ * as the instance has rules.
+ *
+ * **A `<style>` first in `parent`, and a constructed sheet only if that is
+ * blocked** — the same order as {@link injectStyles}, and it shares that
+ * function's memory of which documents block inline styles, so a page with a
+ * strict CSP is tried once in all. The `<style>` is the default because it is
+ * exactly the markup `<Tileset>` has always rendered, so the server-rendered
+ * HTML question (Block 5) is unchanged by this.
+ *
+ * The fallback differs from `injectStyles`' in one way: the sheet is **per
+ * instance**, not shared, because its text is this instance's alone and is
+ * swapped with `replaceSync` when the rules change. That adopted sheets cascade
+ * after the document's does not matter here, as it does for the shared rules:
+ * these selectors are scoped to one wrapper's id, and no host writes a rule
+ * against them to be overridden.
+ *
+ * **When it is judged.** A `<style>` in a node that is not connected has no sheet
+ * whatever the policy, so nothing can be concluded until it is — the Observable
+ * case, where a cell builds its element and only then displays it. {@link set}
+ * is called on every render and judges the first time it finds the `<style>`
+ * connected.
+ *
+ * Before 0.9.0 this was inline `{@html}` only, and under a strict CSP the
+ * reservation silently did nothing: no reserved height before measurement.
+ *
+ * Rejected: the shared sheet `injectStyles` adopts, with every instance's rules
+ * appended. Removing one instance's rules would mean finding them again by
+ * text, and the sheet would outlive every instance that wrote to it.
+ */
+export class InstanceStyle {
+  #style: HTMLStyleElement | null = null;
+  #sheet: CSSStyleSheet | null = null;
+  #root: Document | ShadowRoot | null = null;
+  #text = "";
+  #judged = false;
+
+  constructor(parent: Element) {
+    const root = rootOf(parent);
+    if (root !== null && blocked.has(docOf(root))) {
+      this.#adopt(root);
+    } else {
+      const style = parent.ownerDocument.createElement("style");
+      parent.prepend(style);
+      this.#style = style;
+    }
+  }
+
+  /** Sets the rules. Cheap when `css` is unchanged and the verdict is in. */
+  set(css: string): void {
+    const changed = css !== this.#text;
+    this.#text = css;
+    if (this.#sheet !== null) {
+      if (changed) this.#sheet.replaceSync(css);
+      return;
+    }
+    const style = this.#style;
+    if (style === null) return;
+    if (changed) style.textContent = css;
+    if (this.#judged || css === "" || !style.isConnected) return;
+    this.#judged = true;
+    if (!isBlocked(style)) return;
+    const root = rootOf(style);
+    // Only a missing sheet is evidence about the page's policy. An empty one may
+    // be rules that did not parse — an id that breaks its selectors — and must
+    // not mark the document blocked for every `injectStyles` after it.
+    const policy = style.sheet === null;
+    style.remove();
+    this.#style = null;
+    if (root === null) return;
+    if (policy) blocked.add(docOf(root));
+    this.#adopt(root);
+  }
+
+  /** Removes the rules from wherever they went. Idempotent. */
+  remove(): void {
+    this.#style?.remove();
+    this.#style = null;
+    const root = this.#root;
+    const sheet = this.#sheet;
+    if (root !== null && sheet !== null && root.adoptedStyleSheets !== undefined) {
+      root.adoptedStyleSheets = root.adoptedStyleSheets.filter((s) => s !== sheet);
+    }
+    this.#sheet = null;
+    this.#root = null;
+  }
+
+  #adopt(root: Document | ShadowRoot): void {
+    const Sheet = docOf(root).defaultView?.CSSStyleSheet;
+    // Neither route works; `injectStyles` has already warned about this
+    // document, and a missing reservation costs a reflow, not a wrong picture.
+    if (Sheet === undefined || root.adoptedStyleSheets === undefined) return;
+    const sheet = new Sheet();
+    sheet.replaceSync(this.#text);
+    root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+    this.#sheet = sheet;
+    this.#root = root;
+    this.#judged = true;
+  }
 }
