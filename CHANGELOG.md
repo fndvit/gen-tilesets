@@ -8,7 +8,64 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
-## Unreleased — the framework-agnostic core (in progress, `vanilla-core`)
+## 0.9.0 — the framework-agnostic core
+
+The renderer is now a plain TypeScript class, `TilesetRenderer`, and `<Tileset>` and
+`<TileDecoration>` are thin Svelte wrappers over it. So the package draws in Observable Framework,
+plain HTML or any other framework, with the same implementation. What a Svelte client draws is
+unchanged; the markup a host can select on changed in the ways listed below.
+
+### Added: `TilesetRenderer` and `TileDecorationRenderer` are exported
+
+From `@fndvit/gen-tilesets/render`, with their `Init` and `Inputs` types, `injectStyles` and
+`TILESET_CSS`. `new TilesetRenderer(host, { file, options })` draws into `host`; `update()` takes
+any change and `destroy()` removes everything it added. The README has an Observable Framework
+example and a ten-line wrapper pattern for other frameworks, both copied from projects that ran.
+`TilesetModel`, the placeholder helpers and the box-style functions stay unexported: they are the
+wrappers' plumbing, and exporting them would freeze code that is still being reshaped.
+
+### Changed: the `data-tileset-*` attributes are the public DOM hooks
+
+`data-tileset-box`, `data-measured`, `data-tileset-canvas`, `data-tileset-cell`, `data-x`,
+`data-y`, `data-masked`, `data-tileset-extent`, `data-tileset-wrapper`, `data-tileset-decoration`,
+`data-tileset-host` and `data-tileset-placeholder`. Renaming one is now a changelog line. The
+classes stay through `0.x` for compatibility, but select on the attribute.
+
+### Changed: the responsive wrapper's class is `tileset-container`
+
+It was `container`. Bootstrap and Tailwind both style `.container` (centred, capped, padded), and
+nothing kept those rules off the package's element. Nothing drawn changes (screenshots 32/32 at
+0 px); host CSS that selected `.container[data-tileset-wrapper]` should select
+`[data-tileset-wrapper]`.
+
+### Changed: development errors name the tileset, not `<Tileset>`
+
+The model's messages read "The tileset's options are not valid", "The tileset's `file` is not a
+valid TilesetFile" and "The tileset's `options.responsive` cannot be applied", since a host may
+have no Svelte. The decoration's reads "The decoration's `style` cannot be placed at…". `<Tileset>`'s
+own prop check still names `<Tileset>`.
+
+### Fixed: a renderer built detached ignored a linked `tileset.css`
+
+Found by the Observable proof, where the idiom is to build into ``html`<div>` `` and then display
+it. `injectStyles` sees a linked copy through the box's computed style, which a detached box does
+not have, so it injected the rules anyway. Under a strict CSP that sent them to the adopted-sheet
+fallback, which cascades after the host's CSS, so host overrides at equal specificity lost even
+though linking the file is the CSP advice. The renderer now injects on its first render after the
+box is attached.
+
+### Fixed: the `.svelte.d.ts` files carried `import "./tileset.css"`
+
+`svelte-package` copies a component's side-effect imports into its type file. TypeScript 6 checks
+side-effect imports by default, so a consumer with `skipLibCheck: false` failed its typecheck in our
+file (measured: `svelte-check` in a throwaway Vite app, TypeScript 6.0.3). `pnpm build` now removes
+the line from the type files; the `.js` keeps it.
+
+### Removed: the parity page
+
+`apps/demo/parity.html` drew every case with a frozen copy of the pre-0.9.0 component beside the
+renderer. With the component now the wrapper, the copy went with it. `scripts/ssr.mjs` checks the
+server render against a table of reserved heights measured from that copy's last run.
 
 ### Changed: the renderer's styles are one global stylesheet, `tileset.css`
 
@@ -56,8 +113,6 @@ the demo fell by 32% (canvas) and 50% (DOM). What a host can see:
 - A renderer `id` containing `"` or `\` throws in every build, not only in development. The id is
   written into a stylesheet's selectors.
 
-`TilesetRenderer` and `TileDecorationRenderer` are not exported yet. That comes with the package
-surface, the docs and the Observable proof, in the next step.
 
 ### Fixed: a host's `canvas { max-width: 100% }` reset shrank the canvas substrate
 

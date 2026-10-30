@@ -44,12 +44,17 @@ each is public.
 | Uniform cell | [uniform.ts](/renderer/uniform/) | `canvasPresentation`, `domGeometry`, `domLattice`, `uniformDrawList`, `uniformGeometry`; types `CanvasPresentation`, `DomGeometry`, `UniformGeometry`, `UniformItem` | A host sizing an export or reporting the residual must read the one implementation. |
 | Asset rules | [warn.ts](/renderer/warn/) | `assetTooSmall`, `cellTooSmall`, `SOFT_CELL_DEV`, `WarnOnce` | A host can surface them in its own UI. |
 | Assets | [provider.ts](/renderer/provider/) | `assetKey`, `defaultProvider`, `parseAssetKey`, `prefixedProvider`; types `AssetProvider`, `AssetRef`, `Drawable` | (no comment on this group) |
+| Natural size | [images.ts](/renderer/images/) | `NO_NATURAL_SIZE`, `requireNaturalSize`; type `Probe` | So the editor refuses at attach exactly what the renderer refuses at draw. |
+| The renderer | [renderer.ts](/renderer/renderer/), [decoration.ts](/renderer/tile-decoration/), [styles.ts](/renderer/styles/) | `TilesetRenderer`, `TileDecorationRenderer`, `injectStyles`, `TILESET_CSS`; types `TilesetRendererInit`, `TilesetRendererInputs`, `TileDecorationInit`, `TileDecorationInputs` | Since 0.9.0. For a host with no Svelte. |
 
 Generated API pages for every one of these are under `/api/render/`, except `sincos`, which is
 documented with the engine at [`/api/index/functions/sincos/`](/api/index/functions/sincos/).
 
 **Not exported** from this entry point, although exported from their modules: `ImageBank`,
-`NaturalSizeChecks`, `requireNaturalSize`, `NO_NATURAL_SIZE` (`images.ts`); `resolveDrawable`,
+`NaturalSizeChecks` (`images.ts`); `TilesetModel`, `Memo`, `cellStyle`, `domBoxStyle`,
+`canvasBoxStyle`, `extentStyle`, `affineCellStyle`, `measuredCellStyle` (`model.ts`); `placeholder`,
+`setAside` (`placeholder.ts`); `decorationBox`, `decorationWidth`, `reshapeDecoration`
+(`decoration.ts`); `InstanceStyle`, `STYLE_ATTRIBUTE` (`styles.ts`); `copyOptions` (`options.ts`); `resolveDrawable`,
 `recordLoadFailure`, `loadBlocked` (`provider.ts`); `drawnTiles`, `DrawnTiles` (`occlusion.ts`); `Scheduler`, `MeasureEnv`,
 `browserEnv`, `WRAPPER_ATTRIBUTE`, `scopeOf`, `currentDpr`, `observeDpr` (`measure.ts`); `GridCache`,
 `FlipFlop`, `inertCellSizeRules` (`breakpoints.ts`).
