@@ -54,7 +54,9 @@ frame, and it paints twice when a decode and a measurement land together.
 
 `#render` works in dependency order:
 
-1. The structure: the wrapper and the reservation.
+1. The structure: the wrapper and the reservation. Then the substrate's elements and the box's
+   attributes, so the box is styled (its ratio, or its extent) before it is measured, as the
+   component's template is. A box measured bare reads a height of 0.
 2. The measurement.
 3. The drawables.
 4. The bank.
@@ -122,9 +124,15 @@ Rejected: rebuilding the list (remounts and re-decodes every image), and a minim
 **A cell that can never draw is not mounted at all.** That covers a rejected provider and a `src`
 whose `<img>` failed (`loadBlocked`). An empty `.cell` would still take a host's clicks.
 
-**Each `<img>` closes over its own `cell` and `src`.** A reseed that changes a cell's asset
-makes a new `<img>`, so a late failure of the old one is recorded against the old asset. It never
-blames the new one. `onload` runs the natural-size probe shared with the bank (`NaturalSizeChecks`),
+**Each `<img>` closes over its own `cell` and `src`.** A new `<img>` is made whenever the cell's asset
+or `src` changes, even when two assets share a URL, so its handlers always name the asset it shows.
+
+**An `<img>` taken out of a cell is retired.** That covers a reseed, a removed cell, a switch to
+canvas and `destroy()`. Its handlers are cleared, and a size probe still in flight is ignored.
+Removing an `<img>` does not stop its request. Without this, a late failure of a `src` no cell
+shows would overwrite the key's failed `src` and remount cells known to be broken, or report
+twice. The component never had this problem: it swaps `src` on one `<img>`, which aborts the old
+request. `onload` runs the natural-size probe shared with the bank (`NaturalSizeChecks`),
 so a `src` is probed once across both substrates. `loading` is set before `src`, because setting it
 after would start the fetch eagerly.
 
@@ -201,9 +209,11 @@ Not yet exported from `render/index.ts`. Exporting it is part of the packaging s
 
 Callees: `model.ts` (`TilesetModel`), `measure.ts` (`track`, `observeDpr`, `currentDpr`),
 `styles.ts` (`injectStyles`, `InstanceStyle`), `images.ts` (`ImageBank`, `NaturalSizeChecks`),
-`model.ts` (`cellStyle`),
+`model.ts` (`cellStyle`, `domBoxStyle`, `extentStyle`, shared with the component so the two boxes
+cannot drift),
 `options.ts` (`copyOptions`), `breakpoints.ts` (`FlipFlop`, `inertCellSizeRules`), `edges.ts`
-(`coverRect`), `provider.ts` (`assetKey`, `parseAssetKey`, `loadBlocked`, `recordLoadFailure`) and
+(`coverRect`), `provider.ts` (`assetKey`, `parseAssetKey`, `loadBlocked`, `recordLoadFailure`,
+`settledFor`) and
 `warn.ts`.
 
 ### Tests
@@ -228,13 +238,17 @@ stubbed. It covers:
 - Ids, and the reservation's per-instance sheet under a strict CSP.
 - The DOM substrate:
   - row-major order with the extent last;
+  - styled, extent included, before the first measurement;
   - the ratio until measured;
   - `visibility: hidden` while `pending`;
   - a mask change touching only flipped cells, and an equal update writing nothing (both
     counted with a `MutationObserver`);
   - a resize and a `columns` breakpoint keeping shared nodes and their order;
   - an `<img>` failure unmounting its asset's cells and reporting once;
-  - a stale failure after a reseed blaming the old asset;
+  - a failure of an `<img>` a reseed replaced reporting nothing;
+  - a late failure of a superseded `src` not unblocking the `src` that failed now;
+  - a cell whose asset changes to one with the same URL reporting against the new asset;
+  - a switch to canvas silencing the `<img>`s it removed;
   - a lazy drawable mounting on settle and unmounting on rejection;
   - a substrate switch keeping the box and leaving nothing behind;
   - no report after `destroy()`.
@@ -242,7 +256,9 @@ stubbed. It covers:
 **The picture is checked by the parity page.** `apps/demo/parity.html` draws each case twice, with
 `<Tileset>` and with `TilesetRenderer`, under both substrates. It compares the two canvases pixel for
 pixel, and the two DOM boxes node for node: every child in document order, each cell's position,
-style, mask flag and `<img>` attributes, and the extent.
+style, mask flag and `<img>` attributes, and the extent. A DOM match counts only once every `<img>`
+has finished and two polls in a row agree, since failures and the size probe unmount cells after the
+first mount. The sweep's viewport is as tall as the page, so lazy `<img>`s load.
 `apps/demo/scripts/parity.mjs` drives it across widths and DPRs, then reseeds every case in place
 so the comparison also runs through `update()`. The widths are chosen for the box, so the sweep
 crosses both of the page's breakpoints in both directions. It exits non-zero on any difference, and

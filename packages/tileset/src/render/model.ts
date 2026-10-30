@@ -902,6 +902,47 @@ export function cellStyle(p: Placement, cell: TileState, x: number, y: number): 
 }
 
 /**
+ * The DOM box's inline style. It declares the natural ratio only until there is
+ * a grid to measure: a declared ratio is the *ideal* height and the grid inside
+ * it is quantised, and because the grid is top-anchored the disagreement would
+ * land on the bottom edge as a shaved bottom row. After measurement `.extent`
+ * carries the height ({@link extentStyle}). Under `"fixed"` the extent carries it
+ * from the start, and with rules the reservation stylesheet declares it.
+ *
+ * `visibility: hidden` while `pending`: with `avoid` set, nothing is shown over
+ * the page until the mask exists. Space is still reserved, so nothing reflows
+ * when it appears.
+ *
+ * One function for both renderers, so their boxes cannot drift apart.
+ */
+export function domBoxStyle(m: {
+  domCell: DomGeometry | null;
+  sizing: ResolvedOptions["sizing"];
+  hasRules: boolean;
+  ratio: number;
+  pending: boolean;
+}): string {
+  const ratio = m.domCell === null && m.sizing !== "fixed" && !m.hasRules ? `aspect-ratio: ${m.ratio};` : "";
+  return ratio + (m.pending ? " visibility: hidden;" : "");
+}
+
+/**
+ * `.extent`'s inline style, or `null` when the box has no extent. After
+ * measurement it is `gridHeightDev`, the last horizontal edge — the same
+ * expression the cells are placed by, so it cannot disagree with them. Before
+ * it, under `"fixed"`, the constant natural height.
+ */
+export function extentStyle(
+  domCell: DomGeometry | null,
+  dpr: number,
+  sizing: ResolvedOptions["sizing"],
+  fixedHeight: number,
+): string | null {
+  if (domCell !== null) return `height: ${domCell.gridHeightDev / dpr}px`;
+  return sizing === "fixed" ? `height: ${fixedHeight}px` : null;
+}
+
+/**
  * The DOM substrate's placement **before measurement**: affine CSS lengths,
  * `cellPlacementAffine`, correct at every width with nothing measured, per
  * `07` §5.3. Under `"fluid"` with top alignment that is bare percentages,

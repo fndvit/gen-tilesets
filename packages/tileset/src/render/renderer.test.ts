@@ -25,6 +25,8 @@ interface FakeTrack {
   targets: NormalizedTargets | null;
   onMeasure: (m: Measurement) => void;
   stop: ReturnType<typeof vi.fn>;
+  /** The box as `track()` found it: what its first measurement would read. */
+  atTrack: { style: string | null; extent: string | null };
 }
 
 const fake = vi.hoisted(() => ({
@@ -42,7 +44,11 @@ vi.mock("./measure.js", async (importOriginal) => {
     ...real,
     track: vi.fn((box: HTMLElement, targets: NormalizedTargets | null, onMeasure: (m: Measurement) => void) => {
       const stop = vi.fn();
-      fake.tracks.push({ box, targets, onMeasure, stop });
+      const atTrack = {
+        style: box.getAttribute("style"),
+        extent: box.querySelector(".extent")?.getAttribute("style") ?? null,
+      };
+      fake.tracks.push({ box, targets, onMeasure, stop, atTrack });
       onMeasure({ ...fake.first, rects: targets === null || !fake.withRects ? null : [] });
       return stop;
     }),
@@ -439,6 +445,14 @@ describe("TilesetRenderer, DOM substrate", () => {
     expect(img.getAttribute("loading")).toBe("lazy");
   });
 
+  it("is styled, extent included, before its first measurement", () => {
+    mount(dom({ sizing: "fixed", align: { y: "bottom" } }));
+    expect(fake.tracks[0]!.atTrack.extent).toMatch(/^height: [\d.]+px$/);
+    fake.tracks.length = 0;
+    mount(dom());
+    expect(fake.tracks[0]!.atTrack.style).toMatch(/^aspect-ratio: /);
+  });
+
   it("declares the ratio until it is measured, then lets the extent carry the height", async () => {
     fake.first = { width: 0, height: 0 };
     const { r } = mount(dom());
@@ -549,7 +563,7 @@ describe("TilesetRenderer, DOM substrate", () => {
     expect(onAssetError.mock.calls[0]![0]).toMatchObject({ tileId: "t", assetId: "a" });
   });
 
-  it("a stale failure after a reseed blames the old asset, not the new one", async () => {
+  it("a failure of an <img> a reseed replaced reports nothing and blocks nothing", async () => {
     const onAssetError = vi.fn();
     const { r } = mount(dom({ onAssetError }));
     const before = new Map(cells(r.box).map((el) => [`${el.dataset.x},${el.dataset.y}`, el.querySelector("img")!]));
@@ -570,13 +584,57 @@ describe("TilesetRenderer, DOM substrate", () => {
     const now = at(r.box, x!, y!)!.querySelector("img")!;
     expect(old.isConnected).toBe(false);
 
+    // Retired: as when `<Tileset>` swaps the `src` of one <img>, which aborts
+    // the old request, the old picture's fate is no longer this cell's.
     old.dispatchEvent(new Event("error"));
     await tick();
-    const oldTile = old.getAttribute("src")!.split("/")[1];
-    expect(onAssetError).toHaveBeenCalledOnce();
-    expect(onAssetError.mock.calls[0]![0]).toMatchObject({ tileId: oldTile });
-    // The new asset is not the one that failed, so its cell is still drawing.
+    expect(onAssetError).not.toHaveBeenCalled();
     expect(now.isConnected).toBe(true);
+    expect(cells(r.box)).toHaveLength(40);
+  });
+
+  it("a late failure of a superseded src does not unblock the src that failed now", async () => {
+    const onAssetError = vi.fn();
+    const p2: AssetProvider = (ref) => ({ src: `/v2/${ref.tileId}/${ref.assetId}.png` });
+    const { r } = mount(dom({ onAssetError }));
+    const old = r.box.querySelector<HTMLImageElement>("img[src='/t/a.png']")!;
+    r.update({ options: dom({ onAssetError, provider: p2 }) });
+    await tick();
+    const tCells = r.box.querySelectorAll("img[src='/v2/t/a.png']").length;
+    expect(tCells).toBeGreaterThan(0);
+
+    r.box.querySelector<HTMLImageElement>("img[src='/v2/t/a.png']")!.dispatchEvent(new Event("error"));
+    await tick();
+    expect(r.box.querySelectorAll("img[src='/v2/t/a.png']")).toHaveLength(0);
+    old.dispatchEvent(new Event("error"));
+    await tick();
+    expect(r.box.querySelectorAll("img[src='/v2/t/a.png']")).toHaveLength(0);
+    expect(cells(r.box)).toHaveLength(40 - tCells);
+    expect(onAssetError).toHaveBeenCalledOnce();
+  });
+
+  it("a cell whose asset changes to one with the same URL reports against the new asset", async () => {
+    const onAssetError = vi.fn();
+    const shared: AssetProvider = () => ({ src: "/same.png" });
+    const { r } = mount(dom({ onAssetError, provider: shared }));
+    const before = new Map(cells(r.box).map((el) => [el, el.querySelector("img")!]));
+    let seed = 0;
+    let moved: HTMLElement | undefined;
+    while (moved === undefined && seed < 20) {
+      const tiles = new Map(cells(r.box).map((el) => [el, el.style.cssText]));
+      r.update({ options: dom({ onAssetError, provider: shared, seed: `s${seed++}` }) });
+      await tick();
+      // The style carries no tile, so look for a cell whose <img> was replaced.
+      moved = [...tiles.keys()].find((el) => el.isConnected && el.querySelector("img") !== before.get(el));
+    }
+    expect(moved).toBeDefined();
+    const img = moved!.querySelector("img")!;
+    img.dispatchEvent(new Event("error"));
+    await tick();
+    expect(onAssetError).toHaveBeenCalledOnce();
+    // Every cell shares the URL, so every asset that failed is blocked, and the
+    // reported one is the asset the cell shows now, whose cell is gone.
+    expect(moved!.isConnected).toBe(false);
   });
 
   it("mounts a lazy drawable's <img> once it settles, and unmounts the cell on a rejection", async () => {
@@ -622,6 +680,19 @@ describe("TilesetRenderer, DOM substrate", () => {
     expect(clears).toBe(1);
     // One track for the box's whole life, whatever it draws with.
     expect(fake.tracks).toHaveLength(1);
+  });
+
+  it("a switch to canvas silences the <img>s it removed", async () => {
+    // The bank's own loads cannot succeed in happy-dom; only the <img>s are under test.
+    vi.spyOn(ImageBank.prototype, "sync").mockImplementation(() => {});
+    const onAssetError = vi.fn();
+    const { r } = mount(dom({ onAssetError }));
+    const img = r.box.querySelector("img")!;
+    r.update({ options: { provider, onAssetError } });
+    await tick();
+    img.dispatchEvent(new Event("error"));
+    await tick();
+    expect(onAssetError).not.toHaveBeenCalled();
   });
 
   it("destroy() leaves the host as it was, and a late <img> failure reports nothing", async () => {

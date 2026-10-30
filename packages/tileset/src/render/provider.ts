@@ -206,6 +206,27 @@ export function recordLoadFailure(
   return new Map(failed).set(key, src);
 }
 
+/** What a lazy drawable settled to, tagged with the promise it came from. */
+export interface Settled {
+  from: Promise<Drawable>;
+  src: string | undefined;
+  rejected: boolean;
+}
+
+/**
+ * `settled`'s entry for `value`, or nothing if `value` is pending or is not a
+ * promise. Tagged by promise so a newer promise for the same key is never
+ * judged by an older one's outcome. Shared by both renderers, which must agree.
+ */
+export function settledFor(
+  settled: ReadonlyMap<string, Settled>,
+  key: string,
+  value: Drawable | Promise<Drawable> | undefined,
+): Settled | undefined {
+  const entry = settled.get(key);
+  return entry !== undefined && entry.from === value ? entry : undefined;
+}
+
 /**
  * Whether a key's cell is not mounted at all, because it can never draw: its
  * provider rejected, or its `src` already failed to load (`08` **S6**: a broken

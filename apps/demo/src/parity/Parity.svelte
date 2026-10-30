@@ -52,6 +52,8 @@
 
   /** Sides whose canvas has no opaque pixel yet: nothing has decoded. */
   let blank = 0;
+  /** DOM `<img>`s still loading: their `error`, and the size probe after `load`, can unmount cells. */
+  let loading = 0;
 
   function pixels(c: HTMLCanvasElement | null): string {
     if (c === null) return "no canvas";
@@ -76,6 +78,7 @@
         const e = el as HTMLElement;
         if (e.matches("[data-tileset-cell]")) {
           const img = e.querySelector("img");
+          if (img !== null && !img.complete) loading++;
           return (
             `\n    cell ${e.dataset.x},${e.dataset.y} style="${e.style.cssText}"` +
             ` masked=${e.hasAttribute("data-masked")} img=${img?.getAttribute("src") ?? "-"}` +
@@ -112,24 +115,39 @@
     ].join(" | ");
   }
 
-  /** Differences, after waiting up to `ms` for decodes to land on both sides. */
+  /**
+   * Differences, after waiting up to `ms` for decodes to land on both sides.
+   *
+   * A DOM tileset matches the moment its cells mount, before any `<img>` has
+   * failed or been probed, which is where the two renderers' failure handling
+   * could part. So a match counts only once every `<img>` is complete and two
+   * polls in a row saw the same thing — the second covers the size probe, which
+   * runs a frame after `load`.
+   */
   async function parity(ms = 4000): Promise<string[]> {
     const until = performance.now() + ms;
     let diffs: string[] = [];
+    let last = "";
+    let seen = "";
     do {
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 50)));
+      last = seen;
+      seen = "";
       diffs = [];
       blank = 0;
+      loading = 0;
       for (const row of document.querySelectorAll("[data-case]")) {
         const [left, right] = row.querySelectorAll("[data-side]");
         const l = signature(left!);
         const r = signature(right!);
+        seen += l + r;
         if (l !== r) diffs.push(`${row.getAttribute("data-case")}:\n  svelte   ${l}\n  renderer ${r}`);
       }
     // Two transparent canvases of one size hash alike, so a match before
     // anything decoded proves nothing: wait for pixels as well as agreement.
-    } while ((diffs.length > 0 || blank > 0) && performance.now() < until);
+    } while ((diffs.length > 0 || blank > 0 || loading > 0 || seen !== last) && performance.now() < until);
     if (blank > 0) diffs.push(`${blank} canvases drew nothing`);
+    if (loading > 0) diffs.push(`${loading} <img>s never finished loading`);
     return diffs;
   }
 
