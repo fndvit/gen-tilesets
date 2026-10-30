@@ -15,9 +15,9 @@
  * r.destroy();
  * ```
  *
- * **Canvas only, for now.** Under `substrate: "dom"` it throws in a development
- * build and draws nothing in production; the DOM substrate is still
- * `Tileset.svelte`'s alone.
+ * Both substrates: `"canvas"` paints one `<canvas>`, `"dom"` keeps one `.cell`
+ * element per shown cell (see `#cells`). Switching between them at runtime keeps
+ * the box.
  *
  * ## Scheduling: one microtask, for everything
  *
@@ -56,15 +56,15 @@
  */
 
 import { DEV } from "../dev.js";
-import type { TilesetFile } from "../types.js";
+import type { TileState, TilesetFile } from "../types.js";
 import { FlipFlop, inertCellSizeRules } from "./breakpoints.js";
 import { coverRect } from "./edges.js";
 import { ImageBank, NaturalSizeChecks } from "./images.js";
 import { currentDpr, observeDpr, scopeOf, track, WRAPPER_ATTRIBUTE, type Measurement } from "./measure.js";
-import { TilesetModel } from "./model.js";
+import { cellStyle as placeCell, TilesetModel, type Placement, type ShownCell } from "./model.js";
 import type { OcclusionMask } from "./occlusion.js";
 import { copyOptions, type NormalizedTargets, type TilesetOptions } from "./options.js";
-import { parseAssetKey, type Drawable } from "./provider.js";
+import { assetKey, loadBlocked, parseAssetKey, recordLoadFailure, type Drawable } from "./provider.js";
 import { injectStyles, InstanceStyle } from "./styles.js";
 import type { CanvasPresentation, UniformGeometry, UniformItem } from "./uniform.js";
 import { assetTooSmall, cellTooSmall, WarnOnce } from "./warn.js";
@@ -118,6 +118,38 @@ interface Painted {
   bankVersion: number;
 }
 
+/** What a lazy drawable settled to, tagged with the promise it came from. */
+interface Settled {
+  from: Promise<Drawable>;
+  src: string | undefined;
+  rejected: boolean;
+}
+
+/** One mounted `.cell`, and what was last written to it. */
+interface CellNode {
+  el: HTMLDivElement;
+  /** The cell and placement its `style` was computed from. */
+  cell: TileState;
+  placement: Placement;
+  style: string;
+  masked: boolean;
+  /** The `src` of the `<img>` it holds, or `undefined` for none. */
+  src: string | undefined;
+  img: HTMLImageElement | null;
+  /** The cell pass that last visited it; an older one is removed. */
+  pass: number;
+}
+
+/** What the last cell pass was of, so a render that changed none of it skips the pass. */
+interface CellsPainted {
+  shown: readonly ShownCell[];
+  placement: Placement;
+  mask: OcclusionMask | null;
+  drawables: ReadonlyMap<string, Drawable | Promise<Drawable>>;
+  settled: ReadonlyMap<string, Settled>;
+  loadFailed: ReadonlyMap<string, string>;
+}
+
 export class TilesetRenderer {
   readonly #host: HTMLElement;
   readonly #model: TilesetModel;
@@ -154,6 +186,8 @@ export class TilesetRenderer {
   #boxStyle: string | null = null;
   #canvasStyle: string | null = null;
   #measured: boolean | null = null;
+  /** The substrate whose elements are in the box, or `null` before the first render. */
+  #mounted: "canvas" | "dom" | null = null;
 
   // ------------------------------------------------------ async drawables ---
 
@@ -169,6 +203,16 @@ export class TilesetRenderer {
   #sources = new Map<string, string>();
   /** The drawables `#settle` last ran against. */
   #settledFrom: ReadonlyMap<string, Drawable | Promise<Drawable>> | null = null;
+  /**
+   * What each pending drawable settled to, tagged with the promise it came from
+   * so a newer promise for the same key is never judged by an older one's
+   * outcome. The DOM substrate reads a lazy cell's `src` here, and `loadBlocked`
+   * reads whether it rejected: without it a cell that can never draw stayed
+   * mounted, empty, and still took a host's clicks. A new `Map` on change.
+   *
+   * Kept under both substrates, so a switch to `"dom"` finds it current.
+   */
+  #settled = new Map<string, Settled>();
   /**
    * Bumped by every `#settle`. A promise's handler compares it to the epoch it
    * was subscribed under and drops the result if a later settle has run — the
@@ -186,6 +230,32 @@ export class TilesetRenderer {
   /** The `#sources` the bank was last synced to. */
   #banked: ReadonlyMap<string, string> | null = null;
   #painted: Painted | null = null;
+
+  // ------------------------------------------------------------------ dom ---
+
+  /**
+   * The mounted cells, keyed by `"x,y"` — not by the flat index, which a
+   * breakpoint that changes `columns` renumbers. A cell present in both grids
+   * is the same cell (positional hashing gives it the same TileState), so it
+   * keeps its element and its decoded `<img>`.
+   */
+  readonly #cells = new Map<string, CellNode>();
+  #cellPass = 0;
+  #cellsPainted: CellsPainted | null = null;
+  /**
+   * Keys whose `<img>` failed to load, and the `src` that failed (`provider.ts`
+   * `recordLoadFailure` says why the `src`). **S6**: a broken `<img>` renders
+   * the browser's placeholder glyph, a drawable the renderer did not choose, in
+   * a cell **R3** says must draw nothing. A new `Map` on change.
+   *
+   * Never pruned, as in the component: a key the config dropped and later
+   * references again with the same `src` would otherwise mount, fail, and
+   * report a second time.
+   */
+  #loadFailed = new Map<string, string>();
+  #extent: HTMLDivElement | null = null;
+  #extentStyle: string | null = null;
+  #overflowVisible = false;
 
   // ------------------------------------------------------- development ---
 
@@ -234,7 +304,6 @@ export class TilesetRenderer {
     this.#canvas = doc.createElement("canvas");
     this.#canvas.className = "presented";
     this.#canvas.setAttribute("data-tileset-canvas", "");
-    this.#box.append(this.#canvas);
 
     this.#rendering = true;
     try {
@@ -300,6 +369,9 @@ export class TilesetRenderer {
    *    map or report after this.
    * 2. The measurement and the DPR listener, so no new callback arrives.
    * 3. The reservation sheet and the renderer's tree, leaving `host` as it was.
+   *
+   * An `<img>` still loading in a removed cell is simply dropped; its handlers
+   * check the flag, so a late failure reports nothing.
    */
   destroy(): void {
     if (this.#destroyed) return;
@@ -312,6 +384,7 @@ export class TilesetRenderer {
     this.#reservation = null;
     (this.#wrapper ?? this.#box).remove();
     this.#wrapper = null;
+    this.#cells.clear();
   }
 
   // ------------------------------------------------------------- triggers ---
@@ -345,8 +418,7 @@ export class TilesetRenderer {
 
   /**
    * Development only: the model's own checks — the file (**S3**) and the
-   * options — read eagerly so they throw to whoever handed the input in. And
-   * the one this renderer adds: the substrate it does not draw yet.
+   * options — read eagerly so they throw to whoever handed the input in.
    */
   #check(): void {
     if (!DEV) return;
@@ -354,19 +426,14 @@ export class TilesetRenderer {
     // The rules too: one that reshapes a file that cannot be reshaped throws
     // from `rules`, which nothing else here reads before the microtask.
     void this.#model.rules;
-    if (this.#model.substrate === "dom") {
-      throw new Error(
-        'TilesetRenderer: `substrate: "dom"` is not supported here yet. Use `<Tileset>` for it, or `"canvas"`.',
-      );
-    }
   }
 
   // --------------------------------------------------------------- render ---
 
   /**
    * Brings everything up to date with the model, in dependency order: the
-   * structure, the measurement, the drawables, the bank, the attributes, and
-   * the paint. Anything that fires synchronously along the way lands before the
+   * structure, the measurement, the drawables, the bank, the substrate's
+   * elements, the attributes, and the paint or the cell pass. Anything that fires synchronously along the way lands before the
    * step that reads it (see `#rendering`).
    */
   #render(): void {
@@ -400,24 +467,53 @@ export class TilesetRenderer {
 
     if (DEV) this.#devChecks();
 
-    // Production under "dom": nothing is drawn (see the header). A renderer
-    // switched to it from "canvas" would otherwise leave its last picture on
-    // screen, frozen, so the canvas is emptied and hidden, and forgotten so a
-    // switch back restyles and repaints it.
-    if (substrate !== "canvas") {
-      if (this.#canvasStyle !== "display: none;") {
-        this.#canvasStyle = "display: none;";
-        this.#canvas.setAttribute("style", this.#canvasStyle);
-        this.#canvas.width = 0;
-        this.#canvas.height = 0;
-        this.#painted = null;
+    this.#mount(substrate);
+    if (substrate === "canvas") {
+      const presentation = model.presentation;
+      this.#attributes(this.#canvasBoxStyle(presentation));
+      const cs = canvasStyle(presentation);
+      if (cs !== this.#canvasStyle) {
+        this.#canvasStyle = cs;
+        this.#canvas.setAttribute("style", cs);
       }
+      this.#paint(presentation);
+    } else {
+      this.#attributes(this.#domBoxStyle());
+      this.#domBox();
+      this.#paintCells();
+    }
+  }
+
+  /**
+   * Puts the substrate's elements in the box and takes the other's out. The box
+   * itself stays (C4), so `box` keeps its identity across a switch.
+   *
+   * The canvas is kept while detached, its backing store released, and
+   * forgotten by `#painted` so a switch back repaints it. The cells are not
+   * kept: a switch back to `"dom"` is rare, and holding every `<img>` of a
+   * substrate that is not drawing would be memory spent on nothing.
+   */
+  #mount(substrate: "canvas" | "dom"): void {
+    if (substrate === this.#mounted) return;
+    this.#mounted = substrate;
+    if (substrate === "dom") {
+      this.#canvas.remove();
+      this.#canvas.width = 0;
+      this.#canvas.height = 0;
+      this.#painted = null;
       return;
     }
-
-    const presentation = model.presentation;
-    this.#attributes(presentation);
-    this.#paint(presentation);
+    for (const node of this.#cells.values()) node.el.remove();
+    this.#cells.clear();
+    this.#cellsPainted = null;
+    this.#extent?.remove();
+    this.#extent = null;
+    this.#extentStyle = null;
+    if (this.#overflowVisible) {
+      this.#overflowVisible = false;
+      this.#box.classList.remove("overflow-visible");
+    }
+    this.#box.prepend(this.#canvas);
   }
 
   /**
@@ -475,22 +571,30 @@ export class TilesetRenderer {
     if ([...this.#sources.keys()].some((key) => !seen.has(key))) {
       next = new Map([...this.#sources].filter(([key]) => seen.has(key)));
     }
+    if ([...this.#settled.keys()].some((key) => !seen.has(key))) {
+      this.#settled = new Map([...this.#settled].filter(([key]) => seen.has(key)));
+    }
     for (const [key, value] of seen) {
       if (value instanceof Promise) {
         void value.then(
           (d) => {
-            if (this.#destroyed || epoch !== this.#epoch || this.#sources.get(key) === d.src) return;
-            this.#sources = new Map(this.#sources).set(key, d.src);
+            if (this.#destroyed || epoch !== this.#epoch) return;
+            this.#settled = new Map(this.#settled).set(key, { from: value, src: d.src, rejected: false });
+            if (this.#sources.get(key) !== d.src) this.#sources = new Map(this.#sources).set(key, d.src);
             this.#schedule();
           },
-          // A key re-resolved lazily keeps drawing its previous src while the
-          // promise is pending, so a meta edit does not flash. A rejection
-          // must drop it: R3, the cell draws nothing — not the old picture.
+          // A key re-resolved lazily keeps drawing its previous src on the
+          // canvas while the promise is pending, so a meta edit does not flash.
+          // A rejection must drop it: R3, the cell draws nothing — not the old
+          // picture.
           () => {
-            if (this.#destroyed || epoch !== this.#epoch || !this.#sources.has(key)) return;
-            const next = new Map(this.#sources);
-            next.delete(key);
-            this.#sources = next;
+            if (this.#destroyed || epoch !== this.#epoch) return;
+            this.#settled = new Map(this.#settled).set(key, { from: value, src: undefined, rejected: true });
+            if (this.#sources.has(key)) {
+              const next = new Map(this.#sources);
+              next.delete(key);
+              this.#sources = next;
+            }
             this.#schedule();
           },
         );
@@ -515,32 +619,46 @@ export class TilesetRenderer {
     this.#model.report({ ...ref, meta: this.#model.metaByKey.get(key) ?? {} }, cause);
   };
 
-  /** Each written only when its string changed, so a resize touches what moved. */
-  #attributes(presentation: CanvasPresentation | null): void {
+  /**
+   * The box's style under `"canvas"`. It declares a ratio only until it has a
+   * canvas to measure, then takes its height from the canvas —
+   * `Tileset.svelte`'s template comment says why a permanent ratio would leave
+   * a hairline under the bottom row. With rules, the reservation stylesheet
+   * declares it instead.
+   */
+  #canvasBoxStyle(presentation: CanvasPresentation | null): string {
     const model = this.#model;
-    // The box declares a ratio only until it has a canvas to measure, then takes
-    // its height from the canvas — `Tileset.svelte`'s template comment says why
-    // a permanent ratio would leave a hairline under the bottom row. With rules,
-    // the reservation stylesheet declares it instead.
-    const boxStyle =
-      presentation === null && !model.hasRules
-        ? model.sizing === "fixed"
-          ? `height: ${model.fixedHeight}px;`
-          : `aspect-ratio: ${model.ratio};`
-        : "";
+    if (presentation !== null || model.hasRules) return "";
+    return model.sizing === "fixed" ? `height: ${model.fixedHeight}px;` : `aspect-ratio: ${model.ratio};`;
+  }
+
+  /**
+   * The box's style under `"dom"`: the ratio until there is a grid to measure,
+   * for the same reason as the canvas's — after it, `.extent` carries the
+   * height (`#domBox`). Under `"fixed"` the extent carries it from the start.
+   *
+   * `visibility: hidden` while `pending`: with `avoid` set, nothing is shown
+   * over the page until the mask exists. Space is still reserved, so nothing
+   * reflows when it appears. Spelled with its leading space even alone, as the
+   * component writes it, so the two compare equal.
+   */
+  #domBoxStyle(): string {
+    const model = this.#model;
+    const ratio =
+      model.domCell === null && model.sizing !== "fixed" && !model.hasRules ? `aspect-ratio: ${model.ratio};` : "";
+    return ratio + (model.pending ? " visibility: hidden;" : "");
+  }
+
+  /** Each written only when its string changed, so a resize touches what moved. */
+  #attributes(boxStyle: string): void {
     if (boxStyle !== this.#boxStyle) {
       this.#boxStyle = boxStyle;
       this.#box.setAttribute("style", boxStyle);
     }
-    const measured = model.inputs.width > 0;
+    const measured = this.#model.inputs.width > 0;
     if (measured !== this.#measured) {
       this.#measured = measured;
       this.#box.toggleAttribute("data-measured", measured);
-    }
-    const cs = canvasStyle(presentation);
-    if (cs !== this.#canvasStyle) {
-      this.#canvasStyle = cs;
-      this.#canvas.setAttribute("style", cs);
     }
   }
 
@@ -672,5 +790,229 @@ export class TilesetRenderer {
       ctx.drawImage(img, sx, sy, sw, sh, item.dx, item.dy, item.side, item.side);
       ctx.restore();
     }
+  }
+
+  // ------------------------------------------------------------------ dom ---
+
+  /**
+   * The box's DOM-only parts: the `overflow-visible` class, and `.extent`.
+   *
+   * `overflow-visible` is a class rather than part of `style`: the style is
+   * geometry and `pending`, rewritten on resize, and this changes only when the
+   * option does.
+   *
+   * `.extent` is the box's only in-flow child, and it exists to carry a height.
+   * Cells are `position: absolute` — **R6**'s shared edge is arithmetic between
+   * two margins, not a flow relationship — so without it `height: auto` would
+   * collapse the box. An inline height on the box would beat a host's stylesheet
+   * and break **S8**'s vertical bleed; a child leaves the host's `height`
+   * winning. After measurement it is `gridHeightDev`, the last horizontal edge,
+   * the same expression the cells are placed by, so the box cannot shave the
+   * bottom row. It is kept last (`#paintCells`), after every cell.
+   */
+  #domBox(): void {
+    const model = this.#model;
+    const visible = model.overflow === "visible";
+    if (visible !== this.#overflowVisible) {
+      this.#overflowVisible = visible;
+      this.#box.classList.toggle("overflow-visible", visible);
+    }
+    const domCell = model.domCell;
+    const style =
+      domCell !== null
+        ? `height: ${domCell.gridHeightDev / model.inputs.dpr}px`
+        : model.sizing === "fixed"
+          ? `height: ${model.fixedHeight}px`
+          : null;
+    if (style === null) {
+      this.#extent?.remove();
+      this.#extent = null;
+      this.#extentStyle = null;
+      return;
+    }
+    if (this.#extent === null) {
+      this.#extent = this.#box.ownerDocument.createElement("div");
+      this.#extent.className = "extent";
+      this.#extent.setAttribute("data-tileset-extent", "");
+    }
+    if (style !== this.#extentStyle) {
+      this.#extentStyle = style;
+      this.#extent.setAttribute("style", style);
+    }
+    if (this.#box.lastChild !== this.#extent) this.#box.append(this.#extent);
+  }
+
+  /**
+   * Brings the `.cell` elements up to date: one per shown cell that can draw,
+   * in row-major document order (**R10** — later rows paint on top, and a
+   * host's hit-test resolves overlaps the same way). Three passes:
+   *
+   * 1. **Visit** each shown cell, reusing its node or creating one, and write
+   *    what changed: the style when its cell or the placement did (and only if
+   *    the string differs), `data-masked` only on a flip, the `<img>` only when
+   *    the cell's `src` did.
+   * 2. **Remove** every node the visit did not reach.
+   * 3. **Order** with a cursor: each node should follow the one before it, and
+   *    is moved only if it does not. Removing first is what makes this cheap —
+   *    a resize inserts the new edge columns and moves nothing else, and a
+   *    breakpoint that changes `columns` keeps the relative order of the cells
+   *    both grids share (row-major order of `(x, y)` does not depend on
+   *    `columns`), so it too only inserts.
+   *
+   * Rejected: rebuilding the list each render, which remounts and re-decodes
+   * every image — the thing keying exists to stop; and a minimal-move diff
+   * (longest increasing subsequence), which nothing here needs, since shared
+   * cells never change relative order.
+   *
+   * Skipped whole when nothing it reads changed, which is most frames of a
+   * resize with no breakpoint and no measured geometry change — and every
+   * decode, which the DOM substrate does not wait on.
+   */
+  #paintCells(): void {
+    const model = this.#model;
+    const now: CellsPainted = {
+      shown: model.shownCells,
+      placement: model.placement,
+      mask: model.mask,
+      drawables: model.drawables,
+      settled: this.#settled,
+      loadFailed: this.#loadFailed,
+    };
+    const was = this.#cellsPainted;
+    if (
+      was !== null &&
+      was.shown === now.shown &&
+      was.placement === now.placement &&
+      was.mask === now.mask &&
+      was.drawables === now.drawables &&
+      was.settled === now.settled &&
+      was.loadFailed === now.loadFailed
+    ) {
+      return;
+    }
+    this.#cellsPainted = now;
+
+    const pass = ++this.#cellPass;
+    const order: HTMLDivElement[] = [];
+    for (const shown of now.shown) {
+      const node = this.#visit(shown, now);
+      if (node === null) continue;
+      node.pass = pass;
+      order.push(node.el);
+    }
+
+    for (const [id, node] of this.#cells) {
+      if (node.pass === pass) continue;
+      node.el.remove();
+      this.#cells.delete(id);
+    }
+
+    const box = this.#box;
+    let next: ChildNode | null = box.firstChild;
+    for (const el of order) {
+      if (next !== el) box.insertBefore(el, next);
+      else next = el.nextSibling;
+    }
+  }
+
+  /**
+   * One shown cell's node, brought up to date; `null` if it is not mounted.
+   *
+   * **Not mounted at all** when it can never draw — its provider rejected, or
+   * its `src` failed to load (`loadBlocked`). An empty `.cell` would still take
+   * a host's clicks, since the drawn tile is the unit of hitting.
+   *
+   * Geometry is written before resolution is attempted and is never revised by
+   * it (**R5**, §4.2): no layout shift as assets arrive, and a missing asset
+   * leaves a hole in a laid-out grid rather than collapsing it.
+   */
+  #visit({ cell, i, x, y }: ShownCell, now: CellsPainted): CellNode | null {
+    const key = assetKey(cell.tileId!, cell.assetId!);
+    const value = now.drawables.get(key);
+    let settled: Settled | undefined;
+    if (value instanceof Promise) {
+      const entry = now.settled.get(key);
+      if (entry !== undefined && entry.from === value) settled = entry;
+    }
+    const id = `${x},${y}`;
+    if (loadBlocked(now.loadFailed, key, value, settled)) return null;
+
+    let node = this.#cells.get(id);
+    if (node === undefined) {
+      const el = this.#box.ownerDocument.createElement("div");
+      el.className = "cell";
+      el.setAttribute("data-tileset-cell", "");
+      el.setAttribute("data-x", String(x));
+      el.setAttribute("data-y", String(y));
+      const style = placeCell(now.placement, cell, x, y);
+      el.setAttribute("style", style);
+      node = { el, cell, placement: now.placement, style, masked: false, src: undefined, img: null, pass: 0 };
+      this.#cells.set(id, node);
+    } else if (node.cell !== cell || node.placement !== now.placement) {
+      node.cell = cell;
+      node.placement = now.placement;
+      const style = placeCell(now.placement, cell, x, y);
+      if (style !== node.style) {
+        node.style = style;
+        node.el.setAttribute("style", style);
+      }
+    }
+
+    // An attribute, not part of the style: the style is rewritten on resize, and
+    // a mask folded into it would be rewritten on every mask change too. This
+    // way a mask change touches only the cells that flipped. Masked cells are
+    // `visibility: hidden` (`tileset.css`), so they take no hits either.
+    const masked = now.mask !== null && now.mask[i] === 1;
+    if (masked !== node.masked) {
+      node.masked = masked;
+      node.el.toggleAttribute("data-masked", masked);
+    }
+
+    // A pending lazy drawable has no `src` yet: the cell is laid out and empty
+    // until `#settle` records one and schedules the render that mounts it.
+    const src = value === undefined ? undefined : value instanceof Promise ? settled?.src : value.src;
+    const wanted = src !== undefined && now.loadFailed.get(key) !== src ? src : undefined;
+    if (wanted !== node.src) {
+      node.img?.remove();
+      node.img = wanted === undefined ? null : this.#image(cell, wanted);
+      node.src = wanted;
+      if (node.img !== null) node.el.append(node.img);
+    }
+    return node;
+  }
+
+  /**
+   * A cell's `<img>`. Its handlers close over **this** `cell` and `src`, bound
+   * when the element is made: a reseed that changes the cell's asset makes a new
+   * `<img>` with new closures, so a late failure of the old one is recorded
+   * against the old asset and never blames the new one. (`Tileset.svelte` read
+   * them from live template bindings and had to work around exactly that.)
+   *
+   * `loading` before `src`: set after, the fetch has already started eagerly.
+   */
+  #image(cell: TileState, src: string): HTMLImageElement {
+    const img = this.#box.ownerDocument.createElement("img");
+    img.setAttribute("alt", "");
+    img.setAttribute("loading", "lazy");
+    img.setAttribute("draggable", "false");
+    img.onerror = (e) => this.#onImageError(cell, src, e);
+    // A picture with no natural size is refused here too, so the DOM agrees with
+    // the canvas (`images.ts` `requireNaturalSize`). It shows until the probe
+    // settles, about one frame.
+    img.onload = () => {
+      this.#sizeChecks.check(src, img).catch((cause: unknown) => this.#onImageError(cell, src, cause));
+    };
+    img.src = src;
+    return img;
+  }
+
+  #onImageError(cell: TileState, src: string, cause: unknown): void {
+    if (this.#destroyed || cell.tileId === null || cell.assetId === null) return;
+    const key = assetKey(cell.tileId, cell.assetId);
+    const next = recordLoadFailure(this.#loadFailed, key, src);
+    if (next === null) return;
+    this.#loadFailed = next;
+    this.#model.report({ tileId: cell.tileId, assetId: cell.assetId, meta: this.#model.metaByKey.get(key) ?? {} }, cause);
+    this.#schedule();
   }
 }

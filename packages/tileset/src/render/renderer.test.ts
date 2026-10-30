@@ -357,14 +357,6 @@ describe("TilesetRenderer", () => {
     );
   });
 
-  it("throws on the DOM substrate, which it does not draw yet, without touching the host", () => {
-    const host = document.createElement("div");
-    expect(() => new TilesetRenderer(host, { file: hero(), options: { provider, substrate: "dom" } })).toThrow(
-      /not supported here yet/,
-    );
-    expect(host.childNodes).toHaveLength(0);
-  });
-
   it("throws an invalid update to the caller, not from the microtask", () => {
     const { r } = mount();
     expect(() => r.update({ options: { provider, substrate: "svg" as never } })).toThrow();
@@ -403,5 +395,243 @@ describe("TilesetRenderer", () => {
     r.destroy();
     expect(document.adoptedStyleSheets).not.toContain(mine[0]);
     expect(document.adoptedStyleSheets[0]).toBe(own);
+  });
+});
+
+describe("TilesetRenderer, DOM substrate", () => {
+  const dom = (extra: TilesetOptions = {}): TilesetOptions => ({ provider, substrate: "dom", ...extra });
+
+  const cells = (box: HTMLElement) => Array.from(box.querySelectorAll<HTMLElement>("[data-tileset-cell]"));
+  const at = (box: HTMLElement, x: number, y: number) =>
+    box.querySelector<HTMLElement>(`[data-tileset-cell][data-x="${x}"][data-y="${y}"]`);
+  /** `[x, y]` per cell, in document order. */
+  const positions = (box: HTMLElement) => cells(box).map((el) => [Number(el.dataset.x), Number(el.dataset.y)]);
+
+  /** Row-major: ascending y, then ascending x within a row (R10). */
+  function expectRowMajor(box: HTMLElement): void {
+    const p = positions(box);
+    const sorted = [...p].sort((a, b) => a[1]! - b[1]! || a[0]! - b[0]!);
+    expect(p).toEqual(sorted);
+  }
+
+  /** Every mutation under `el` from now until `stop()`. */
+  function record(el: HTMLElement) {
+    const records: MutationRecord[] = [];
+    const mo = new MutationObserver((r) => records.push(...r));
+    mo.observe(el, { subtree: true, childList: true, attributes: true });
+    return () => {
+      records.push(...mo.takeRecords());
+      mo.disconnect();
+      return records;
+    };
+  }
+
+  it("mounts one cell per grid cell, in row-major order, with the extent last and no canvas", () => {
+    const { r } = mount(dom());
+    expect(r.box.querySelector("canvas")).toBeNull();
+    expect(cells(r.box)).toHaveLength(40);
+    expectRowMajor(r.box);
+    expect(r.box.lastElementChild!.matches(".extent[data-tileset-extent]")).toBe(true);
+    expect(r.box.lastElementChild!.getAttribute("style")).toMatch(/^height: [\d.]+px$/);
+    const img = cells(r.box)[0]!.querySelector("img")!;
+    expect(img.getAttribute("src")).toMatch(/^\/[tu]\/a\.png$/);
+    expect(img.getAttribute("alt")).toBe("");
+    expect(img.getAttribute("loading")).toBe("lazy");
+  });
+
+  it("declares the ratio until it is measured, then lets the extent carry the height", async () => {
+    fake.first = { width: 0, height: 0 };
+    const { r } = mount(dom());
+    expect(r.box.getAttribute("style")).toMatch(/^aspect-ratio: /);
+    expect(r.box.querySelector(".extent")).toBeNull();
+    fake.tracks[0]!.onMeasure({ width: 600, height: 240, rects: null });
+    await tick();
+    expect(r.box.getAttribute("style")).toBe("");
+    expect(r.box.querySelector(".extent")).not.toBeNull();
+  });
+
+  it("hides the box while `avoid` has no rects yet, and masks the cells under them", async () => {
+    const h = document.createElement("h2");
+    document.body.append(h);
+    fake.withRects = false;
+    const { r } = mount(dom({ avoid: { targets: [h] } }));
+    expect(r.box.getAttribute("style")).toContain("visibility: hidden;");
+
+    fake.tracks[0]!.onMeasure({ width: 600, height: 240, rects: [{ left: 0, top: 0, right: 300, bottom: 240 }] });
+    await tick();
+    expect(r.box.getAttribute("style")).not.toContain("visibility");
+    const masked = cells(r.box).filter((el) => el.hasAttribute("data-masked"));
+    expect(masked.length).toBeGreaterThan(0);
+    expect(masked.length).toBeLessThan(40);
+  });
+
+  it("a mask change touches only the cells that flipped", async () => {
+    const h = document.createElement("h2");
+    document.body.append(h);
+    const { r } = mount(dom({ avoid: { targets: [h] } }));
+    const t = fake.tracks[0]!;
+    t.onMeasure({ width: 600, height: 240, rects: [{ left: 0, top: 0, right: 100, bottom: 60 }] });
+    await tick();
+    const before = new Set(cells(r.box).filter((el) => el.hasAttribute("data-masked")));
+
+    const stop = record(r.box);
+    t.onMeasure({ width: 600, height: 240, rects: [{ left: 0, top: 0, right: 300, bottom: 60 }] });
+    await tick();
+    const records = stop();
+    const after = new Set(cells(r.box).filter((el) => el.hasAttribute("data-masked")));
+    const flipped = cells(r.box).filter((el) => before.has(el) !== after.has(el));
+    expect(flipped.length).toBeGreaterThan(0);
+    expect(records.every((m) => m.type === "attributes" && m.attributeName === "data-masked")).toBe(true);
+    expect(new Set(records.map((m) => m.target))).toEqual(new Set(flipped));
+  });
+
+  it("an update with equal options writes nothing", async () => {
+    const { r } = mount(dom());
+    const stop = record(r.box);
+    r.update({ options: dom() });
+    await tick();
+    expect(stop()).toEqual([]);
+  });
+
+  it("a resize mounts and unmounts only the edge columns, keeping order and the other nodes", async () => {
+    const { r } = mount(dom({ sizing: "fixed" }));
+    const t = fake.tracks[0]!;
+    const full = positions(r.box).length;
+    const kept = at(r.box, 4, 1)!;
+
+    t.onMeasure({ width: 300, height: 240, rects: null });
+    await tick();
+    const narrow = positions(r.box).length;
+    expect(narrow).toBeLessThan(full);
+    expectRowMajor(r.box);
+
+    t.onMeasure({ width: 600, height: 240, rects: null });
+    await tick();
+    expect(positions(r.box)).toHaveLength(full);
+    expectRowMajor(r.box);
+    // A middle column the narrow box still showed kept its element throughout.
+    expect(at(r.box, 4, 1)).toBe(kept);
+    expect(r.box.lastElementChild!.matches(".extent")).toBe(true);
+  });
+
+  it("a breakpoint that changes `columns` keeps the nodes of cells both grids share", async () => {
+    const { r } = mount(dom({ responsive: [{ maxWidth: 400, columns: 6 }] }));
+    const t = fake.tracks[0]!;
+    const shared = at(r.box, 2, 1)!;
+    const gone = at(r.box, 8, 1)!;
+
+    t.onMeasure({ width: 300, height: 200, rects: null });
+    await tick();
+    expect(Math.max(...positions(r.box).map(([x]) => x!))).toBe(5);
+    expect(gone.isConnected).toBe(false);
+    expectRowMajor(r.box);
+    // Positional hashing: the same (x, y) is the same TileState, so the same node.
+    expect(at(r.box, 2, 1)).toBe(shared);
+
+    t.onMeasure({ width: 600, height: 240, rects: null });
+    await tick();
+    expect(positions(r.box)).toHaveLength(40);
+    expectRowMajor(r.box);
+    expect(at(r.box, 2, 1)).toBe(shared);
+  });
+
+  it("an <img> that fails to load unmounts every cell of its asset and reports once", async () => {
+    const onAssetError = vi.fn();
+    const { r } = mount(dom({ onAssetError }));
+    const img = r.box.querySelector<HTMLImageElement>("img[src='/t/a.png']")!;
+    const others = r.box.querySelectorAll("img[src='/u/a.png']").length;
+    img.dispatchEvent(new Event("error"));
+    r.box.querySelector<HTMLImageElement>("img[src='/t/a.png']")!.dispatchEvent(new Event("error"));
+    await tick();
+    expect(r.box.querySelectorAll("img[src='/t/a.png']")).toHaveLength(0);
+    expect(cells(r.box)).toHaveLength(others);
+    expect(onAssetError).toHaveBeenCalledOnce();
+    expect(onAssetError.mock.calls[0]![0]).toMatchObject({ tileId: "t", assetId: "a" });
+  });
+
+  it("a stale failure after a reseed blames the old asset, not the new one", async () => {
+    const onAssetError = vi.fn();
+    const { r } = mount(dom({ onAssetError }));
+    const before = new Map(cells(r.box).map((el) => [`${el.dataset.x},${el.dataset.y}`, el.querySelector("img")!]));
+    // A seed under which some cell's Tile changed.
+    let seed = 0;
+    let changed: [string, HTMLImageElement] | undefined;
+    while (changed === undefined && seed < 20) {
+      r.update({ options: dom({ onAssetError, seed: `s${seed++}` }) });
+      await tick();
+      changed = [...before].find(([id, img]) => {
+        const [x, y] = id.split(",").map(Number);
+        return at(r.box, x!, y!)!.querySelector("img")!.getAttribute("src") !== img.getAttribute("src");
+      });
+    }
+    expect(changed).toBeDefined();
+    const [id, old] = changed!;
+    const [x, y] = id.split(",").map(Number);
+    const now = at(r.box, x!, y!)!.querySelector("img")!;
+    expect(old.isConnected).toBe(false);
+
+    old.dispatchEvent(new Event("error"));
+    await tick();
+    const oldTile = old.getAttribute("src")!.split("/")[1];
+    expect(onAssetError).toHaveBeenCalledOnce();
+    expect(onAssetError.mock.calls[0]![0]).toMatchObject({ tileId: oldTile });
+    // The new asset is not the one that failed, so its cell is still drawing.
+    expect(now.isConnected).toBe(true);
+  });
+
+  it("mounts a lazy drawable's <img> once it settles, and unmounts the cell on a rejection", async () => {
+    let fail = false;
+    const lazy: AssetProvider = (ref) =>
+      fail && ref.tileId === "t"
+        ? Promise.reject(new Error("nope"))
+        : Promise.resolve({ src: `/${ref.tileId}/${ref.assetId}.png` });
+    const { r } = mount(dom({ provider: lazy }));
+    expect(cells(r.box)).toHaveLength(40);
+    expect(r.box.querySelectorAll("img")).toHaveLength(0);
+    await tick();
+    expect(r.box.querySelectorAll("img")).toHaveLength(40);
+
+    // A new meta re-resolves every asset lazily; `t`'s now rejects.
+    fail = true;
+    const file = hero();
+    for (const tile of file.config.tiles) tile.assets[0]!.meta = { v: 2 };
+    r.update({ file, options: dom({ provider: lazy, onAssetError: () => {} }) });
+    await tick();
+    await tick();
+    expect(r.box.querySelectorAll("img[src='/t/a.png']")).toHaveLength(0);
+    expect(cells(r.box).every((el) => el.querySelector("img[src='/u/a.png']") !== null)).toBe(true);
+  });
+
+  it("switches between substrates keeping the box, and leaves nothing of the other behind", async () => {
+    const { host, r } = mount();
+    const box = r.box;
+    r.update({ options: dom({ overflow: "visible" }) });
+    await tick();
+    expect(r.box).toBe(box);
+    expect(host.firstElementChild).toBe(box);
+    expect(box.querySelector("canvas")).toBeNull();
+    expect(cells(box)).toHaveLength(40);
+    expect(box.classList.contains("overflow-visible")).toBe(true);
+
+    clears = 0;
+    r.update({ options: { provider } });
+    await tick();
+    expect(r.box).toBe(box);
+    expect(Array.from(box.children).map((el) => el.tagName)).toEqual(["CANVAS"]);
+    expect(box.className).toBe("tileset");
+    expect(clears).toBe(1);
+    // One track for the box's whole life, whatever it draws with.
+    expect(fake.tracks).toHaveLength(1);
+  });
+
+  it("destroy() leaves the host as it was, and a late <img> failure reports nothing", async () => {
+    const onAssetError = vi.fn();
+    const { host, r } = mount(dom({ onAssetError }));
+    const img = r.box.querySelector("img")!;
+    r.destroy();
+    expect(host.childNodes).toHaveLength(0);
+    img.dispatchEvent(new Event("error"));
+    await tick();
+    expect(onAssetError).not.toHaveBeenCalled();
   });
 });
