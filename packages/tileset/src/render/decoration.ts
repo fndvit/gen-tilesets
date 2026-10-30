@@ -43,7 +43,7 @@ import { DEV } from "../dev.js";
 import { reshape, reshapeErrors } from "../shape.js";
 import type { Shape, TilesetFile } from "../types.js";
 import { WRAPPER_ATTRIBUTE } from "./measure.js";
-import type { TilesetOptions } from "./options.js";
+import { copyOptions, optionErrors, type TilesetOptions } from "./options.js";
 import { TilesetRenderer } from "./renderer.js";
 
 /** What a host hands a decoration. */
@@ -104,6 +104,27 @@ export function decorationWidth(columns: number, cellSize: number): string {
 }
 
 /**
+ * The decoration box's attributes — everything the box is, as data. The
+ * renderer writes them onto the element it builds, and a framework wrapper's
+ * server placeholder writes the same record, so the two cannot drift apart and
+ * hydration moves nothing (`decoration.test.ts` holds them equal).
+ *
+ * `data-tileset-wrapper` marks the box as the package's, so an `options.avoid`
+ * selector resolves in the section the decoration sits in rather than in here,
+ * where the only thing to find is the render box (`measure.ts`'s `scopeOf`;
+ * `RESPONSIVE-HOSTING.md` §8.2). `.decoration[data-tileset-decoration]` is what
+ * `tileset.css` styles.
+ */
+export function decorationBox(columns: number, cellSize: number): Record<string, string> {
+  return {
+    class: "decoration",
+    style: decorationWidth(columns, cellSize),
+    "data-tileset-decoration": "",
+    [WRAPPER_ATTRIBUTE]: "",
+  };
+}
+
+/**
  * The file a decoration draws: `style` reshaped by the preset.
  *
  * **Development-loud, production-trusting** — the same arrangement the renderer
@@ -133,13 +154,7 @@ export function reshapeDecoration(style: TilesetFile, rows: number, columns: num
 
 export class TileDecorationRenderer {
   /**
-   * The decoration box. `data-tileset-wrapper` marks it as the package's, so an
-   * `options.avoid` selector resolves in the section the decoration sits in
-   * rather than in here, where the only thing to find is the render box
-   * (`measure.ts`'s `scopeOf`; `RESPONSIVE-HOSTING.md` §8.2).
-   * `.decoration[data-tileset-decoration]` is what `tileset.css` styles.
-   *
-   * No public getter, unlike `TilesetRenderer.box`: that exists so an editor can
+   * The decoration box ({@link decorationBox}). No public getter, unlike `TilesetRenderer.box`: that exists so an editor can
    * convert a pointer event into render space (`07` §8.2), and a decoration is
    * `aria-hidden` ornament that nothing points at.
    */
@@ -164,10 +179,7 @@ export class TileDecorationRenderer {
     this.#file = reshapeDecoration(init.style, init.rows, init.columns, init.cellSize);
 
     const el = host.ownerDocument.createElement("div");
-    el.className = "decoration";
-    el.setAttribute("style", decorationWidth(init.columns, init.cellSize));
-    el.setAttribute("data-tileset-decoration", "");
-    el.setAttribute(WRAPPER_ATTRIBUTE, "");
+    for (const [name, value] of Object.entries(decorationBox(init.columns, init.cellSize))) el.setAttribute(name, value);
     // Attached before the renderer is built, so its first measurement is of a
     // box with a page around it and `avoid` resolves in the page at once.
     host.append(el);
@@ -187,7 +199,8 @@ export class TileDecorationRenderer {
   /**
    * Replaces any of the inputs; a field left out keeps its value. The style
    * and the shape are reshaped again only if one of them changed by identity.
-   * In a development build a reshape error throws here, and nothing changes.
+   * In a development build a reshape error or an invalid options object throws
+   * here, and nothing changes.
    */
   update(next: Partial<TileDecorationInputs>): void {
     if (this.#destroyed) {
@@ -204,8 +217,17 @@ export class TileDecorationRenderer {
     };
     const reshaped =
       now.style !== was.style || now.rows !== was.rows || now.columns !== was.columns || now.cellSize !== was.cellSize;
-    // Computed before anything is committed, so a throw leaves the old picture.
+    // Everything that can throw runs before anything is committed, so a throw
+    // leaves the old picture in a box of the old width. The options are asked
+    // here for that reason: `TilesetRenderer.update` would throw them only after
+    // this box had been resized around the old picture.
     const file = reshaped ? reshapeDecoration(now.style, now.rows, now.columns, now.cellSize) : this.#file;
+    if (DEV) {
+      const errors = optionErrors(copyOptions(now.options));
+      if (errors.length > 0) {
+        throw new Error("TileDecorationRenderer: `options` is not valid:\n" + errors.map((e) => `  - ${e}`).join("\n"));
+      }
+    }
     this.#inputs = now;
     if (reshaped) {
       this.#file = file;

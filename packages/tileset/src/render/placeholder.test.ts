@@ -100,10 +100,23 @@ describe("placeholder", () => {
     expect(placeholder("p1", file(), options)).toEqual(box);
   });
 
-  it("generates no grid", async () => {
+  it.each(CASES)("generates no grid: %s", async (_name, options) => {
     const generate = await import("../generate.js");
     const spy = vi.spyOn(generate, "generate");
-    placeholder("p1", file(), { provider, substrate: "dom", avoid: { targets: "h2" } });
+    placeholder("p1", file(), { ...options, avoid: { targets: "h2" } });
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe("setAside", () => {
+  it("takes what the host holds out of layout, so the renderer's first measurement is of its own box", async () => {
+    const { setAside: aside } = await import("./placeholder.js");
+    const host = document.createElement("div");
+    host.innerHTML = '<div class="container"><div class="tileset" data-tileset-box data-tileset-placeholder></div></div>';
+    document.body.append(host);
+    aside(host);
+    expect((host.firstElementChild as HTMLElement).style.display).toBe("none");
+    const r = new TilesetRenderer(host, { id: "p1", file: file(), options: { provider } });
+    expect(r.box.style.display).toBe("");
   });
 });

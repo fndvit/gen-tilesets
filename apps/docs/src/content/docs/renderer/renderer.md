@@ -29,7 +29,7 @@ r.destroy();
 **It draws both substrates.** Under `"canvas"` it paints one `<canvas>`; under `"dom"` it keeps one
 `.cell` element per shown cell. A switch between them at runtime keeps the box. `<Tileset>` and
 `<TileDecoration>` are thin Svelte wrappers around it (0.9.0), and `TileDecorationRenderer`
-(`decoration.ts`) is the plain-JS decoration.
+(`decoration.ts`) is the plain-JS decoration. Neither class is exported from the package yet.
 
 ## In detail
 

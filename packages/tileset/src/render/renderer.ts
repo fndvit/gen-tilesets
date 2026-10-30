@@ -356,7 +356,11 @@ export class TilesetRenderer {
    */
   constructor(host: HTMLElement, init: TilesetRendererInit) {
     const id = init.id ?? freshId();
-    if (DEV && /["\\]/.test(id)) {
+    // In every build, not only development: the id is written into the
+    // reservation stylesheet's selectors, so one carrying a quote could close
+    // the selector and write rules of its own. One regex per instance is not a
+    // cost worth trusting the input for.
+    if (/["\\]/.test(id)) {
       throw new Error(`TilesetRenderer: \`id\` must not contain \`"\` or \`\\\`; got ${JSON.stringify(id)}.`);
     }
     this.#host = host;

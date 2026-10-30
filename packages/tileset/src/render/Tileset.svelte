@@ -19,7 +19,7 @@
   import type { TilesetFile } from "../types.js";
   import { copyOptions, legacyPropErrors, optionErrors, type TilesetOptions } from "./options.js";
   import Placeholder from "./Placeholder.svelte";
-  import { placeholder } from "./placeholder.js";
+  import { placeholder, setAside } from "./placeholder.js";
   import { TilesetRenderer } from "./renderer.js";
 
   interface Props {
@@ -67,8 +67,6 @@
   let renderer: TilesetRenderer | null = null;
   /** Whether the renderer has mounted, which retires the placeholder. */
   let mounted = $state(false);
-  /** The first update after mounting repeats the constructor's inputs; skipped. */
-  let fresh = false;
 
   /**
    * Development only. The props that moved into `options` are a Svelte
@@ -85,31 +83,21 @@
     }
   }
 
-  // Built once per mount, untracked: read here, `file` and `options` would make
-  // this effect rebuild the renderer on every prop change.
-  $effect(() => {
-    const r = untrack(() => {
-      checkProps(copyOptions(options));
-      return new TilesetRenderer(host, { id, file, options });
-    });
-    renderer = r;
-    fresh = true;
-    box = r.box;
-    mounted = true;
-    return () => {
-      r.destroy();
-      renderer = null;
-      box = null;
-    };
-  });
-
-  // **Every prop change is one `update()`.** An inline `options={{…}}` makes a
-  // new object per parent render, so this runs per parent render, and that is
-  // harmless: the model's per-field memos stop an unchanged copy (**R12**).
+  // **One effect builds the renderer and then feeds it.** It runs on every prop
+  // change: the first run that finds no renderer builds one, and every run after
+  // hands the props to `update()`. One effect rather than a mount effect and an
+  // update effect, because a mount effect reads nothing — so a constructor that
+  // threw on an invalid prop was never retried, and a host that fixed the prop
+  // was left with a placeholder for good. Here the fix is a prop change, and the
+  // next run builds the renderer.
+  //
+  // An inline `options={{…}}` makes a new object per parent render, so this
+  // runs per parent render, and that is harmless: the model's per-field memos
+  // stop an unchanged copy (**R12**).
   //
   // The dependencies are read **explicitly**, here: `copyOptions` reads every
   // field a host could edit in place, so `opts.seed = "b"` on a `$state` object
-  // is a change (it says why). The `update()` itself is untracked — its
+  // is a change (it says why). The renderer is built and updated untracked — its
   // development checks walk the whole file, and tracked they would make this
   // effect depend on every field of a `$state` file in development only, so the
   // two builds would re-run it on different edits.
@@ -117,15 +105,42 @@
     const f = file;
     const o = copyOptions(options);
     checkProps(o);
-    if (fresh) {
-      fresh = false;
-      return;
-    }
-    untrack(() => renderer?.update({ file: f, options: o }));
+    untrack(() => {
+      if (renderer !== null) {
+        renderer.update({ file: f, options: o });
+        return;
+      }
+      setAside(host);
+      renderer = new TilesetRenderer(host, { id, file: f, options: o });
+      box = renderer.box;
+      mounted = true;
+    });
   });
 
-  /** Read only while not mounted: on the server, and for the first client render. */
-  const reserved = $derived(mounted ? null : placeholder(id, file, options));
+  // Teardown alone: an effect that reads nothing runs once, and its cleanup
+  // runs when the component is destroyed.
+  $effect(() => () => {
+    renderer?.destroy();
+    renderer = null;
+    box = null;
+  });
+
+  /**
+   * Read only while not mounted: on the server, and for the first client render.
+   * The props are checked first, so a server render throws what a client one
+   * would — the legacy props included, which the model does not know about.
+   *
+   * On a client-only mount this is work thrown away in the same task: a model,
+   * the file check in development, and with rules a reservation sheet. Svelte
+   * does not tell a component whether it is hydrating, and hydration needs the
+   * markup the server sent; the placeholder reads no grid (`placeholder.ts`), so
+   * the cost is the check, not a `generate()`.
+   */
+  const reserved = $derived.by(() => {
+    if (mounted) return null;
+    checkProps(copyOptions(options));
+    return placeholder(id, file, options);
+  });
 </script>
 
 <!--
@@ -145,8 +160,9 @@
   **The placeholder is for the server** (`./placeholder.ts`). No effect runs
   there, so without it a server-rendered page would ship an empty host and jump
   when the renderer mounted. It reserves exactly what the renderer's box reserves
-  before measuring, and the mount effect retires it in the same task the renderer
-  appears in, before any paint. Rendered on the client too until then, because
+  before measuring. The effect sets it aside (`setAside`) before building the
+  renderer, so the renderer's first measurement is of its own box, and Svelte
+  removes it in the same task, before any paint. Rendered on the client too until then, because
   hydration needs the markup the server sent.
 -->
 <div bind:this={host} data-tileset-host="" data-tileset-wrapper="" style="display: contents">

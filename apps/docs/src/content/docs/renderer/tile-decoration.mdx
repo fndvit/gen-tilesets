@@ -28,8 +28,8 @@ file → **reshape** → `<Tileset>` (load → generate → draw).
 
 **Since 0.9.0 the logic is `TileDecorationRenderer` in `decoration.ts`**, a plain class that
 reshapes the style (keeping the result until the style or the shape changes), builds the
-decoration box, and draws into it with a `TilesetRenderer`, so a page without Svelte has
-decorations too. `<TileDecoration>` is a Svelte wrapper over it, with the same server placeholder
+decoration box, and draws into it with a `TilesetRenderer`, so that a page without Svelte can
+have decorations too once it is exported (it is not yet; that is the next step of the refactor). `<TileDecoration>` is a Svelte wrapper over it, with the same server placeholder
 as `<Tileset>`. Where this page says `<Tileset>` below, read `TilesetRenderer`.
 
 ## Try it

@@ -8,11 +8,10 @@
   import { untrack } from "svelte";
   import "./tileset.css";
   import type { TilesetFile } from "../types.js";
-  import { decorationWidth, reshapeDecoration, TileDecorationRenderer } from "./decoration.js";
-  import { WRAPPER_ATTRIBUTE } from "./measure.js";
+  import { decorationBox, reshapeDecoration, TileDecorationRenderer } from "./decoration.js";
   import { copyOptions, type TilesetOptions } from "./options.js";
   import Placeholder from "./Placeholder.svelte";
-  import { placeholder } from "./placeholder.js";
+  import { placeholder, setAside } from "./placeholder.js";
 
   interface Props {
     /**
@@ -41,35 +40,36 @@
   let host: HTMLDivElement;
   let renderer: TileDecorationRenderer | null = null;
   let mounted = $state(false);
-  /** The first update after mounting repeats the constructor's inputs; skipped. */
-  let fresh = false;
 
-  // `<Tileset>`'s two effects, for the same reasons: built once per mount,
-  // untracked; then one `update()` per prop change, reading `options` through
-  // `copyOptions` so an edit made in place is seen. The renderer keeps the
-  // reshaped file until the style or the shape changes, so an options-only
-  // update does not regenerate the grid.
-  $effect(() => {
-    const r = untrack(() => new TileDecorationRenderer(host, { id, style, rows, columns, cellSize, options }));
-    renderer = r;
-    fresh = true;
-    mounted = true;
-    return () => {
-      r.destroy();
-      renderer = null;
-    };
-  });
-
+  // `<Tileset>`'s effects, for the same reasons: one effect that builds the
+  // renderer on its first run (and again after a constructor threw) and feeds
+  // it `update()` on every later one, reading `options` through `copyOptions`
+  // so an edit made in place is seen; and one that only tears down. The
+  // renderer keeps the reshaped file until the style or the shape changes, so an
+  // options-only update does not regenerate the grid.
   $effect(() => {
     const next = { style, rows, columns, cellSize, options: copyOptions(options) };
-    if (fresh) {
-      fresh = false;
-      return;
-    }
-    untrack(() => renderer?.update(next));
+    untrack(() => {
+      if (renderer !== null) {
+        renderer.update(next);
+        return;
+      }
+      setAside(host);
+      renderer = new TileDecorationRenderer(host, { id, ...next });
+      mounted = true;
+    });
   });
 
-  /** The server's reserved space — `<Tileset>` says why. Throws a reshape error in development, as the renderer does. */
+  $effect(() => () => {
+    renderer?.destroy();
+    renderer = null;
+  });
+
+  /**
+   * The server's reserved space — `<Tileset>` says why, and what it costs on a
+   * client-only mount (here also a second reshape, and its development check).
+   * Throws a reshape error in development, as the renderer does.
+   */
   const reserved = $derived(
     mounted ? null : placeholder(id, reshapeDecoration(style, rows, columns, cellSize), options),
   );
@@ -78,12 +78,8 @@
 <!-- The host is `<Tileset>`'s: no box of its own, and marked as the package's. -->
 <div bind:this={host} data-tileset-host="" data-tileset-wrapper="" style="display: contents">
   {#if reserved !== null}
-    <div
-      class="decoration"
-      style={decorationWidth(columns, cellSize)}
-      data-tileset-decoration=""
-      {...{ [WRAPPER_ATTRIBUTE]: "" }}
-    >
+    <!-- The renderer's own decoration box, from the same record (`decorationBox`). -->
+    <div {...decorationBox(columns, cellSize)}>
       <Placeholder p={reserved} />
     </div>
   {/if}

@@ -14,8 +14,8 @@
  * canvas, `SUBPIXEL-GEOMETRY.md`).
  *
  * **No cells and no grid.** Every field below is read from stages that sit
- * before `generate()` in the model, so a server render pays for the file check
- * and the reservation, not for a grid. Drawing cells into the server HTML is the
+ * before `generate()` in the model (the test holds it to that), so a server
+ * render pays for the file check and the reservation, not for a grid. Drawing cells into the server HTML is the
  * deferred SSR route, and `affineCellStyle` in `./model.ts` remains its seam.
  *
  * Rejected: the renderer adopting a server-rendered box. That is the SSR route
@@ -77,11 +77,40 @@ export function placeholder(id: string, file: TilesetFile, options: TilesetOptio
   });
   const substrate = model.substrate;
   const hasRules = model.hasRules;
+  // The measured geometry is `null` by definition here, and is written so rather
+  // than read: the model's `presentation` reaches the grid (culling widens by
+  // the grid's spill) before it can find the width is 0, so reading it ran
+  // `generate()` on every server render and twice on every client mount.
+  // `placeholder.test.ts` holds both to the renderer's own pre-measurement box.
+  const at = { sizing: model.sizing, hasRules, ratio: model.ratio, fixedHeight: model.fixedHeight };
   return {
     wrapper: hasRules ? { id, css: model.reservation } : null,
     substrate,
     className: substrate === "dom" && model.overflow === "visible" ? "tileset overflow-visible" : "tileset",
-    style: substrate === "canvas" ? canvasBoxStyle(model) : domBoxStyle(model),
+    style:
+      substrate === "canvas"
+        ? canvasBoxStyle({ ...at, presentation: null })
+        : domBoxStyle({ ...at, domCell: null, pending: model.pending }),
     extent: substrate === "dom" ? extentStyle(null, 1, model.sizing, model.fixedHeight) : null,
   };
+}
+
+/**
+ * Takes the placeholder out of layout, ahead of the renderer's construction.
+ *
+ * A wrapper builds the renderer in an effect, while the placeholder its template
+ * wrote is still in the host, and the framework removes the placeholder only on
+ * its next flush. The renderer measures synchronously in its constructor, so in
+ * between it would measure a box laid out *beside* the placeholder: below it in
+ * a block (every `avoid` rect off by one tileset height, and the first mask on
+ * the wrong cells) or sharing a flex row with it (half the width). Hidden first,
+ * the first measurement is the one the page will keep.
+ *
+ * `display: none` rather than removing the nodes: they are the framework's, and
+ * it removes them itself a moment later.
+ */
+export function setAside(host: Element): void {
+  for (const el of Array.from(host.children)) {
+    if (el instanceof HTMLElement || el instanceof SVGElement) el.style.display = "none";
+  }
 }

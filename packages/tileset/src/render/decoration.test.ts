@@ -130,6 +130,20 @@ describe("TileDecorationRenderer", () => {
     expect((h.firstElementChild as HTMLElement).getAttribute("style")).toBe("width: 120px;");
   });
 
+  it("an invalid options update throws before the box is resized", () => {
+    const { d, host } = mount();
+    expect(() => d.update({ columns: 4, options: { provider, substrate: "svg" as never } })).toThrow(/not valid/);
+    expect((host.firstElementChild as HTMLElement).getAttribute("style")).toBe("width: 120px;");
+  });
+
+  it("builds the box decorationBox() describes, which a server placeholder writes too", async () => {
+    const { decorationBox } = await import("./decoration.js");
+    const { host } = mount();
+    const el = host.firstElementChild as HTMLElement;
+    const attrs = Object.fromEntries(Array.from(el.attributes, (a) => [a.name, a.value]));
+    expect(attrs).toEqual(decorationBox(3, 40));
+  });
+
   it("destroy() leaves the host as it was found, and is idempotent", () => {
     const { host, d } = mount();
     d.destroy();
