@@ -238,6 +238,8 @@ export class TilesetRenderer {
 
   #destroyed = false;
   #queued = false;
+  /** `#styles` has run: the box was connected once. */
+  #styled = false;
   /**
    * True inside `#render`. A trigger that fires synchronously from inside it —
    * `track()`'s first measurement, `bank.sync`'s `onChange` for a dropped key —
@@ -421,9 +423,6 @@ export class TilesetRenderer {
     this.#rendering = true;
     try {
       this.#structure();
-      // Before `track`, so the first measurement is of a styled box: the box's
-      // `width: 100%` and `padding: 0` are what make its width `Wpx` (S9).
-      injectStyles(this.#box);
       this.#stopDpr = observeDpr(this.#onDpr);
       this.#render();
     } catch (cause) {
@@ -554,6 +553,35 @@ export class TilesetRenderer {
     void this.#model.rules;
   }
 
+  /**
+   * Adds the shared rules once the box is in a page, unless they already reach
+   * it (`injectStyles`). Before `track`, so a box built in a page is measured
+   * styled: its `width: 100%` and `padding: 0` are what make its width `Wpx`
+   * (S9).
+   *
+   * **Not before the box is connected.** `injectStyles` tells a linked
+   * `tileset.css` apart from none by the box's computed style, and a detached
+   * box has none. A renderer built on a detached element (the Observable case,
+   * ``display(html`<div>`)``) used to inject at construction whatever the page
+   * linked. Harmless on most pages, since the rules are the same; but under a
+   * strict CSP the injected `<style>` is blocked and the fallback sheet cascades
+   * after the host's CSS, so linking the file, which is the CSP advice, stopped
+   * a host override at equal specificity from winning. Measured in an
+   * Observable Framework build, 0.9.0.
+   *
+   * Attaching such a box is noticed by the tracker's first measurement, so this
+   * runs from the render that measurement schedules, before paint and before
+   * any cell is mounted. That measurement read an unstyled box, which has the
+   * same size: a block `div` fills its parent with no padding, and the height
+   * is the box's inline style. A shadow root not yet connected waits the same
+   * way and is styled on attach.
+   */
+  #styles(): void {
+    if (this.#styled || !this.#box.isConnected) return;
+    this.#styled = true;
+    injectStyles(this.#box);
+  }
+
   // --------------------------------------------------------------- render ---
 
   /**
@@ -566,6 +594,7 @@ export class TilesetRenderer {
     const model = this.#model;
 
     this.#structure();
+    this.#styles();
 
     // The box is styled before it is measured, as the component's template is:
     // a box measured bare reads a height of 0 (no ratio, no extent), and a
