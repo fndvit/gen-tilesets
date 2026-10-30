@@ -672,7 +672,7 @@ export class TilesetRenderer {
     if (model.hasRules) {
       if (this.#wrapper === null) {
         const wrapper = this.#host.ownerDocument.createElement("div");
-        wrapper.className = "container";
+        wrapper.className = "tileset-container";
         wrapper.setAttribute(WRAPPER_ATTRIBUTE, model.uid);
         if (this.#box.parentNode === this.#host) this.#box.replaceWith(wrapper);
         else this.#host.append(wrapper);

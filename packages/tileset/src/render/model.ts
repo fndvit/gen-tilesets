@@ -262,7 +262,7 @@ export class TilesetModel {
         const errors = optionErrors(options);
         if (errors.length > 0) {
           throw new Error(
-            "`<Tileset>`'s options are not valid:\n" + errors.map((e) => `  - ${e}`).join("\n"),
+            "The tileset's options are not valid:\n" + errors.map((e) => `  - ${e}`).join("\n"),
           );
         }
       }
@@ -332,8 +332,8 @@ export class TilesetModel {
       DEV
         ? assertValidFile(
             file,
-            "`<Tileset>`'s `file` prop",
-            "Pass the file through `loadTilesetFile()` before handing it to `<Tileset>`. " +
+            "The tileset's `file`",
+            "Pass the file through `loadTilesetFile()` before handing it to `<Tileset>` or `TilesetRenderer`. " +
               "This check runs in development builds only; in production the same file is " +
               "undefined behaviour (S3).",
           )
@@ -367,7 +367,7 @@ export class TilesetModel {
         const errors = rulesReshapeErrors(checked, r);
         if (errors.length > 0) {
           throw new Error(
-            "`<Tileset>`'s `options.responsive` cannot be applied to this file:\n" +
+            "The tileset's `options.responsive` cannot be applied to this file:\n" +
               errors.map((e) => `  - ${e}`).join("\n"),
           );
         }

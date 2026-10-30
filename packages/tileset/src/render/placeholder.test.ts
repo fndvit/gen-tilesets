@@ -112,7 +112,7 @@ describe("setAside", () => {
   it("takes what the host holds out of layout, so the renderer's first measurement is of its own box", async () => {
     const { setAside: aside } = await import("./placeholder.js");
     const host = document.createElement("div");
-    host.innerHTML = '<div class="container"><div class="tileset" data-tileset-box data-tileset-placeholder></div></div>';
+    host.innerHTML = '<div class="tileset-container"><div class="tileset" data-tileset-box data-tileset-placeholder></div></div>';
     document.body.append(host);
     aside(host);
     expect((host.firstElementChild as HTMLElement).style.display).toBe("none");

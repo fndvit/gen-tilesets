@@ -7,12 +7,10 @@
  *
  * For each case it serves `<Tileset>` (or `<TileDecoration>`) rendered on the
  * server, with the client's hydration held back. It measures the placeholder
- * box, releases hydration, and measures the renderer's box. It also serves the
- * frozen pre-Block-5 component (`src/parity/Reference.svelte`) rendered on the
- * server, which drew its box there directly.
+ * box, releases hydration, and measures the renderer's box.
  *
- * Passing means: the placeholder reserves exactly the height the old
- * component's server HTML reserved, hydration leaves one measured box and no
+ * Passing means: the placeholder reserves exactly the height in `RESERVED`,
+ * hydration leaves one measured box and no
  * placeholder, and the page logs no hydration warning. The settle after
  * hydration is printed, not judged: it is the renderer's measured geometry
  * replacing the declared ratio, which the old component did at hydration too —
@@ -34,6 +32,27 @@ const PORT = 5180;
 const WIDTHS = [600, 333];
 const DPRS = [1, 2];
 
+/**
+ * The height each case's server HTML must reserve, in CSS px, at either DPR.
+ *
+ * Measured from the pre-Block-5 component's server HTML, which drew its box
+ * there directly; until 0.9.0 this script rendered that frozen copy
+ * (`src/parity/Reference.svelte`) beside every case and compared. The copy went
+ * with the parity page, and these are its last readings (2026-10-30, after the
+ * wrapper class became `tileset-container`). A pinned table is also what the
+ * gate needs: a comparison against a copy only says the two agree, and both
+ * could move together.
+ */
+const RESERVED = {
+  "canvas@600": 78.94, "canvas@333": 43.81,
+  "canvas-fixed@600": 150, "canvas-fixed@333": 150,
+  "canvas-rules@600": 78.94, "canvas-rules@333": 400,
+  "dom@600": 78.94, "dom@333": 43.81,
+  "dom-fixed@600": 150, "dom-fixed@333": 150,
+  "dom-rules@600": 396, "dom-rules@333": 239.75,
+  "decoration@600": 96, "decoration@333": 96,
+};
+
 /** Options as source text, so the server and the client build the same object. */
 const CASES = {
   canvas: `{ provider: prefixedProvider("/atlas") }`,
@@ -53,11 +72,10 @@ const vite = await createServer({
 });
 
 const { render } = await vite.ssrLoadModule("svelte/server");
-const { loadTilesetFile, reshape } = await vite.ssrLoadModule("@fndvit/gen-tilesets");
+const { loadTilesetFile } = await vite.ssrLoadModule("@fndvit/gen-tilesets");
 const { prefixedProvider } = await vite.ssrLoadModule("@fndvit/gen-tilesets/render");
 const Tileset = (await vite.ssrLoadModule("@fndvit/gen-tilesets/Tileset.svelte")).default;
 const TileDecoration = (await vite.ssrLoadModule("@fndvit/gen-tilesets/TileDecoration.svelte")).default;
-const Reference = (await vite.ssrLoadModule("/src/parity/Reference.svelte")).default;
 const files = Object.fromEntries(
   ["atlas", "kelp"].map((n) => [
     n,
@@ -65,20 +83,6 @@ const files = Object.fromEntries(
   ]),
 );
 const fileOf = (name) => (CASES[name].includes("/kelp") ? "kelp" : "atlas");
-
-/** The old component's server HTML for a case, with no script: its reserved box. */
-function reference(name, width) {
-  const options = new Function("prefixedProvider", `return (${CASES[name]});`)(prefixedProvider);
-  // A decoration was `<Tileset>` over this file in a box of this width.
-  const decoration = name === "decoration";
-  const file = decoration
-    ? reshape(files.kelp, { rows: 2, columns: 3, cellSize: 48, bleed: 0, yOffset: 0 })
-    : files[fileOf(name)];
-  const out = render(Reference, { props: { file, options } });
-  const w = decoration ? Math.min(width, 3 * 48) : width;
-  return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0}${css}</style>${out.head}</head>
-<body><div id="app" style="width:${w}px">${out.body}</div></body></html>`;
-}
 
 async function page(name, width) {
   const options = new Function("prefixedProvider", `return (${CASES[name]});`)(prefixedProvider);
@@ -105,10 +109,13 @@ async function page(name, width) {
 }
 
 const http = createHttp(async (req, res) => {
-  const m = /^\/(ssr|ref)\/([\w-]+)\?w=(\d+)$/.exec(req.url ?? "");
+  // Chrome asks each origin for a favicon once, on the first page, and logs the
+  // 404 as a console error. The old reference page used to take that request.
+  if (req.url === "/favicon.ico") return res.writeHead(204).end();
+  const m = /^\/ssr\/([\w-]+)\?w=(\d+)$/.exec(req.url ?? "");
   if (m === null) return vite.middlewares(req, res);
   res.setHeader("content-type", "text/html");
-  res.end(m[1] === "ref" ? reference(m[2], Number(m[3])) : await page(m[2], Number(m[3])));
+  res.end(await page(m[1], Number(m[2])));
 });
 await new Promise((r) => http.listen(PORT, r));
 
@@ -118,11 +125,7 @@ for (const dpr of DPRS) {
   const ctx = await browser.newContext({ deviceScaleFactor: dpr, viewport: { width: 800, height: 900 } });
   for (const name of Object.keys(CASES)) {
     for (const width of WIDTHS) {
-      const r = await ctx.newPage();
-      await r.goto(`http://localhost:${PORT}/ref/${name}?w=${width}`);
-      const old = await r.evaluate(() => document.querySelector("[data-tileset-box]").getBoundingClientRect().height);
-      await r.close();
-
+      const old = RESERVED[`${name}@${width}`];
       const p = await ctx.newPage();
       const logs = [];
       // The renderer's own development warnings (`[gen-tilesets] …`, soft
@@ -159,11 +162,11 @@ for (const dpr of DPRS) {
       else if (before.h <= 0) problems.push("the placeholder reserves no height");
       if (after.count !== 1 || after.placeholders !== 0) problems.push(`${after.count} boxes and ${after.placeholders} placeholders after hydration`);
       if (!after.measured) problems.push("the renderer's box was never measured");
-      if (before !== null && Math.abs(before.h - old) > 0.01) {
-        problems.push(`reserves ${before.h}px where the old component's server HTML reserved ${old}px`);
+      if (before !== null && Math.abs(before.h - old) > 0.005) {
+        problems.push(`reserves ${before.h}px where ${old}px is expected`);
       }
       problems.push(...logs);
-      const label = `dpr ${dpr} ${name} @${width}: reserved ${before?.h.toFixed(2)} (old ${old.toFixed(2)}), settled ${after.h.toFixed(2)}`;
+      const label = `dpr ${dpr} ${name} @${width}: reserved ${before?.h.toFixed(2)} (expected ${old.toFixed(2)}), settled ${after.h.toFixed(2)}`;
       if (problems.length === 0) console.log(`ok   ${label}`);
       else {
         failed++;

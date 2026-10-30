@@ -155,7 +155,7 @@ describe("TilesetRenderer", () => {
     r.update({ options: { provider, responsive: [{ maxWidth: 400, columns: 6 }] } });
     await tick();
     const wrapper = host.firstElementChild as HTMLElement;
-    expect(wrapper.matches(".container[data-tileset-wrapper]")).toBe(true);
+    expect(wrapper.matches(".tileset-container[data-tileset-wrapper]")).toBe(true);
     expect(wrapper.firstElementChild!.tagName).toBe("STYLE");
     expect(wrapper.firstElementChild!.textContent).toContain(`[data-tileset-wrapper="${wrapper.getAttribute("data-tileset-wrapper")}"]`);
     expect(wrapper.lastElementChild).toBe(box);
