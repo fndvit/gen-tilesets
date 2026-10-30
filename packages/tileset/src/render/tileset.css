@@ -69,7 +69,7 @@
 
 .presented[data-tileset-canvas] {
   display: block;
-  /* Left `auto` on purpose -- see the template comment in `Tileset.svelte`. A
+  /* Left `auto` on purpose -- see `canvasBoxStyle` in `model.ts`. A
      canvas has an intrinsic ratio from its backing store, so the vertical
      presentation scale equals the horizontal one with no second calculation to
      disagree with the first. Writing a `height` here is the one edit that makes
@@ -135,8 +135,8 @@
   user-select: none;
 }
 
-/* `<TileDecoration>`'s box. `width` is inline because it is data; see the
-   template comment in `TileDecoration.svelte` for why this is a default with a
+/* `<TileDecoration>`'s box. `width` is inline because it is data; see
+   `decorationWidth` in `decoration.ts` for why this is a default with a
    reason rather than a hedge. */
 .decoration[data-tileset-decoration] {
   max-width: 100%;

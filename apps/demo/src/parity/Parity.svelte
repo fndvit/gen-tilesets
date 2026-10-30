@@ -1,5 +1,6 @@
 <!--
-  **Renderer parity** — every case drawn twice, by `<Tileset>` and by
+  **Renderer parity** — every case drawn twice, by the frozen pre-Block-5
+  `<Tileset>` (`Reference.svelte`) and by today's `<Tileset>`, a wrapper over
   `TilesetRenderer`, and compared in the page: a canvas pixel for pixel, a DOM
   tileset node for node (every cell's position, style, mask flag and `src`, in
   document order). Each case runs under both substrates.
@@ -12,7 +13,7 @@
   import { loadTilesetFile, type TilesetFile } from "@fndvit/gen-tilesets";
   import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
   import { prefixedProvider, type TilesetOptions } from "@fndvit/gen-tilesets/render";
-  import Mount from "./Mount.svelte";
+  import Reference from "./Reference.svelte";
 
   interface Case {
     name: string;
@@ -141,7 +142,7 @@
         const l = signature(left!);
         const r = signature(right!);
         seen += l + r;
-        if (l !== r) diffs.push(`${row.getAttribute("data-case")}:\n  svelte   ${l}\n  renderer ${r}`);
+        if (l !== r) diffs.push(`${row.getAttribute("data-case")}:\n  reference ${l}\n  wrapper   ${r}`);
       }
     // Two transparent canvases of one size hash alike, so a match before
     // anything decoded proves nothing: wait for pixels as well as agreement.
@@ -166,8 +167,8 @@
 {#each cases as c (c.name)}
   <section data-case={c.name}>
     <div class="pair">
-      <div data-side="svelte"><h2>{c.name}</h2><Tileset file={c.file} options={optionsOf(c)} /></div>
-      <div data-side="renderer"><h2>{c.name}</h2><Mount file={c.file} options={optionsOf(c)} /></div>
+      <div data-side="reference"><h2>{c.name}</h2><Reference file={c.file} options={optionsOf(c)} /></div>
+      <div data-side="wrapper"><h2>{c.name}</h2><Tileset file={c.file} options={optionsOf(c)} /></div>
     </div>
   </section>
 {/each}

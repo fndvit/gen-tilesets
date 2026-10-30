@@ -29,6 +29,36 @@ strict CSP blocks that `<style>`, it adopts a constructed sheet instead, once pe
 `sideEffects` is now `["**/*.css"]`. Vite keeps a CSS import from a side-effect-free package
 anyway (measured), but webpack drops it.
 
+### Changed: `<Tileset>` and `<TileDecoration>` are wrappers over `TilesetRenderer`
+
+`<Tileset>` now mounts a `TilesetRenderer` in an effect, passes every prop change to `update()`,
+and exposes `renderer.box` through `bind:box`. `<TileDecoration>` wraps `TileDecorationRenderer`
+(`render/decoration.ts`), which keeps the reshaped file until the style or the shape changes.
+What a client draws is unchanged: the demo's screenshots match `main` at 0 px (32 of 32), and a
+parity page compares every case with the old component node for node. Script time per resize on
+the demo fell by 32% (canvas) and 50% (DOM). What a host can see:
+
+- **The component's root element is new**: a `div[data-tileset-host]` with `display: contents`,
+  holding the render box. Layout is unchanged, since the div has no box of its own. But host CSS
+  that selected the box by position (`.hero > .tileset`, `:first-child`) no longer matches it. Use
+  `[data-tileset-box]`.
+- **A server render reserves the space, but the DOM substrate's server HTML no longer holds
+  cells.** On the server both components write a placeholder: the renderer's box as it is before
+  its first measurement. The page keeps the reserved height it had (checked against the old
+  component's server HTML, `apps/demo/scripts/ssr.mjs`). Cells, and their `<img>` requests, now
+  arrive at hydration. Cells in server HTML wait on a server-side `renderHtml()`.
+- **Development warnings say `TilesetRenderer:`** where they said `<Tileset>:`. The prop errors
+  still name `<Tileset>`.
+- `svelte` is an optional peer dependency.
+- Importing the package no longer calls `Math.random()`. The renderer draws its instance-id prefix
+  on the first instance built without an `id`, and the wrappers always pass one. Drawn at module
+  load, it shifted any host that seeds `Math.random`, which is how the screenshot harness found it.
+- A renderer `id` containing `"` or `\` throws in every build, not only in development. The id is
+  written into a stylesheet's selectors.
+
+`TilesetRenderer` and `TileDecorationRenderer` are not exported yet. That comes with the package
+surface, the docs and the Observable proof, in the next step.
+
 ### Fixed: a host's `canvas { max-width: 100% }` reset shrank the canvas substrate
 
 The presented canvas is wider than its box by the bleed, and its inline `width` is what places

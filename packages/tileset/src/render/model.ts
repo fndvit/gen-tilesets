@@ -76,6 +76,7 @@ import {
   domLattice,
   uniformDrawList,
   uniformGeometry,
+  type CanvasPresentation,
   type DomGeometry,
 } from "./uniform.js";
 
@@ -924,6 +925,30 @@ export function domBoxStyle(m: {
 }): string {
   const ratio = m.domCell === null && m.sizing !== "fixed" && !m.hasRules ? `aspect-ratio: ${m.ratio};` : "";
   return ratio + (m.pending ? " visibility: hidden;" : "");
+}
+
+/**
+ * The canvas box's inline style. It declares a ratio only until it has a canvas
+ * to measure, then takes its height from the canvas, the way an ordinary block
+ * takes it from its only child: `naturalRatio` and the canvas's intrinsic ratio
+ * differ by up to half a CSS px at a fractional `yOffset` (`originYDev` is
+ * rounded), so a permanent ratio would leave the canvas a fraction short and a
+ * hairline of backdrop under the bottom row. Clamping with `min-height` instead
+ * would stretch the picture by that half pixel, and this substrate exists to
+ * keep cells square. Under `"fixed"` the natural height is a constant, reserved
+ * as one; with rules the reservation stylesheet declares it.
+ *
+ * One function for the renderer and the server placeholder, so they agree.
+ */
+export function canvasBoxStyle(m: {
+  presentation: CanvasPresentation | null;
+  sizing: ResolvedOptions["sizing"];
+  hasRules: boolean;
+  ratio: number;
+  fixedHeight: number;
+}): string {
+  if (m.presentation !== null || m.hasRules) return "";
+  return m.sizing === "fixed" ? `height: ${m.fixedHeight}px;` : `aspect-ratio: ${m.ratio};`;
 }
 
 /**
