@@ -1,7 +1,8 @@
 <!--
   **Renderer parity** — every case drawn twice, by `<Tileset>` and by
-  `TilesetRenderer`, and compared pixel for pixel in the page. Canvas only: that
-  is all `TilesetRenderer` draws until Block 4.
+  `TilesetRenderer`, and compared in the page: a canvas pixel for pixel, a DOM
+  tileset node for node (every cell's position, style, mask flag and `src`, in
+  document order). Each case runs under both substrates.
 
   `window.parity()` returns one line per case that differs, so a script can
   drive it across widths (`scripts/parity.mjs`). Not part of the build: Vite
@@ -42,10 +43,17 @@
       { name: "atlas-avoid", file: atlas, options: { ...a, avoid: { targets: "h2", padding: 8 } } },
       { name: "kelp", file: kelp, options: { ...k, seed: "parity" } },
     ];
+    cases = [
+      ...cases,
+      ...cases.map((c) => ({ ...c, name: `${c.name}-dom`, options: { ...c.options, substrate: "dom" as const } })),
+      { name: "atlas-dom-overflow", file: atlas, options: { ...a, substrate: "dom", overflow: "visible" } },
+    ];
   });
 
   /** Sides whose canvas has no opaque pixel yet: nothing has decoded. */
   let blank = 0;
+  /** DOM `<img>`s still loading: their `error`, and the size probe after `load`, can unmount cells. */
+  let loading = 0;
 
   function pixels(c: HTMLCanvasElement | null): string {
     if (c === null) return "no canvas";
@@ -59,9 +67,41 @@
     return `${c.width}x${c.height}:${h >>> 0}`;
   }
 
+  /**
+   * A DOM tileset's whole output: every child of the box in document order, so
+   * an out-of-order cell, a stray node or a misplaced extent is a difference.
+   * `src` is the attribute, not the resolved URL, so both sides read alike.
+   */
+  function cellsOf(box: HTMLElement): string {
+    return Array.from(box.children)
+      .map((el) => {
+        const e = el as HTMLElement;
+        if (e.matches("[data-tileset-cell]")) {
+          const img = e.querySelector("img");
+          if (img !== null && !img.complete) loading++;
+          return (
+            `\n    cell ${e.dataset.x},${e.dataset.y} style="${e.style.cssText}"` +
+            ` masked=${e.hasAttribute("data-masked")} img=${img?.getAttribute("src") ?? "-"}` +
+            (img === null ? "" : ` alt="${img.alt}" loading=${img.loading} draggable=${img.getAttribute("draggable")}`)
+          );
+        }
+        if (e.matches(".extent[data-tileset-extent]")) return `\n    extent style="${e.style.cssText}"`;
+        return `\n    stray <${e.tagName.toLowerCase()} class="${e.className}">`;
+      })
+      .join("");
+  }
+
   function signature(side: Element): string {
     const box = side.querySelector<HTMLElement>("[data-tileset-box]");
     if (box === null) return "no box";
+    if (box.querySelector("canvas") === null) {
+      const r = box.getBoundingClientRect();
+      return [
+        `box ${r.width}x${r.height} class="${box.className}" style="${box.style.cssText}" measured=${box.hasAttribute("data-measured")}`,
+        `wrapped=${box.parentElement?.matches(".container[data-tileset-wrapper]") ?? false}`,
+        cellsOf(box),
+      ].join(" | ");
+    }
     const canvas = box.querySelector("canvas");
     const r = box.getBoundingClientRect();
     return [
@@ -75,24 +115,39 @@
     ].join(" | ");
   }
 
-  /** Differences, after waiting up to `ms` for decodes to land on both sides. */
+  /**
+   * Differences, after waiting up to `ms` for decodes to land on both sides.
+   *
+   * A DOM tileset matches the moment its cells mount, before any `<img>` has
+   * failed or been probed, which is where the two renderers' failure handling
+   * could part. So a match counts only once every `<img>` is complete and two
+   * polls in a row saw the same thing — the second covers the size probe, which
+   * runs a frame after `load`.
+   */
   async function parity(ms = 4000): Promise<string[]> {
     const until = performance.now() + ms;
     let diffs: string[] = [];
+    let last = "";
+    let seen = "";
     do {
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 50)));
+      last = seen;
+      seen = "";
       diffs = [];
       blank = 0;
+      loading = 0;
       for (const row of document.querySelectorAll("[data-case]")) {
         const [left, right] = row.querySelectorAll("[data-side]");
         const l = signature(left!);
         const r = signature(right!);
+        seen += l + r;
         if (l !== r) diffs.push(`${row.getAttribute("data-case")}:\n  svelte   ${l}\n  renderer ${r}`);
       }
     // Two transparent canvases of one size hash alike, so a match before
     // anything decoded proves nothing: wait for pixels as well as agreement.
-    } while ((diffs.length > 0 || blank > 0) && performance.now() < until);
+    } while ((diffs.length > 0 || blank > 0 || loading > 0 || seen !== last) && performance.now() < until);
     if (blank > 0) diffs.push(`${blank} canvases drew nothing`);
+    if (loading > 0) diffs.push(`${loading} <img>s never finished loading`);
     return diffs;
   }
 

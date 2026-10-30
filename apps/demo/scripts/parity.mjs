@@ -29,7 +29,11 @@ for (const dpr of DPRS) {
   await page.goto(url);
   await page.waitForFunction(() => document.querySelectorAll("[data-case]").length > 0);
   for (const width of WIDTHS) {
+    // As tall as the page, so every DOM case's `loading="lazy"` <img>s load and
+    // `parity()` can wait for them; height changes no box width.
     await page.setViewportSize({ width, height: 900 });
+    const tall = await page.evaluate(() => document.documentElement.scrollHeight);
+    await page.setViewportSize({ width, height: tall });
     const diffs = await page.evaluate(() => window.parity());
     // The box widths the sweep is meant to produce, so a layout change that
     // moves them off the breakpoints is seen rather than silently tested less.

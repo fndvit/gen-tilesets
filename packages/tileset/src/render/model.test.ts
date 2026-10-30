@@ -9,7 +9,15 @@
 import { describe, expect, it } from "vitest";
 import type { TilesetFile } from "../types.js";
 import { SCHEMA_VERSION } from "../validate.js";
-import { affineCellStyle, cellStyle, Memo, TilesetModel, type ModelInputs } from "./model.js";
+import {
+  affineCellStyle,
+  cellStyle,
+  domBoxStyle,
+  extentStyle,
+  Memo,
+  TilesetModel,
+  type ModelInputs,
+} from "./model.js";
 import type { HostRule, TilesetOptions } from "./options.js";
 import type { AssetProvider } from "./provider.js";
 
@@ -358,5 +366,29 @@ describe("TilesetModel.report", () => {
     m.set({ options: { provider: failing, onAssetError: () => seen.push("new") } });
     m.report({ tileId: "t", assetId: "a", meta: {} }, new Error("later"));
     expect(seen.at(-1)).toBe("new");
+  });
+});
+
+describe("the DOM box's styles", () => {
+  const cell = { gridHeightDev: 481 } as never;
+
+  it("declares the ratio only before measurement, fluid, and without rules", () => {
+    const base = { domCell: null, sizing: "fluid" as const, hasRules: false, ratio: 2.5, pending: false };
+    expect(domBoxStyle(base)).toBe("aspect-ratio: 2.5;");
+    expect(domBoxStyle({ ...base, domCell: cell })).toBe("");
+    expect(domBoxStyle({ ...base, sizing: "fixed" })).toBe("");
+    expect(domBoxStyle({ ...base, hasRules: true })).toBe("");
+  });
+
+  it("hides the box while pending, spelled as the component always has", () => {
+    const base = { domCell: null, sizing: "fluid" as const, hasRules: false, ratio: 2.5, pending: true };
+    expect(domBoxStyle(base)).toBe("aspect-ratio: 2.5; visibility: hidden;");
+    expect(domBoxStyle({ ...base, domCell: cell })).toBe(" visibility: hidden;");
+  });
+
+  it("gives the extent the measured grid height, else the fixed height, else none", () => {
+    expect(extentStyle(cell, 2, "fluid", 300)).toBe("height: 240.5px");
+    expect(extentStyle(null, 1, "fixed", 300)).toBe("height: 300px");
+    expect(extentStyle(null, 1, "fluid", 300)).toBeNull();
   });
 });

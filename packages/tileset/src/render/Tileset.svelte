@@ -57,7 +57,7 @@
   import { assetTooSmall, cellTooSmall, WarnOnce } from "./warn.js";
   import { currentDpr, observeDpr, track, WRAPPER_ATTRIBUTE } from "./measure.js";
   import { FlipFlop, inertCellSizeRules } from "./breakpoints.js";
-  import { cellStyle as placeCell, TilesetModel, type ModelInputs } from "./model.js";
+  import { cellStyle as placeCell, domBoxStyle, extentStyle, TilesetModel, type ModelInputs } from "./model.js";
   import { copyOptions, legacyPropErrors, optionErrors, type TilesetOptions } from "./options.js";
   import type { RenderRect } from "./space.js";
   import { ImageBank, NaturalSizeChecks } from "./images.js";
@@ -67,7 +67,9 @@
     loadBlocked,
     parseAssetKey,
     recordLoadFailure,
+    settledFor as settledIn,
     type Drawable,
+    type Settled,
   } from "./provider.js";
 
   interface Props {
@@ -223,6 +225,8 @@
   const mask = $derived(out(inputs, () => model.mask));
   const pending = $derived(out(inputs, () => model.pending));
   const items = $derived(out(inputs, () => model.items));
+  /** `.extent`'s style, or `null` for none (`extentStyle`). */
+  const extent = $derived(extentStyle(domCell, dpr, sizing, fixedHeight));
 
   /** `onAssetError`, read at call time — see `TilesetModel.report`. */
   const reportAssetError = model.report;
@@ -351,17 +355,11 @@
    * is not on the promise, and without this a cell whose drawable rejected or
    * whose `<img>` failed stayed mounted, empty, and still took a host's clicks.
    */
-  let settled = $state(
-    new Map<string, { from: Promise<Drawable>; src: string | undefined; rejected: boolean }>(),
-  );
+  let settled = $state(new Map<string, Settled>());
 
   /** `settled`'s entry for `value`, or nothing if it is pending or not a promise. */
-  function settledFor(
-    key: string,
-    value: Drawable | Promise<Drawable> | undefined,
-  ): { src: string | undefined; rejected: boolean } | undefined {
-    const entry = settled.get(key);
-    return entry !== undefined && entry.from === value ? entry : undefined;
+  function settledFor(key: string, value: Drawable | Promise<Drawable> | undefined): Settled | undefined {
+    return settledIn(settled, key, value);
   }
 
   // Runs on **both** substrates: canvas needs `sources` for the bank, and the DOM
@@ -741,8 +739,7 @@
     <div
       class="tileset"
       class:overflow-visible={overflow === "visible"}
-      style={(domCell === null && sizing !== "fixed" && !hasRules ? `aspect-ratio: ${ratio};` : "") +
-        (pending ? " visibility: hidden;" : "")}
+      style={domBoxStyle({ domCell, sizing, hasRules, ratio, pending })}
       aria-hidden="true"
       data-tileset-box=""
       data-measured={measuredWidth > 0 ? "" : undefined}
@@ -839,10 +836,8 @@
         there is no clip for it to overflow into, but it is `width: 0` and draws
         nothing, so a host height still wins and only the tiles show past it.
       -->
-      {#if domCell !== null}
-        <div class="extent" data-tileset-extent="" style="height: {domCell.gridHeightDev / dpr}px"></div>
-      {:else if sizing === "fixed"}
-        <div class="extent" data-tileset-extent="" style="height: {fixedHeight}px"></div>
+      {#if extent !== null}
+        <div class="extent" data-tileset-extent="" style={extent}></div>
       {/if}
     </div>
   {/if}
