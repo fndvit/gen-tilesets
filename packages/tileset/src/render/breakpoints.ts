@@ -85,11 +85,12 @@ export class GridCache {
  *
  * `:not([data-measured])` retires every rule at the first measurement: after that
  * the box takes its height from its content, which is what keeps the canvas from
- * a half-pixel hairline (`Tileset.svelte`'s template comments). A ratio left
+ * a half-pixel hairline (`canvasBoxStyle` in `./model.ts`). A ratio left
  * standing would override that height, because the box has `overflow: hidden`.
  *
- * Every value interpolated is a number from a validated rule and `id` is
- * `$props.id()`'s, so nothing a page author types reaches the stylesheet.
+ * Every value interpolated is a number from a validated rule, and `id` is the
+ * renderer's own — generated, or a framework's SSR-stable one checked for
+ * quotes — so nothing a page author types reaches the stylesheet.
  */
 export function reservationCss(
   id: string,

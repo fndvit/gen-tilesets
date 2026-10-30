@@ -9,7 +9,9 @@
     "directory": "packages/tileset"
   },
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "**/*.css"
+  ],
   "files": [
     "dist"
   ],
@@ -33,7 +35,8 @@
       "types": "./src/render/TileDecoration.svelte",
       "svelte": "./src/render/TileDecoration.svelte",
       "default": "./src/render/TileDecoration.svelte"
-    }
+    },
+    "./tileset.css": "./src/render/tileset.css"
   },
   "publishConfig": {
     "access": "restricted",
@@ -59,15 +62,22 @@
         "types": "./dist/render/TileDecoration.svelte.d.ts",
         "svelte": "./dist/render/TileDecoration.svelte",
         "default": "./dist/render/TileDecoration.svelte"
-      }
+      },
+      "./tileset.css": "./dist/render/tileset.css"
     }
   },
   "peerDependencies": {
     "svelte": "^5.20.0"
   },
+  "peerDependenciesMeta": {
+    "svelte": {
+      "optional": true
+    }
+  },
   "scripts": {
     "build": "svelte-package --input src --output dist && pnpm run build:prune",
     "build:prune": "find dist -name \"*.test.*\" -delete && rm -rf .svelte-kit",
+    "css": "node scripts/gen-css.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
@@ -75,6 +85,7 @@
   },
   "devDependencies": {
     "@sveltejs/package": "^2.5.4",
+    "happy-dom": "^21.0.4",
     "svelte": "^5.56.8",
     "svelte-check": "^4.1.0",
     "typescript": "^5.7.0",

@@ -48,9 +48,15 @@
  * signal is absent, so it costs nothing to fold, and `globalThis.process` is the
  * one access here that can genuinely be hostile.
  *
- * If you edit this expression, **re-measure**. The gate is in the plan and in
- * `CHANGELOG.md`: build `apps/demo` and grep the output for a `validate.ts`
- * string such as `SCHEMA_VERSION_MISSING`. If it is present, the fold broke.
+ * If you edit this expression, **re-measure**: build `apps/demo` and grep the
+ * output for the renderer's development-only messages — `flipping back and
+ * forth`, `options are not valid`, `props are not valid`, `changes only`,
+ * `cannot be applied to this file`. If any is present, the fold broke.
+ *
+ * The gate used to be a `validate.ts` string such as `SCHEMA_VERSION_MISSING`.
+ * That stopped working when the demo began calling `loadTilesetFile()` itself,
+ * which pulls `validate.ts` in legitimately — the string is in the bundle with
+ * the fold intact, so it can no longer tell the two apart.
  */
 
 /**

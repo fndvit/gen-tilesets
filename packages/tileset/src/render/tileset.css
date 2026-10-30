@@ -1,0 +1,143 @@
+/*
+  `@fndvit/gen-tilesets/tileset.css` — the renderer's one stylesheet.
+
+  **This file is the source.** `styles.ts`'s `TILESET_CSS` is generated from it by
+  `scripts/gen-css.mjs` (comments stripped, whitespace collapsed), and
+  `styles.test.ts` fails if the two drift. Edit here, then `pnpm css`.
+
+  **Every selector is a class *and* a `data-tileset-*` attribute**, e.g.
+  `.cell[data-tileset-cell]`. Until 0.9.0 these rules were Svelte-scoped, as
+  `.cell.svelte-xyz`. Global now, a bare `.cell` or `.container` would land on
+  the host's own elements of that name (the editor has two), so the attribute is
+  what keeps a rule on the package's elements. The class is there for
+  **strength**: one class plus one attribute is exactly the specificity the
+  scoped selectors had, rule for rule, so a host's general CSS wins or loses
+  against them exactly as it did before. With the attribute alone (tried first),
+  a theme's `.card div { padding: 1rem; position: relative }` beat
+  `[data-tileset-box]` and `[data-tileset-cell]`: the box gained padding, so its
+  width was no longer Wpx (S9), and the cells left absolute positioning.
+
+  **No `@layer` and no `:where()`, on purpose.** Either would drop these rules
+  below every unlayered host rule, so a common reset such as `img, canvas {
+  max-width: 100%; height: auto }` would win — breaking `object-fit` on cells and
+  clamping the presented canvas, which is wider than its box by the bleed.
+
+  **`--gen-tilesets` is a sentinel, not a style.** It lets `injectStyles` see
+  that these exact rules already reach a box — bundled, linked, or injected —
+  and add nothing. Its value is a hash of the rest of this file, written by
+  `pnpm css`; a different value means a different version of the rules, which
+  then do get injected.
+
+  **`package.json`'s `sideEffects` is `["**\/*.css"]` because of this file.**
+  `Tileset.svelte` imports it for its effect alone, and a package declared
+  side-effect-free licenses a bundler to drop such an import. Vite keeps it
+  regardless (measured); webpack does not.
+*/
+
+/* The responsive-rules wrapper. Selected by `.container` as well as the
+   attribute because `<TileDecoration>` also carries `data-tileset-wrapper` —
+   only so `options.avoid` resolves outside it (`measure.ts`'s `scopeOf`) — and
+   it was never a size container: containment takes away the width an element
+   gets from its content. */
+.container[data-tileset-wrapper] {
+  container-type: inline-size;
+}
+
+.tileset[data-tileset-box] {
+  /* See the header. */
+  --gen-tilesets: vbb1415d4;
+  position: relative;
+  display: block;
+  width: 100%;
+  /* The canvas's `width`/`height` attributes are its backing store, in device
+     pixels; these two keep the *layout* size the box S8 and S9 describe. */
+  height: auto;
+  max-width: 100%;
+  /* S9 — the component owns this element and styles it with no padding and no
+     border, so Wpx is unambiguously its width. */
+  padding: 0;
+  border: 0;
+  /* R9 — the only clipping boundary in the system. */
+  overflow: hidden;
+}
+
+/* `options.overflow: "visible"`, DOM only: the clip is handed to the host's own
+   ancestors. The box keeps its size; only what paints past it changes. */
+.tileset[data-tileset-box].overflow-visible {
+  overflow: visible;
+}
+
+.presented[data-tileset-canvas] {
+  display: block;
+  /* Left `auto` on purpose -- see `canvasBoxStyle` in `model.ts`. A
+     canvas has an intrinsic ratio from its backing store, so the vertical
+     presentation scale equals the horizontal one with no second calculation to
+     disagree with the first. Writing a `height` here is the one edit that makes
+     cells non-square again. */
+  height: auto;
+  /* The presented canvas is wider than its box by the bleed, and its inline
+     `width` is what places it. A host reset's `canvas { max-width: 100% }` would
+     clamp it to the box and shrink the whole picture; `none` keeps the inline
+     width authoritative. Missing until 0.9.0. */
+  max-width: none;
+}
+
+/* Height only. See the template comment -- it is what the box measures. */
+.extent[data-tileset-extent] {
+  width: 0;
+  pointer-events: none;
+}
+
+.cell[data-tileset-cell] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Cells are square (02 §7); `width` is set inline as a percentage of the
+     render box and the height follows. `margin-left` / `margin-top` carry the
+     placement, both as percentages of the render box's *width* — see
+     `cellStyle`. */
+  aspect-ratio: 1;
+  /* D11 / R7 — every transform is about the drawable box's centre. */
+  transform-origin: 50% 50%;
+  /* R9 again, from the other side: a cell is NOT a clipping boundary. A bare
+     45deg rotation already spills (07 §6.3), and scale is unbounded, so
+     clipping per cell would clip the two features the attribute set exists to
+     provide (07 §7.1). */
+  overflow: visible;
+  /*
+    No `will-change: transform`. It promoted every cell to its own composited
+    layer, and a layer is rasterized and composited with its own independent
+    device-pixel snapping — which is `07` §5.6's forbidden "compute each cell's
+    left and size independently, round both" reached through the compositor
+    instead of through the arithmetic. It also made the seam depend on DPR and
+    on which rasterization path the browser chose, and cost one layer per cell
+    in a grid that is routinely hundreds of cells.
+  */
+}
+
+/* The keep-out mask. `visibility` rather than `display: none`: it changes no
+   layout, keeps the image decoded for when the cell is uncovered again, and
+   takes the cell out of hit-testing. */
+.cell[data-tileset-cell][data-masked] {
+  visibility: hidden;
+}
+
+.cell[data-tileset-cell] img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* R8 — an asset is centre-cropped to the drawable box before any transform,
+     and no attribute value changes the crop. `object-fit: cover` expresses it
+     declaratively, so no measurement happens and the renderer never learns an
+     aspect ratio (07 §6.4). Stretch would distort silently; letterbox would
+     break R7's tangency claim for some assets and not others. */
+  object-fit: cover;
+  user-select: none;
+}
+
+/* `<TileDecoration>`'s box. `width` is inline because it is data; see
+   `decorationWidth` in `decoration.ts` for why this is a default with a
+   reason rather than a hedge. */
+.decoration[data-tileset-decoration] {
+  max-width: 100%;
+}

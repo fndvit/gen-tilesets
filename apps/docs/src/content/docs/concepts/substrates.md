@@ -20,9 +20,11 @@ has no internal edges for gaps to appear in, and it is cheap for large grids. Bu
 be painted in the browser, so the server-rendered page has an empty, correctly sized box until
 scripts run.
 
-The alternative, **DOM**, makes one HTML element per visible cell, each holding an image. The
-server-rendered HTML already contains the whole picture, every tile is a real element that can be
-clicked or styled, and tiles can be allowed to spill outside the box. The price is many elements,
+The alternative, **DOM**, makes one HTML element per visible cell, each holding an image. Every
+tile is a real element that can be clicked or styled, and tiles can be allowed to spill outside the
+box. Its tiles also arrive in the browser: since 0.9.0 a server-rendered page carries the same
+empty, correctly sized box under both substrates. Until then the DOM substrate's server HTML held
+every cell; that now waits on a server-side renderer. The price is many elements,
 and pixel rounding has to be handled with more care.
 
 ## In detail

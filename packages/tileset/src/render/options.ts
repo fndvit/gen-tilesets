@@ -73,10 +73,14 @@ export interface TilesetOptions {
    * - `"canvas"` — one bitmap. Seamless by construction (adjacent tiles are
    *   neighbouring pixels of one surface, so no host CSS can open a boundary),
    *   and the cheaper of the two for large grids. Draws nothing until the box is
-   *   measured, so the server HTML is an empty box of the right size.
-   * - `"dom"` — one element per cell. Hit-testable per cell, and SSR-complete: the
-   *   server HTML carries every cell's geometry. Its grid can overhang the box by
-   *   up to a device pixel per cell, clipped at the sides.
+   *   measured.
+   * - `"dom"` — one element per cell. Hit-testable per cell. Its grid can
+   *   overhang the box by up to a device pixel per cell, clipped at the sides.
+   *
+   * Under either, a server-rendered page carries an empty box of the right size
+   * and the tiles arrive in the browser (`placeholder.ts`). Until 0.9.0 the DOM
+   * substrate's server HTML carried every cell; that waits on a server-side
+   * `renderHtml()`, whose seam is `affineCellStyle`.
    */
   substrate?: Substrate | undefined;
 
@@ -301,6 +305,41 @@ export function sameTargets(a: NormalizedTargets | null, b: NormalizedTargets | 
   return a.elements.length === be.length && a.elements.every((el, i) => el === be[i]);
 }
 
+/**
+ * Whether two `responsive` lists hold the same rules, field by field.
+ *
+ * For the same reason as {@link sameTargets}: `copyOptions` returns a new array
+ * on every call, so a renderer that copies on every `update()` hands the model a
+ * new identity each time. Compared by identity, an active rule then re-shaped the
+ * config and re-derived the layout, the geometry and the draw list, and the
+ * canvas was cleared and redrawn for an update that changed nothing.
+ *
+ * Every own key is compared, unknown ones included, so a misspelt field still
+ * counts as a change and reaches the development check. `align` is compared one
+ * level down, which is all a `HostRule` nests.
+ */
+export function sameRules(a: readonly HostRule[] | undefined, b: readonly HostRule[] | undefined): boolean {
+  if (a === b) return true;
+  if (a === undefined || b === undefined || a.length !== b.length) return false;
+  return a.every((r, i) => sameFlat(r, b[i]!, (x, y, k) => k === "align" && sameFlat(x, y)));
+}
+
+function sameFlat(
+  a: unknown,
+  b: unknown,
+  nested: (x: unknown, y: unknown, key: string) => boolean = () => false,
+): boolean {
+  if (Object.is(a, b)) return true;
+  if (a === null || b === null || typeof a !== "object" || typeof b !== "object") return false;
+  const ka = Object.keys(a);
+  if (ka.length !== Object.keys(b).length) return false;
+  return ka.every((k) => {
+    const x = (a as Record<string, unknown>)[k];
+    const y = (b as Record<string, unknown>)[k];
+    return k in b && (Object.is(x, y) || nested(x, y, k));
+  });
+}
+
 const SUBSTRATES: readonly string[] = ["canvas", "dom"];
 const OVERFLOWS: readonly string[] = ["hidden", "visible"];
 const SIZINGS: readonly string[] = ["fluid", "fixed"];
@@ -505,4 +544,54 @@ export function legacyPropErrors(rest: Record<string, unknown>): string[] {
   return LEGACY_PROPS.filter((k) => k in rest).map(
     (k) => `\`${k}\` is no longer a prop of <Tileset>; pass it as \`options={{ ${k} }}\` (0.6.0).`,
   );
+}
+
+/**
+ * A copy of `o` that reads every field a host could change in place — a fresh
+ * object wherever the host's was an object, the same value wherever it was not.
+ *
+ * **What this is for: Svelte's deeply reactive state.** A host may hold its
+ * options in `$state` and edit them where they are — `opts.seed = "b"`,
+ * `bind:value={opts.avoid.padding}`, `opts.responsive[0].columns = 9`. The object
+ * keeps its identity through all of that, and `TilesetModel` compares its inputs
+ * by identity, so handed the host's object as-is it saw the first value and none
+ * after (reproduced on Svelte 5.56.8). A `$derived` around this call reads every
+ * field — so the edit is tracked — and returns a new object — so the model sees
+ * one. A renderer whose host has no deep reactivity never needs it: a new options
+ * object is a change, the same one is not.
+ *
+ * It is also why the model's `report` cannot be made reactive by accident: the
+ * model holds this plain copy, never the host's proxy, so `onAssetError` read
+ * from it is never a tracked read (the `untrack` the component used to need).
+ *
+ * Functions, elements and `undefined` pass through by identity: copying a
+ * provider would make every copy a new provider, and `DrawableCache` would
+ * re-resolve every asset on every edit. The fields of a `HostRule` are copied
+ * shallowly, `align` included. Unknown keys are kept, so the development check
+ * still sees a misspelt option.
+ */
+export function copyOptions(o: TilesetOptions | undefined): TilesetOptions | undefined {
+  if (o === undefined || o === null || typeof o !== "object") return o;
+  const out: Record<string, unknown> = { ...o };
+  const avoid = o.avoid;
+  if (avoid !== undefined && avoid !== null && typeof avoid === "object") {
+    const t = avoid.targets;
+    out.avoid = {
+      ...avoid,
+      // A string is iterable and an element is not a list: only a list is copied.
+      targets:
+        typeof t === "string" || t === null || typeof t !== "object" || typeof (t as Element).nodeType === "number"
+          ? t
+          : [...(t as Iterable<Element>)],
+    };
+  }
+  if (Array.isArray(o.responsive)) {
+    out.responsive = o.responsive.map((r) =>
+      r !== null && typeof r === "object"
+        ? { ...r, ...(r.align !== undefined && r.align !== null ? { align: { ...r.align } } : {}) }
+        : r,
+    );
+  }
+  if (o.align !== undefined && o.align !== null && typeof o.align === "object") out.align = { ...o.align };
+  return out as TilesetOptions;
 }

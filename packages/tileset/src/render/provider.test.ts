@@ -13,6 +13,7 @@ import {
   defaultProvider,
   DrawableCache,
   loadBlocked,
+  settledFor,
   parseAssetKey,
   prefixedProvider,
   recordLoadFailure,
@@ -263,5 +264,18 @@ describe("DrawableCache — a failure is reported once, not on every reseed", ()
     cache.retain(new Set<string>());
     cache.resolve(provider, r(), vi.fn());
     expect(provider).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("settledFor", () => {
+  it("answers only for the promise the entry came from", () => {
+    const p1 = Promise.resolve({ src: "a.svg" });
+    const p2 = Promise.resolve({ src: "b.svg" });
+    const settled = new Map([["k", { from: p1, src: "a.svg", rejected: false }]]);
+    expect(settledFor(settled, "k", p1)).toEqual({ from: p1, src: "a.svg", rejected: false });
+    // A newer promise for the key is pending, not judged by the older outcome.
+    expect(settledFor(settled, "k", p2)).toBeUndefined();
+    expect(settledFor(settled, "k", { src: "a.svg" })).toBeUndefined();
+    expect(settledFor(settled, "other", p1)).toBeUndefined();
   });
 });

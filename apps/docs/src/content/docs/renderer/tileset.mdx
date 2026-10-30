@@ -7,7 +7,9 @@ sidebar:
 
 import TilesetStory from "../../../stories/TilesetStory.svelte";
 
-**Written from:** `packages/tileset/src/render/Tileset.svelte`, the tests of the modules it is
+**Written from:** `packages/tileset/src/render/Tileset.svelte`,
+`packages/tileset/src/render/placeholder.ts` (with `placeholder.test.ts`),
+`packages/tileset/src/render/Placeholder.svelte`, the tests of the modules it is
 built from (`options.test.ts`, `breakpoints.test.ts`, `measure.test.ts`, `geometry.test.ts`,
 `sizing.test.ts`, `uniform.test.ts`, `occlusion.test.ts`, `edges.test.ts`, `provider.test.ts`,
 `images.test.ts`), and
@@ -21,10 +23,19 @@ where every cell goes for the width of the box it has been given, hides any tile
 top of page content the host asked it to avoid, and paints the result.
 
 It can paint in two ways. The default, **canvas**, draws the whole grid as one bitmap, which is
-seamless and cheap but draws nothing until the page has loaded in the browser. The alternative,
-**DOM**, creates one element per cell, so the server-rendered HTML already contains the full
-picture and each tile can be clicked. Either way the box reserves its correct height before
-anything is drawn, so the page does not jump.
+seamless and cheap. The alternative, **DOM**, creates one element per cell, so each tile can be
+clicked. Either way the box reserves its correct height before anything is drawn, so the page does
+not jump.
+
+**Since 0.9.0 it is a thin wrapper over [`TilesetRenderer`](/renderer/renderer/)**, which does
+everything this page describes; the component mounts it in an effect, passes every prop change to
+`update()`, and exposes its box through `bind:box`. On the server no effect runs, so the component
+writes a **placeholder** instead: the render box exactly as the renderer builds it before its first
+measurement (`placeholder.ts` computes it from the stages before `generate()`, and
+`Placeholder.svelte` writes it out). The page reserves the tileset's space before any script runs,
+and the swap to the real box moves nothing. Cells in the server HTML (which the DOM substrate had
+until 0.9.0) wait on a server-side renderer. The sections below were written for the component
+before it became a wrapper; Block 6 of the vanilla-core refactor rewrites them.
 
 It is the whole of the pipeline in one place: file → load check → generate → measure → place →
 mask → draw. The editor's preview is this same component on the editor's file, and
@@ -75,7 +86,10 @@ No events and no snippets. Callbacks go through `options.onAssetError`.
 **DOM attributes a host can rely on:** the box carries `data-tileset-box` and, once measured,
 `data-measured`. Under `substrate: "dom"` each cell is a `.cell` with `data-x` and `data-y`, and
 `data-masked` when the keep-out mask hides it. With responsive rules, the box sits inside a
-`.container` carrying `data-tileset-wrapper` set to the instance id.
+`.container` carrying `data-tileset-wrapper` set to the instance id. The package's stylesheet
+(`tileset.css`, see [styles.ts](/renderer/styles/)) selects on each element's class *and* its
+`data-tileset-*` attribute (`data-tileset-cell`, `data-tileset-canvas` and `data-tileset-extent`
+too), so its rules never reach a host's own `.cell` or `.container`.
 
 ### Inputs → outputs
 

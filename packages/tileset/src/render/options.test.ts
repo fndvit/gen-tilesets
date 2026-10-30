@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  copyOptions,
   DEFAULT_OPTIONS,
   effectiveRules,
   legacyPropErrors,
@@ -7,12 +8,13 @@ import {
   optionErrors,
   resolveOptions,
   renderOverride,
+  sameRules,
   sameTargets,
   type HostRule,
   type TilesetOptions,
 } from "./options.js";
 import type { TilesetFile } from "../types.js";
-import { defaultProvider } from "./provider.js";
+import { defaultProvider, type AssetProvider } from "./provider.js";
 
 /** Stand-ins for elements: `normalizeTargets` only asks for `nodeType`. */
 const el = (name: string) => ({ nodeType: 1, name }) as unknown as Element;
@@ -204,5 +206,68 @@ describe("renderOverride", () => {
         { maxWidth: 500, align: { y: "bottom" } },
       ]),
     ).toEqual({ sizing: "fixed", alignX: "left", alignY: "bottom" });
+  });
+});
+
+describe("copyOptions", () => {
+  const provider: AssetProvider = (ref) => ({ src: ref.assetId });
+
+  it("is undefined for undefined", () => {
+    expect(copyOptions(undefined)).toBeUndefined();
+  });
+
+  it("returns a new object wherever the host's was one, and keeps everything else by identity", () => {
+    const onAssetError = () => {};
+    const rules: HostRule[] = [{ maxWidth: 500, columns: 9, align: { x: "left" } }];
+    const o: TilesetOptions = {
+      seed: "s",
+      provider,
+      onAssetError,
+      align: { x: "left" },
+      avoid: { targets: "h1", padding: 4 },
+      responsive: rules,
+    };
+    const c = copyOptions(o)!;
+    expect(c).not.toBe(o);
+    expect(c).toEqual(o);
+    expect(c.provider).toBe(provider);
+    expect(c.onAssetError).toBe(onAssetError);
+    expect(c.align).not.toBe(o.align);
+    expect(c.avoid).not.toBe(o.avoid);
+    expect(c.responsive).not.toBe(rules);
+    expect(c.responsive![0]).not.toBe(rules[0]);
+    expect(c.responsive![0]!.align).not.toBe(rules[0]!.align);
+  });
+
+  it("copies a list of targets, and leaves a selector as a selector", () => {
+    const el = { nodeType: 1 } as unknown as Element;
+    const list = [el];
+    expect(copyOptions({ avoid: { targets: "h1" } })!.avoid!.targets).toBe("h1");
+    expect(copyOptions({ avoid: { targets: el } })!.avoid!.targets).toBe(el);
+    const copied = copyOptions({ avoid: { targets: list } })!.avoid!.targets as Element[];
+    expect(copied).not.toBe(list);
+    expect(copied).toEqual([el]);
+  });
+
+  it("keeps unknown keys, so the development check still sees them", () => {
+    const o = { sed: "typo" } as unknown as TilesetOptions;
+    expect(optionErrors(copyOptions(o))).toEqual(optionErrors(o));
+  });
+});
+
+describe("sameRules", () => {
+  it("compares rules field by field, align one level down", () => {
+    const a = () => [{ maxWidth: 800, columns: 9, align: { x: "left" as const } }];
+    expect(sameRules(a(), a())).toBe(true);
+    expect(sameRules(undefined, undefined)).toBe(true);
+    expect(sameRules(a(), undefined)).toBe(false);
+    expect(sameRules(a(), [{ maxWidth: 800, columns: 8, align: { x: "left" } }])).toBe(false);
+    expect(sameRules(a(), [{ maxWidth: 800, columns: 9, align: { x: "right" } }])).toBe(false);
+    expect(sameRules(a(), [{ maxWidth: 800, columns: 9 }])).toBe(false);
+    expect(sameRules(a(), [...a(), { minWidth: 1 }])).toBe(false);
+  });
+
+  it("counts an unknown key, so a misspelt field still reaches the development check", () => {
+    expect(sameRules([{ maxWidth: 1 }], [{ maxWidth: 1, colums: 3 } as never])).toBe(false);
   });
 });

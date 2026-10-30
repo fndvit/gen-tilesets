@@ -8,9 +8,10 @@ sidebar:
 import DecorationStory from "../../../stories/DecorationStory.svelte";
 
 
-**Written from:** `packages/tileset/src/render/TileDecoration.svelte`, and the call sites in
-`apps/demo/src/Decorations.svelte` and `apps/demo/src/Responsive.svelte`. There is no test file
-(`.svelte` components cannot be unit-tested in this repo).
+**Written from:** `packages/tileset/src/render/TileDecoration.svelte`,
+`packages/tileset/src/render/decoration.ts` (with `decoration.test.ts`), and the call sites in
+`apps/demo/src/Decorations.svelte` and `apps/demo/src/Responsive.svelte`. The component itself has
+no test file (`.svelte` components cannot be unit-tested in this repo); `decoration.ts` does.
 
 ## Overview
 
@@ -24,6 +25,12 @@ vertical offset, so the block has clean edges. It then hands that file to an ord
 inside a box exactly `columns × cellSize` pixels wide. It is not a second renderer: `<Tileset>` still
 does all of the generating and drawing. In the pipeline it sits *before* the component:
 file → **reshape** → `<Tileset>` (load → generate → draw).
+
+**Since 0.9.0 the logic is `TileDecorationRenderer` in `decoration.ts`**, a plain class that
+reshapes the style (keeping the result until the style or the shape changes), builds the
+decoration box, and draws into it with a `TilesetRenderer`, so that a page without Svelte can
+have decorations too once it is exported (it is not yet; that is the next step of the refactor). `<TileDecoration>` is a Svelte wrapper over it, with the same server placeholder
+as `<Tileset>`. Where this page says `<Tileset>` below, read `TilesetRenderer`.
 
 ## Try it
 
@@ -65,8 +72,9 @@ No events, no snippets, and **no `box` binding**, unlike `<Tileset>`.
 2. `file = reshape(style, shape)`. In a development build it first runs
    `reshapeErrors(style, shape)` and throws, listing every error, if the style cannot be placed at
    that size.
-3. Renders `<div class="decoration" style="width: {columns * cellSize}px" data-tileset-wrapper="">`
-   containing `<Tileset {file} {options} />`. The wrapper has `max-width: 100%`.
+3. Renders `<div class="decoration" style="width: {columns * cellSize}px" data-tileset-decoration=""
+   data-tileset-wrapper="">` containing `<Tileset {file} {options} />`. The wrapper has
+   `max-width: 100%`, from `tileset.css` ([styles.ts](/renderer/styles/)).
 
 There is no height. `<Tileset>` declares `aspect-ratio: naturalRatio`, which at zero bleed and no
 `yOffset` is exactly `columns / rows`, and then takes its height from its own child.

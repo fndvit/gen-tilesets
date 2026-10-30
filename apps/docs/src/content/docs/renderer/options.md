@@ -40,7 +40,7 @@ All re-exported from `render/index.ts:43-60`.
 | --- | --- | --- | --- |
 | `seed` | `string` | `file.config.defaultSeed` | Absent means a fixed picture (cited as **S4**). |
 | `loadSalt` | `number` | `0` | Per-load variation, drawn once per session by the host. |
-| `substrate` | [`Substrate`](/api/render/type-aliases/substrate/) | `"canvas"` | `"canvas"` (one bitmap, seamless, draws nothing until measured) or `"dom"` (one element per cell, hit-testable, SSR-complete). |
+| `substrate` | [`Substrate`](/api/render/type-aliases/substrate/) | `"canvas"` | `"canvas"` (one bitmap, seamless, draws nothing until measured) or `"dom"` (one element per cell, hit-testable). |
 | `overflow` | [`Overflow`](/api/render/type-aliases/overflow/) | `"hidden"` | `"visible"` hands the clip to the host. **DOM only.** |
 | `sizing` | `Sizing` | `"fluid"` | `"fixed"` keeps `layout.cellSize` CSS px and crops. |
 | `align` | `{ x?: AlignX; y?: AlignY }` | `center` / `top` | Which edge of the design box stays put. |
@@ -108,6 +108,7 @@ All re-exported from `render/index.ts:43-60`.
 | --- | --- |
 | `render/Tileset.svelte:160-170` | `legacyPropErrors(rest)` and `optionErrors(options)` (DEV), then `resolveOptions(options)`. |
 | `render/Tileset.svelte:195-199` | `sameTargets` to keep the targets' identity when an inline array is rebuilt. |
+| `render/model.ts` | `sameRules`, internal (not exported from `render/index.ts`), to keep the host rules' identity when `copyOptions` rebuilds the array. |
 | `render/Tileset.svelte:264` | `effectiveRules(checked, hostRules)`. |
 | `render/Tileset.svelte:305-307` | `renderOverride(base, shaped.active)`. |
 | `render/breakpoints.ts:20, 103, 197` | `renderOverride` in `reservationCss` and `inertCellSizeRules`. |
@@ -125,6 +126,8 @@ Callees: `shapeFieldProblem`, `SHAPE_FIELDS` (`../shape.ts`); `defaultProvider` 
   overrides on its own (including both `avoid` shapes).
 - `normalizeTargets` decides the shape once and treats an iterable element as one element;
   `sameTargets` compares by content and order.
+- `sameRules` compares responsive rules field by field, `align` one level down, and counts an
+  unknown key as a difference.
 - `optionErrors` accepts thirteen valid objects and rejects thirty-one invalid ones, each with a
   message containing its path.
 - `legacyPropErrors` names each legacy prop and its new place, and is silent when there are none.
