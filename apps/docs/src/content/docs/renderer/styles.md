@@ -18,7 +18,8 @@ so a page that does not use Svelte can still get it. A page gets it in one of th
 - **Linked by the host:** `@fndvit/gen-tilesets/tileset.css`.
 - **Bundled:** `Tileset.svelte` imports the file, so a Svelte host's bundler puts it in `<head>`,
   server-rendered HTML included.
-- **Injected:** `injectStyles(box)` runs at mount and adds the rules only where they are missing.
+- **Injected:** `injectStyles(box)` runs when a renderer is built and adds the rules only where
+  they are missing.
 
 ## In detail
 
@@ -55,7 +56,13 @@ first:
 
 1. This document's constructed sheet is already adopted in the root.
 2. A `<style data-gen-tilesets="<hash>">` is already in the root.
-3. `box` already computes `--gen-tilesets` equal to `TILESET_HASH`.
+3. `box` already computes `--gen-tilesets` equal to `TILESET_HASH`. A box not yet attached
+   computes nothing, so for one headed for a document it asks a stand-in instead: a hidden
+   `div.tileset[data-tileset-box][data-tileset-probe]` appended to `<body>` for one
+   `getComputedStyle` and removed (0.9.0). Rejected: reading `document.styleSheets`, whose
+   cross-origin sheets throw on read, and waiting until the box is attached, which made the first
+   measurement that of an unstyled box. A detached box in a shadow root that is not connected
+   cannot be asked, and gets the `<style>`.
 
 Otherwise it styles the root:
 
@@ -96,13 +103,13 @@ instance's id. `new InstanceStyle(parent)`, `.set(css)`, `.remove()`.
 
 | Caller | Uses |
 | --- | --- |
-| `render/Tileset.svelte` | `import "./tileset.css"`, and `injectStyles(box)` in an effect that runs before `track` registers, so the first measurement is of a styled box. |
-| `render/renderer.ts` | `injectStyles(box)` in the constructor, before `track`. One `InstanceStyle` per wrapper, while the options have responsive rules. |
+| `render/Tileset.svelte`, `render/TileDecoration.svelte` | `import "./tileset.css"`, so a bundler puts the rules in `<head>`. |
+| `render/renderer.ts` | `injectStyles(box)` in the constructor, before `track`, attached or not. One `InstanceStyle` per wrapper, while the options have responsive rules. |
 
 ### Gotchas
 
 - A linked file that has not loaded yet is not seen, so the rules are injected as well. That is
   harmless, because the two copies hold the same rules.
-- `<Tileset>`'s responsive reservation is still an inline `{@html}` `<style>`, and still blocked by
-  a strict CSP. `TilesetRenderer` uses `InstanceStyle`, and the component gets it when it wraps the
-  renderer.
+- The server placeholder's responsive reservation is an inline `{@html}` `<style>`
+  (`Placeholder.svelte`), so a strict CSP blocks it until hydration. From mount on, the renderer's
+  `InstanceStyle` holds it, with the constructed-sheet fallback.

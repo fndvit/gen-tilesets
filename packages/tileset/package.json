@@ -1,6 +1,6 @@
 {
   "name": "@fndvit/gen-tilesets",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "description": "Procedural tileset generator: a pure, deterministic engine and a Svelte renderer.",
   "license": "MIT",
   "repository": {
@@ -76,7 +76,7 @@
   },
   "scripts": {
     "build": "svelte-package --input src --output dist && pnpm run build:prune",
-    "build:prune": "find dist -name \"*.test.*\" -delete && rm -rf .svelte-kit",
+    "build:prune": "find dist -name \"*.test.*\" -delete && rm -rf .svelte-kit && node scripts/prune-dts.mjs",
     "css": "node scripts/gen-css.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

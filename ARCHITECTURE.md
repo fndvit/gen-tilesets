@@ -8,6 +8,20 @@ authoritative and this document restates nothing normative.
 One pure engine and one renderer, published together as `@fndvit/gen-tilesets`. The editor is a
 consumer of that package with no privileged access: its preview is an ordinary `<Tileset>`.
 
+**The renderer is three layers** (0.9.0), and only the outermost knows a framework:
+
+```
+TilesetModel (model.ts)        pure: file, options, measurement, dpr → grid, geometry, mask, draw lists
+      ▲
+TilesetRenderer (renderer.ts)  plain DOM: owns the elements, measurement, image bank, paint, cells
+      ▲
+<Tileset>, <TileDecoration>    Svelte wrappers: props, bind:box, the server placeholder
+```
+
+`TilesetRenderer` and `TileDecorationRenderer` are exported from `@fndvit/gen-tilesets/render`,
+so Observable, plain HTML or another framework's wrapper uses the same implementation the Svelte
+components do. `TilesetModel` is not exported: it is the renderer's plumbing.
+
 ```
 TilesetFile ──migrate()──> validate() ──> reshape(file, rules at box width) ──> generate(config, seed, loadSalt)
    │                                        shape.ts, responsive.ts               │
@@ -106,11 +120,14 @@ header of `registry/sources.ts` and `spec/FREEZE.md` A-5.
 
 | Module | What |
 | --- | --- |
-| `Tileset.svelte` | The one entry point (**S1**). Takes a `TilesetFile` and calls `generate()` itself — nothing accepts a bare grid. Three props: `file`, `options`, and the bindable `box`. Derives nothing itself: it feeds `TilesetModel` and owns what the model cannot — the measurement subscription, asset settling, the image bank, the paint, and the markup. |
+| `renderer.ts` | **`TilesetRenderer` — the renderer, with no framework.** The one entry point (**S1**): takes a `TilesetFile` and calls `generate()` (through the model) itself; nothing accepts a bare grid. `new TilesetRenderer(host, { file, options, id? })`, `update()`, `box`, `destroy()`. Derives nothing itself: it feeds `TilesetModel` and owns what the model cannot — the elements, the measurement subscription, asset settling, the image bank, the canvas paint and the DOM cells. Every trigger queues one microtask render. Exported. |
+| `Tileset.svelte` | The Svelte wrapper. Mounts a `TilesetRenderer` in an effect, hands it every prop change, exposes `renderer.box` through `bind:box`. Its root is a `div[data-tileset-host]` with `display: contents`. On the server it writes `Placeholder.svelte` instead. |
+| `placeholder.ts`, `Placeholder.svelte` | The render box as the renderer builds it before its first measurement, computed without a grid, so server HTML reserves the tileset's space (**S8**). `setAside` retires it on mount. |
+| `styles.ts`, `tileset.css` | The one global stylesheet (class *and* `data-tileset-*` attribute per selector), shipped as `@fndvit/gen-tilesets/tileset.css`, bundled by the Svelte components, and injected by `injectStyles` once a box is in a page and the rules do not already reach it. `TILESET_CSS` is generated from the file. |
 | `model.ts` | **`TilesetModel` — everything the renderer derives, with no DOM.** Inputs `(file, options, measured width/height/rects, dpr)`; outputs the resolved options, the S3 assertion, the rules in force (keyed on `activeKey`, so a resize inside a band touches nothing), the grid via `GridCache`, the geometry for each substrate, the keep-out mask, the canvas draw list and the DOM cell list. Each stage is a `Memo` that recomputes like a `$derived` (`Object.is` per input, read lazily) on a clock that moves only when an input changed. `cellStyle` / `affineCellStyle` are the DOM cell's placement; the affine one is what a server-side render would write. The first step of making the renderer framework-free. |
 | `breakpoints.ts` | What `<Tileset>` does with rules, testable: `GridCache` (one grid per `(rows, columns)`, so crossing a breakpoint twice generates once), `reservationCss` (the container-query height reserved before measurement), `FlipFlop` (names the scrollbar feedback loop), `inertCellSizeRules`. |
 | `options.ts` | **`TilesetOptions`** — every setting in one typed object, each field documented. `resolveOptions` is the only place a default is written; `optionErrors` and `legacyPropErrors` are the development-build checks. `copyOptions` turns an in-place edit of deeply reactive options into a new object the model can see. Named `options` because `file.config` already owns `config`. |
-| `TileDecoration.svelte` | One placement of a decoration style: `reshape` with `bleed: 0, yOffset: 0`. **Not a second entry point** — it derives a `TilesetFile` above `<Tileset>` and renders it, exactly as the editor's preview does, so **S1** is intact. What it owns is the box: `columns * cellSize` px, the same product the preset writes into `referenceWidth`. |
+| `decoration.ts`, `TileDecoration.svelte` | One placement of a decoration style: `reshape` with `bleed: 0, yOffset: 0`. **Not a second entry point** — `TileDecorationRenderer` derives a `TilesetFile` and draws it with a `TilesetRenderer`, so **S1** is intact. What it owns is the box: `columns * cellSize` px, the same product the preset writes into `referenceWidth`. The `.svelte` file is its wrapper. |
 | `geometry.ts` | The ideal fractional mapping: `cellBox`, `cellAt`, `originX/Y`, `scaleFactor`. Pure, no measurement. Carries **sizing and alignment** — `"fixed"` is `s = 1` plus a pinned origin, and the fluid defaults are the 0.5.0 expressions verbatim. Also `cellPlacementAffine` (pre-measurement CSS in every mode), and `Lattice`/`latticeRange`/`visibleColumns`, which the mask and culling share. |
 | `uniform.ts` | **The uniform square cell.** One integer side on both axes, plus the split between raster and presentation, and the draw list. `canvasPresentation` restricts the raster to the visible columns; `domLattice` is where the DOM actually places cells. `uniformGeometry` quantises with `round` for `"canvas"`; `domGeometry` quantises with `ceil` for `"dom"` so its side residual is always a clip and never a gutter, and reports `gridHeightDev` so that box can take its height from the grid instead of cutting the bottom row. Every substrate draws from this module. |
 | `edges.ts` | What survives of ADR-006: `snap` and `coverRect`. The per-edge snapping it was built around is gone — see `SUBPIXEL-GEOMETRY.md` attempt 1 before reintroducing it. |
@@ -279,6 +296,19 @@ or `hash.test.ts` for them; see `spec/FREEZE.md` before generating any.
 About half the invariants have no test at all, and some of those never will — an invariant
 that constrains how decisions get made cannot be asserted by a running program.
 `spec/INVARIANTS.md` is the census that keeps *untestable* and *absent* distinguishable.
+
+**The renderer is tested below its wrappers.** `.svelte` components cannot be unit-tested here
+(Vitest 2 bundles Vite 5; the Svelte plugin needs Vite 8), which is why the Svelte components are
+thin. `model.test.ts` runs in node; `renderer.test.ts`, `decoration.test.ts`, `styles.test.ts` and
+`placeholder.test.ts` run under happy-dom with the measurement faked. The wrappers and the drawn
+picture are covered outside Vitest, by `apps/demo`:
+
+- `svelte-check`;
+- the screenshot harness (`pnpm --filter @fndvit/tileset-demo shots:capture <dir>`, then
+  `shots:diff`): 32 captures of both substrates, fluid and fixed, `avoid` on and off, fractional
+  cell sizes, DPR 1 and 2, compared to a git-ignored baseline at 0 px;
+- `scripts/ssr.mjs`: the server HTML reserves a pinned height per case, and hydration leaves one
+  measured box and logs nothing.
 
 `pnpm citations` resolves every `§`, invariant, ADR and decision id cited in source against
 the documents. It exists because a renumbered section silently redirects a citation that still

@@ -20,7 +20,8 @@ overlay, a brush, a validator — and it lives on two different subpaths:
 
 - `@fndvit/gen-tilesets` — the engine: `generate`, `selection`, `loadTilesetFile`, and the
   `validate`/`migrate` pair it is built from.
-- `@fndvit/gen-tilesets/render` — the geometry: `cellBox`, `cellAt`.
+- `@fndvit/gen-tilesets/render` — the geometry: `cellBox`, `cellAt`; and the renderer itself,
+  `TilesetRenderer`, for a page with no Svelte (see *Without Svelte*).
 
 `cellAt`'s only caller in this repository is the editor's brush, and `cellBox` has no caller
 outside this package at all. Reach for them when you are building an editor, not to draw a
@@ -308,6 +309,149 @@ from `validate.ts` at all, and the bundle is 58.56 kB where the same build with 
 `DEV` was 68.77 kB. `src/dev.ts` records how to re-measure it, and why the expression is shaped
 the way it is.
 
+## Without Svelte
+
+Since 0.9.0 `<Tileset>` is a thin wrapper over a plain class, and the class is exported. Observable
+Framework, a plain HTML page or another framework uses the same implementation:
+
+```js
+import { TilesetRenderer } from "@fndvit/gen-tilesets/render";
+
+const renderer = new TilesetRenderer(element, { file, options }); // draws into element
+renderer.update({ options: { ...options, seed: "b" } });          // any change; omitted fields keep their value
+renderer.box;                                                     // the render box, for pointer conversion
+renderer.destroy();                                               // removes everything it added
+```
+
+`file` and `options` are exactly `<Tileset>`'s props, so the rest of this README applies unchanged.
+`TileDecorationRenderer` is `<TileDecoration>` the same way:
+`new TileDecorationRenderer(element, { style, rows, columns, cellSize, options })`. `svelte` is an
+optional peer dependency; nothing here imports it.
+
+### Observable Framework
+
+Add the package to the project (`npm install @fndvit/gen-tilesets`, with the token from step 1),
+and put the editor's export zip in `src/` as it comes. A page:
+
+````md
+```js
+import {loadTilesetFile} from "@fndvit/gen-tilesets";
+import {TilesetRenderer} from "@fndvit/gen-tilesets/render";
+
+// The editor's export, as it comes: tileset.json beside a tiles/ folder.
+const zip = await FileAttachment("atlas.zip").zip();
+const file = loadTilesetFile(await zip.file("tileset.json").json());
+// Each asset's meta.src is a path inside the zip. A zip entry has no MIME type,
+// and a browser will not draw an SVG blob without one, so set it.
+const TYPES = {svg: "image/svg+xml", png: "image/png", webp: "image/webp", jpg: "image/jpeg"};
+// One blob URL per file, shared by every tileset on the page.
+const urls = new Map();
+const provider = (ref) => {
+  const path = ref.meta.src;
+  if (!urls.has(path)) {
+    const type = TYPES[path.split(".").pop()];
+    urls.set(path, zip.file(path).arrayBuffer().then((bytes) => URL.createObjectURL(new Blob([bytes], {type}))));
+  }
+  return urls.get(path).then((src) => ({src}));
+};
+```
+
+```js
+// `invalidation` is per block, so the block that displays the tileset passes its own.
+function tileset(options, invalidation) {
+  const host = html`<div>`;
+  const renderer = new TilesetRenderer(host, {file, options: {provider, ...options}});
+  invalidation.then(() => renderer.destroy());
+  return host;
+}
+```
+
+```js
+display(tileset({substrate: "canvas"}, invalidation));
+```
+````
+
+Three things are specific to Framework:
+
+- **The zip, not a `tiles/` folder.** Framework publishes only files a page names literally, and
+  the asset paths are chosen at runtime, so a folder of tiles would not be copied. The provider may
+  return a promise, so reading from the zip on demand is fine.
+- **The MIME type.** Without it every SVG fails to decode (`EncodingError`) and nothing draws.
+  The failure reaches `options.onAssetError` and nowhere else.
+- **Pass the displaying block's `invalidation`.** Framework gives each block its own; the helper's
+  block never re-runs, so a renderer tied to that one is never destroyed. Measured: a block that
+  re-ran on two seed changes destroyed both old renderers this way, and none with the helper's own
+  `invalidation`, leaving their observers running on detached boxes.
+
+### The stylesheet
+
+The renderer needs `tileset.css`. **You do not have to do anything:** it injects the rules into the
+page (or the shadow root) when a renderer is built, unless they already reach it, which it checks
+for a box not yet on the page too.
+Link the file yourself when you want the rules in place before any script runs, or when a strict
+CSP blocks inline styles, which would otherwise push the injected rules after your own CSS:
+
+- **With a bundler** (Vite, webpack): `import "@fndvit/gen-tilesets/tileset.css";`. With
+  TypeScript 6, that line needs a declaration for `*.css` in your project, which Vite's templates
+  already have (`/// <reference types="vite/client" />`).
+- **In Observable Framework**, copy `node_modules/@fndvit/gen-tilesets/dist/render/tileset.css`
+  into `src/` and add `<link rel="stylesheet" href="./tileset.css">` to the page. Framework turns a
+  CSS `import` from `node_modules` into a module import the browser refuses, and `npm:` fetches
+  from the public registry, where this package is not.
+- **Anywhere else**, serve the file and `<link>` it.
+
+The renderer recognises a linked copy of the same version and adds nothing. `injectStyles(element)`
+and `TILESET_CSS` are exported for a host that wants the rules somewhere specific first.
+
+### A wrapper for another framework
+
+Ten lines: build on mount, `update()` on change, `destroy()` on unmount. In React:
+
+```tsx
+import { useEffect, useRef } from "react";
+import type { TilesetFile } from "@fndvit/gen-tilesets";
+import { TilesetRenderer, type TilesetOptions } from "@fndvit/gen-tilesets/render";
+
+export function Tileset({ file, options }: { file: TilesetFile; options?: TilesetOptions }) {
+  const host = useRef<HTMLDivElement>(null);
+  const renderer = useRef<TilesetRenderer | null>(null);
+  useEffect(() => {
+    renderer.current = new TilesetRenderer(host.current!, { file, options });
+    return () => renderer.current?.destroy();
+  }, []);
+  useEffect(() => renderer.current?.update({ file, options }), [file, options]);
+  return <div ref={host} data-tileset-wrapper="" style={{ display: "contents" }} />;
+}
+```
+
+`update()` with unchanged values regenerates nothing, so an inline `options={{…}}` that is a new
+object on every render costs a comparison, not a redraw. Keep both attributes on the host:
+
+- **`display: contents`**, so the host has no box of its own and the tileset sizes against your
+  layout. A plain block `<div>` collapses in a shrink-to-fit parent: measured in a 600 px flex row,
+  the DOM substrate drew nothing (0 × 0) and the canvas came out 300 px wide.
+- **`data-tileset-wrapper`.** `options.avoid`'s selectors resolve in the nearest ancestor of the
+  tileset that the package did not add; unmarked, that is this `<div>`, which holds no headings, so
+  nothing would be avoided. The attributes you can select on are listed in the docs' *DOM hooks* page.
+
+### Verified (0.9.0)
+
+The Observable page and the React wrapper above were copied from throwaway projects that installed
+the packed tarball, and checked in Chrome: the canvas had opaque pixels, and the DOM substrate's
+cells had loaded `<img>`s. The four-line sketch at the top of the section is the same calls.
+
+- **Observable Framework 1.13.4**, `observable build`: both substrates, with and without the
+  linked stylesheet. With it linked, nothing was injected. Each box's first measurement was its
+  final size, with no `ResizeObserver` loop error.
+- **Vite 8 + React 19**, under `StrictMode` (which mounts, destroys and remounts every effect):
+  both substrates, exactly two boxes on the page; `tsc` with `skipLibCheck: false` passes on
+  TypeScript 6.0.3, and with the CSS import nothing was injected. With a heading laid over a DOM
+  tileset and `avoid: { targets: "h2" }`, 121 cells were masked; with `data-tileset-wrapper`
+  removed from the host, none were. In a 600 px flex row, both substrates filled 600 px.
+- **Vite 8 + Svelte 5** with no `svelte.config.js`: `<Tileset>` in both substrates, `vite build` and
+  `svelte-check` with 0 errors.
+- `dist/render/` has no bare import, so the renderer loads without a bundler.
+
 ## The engine
 
 `generate(config, seed, loadSalt) → Grid<TileState>` is a **pure function**. Given the same
@@ -342,8 +486,10 @@ neighbours moved by the same amount still meet with no seam. Jitter is `random` 
 
 ## The renderer
 
-`<Tileset file={...} options?={...} bind:box? />` — one component, one entry point (**S1**). It
-takes a parsed `TilesetFile` and calls `generate()` itself; nothing here accepts a bare grid.
+`<Tileset file={...} options?={...} bind:box? />`, or `new TilesetRenderer(element, { file,
+options })` without Svelte — one entry point (**S1**), and the component is a wrapper over the
+class. It takes a parsed `TilesetFile` and calls `generate()` itself; nothing here accepts a bare
+grid.
 
 **One geometry, two presentations.** Both substrates compute the same uniform square cell —
 `scaleFactor * cellSize * dpr`, quantised to one integer on both axes. That is what makes the

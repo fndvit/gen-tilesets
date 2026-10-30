@@ -55,6 +55,55 @@ function rootOf(el: Element): Document | ShadowRoot | null {
       : el.ownerDocument;
 }
 
+/** Whether `el` computes this version's sentinel; `null` (nothing to ask) is no. */
+function reaches(el: Element | null, view: Window): boolean {
+  if (el === null) return false;
+  try {
+    return view.getComputedStyle(el).getPropertyValue("--gen-tilesets").trim() === TILESET_HASH;
+  } finally {
+    if (el.hasAttribute(PROBE_ATTRIBUTE)) el.remove();
+  }
+}
+
+const PROBE_ATTRIBUTE = "data-tileset-probe";
+
+/**
+ * A stand-in for a detached box, so `injectStyles` can ask whether a linked or
+ * bundled copy reaches the document a box will join: a hidden element with the
+ * box's class and attribute, appended for one `getComputedStyle` and removed
+ * by `reaches`. A detached box itself computes no style at all.
+ *
+ * Without it, a box built detached — the Observable case, `html\`<div>\`` then
+ * `display()` — always injected, linked file or not. Under a strict CSP that
+ * sent the rules to the adopted-sheet fallback, which cascades after the
+ * host's CSS, so linking the file (the CSP advice) stopped host overrides from
+ * winning ties. Measured in an Observable Framework build, 0.9.0.
+ *
+ * Rejected: waiting to inject until the box is attached (tried first, in the
+ * renderer). The tracker's first measurement is then of an unstyled box, which
+ * is not the same size: in Chrome a canvas box measured 154 px tall instead of
+ * 79, a DOM box 40,675 px (its cells not yet absolute), and a decoration ignored
+ * its `max-width`. One frame drew from the wrong size, and the correction
+ * tripped the `ResizeObserver` loop error. Also rejected: reading
+ * `document.styleSheets` for the sentinel — a cross-origin sheet's rules throw
+ * on read, and a CDN-linked `tileset.css` is exactly that.
+ *
+ * A shadow root that is not connected cannot be probed (it has no styles until
+ * it is), so it gets the `<style>`, which applies once it is.
+ */
+function probe(doc: Document): Element | null {
+  const parent = doc.body ?? doc.documentElement;
+  if (parent === null) return null;
+  const el = doc.createElement("div");
+  el.className = "tileset";
+  el.setAttribute("data-tileset-box", "");
+  el.setAttribute(PROBE_ATTRIBUTE, "");
+  el.setAttribute("aria-hidden", "true");
+  el.style.display = "none";
+  parent.append(el);
+  return el;
+}
+
 function docOf(root: Document | ShadowRoot): Document {
   return root.nodeType === DOCUMENT_NODE ? (root as Document) : root.ownerDocument!;
 }
@@ -86,6 +135,8 @@ function isBlocked(style: HTMLStyleElement): boolean {
  * Rejected: a marker attribute alone (the first version). It could not see a
  * bundled copy, and two package versions on one page each saw the other's
  * marker and skipped.
+ *
+ * A box not yet attached is asked through a stand-in ({@link probe}).
  *
  * A linked file that has not loaded yet is not seen, and the rules are injected
  * as well. That is rare, since a `<link>` in `<head>` holds back the scripts
@@ -124,9 +175,7 @@ export function injectStyles(box: Element): void {
   if (adopted !== undefined && root.adoptedStyleSheets?.includes(adopted)) return;
   if (root.querySelector(`style[${STYLE_ATTRIBUTE}="${TILESET_HASH}"]`) !== null) return;
   const view = doc.defaultView;
-  if (box.isConnected && view?.getComputedStyle(box).getPropertyValue("--gen-tilesets").trim() === TILESET_HASH) {
-    return;
-  }
+  if (view != null && reaches(box.isConnected ? box : root === doc ? probe(doc) : null, view)) return;
 
   if (!blocked.has(doc)) {
     const style = doc.createElement("style");

@@ -6,7 +6,7 @@ sidebar:
 ---
 
 **Written from:** `packages/tileset/src/render/model.ts`, with `render/model.test.ts`, and the call
-sites in `render/Tileset.svelte`.
+sites in `render/renderer.ts` and `render/placeholder.ts`.
 
 ## Overview
 
@@ -19,8 +19,9 @@ sites in `render/Tileset.svelte`.
 
 It reads back the grid, the geometry, the keep-out mask, the canvas draw list and the DOM cell
 list. Before the framework-agnostic core, this was a chain of `$derived`s inside `Tileset.svelte`,
-which could not be unit-tested or used without Svelte. The Svelte component now owns only the
-elements and the side effects, and reads everything else from here.
+which could not be unit-tested or used without Svelte. [`TilesetRenderer`](/renderer/renderer/)
+now owns the elements and the side effects and reads everything else from here, and the Svelte
+component wraps the renderer. The model is not exported: it is the renderer's plumbing.
 
 The file also holds `cellStyle` and the two placement functions it chooses between. They are pure,
 and turn a cell into its inline style under `substrate: "dom"`.
@@ -100,7 +101,8 @@ the callback the host holds today.
 
 | Caller | Uses |
 | --- | --- |
-| `render/Tileset.svelte` | One `new TilesetModel(uid, …)` per instance. `model.set(...)` runs in one `$derived.by` that returns a version number, and each output the template uses is its own `$derived` on that version. `model.report` is passed as `onAssetError`. `cellStyle` places DOM cells. |
+| `render/renderer.ts` | One `new TilesetModel(id, …)` per `TilesetRenderer`. Every trigger calls `model.set(...)`; `#render` reads the outputs and compares them with what it last applied. `cellStyle`, `domBoxStyle` and `extentStyle` style the DOM substrate. |
+| `render/placeholder.ts` | A throwaway model per server render, read only for the stages before `generate()`, so the placeholder is the renderer's pre-measurement box. |
 
 Callees include `load.ts` (`assertValidFile`), `responsive.ts`, `shape.ts` (`reshape`),
 `breakpoints.ts` (`GridCache`, `reservationCss`), `geometry.ts`, `occlusion.ts`, `options.ts`,

@@ -422,7 +422,9 @@ export class TilesetRenderer {
     try {
       this.#structure();
       // Before `track`, so the first measurement is of a styled box: the box's
-      // `width: 100%` and `padding: 0` are what make its width `Wpx` (S9).
+      // `width: 100%` and `padding: 0` are what make its width `Wpx` (S9). A
+      // box built detached is styled now too; `injectStyles` probes the
+      // document for a linked copy (`styles.ts`'s `probe` says why not later).
       injectStyles(this.#box);
       this.#stopDpr = observeDpr(this.#onDpr);
       this.#render();
@@ -672,7 +674,7 @@ export class TilesetRenderer {
     if (model.hasRules) {
       if (this.#wrapper === null) {
         const wrapper = this.#host.ownerDocument.createElement("div");
-        wrapper.className = "container";
+        wrapper.className = "tileset-container";
         wrapper.setAttribute(WRAPPER_ATTRIBUTE, model.uid);
         if (this.#box.parentNode === this.#host) this.#box.replaceWith(wrapper);
         else this.#host.append(wrapper);

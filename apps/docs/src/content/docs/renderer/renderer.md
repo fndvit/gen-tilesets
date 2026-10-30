@@ -6,7 +6,7 @@ sidebar:
 ---
 
 **Written from:** `packages/tileset/src/render/renderer.ts`, with `render/renderer.test.ts`, and the
-call sites in `apps/demo/src/parity/Mount.svelte`.
+call sites in `render/Tileset.svelte` and `render/decoration.ts`.
 
 ## Overview
 
@@ -29,7 +29,9 @@ r.destroy();
 **It draws both substrates.** Under `"canvas"` it paints one `<canvas>`; under `"dom"` it keeps one
 `.cell` element per shown cell. A switch between them at runtime keeps the box. `<Tileset>` and
 `<TileDecoration>` are thin Svelte wrappers around it (0.9.0), and `TileDecorationRenderer`
-(`decoration.ts`) is the plain-JS decoration. Neither class is exported from the package yet.
+(`decoration.ts`) is the plain-JS decoration. Both are exported from `@fndvit/gen-tilesets/render`
+since 0.9.0. The package README has an Observable Framework example and a wrapper pattern for other
+frameworks.
 
 ## In detail
 
@@ -81,8 +83,18 @@ The host is the caller's element. It is never styled, replaced or emptied. The r
 
 - `.tileset[data-tileset-box]` with its `<canvas>`, or with its `.cell`s and `.extent` under
   `"dom"`, and
-- while the options have responsive rules, a `.container[data-tileset-wrapper=<id>]` around it,
-  with the reservation stylesheet first.
+- while the options have responsive rules, a `.tileset-container[data-tileset-wrapper=<id>]` around
+  it, with the reservation stylesheet first. The class was `container` until 0.9.0; a host's
+  `.container` rule (Bootstrap's, Tailwind's) reached it.
+
+[DOM hooks](/renderer/dom-hooks/) lists the attributes a host may select on.
+
+**The shared rules are injected in the constructor**, before `track`, so the first measurement is
+of a styled box (`injectStyles`). That holds for a box built detached too (the Observable case):
+`injectStyles` checks for a linked copy through a hidden stand-in, since a detached box computes no
+style. Injecting only after attach was tried and rejected in 0.9.0: the first measurement was then
+of an unstyled box, a canvas box 154 px tall instead of 79 and a DOM box 40,675 px, and the
+correction tripped the `ResizeObserver` loop error. [styles.ts](/renderer/styles/) has the rest.
 
 **The box never changes.** When rules appear or go, the box is moved into or out of the wrapper,
 never rebuilt. So `renderer.box` keeps its identity, and the tracker keeps watching the element it
@@ -103,8 +115,8 @@ resolve in has changed. The first measurement after the element is attached trig
 The box holds one `.cell[data-tileset-cell][data-x][data-y]` per shown cell, then `.extent`, the
 only in-flow child, which carries the box's height after measurement (and from the start under
 `"fixed"`). The box gets `overflow-visible` when `options.overflow` is `"visible"`, a ratio until it
-is measured, and `visibility: hidden` while `pending`. The strings are the component's, and the
-parity page checks they are equal.
+is measured, and `visibility: hidden` while `pending`. The strings are the pre-0.9.0 component's;
+a parity page checked them node for node until it was retired in 0.9.0.
 
 **Cells are keyed by `"x,y"`**, not by the flat index, which a breakpoint that changes `columns`
 renumbers. A cell in both grids is the same cell, so it keeps its element and its decoded `<img>`.
@@ -181,7 +193,7 @@ render throws calls it before rethrowing, since no instance reaches the caller t
 
 ### Public surface
 
-Not yet exported from `render/index.ts`. Exporting it is part of the packaging step.
+Exported from `@fndvit/gen-tilesets/render` since 0.9.0.
 
 | Export | What |
 | --- | --- |
@@ -206,7 +218,9 @@ Not yet exported from `render/index.ts`. Exporting it is part of the packaging s
 
 | Caller | Uses |
 | --- | --- |
-| `apps/demo/src/parity/Mount.svelte` | The parity page's stand-in for `<Tileset>`: one renderer per mount, built inside `untrack`, and `update()` on every prop change. |
+| `render/Tileset.svelte` | One renderer per component, built inside `untrack` in an effect, and `update()` on every prop change. |
+| `render/decoration.ts` | `TileDecorationRenderer` draws its reshaped file with one. |
+| A host with no Svelte | `new TilesetRenderer(el, { file, options })`, e.g. into ``display(html`<div>`)`` in Observable. |
 
 Callees: `model.ts` (`TilesetModel`), `measure.ts` (`track`, `observeDpr`, `currentDpr`),
 `styles.ts` (`injectStyles`, `InstanceStyle`), `images.ts` (`ImageBank`, `NaturalSizeChecks`),
@@ -227,7 +241,9 @@ stubbed. It covers:
 - Re-tracking when the `avoid` targets change, and nothing drawn while `pending`.
 - Several triggers in one tick paint once, and an update that changes nothing does not repaint,
   with or without responsive rules.
-- Re-tracking when a renderer built detached is attached.
+- Re-tracking when a renderer built detached is attached. Styling one at construction: injected
+  with no stylesheet on the page, nothing injected (and no probe left behind) when the page already
+  has the rules.
 - `destroy()`: the observers and the DPR listener stop, the host is left empty, nothing in flight
   paints, and a second call is a no-op.
 - Reporting: a provider rejection once, to the `onAssetError` held now.
@@ -254,13 +270,8 @@ stubbed. It covers:
   - a substrate switch keeping the box and leaving nothing behind;
   - no report after `destroy()`.
 
-**The picture is checked by the parity page.** `apps/demo/parity.html` draws each case twice, with
-`<Tileset>` and with `TilesetRenderer`, under both substrates. It compares the two canvases pixel for
-pixel, and the two DOM boxes node for node: every child in document order, each cell's position,
-style, mask flag and `<img>` attributes, and the extent. A DOM match counts only once every `<img>`
-has finished and two polls in a row agree, since failures and the size probe unmount cells after the
-first mount. The sweep's viewport is as tall as the page, so lazy `<img>`s load.
-`apps/demo/scripts/parity.mjs` drives it across widths and DPRs, then reseeds every case in place
-so the comparison also runs through `update()`. The widths are chosen for the box, so the sweep
-crosses both of the page's breakpoints in both directions. It exits non-zero on any difference, and
-on a canvas with no opaque pixel, since two empty canvases of one size hash alike.
+**The picture is checked by the demo's screenshot harness** (`apps/demo/scripts/capture.mjs` and
+`diff.mjs`): 32 captures, both substrates, fluid and fixed sizing, `avoid` on and off, fractional
+cell sizes, DPR 1 and 2, static and resized in place, compared to a pinned baseline at 0 px. Until
+0.9.0 a parity page also drew every case with the pre-0.9.0 component beside the renderer and
+compared them node for node; it went once the component became the wrapper.
