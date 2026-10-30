@@ -20,8 +20,9 @@
  */
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const dir = new URL("../dist/render/", import.meta.url).pathname;
+const dir = fileURLToPath(new URL("../dist/render/", import.meta.url));
 const line = /^import "\.\/tileset\.css";\n/m;
 let pruned = 0;
 for (const name of readdirSync(dir)) {

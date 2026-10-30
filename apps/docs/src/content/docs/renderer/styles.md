@@ -18,7 +18,7 @@ so a page that does not use Svelte can still get it. A page gets it in one of th
 - **Linked by the host:** `@fndvit/gen-tilesets/tileset.css`.
 - **Bundled:** `Tileset.svelte` imports the file, so a Svelte host's bundler puts it in `<head>`,
   server-rendered HTML included.
-- **Injected:** `injectStyles(box)` runs once the box is in a page and adds the rules only where
+- **Injected:** `injectStyles(box)` runs when a renderer is built and adds the rules only where
   they are missing.
 
 ## In detail
@@ -56,7 +56,13 @@ first:
 
 1. This document's constructed sheet is already adopted in the root.
 2. A `<style data-gen-tilesets="<hash>">` is already in the root.
-3. `box` already computes `--gen-tilesets` equal to `TILESET_HASH`.
+3. `box` already computes `--gen-tilesets` equal to `TILESET_HASH`. A box not yet attached
+   computes nothing, so for one headed for a document it asks a stand-in instead: a hidden
+   `div.tileset[data-tileset-box][data-tileset-probe]` appended to `<body>` for one
+   `getComputedStyle` and removed (0.9.0). Rejected: reading `document.styleSheets`, whose
+   cross-origin sheets throw on read, and waiting until the box is attached, which made the first
+   measurement that of an unstyled box. A detached box in a shadow root that is not connected
+   cannot be asked, and gets the `<style>`.
 
 Otherwise it styles the root:
 
@@ -98,7 +104,7 @@ instance's id. `new InstanceStyle(parent)`, `.set(css)`, `.remove()`.
 | Caller | Uses |
 | --- | --- |
 | `render/Tileset.svelte`, `render/TileDecoration.svelte` | `import "./tileset.css"`, so a bundler puts the rules in `<head>`. |
-| `render/renderer.ts` | `injectStyles(box)` on the first render that finds the box connected: in the constructor, before `track`, for a box built in a page; on the render after attach for one built detached. A detached box has no computed style, so the check for a linked copy cannot run on it (0.9.0). One `InstanceStyle` per wrapper, while the options have responsive rules. |
+| `render/renderer.ts` | `injectStyles(box)` in the constructor, before `track`, attached or not. One `InstanceStyle` per wrapper, while the options have responsive rules. |
 
 ### Gotchas
 

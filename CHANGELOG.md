@@ -36,7 +36,8 @@ classes stay through `0.x` for compatibility, but select on the attribute.
 It was `container`. Bootstrap and Tailwind both style `.container` (centred, capped, padded), and
 nothing kept those rules off the package's element. Nothing drawn changes (screenshots 32/32 at
 0 px); host CSS that selected `.container[data-tileset-wrapper]` should select
-`[data-tileset-wrapper]`.
+`.tileset-container[data-tileset-wrapper]`. Not `[data-tileset-wrapper]` alone: the decoration box
+and the wrapper components' host elements carry it too.
 
 ### Changed: development errors name the tileset, not `<Tileset>`
 
@@ -51,8 +52,10 @@ Found by the Observable proof, where the idiom is to build into ``html`<div>` ``
 it. `injectStyles` sees a linked copy through the box's computed style, which a detached box does
 not have, so it injected the rules anyway. Under a strict CSP that sent them to the adopted-sheet
 fallback, which cascades after the host's CSS, so host overrides at equal specificity lost even
-though linking the file is the CSP advice. The renderer now injects on its first render after the
-box is attached.
+though linking the file is the CSP advice. For a detached box `injectStyles` now asks a hidden
+stand-in with the box's class and attribute, appended for one read and removed. Waiting to inject
+until the box was attached was tried first and rejected: the first measurement was then of an
+unstyled box (154 px tall instead of 79 on canvas, 40,675 px on DOM, in Chrome).
 
 ### Fixed: the `.svelte.d.ts` files carried `import "./tileset.css"`
 

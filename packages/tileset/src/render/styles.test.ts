@@ -141,6 +141,17 @@ describe("injectStyles", () => {
     expect(shadow.adoptedStyleSheets).toHaveLength(0);
   });
 
+  it("sees a linked copy from a detached node, through a probe it removes", () => {
+    const linked = document.createElement("style");
+    linked.textContent = TILESET_CSS;
+    document.head.append(linked);
+    const box = makeBox();
+    injectStyles(box);
+    expect(marked(document)).toHaveLength(0);
+    expect(document.querySelectorAll("[data-tileset-probe]")).toHaveLength(0);
+    expect(box.isConnected).toBe(false);
+  });
+
   it("styles a detached node in its ownerDocument", () => {
     const outer = document.createElement("div");
     const box = makeBox();

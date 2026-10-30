@@ -89,13 +89,12 @@ The host is the caller's element. It is never styled, replaced or emptied. The r
 
 [DOM hooks](/renderer/dom-hooks/) lists the attributes a host may select on.
 
-**The shared rules are injected once the box is in a page** (`#styles`, `injectStyles`). A box
-built detached has no computed style, so `injectStyles` could not see a linked `tileset.css` and
-injected anyway. Under a strict CSP that sent the rules to the adopted-sheet fallback, which
-cascades after the host's CSS, so host overrides at equal specificity lost even though linking the
-file is the CSP advice. Found by the Observable Framework proof in 0.9.0. The first render after
-attaching (scheduled by the first measurement) styles the box, before paint and before any cell is
-mounted.
+**The shared rules are injected in the constructor**, before `track`, so the first measurement is
+of a styled box (`injectStyles`). That holds for a box built detached too (the Observable case):
+`injectStyles` checks for a linked copy through a hidden stand-in, since a detached box computes no
+style. Injecting only after attach was tried and rejected in 0.9.0: the first measurement was then
+of an unstyled box, a canvas box 154 px tall instead of 79 and a DOM box 40,675 px, and the
+correction tripped the `ResizeObserver` loop error. [styles.ts](/renderer/styles/) has the rest.
 
 **The box never changes.** When rules appear or go, the box is moved into or out of the wrapper,
 never rebuilt. So `renderer.box` keeps its identity, and the tracker keeps watching the element it
@@ -242,8 +241,9 @@ stubbed. It covers:
 - Re-tracking when the `avoid` targets change, and nothing drawn while `pending`.
 - Several triggers in one tick paint once, and an update that changes nothing does not repaint,
   with or without responsive rules.
-- Re-tracking when a renderer built detached is attached, and styling it then: injected on attach
-  with no stylesheet on the page, and nothing injected when the page already has the rules.
+- Re-tracking when a renderer built detached is attached. Styling one at construction: injected
+  with no stylesheet on the page, nothing injected (and no probe left behind) when the page already
+  has the rules.
 - `destroy()`: the observers and the DPR listener stop, the host is left empty, nothing in flight
   paints, and a second call is a no-op.
 - Reporting: a provider rejection once, to the `onAssetError` held now.

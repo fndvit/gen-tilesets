@@ -344,15 +344,21 @@ const file = loadTilesetFile(await zip.file("tileset.json").json());
 // Each asset's meta.src is a path inside the zip. A zip entry has no MIME type,
 // and a browser will not draw an SVG blob without one, so set it.
 const TYPES = {svg: "image/svg+xml", png: "image/png", webp: "image/webp", jpg: "image/jpeg"};
-const provider = async (ref) => {
-  const bytes = await zip.file(ref.meta.src).arrayBuffer();
-  const type = TYPES[ref.meta.src.split(".").pop()];
-  return {src: URL.createObjectURL(new Blob([bytes], {type}))};
+// One blob URL per file, shared by every tileset on the page.
+const urls = new Map();
+const provider = (ref) => {
+  const path = ref.meta.src;
+  if (!urls.has(path)) {
+    const type = TYPES[path.split(".").pop()];
+    urls.set(path, zip.file(path).arrayBuffer().then((bytes) => URL.createObjectURL(new Blob([bytes], {type}))));
+  }
+  return urls.get(path).then((src) => ({src}));
 };
 ```
 
 ```js
-function tileset(options) {
+// `invalidation` is per block, so the block that displays the tileset passes its own.
+function tileset(options, invalidation) {
   const host = html`<div>`;
   const renderer = new TilesetRenderer(host, {file, options: {provider, ...options}});
   invalidation.then(() => renderer.destroy());
@@ -361,22 +367,27 @@ function tileset(options) {
 ```
 
 ```js
-display(tileset({substrate: "canvas"}));
+display(tileset({substrate: "canvas"}, invalidation));
 ```
 ````
 
-Two things are specific to Framework:
+Three things are specific to Framework:
 
 - **The zip, not a `tiles/` folder.** Framework publishes only files a page names literally, and
   the asset paths are chosen at runtime, so a folder of tiles would not be copied. The provider may
   return a promise, so reading from the zip on demand is fine.
 - **The MIME type.** Without it every SVG fails to decode (`EncodingError`) and nothing draws.
   The failure reaches `options.onAssetError` and nowhere else.
+- **Pass the displaying block's `invalidation`.** Framework gives each block its own; the helper's
+  block never re-runs, so a renderer tied to that one is never destroyed. Measured: a block that
+  re-ran on two seed changes destroyed both old renderers this way, and none with the helper's own
+  `invalidation`, leaving their observers running on detached boxes.
 
 ### The stylesheet
 
 The renderer needs `tileset.css`. **You do not have to do anything:** it injects the rules into the
-page (or the shadow root) the first time a box is attached, unless they already reach the box.
+page (or the shadow root) when a renderer is built, unless they already reach it, which it checks
+for a box not yet on the page too.
 Link the file yourself when you want the rules in place before any script runs, or when a strict
 CSP blocks inline styles, which would otherwise push the injected rules after your own CSS:
 
@@ -409,15 +420,19 @@ export function Tileset({ file, options }: { file: TilesetFile; options?: Tilese
     return () => renderer.current?.destroy();
   }, []);
   useEffect(() => renderer.current?.update({ file, options }), [file, options]);
-  return <div ref={host} data-tileset-wrapper="" />;
+  return <div ref={host} data-tileset-wrapper="" style={{ display: "contents" }} />;
 }
 ```
 
 `update()` with unchanged values regenerates nothing, so an inline `options={{…}}` that is a new
-object on every render costs a comparison, not a redraw. **Keep `data-tileset-wrapper` on the host
-element.** `options.avoid`'s selectors resolve in the nearest ancestor of the tileset that the
-package did not add; unmarked, that is this `<div>`, which holds no headings, so nothing would be
-avoided. The attributes you can select on are listed in the docs' *DOM hooks* page.
+object on every render costs a comparison, not a redraw. Keep both attributes on the host:
+
+- **`display: contents`**, so the host has no box of its own and the tileset sizes against your
+  layout. A plain block `<div>` collapses in a shrink-to-fit parent: measured in a 600 px flex row,
+  the DOM substrate drew nothing (0 × 0) and the canvas came out 300 px wide.
+- **`data-tileset-wrapper`.** `options.avoid`'s selectors resolve in the nearest ancestor of the
+  tileset that the package did not add; unmarked, that is this `<div>`, which holds no headings, so
+  nothing would be avoided. The attributes you can select on are listed in the docs' *DOM hooks* page.
 
 ### Verified (0.9.0)
 
@@ -426,12 +441,13 @@ the packed tarball, and checked in Chrome: the canvas had opaque pixels, and the
 cells had loaded `<img>`s. The four-line sketch at the top of the section is the same calls.
 
 - **Observable Framework 1.13.4**, `observable build`: both substrates, with and without the
-  linked stylesheet. With it linked, nothing was injected.
+  linked stylesheet. With it linked, nothing was injected. Each box's first measurement was its
+  final size, with no `ResizeObserver` loop error.
 - **Vite 8 + React 19**, under `StrictMode` (which mounts, destroys and remounts every effect):
   both substrates, exactly two boxes on the page; `tsc` with `skipLibCheck: false` passes on
   TypeScript 6.0.3, and with the CSS import nothing was injected. With a heading laid over a DOM
   tileset and `avoid: { targets: "h2" }`, 121 cells were masked; with `data-tileset-wrapper`
-  removed from the host, none were.
+  removed from the host, none were. In a 600 px flex row, both substrates filled 600 px.
 - **Vite 8 + Svelte 5** with no `svelte.config.js`: `<Tileset>` in both substrates, `vite build` and
   `svelte-check` with 0 errors.
 - `dist/render/` has no bare import, so the renderer loads without a bundler.

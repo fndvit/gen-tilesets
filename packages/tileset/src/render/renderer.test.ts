@@ -334,30 +334,22 @@ describe("TilesetRenderer", () => {
     expect(fake.tracks[0]!.stop).toHaveBeenCalledOnce();
   });
 
-  it("styles a renderer built detached when it is attached, not before", async () => {
+  it("styles a renderer built detached at once, so its first measurement is of a styled box", () => {
     const host = document.createElement("div");
-    const r = new TilesetRenderer(host, { file: hero(), options: { provider } });
-    expect(document.querySelectorAll("style[data-gen-tilesets]")).toHaveLength(0);
-
-    document.body.append(host);
-    fake.tracks[0]!.onMeasure({ width: 610, height: 240, rects: [] });
-    await tick();
+    new TilesetRenderer(host, { file: hero(), options: { provider } });
     expect(document.querySelectorAll("style[data-gen-tilesets]")).toHaveLength(1);
-    expect(getComputedStyle(r.box).position).toBe("relative");
   });
 
-  it("adds nothing on attach when the page already links the rules", async () => {
+  it("adds nothing for a renderer built detached when the page already links the rules", async () => {
     const { TILESET_CSS } = await import("./styles.js");
     const linked = document.createElement("style");
     linked.textContent = TILESET_CSS;
     document.head.append(linked);
-    const host = document.createElement("div");
-    new TilesetRenderer(host, { file: hero(), options: { provider } });
-
-    document.body.append(host);
-    fake.tracks[0]!.onMeasure({ width: 610, height: 240, rects: [] });
-    await tick();
+    const r = new TilesetRenderer(document.createElement("div"), { file: hero(), options: { provider } });
+    expect(r.box.isConnected).toBe(false);
     expect(document.querySelectorAll("style[data-gen-tilesets]")).toHaveLength(0);
+    // The probe that asked is gone.
+    expect(document.querySelectorAll("[data-tileset-probe]")).toHaveLength(0);
   });
 
   it("leaves nothing behind when the first render throws", () => {

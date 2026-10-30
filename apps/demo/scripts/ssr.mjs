@@ -126,6 +126,7 @@ for (const dpr of DPRS) {
   for (const name of Object.keys(CASES)) {
     for (const width of WIDTHS) {
       const old = RESERVED[`${name}@${width}`];
+      if (old === undefined) throw new Error(`ssr.mjs: no pinned height for ${name}@${width}; add it to RESERVED.`);
       const p = await ctx.newPage();
       const logs = [];
       // The renderer's own development warnings (`[gen-tilesets] …`, soft

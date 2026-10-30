@@ -32,7 +32,7 @@ name any page might use, and the attribute is the one that says "this is the pac
 | `data-x`, `data-y` | each cell | The cell's grid coordinates. What a click handler reads. |
 | `data-masked` | a cell | Present while `options.avoid` hides it. The cell has `visibility: hidden` and takes no hits. |
 | `data-tileset-extent` | a zero-width child of the box | Under `"dom"`: carries the box's height. |
-| `data-tileset-wrapper` | the responsive wrapper, and a wrapper component's host | With responsive rules, the box sits in a `.tileset-container` whose value is the instance id. A framework wrapper marks its own host element with it too (empty value), so `options.avoid` resolves outside it. |
+| `data-tileset-wrapper` | the responsive wrapper, a decoration's box, and a wrapper component's host | Marks an element as the package's, so `options.avoid` resolves outside it. With responsive rules the box sits in a `.tileset-container` whose value is the instance id; the others carry an empty value. To select only the responsive wrapper, use `.tileset-container[data-tileset-wrapper]`. |
 | `data-tileset-decoration` | a decoration's outer box | `TileDecorationRenderer` / `<TileDecoration>`. Its width is `columns * cellSize`, capped at `100%`. |
 | `data-tileset-host` | `<Tileset>`'s and `<TileDecoration>`'s root `div` | `display: contents`. Svelte only. |
 | `data-tileset-placeholder` | the render box in server HTML | Present only between the server render and hydration. |
