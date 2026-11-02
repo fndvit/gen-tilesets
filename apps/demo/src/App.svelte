@@ -17,9 +17,9 @@
   ~350 device px cell, where geometry shows instead.
 -->
 <script lang="ts">
-  import { loadTilesetFile, type TilesetFile } from "@fndvit/gen-tilesets";
-  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
-  import { prefixedProvider, type AssetRef } from "@fndvit/gen-tilesets/render";
+  import { loadTilesetFile, type TilesetFile } from "@vit-foundation/gen-tilesets";
+  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
+  import { prefixedProvider, type AssetRef } from "@vit-foundation/gen-tilesets/render";
   import Square2x2 from "./Square2x2.svelte";
   import Decorations from "./Decorations.svelte";
   import Hosting from "./Hosting.svelte";

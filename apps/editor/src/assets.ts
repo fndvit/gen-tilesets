@@ -40,7 +40,7 @@ import {
   type AssetProvider,
   type AssetRef,
   type Drawable,
-} from "@fndvit/gen-tilesets/render";
+} from "@vit-foundation/gen-tilesets/render";
 
 /** What one attach produced. `width`/`height` are E13's frozen measurement. */
 export interface StoredAsset {

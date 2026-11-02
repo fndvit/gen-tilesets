@@ -15,7 +15,7 @@ Until the framework-agnostic core, the renderer's CSS lived in the `<style>` blo
 `<Tileset>` and `<TileDecoration>`, scoped by Svelte. It is now one global file, `tileset.css`,
 so a page that does not use Svelte can still get it. A page gets it in one of three ways:
 
-- **Linked by the host:** `@fndvit/gen-tilesets/tileset.css`.
+- **Linked by the host:** `@vit-foundation/gen-tilesets/tileset.css`.
 - **Bundled:** `Tileset.svelte` imports the file, so a Svelte host's bundler puts it in `<head>`,
   server-rendered HTML included.
 - **Injected:** `injectStyles(box)` runs when a renderer is built and adds the rules only where

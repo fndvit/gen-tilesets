@@ -91,7 +91,7 @@ Engine: [`GridGeometry`](/api/render/interfaces/gridgeometry/).
 `strandedCells` has **no caller outside `paint.test.ts`**.
 
 Callees: [`cellAt`](/api/render/functions/cellat/) and
-[`toRenderSpace`](/api/render/functions/torenderspace/) from `@fndvit/gen-tilesets/render`.
+[`toRenderSpace`](/api/render/functions/torenderspace/) from `@vit-foundation/gen-tilesets/render`.
 
 ### Tests: `paint.test.ts`
 

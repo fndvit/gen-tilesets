@@ -1,6 +1,6 @@
 ---
 title: index.ts (render)
-description: The @fndvit/gen-tilesets/render entry point. Every pure function and type the renderer exports, grouped by job.
+description: The @vit-foundation/gen-tilesets/render entry point. Every pure function and type the renderer exports, grouped by job.
 sidebar:
   order: 2
 ---
@@ -11,12 +11,12 @@ and `apps/demo/src`.
 ## Overview
 
 This file is the renderer's public door: what a host gets when it imports from
-`@fndvit/gen-tilesets/render`. It contains no logic. It re-exports, in groups, the pure functions
+`@vit-foundation/gen-tilesets/render`. It contains no logic. It re-exports, in groups, the pure functions
 and types the renderer is built from, so that a host, the editor, or a test can use the same
 arithmetic the component uses instead of writing a second copy.
 
 The two components are **not** here. `<Tileset>` and `<TileDecoration>` are imported by their own
-paths, `@fndvit/gen-tilesets/Tileset.svelte` and `@fndvit/gen-tilesets/TileDecoration.svelte`, as
+paths, `@vit-foundation/gen-tilesets/Tileset.svelte` and `@vit-foundation/gen-tilesets/TileDecoration.svelte`, as
 every app in the repository does. This entry point is for everything around them: geometry for an
 overlay, the options type, an asset provider, the keep-out mask, and so on.
 

@@ -149,7 +149,7 @@ export interface TilesetOptions {
    * (elements added or removed, `class`/`style` toggled, text edited), and web
    * fonts finishing loading. **Not tracked**: a target moved by a CSS animation or
    * transition, which changes no size — call `refresh()` from
-   * `@fndvit/gen-tilesets/render` when one settles.
+   * `@vit-foundation/gen-tilesets/render` when one settles.
    */
   avoid?:
     | {

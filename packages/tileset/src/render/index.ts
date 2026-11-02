@@ -1,5 +1,5 @@
 /**
- * `@fndvit/gen-tilesets/render` — the renderer's public surface.
+ * `@vit-foundation/gen-tilesets/render` — the renderer's public surface.
  *
  * **Invariant S10** — `cellBox` and `cellAt` are exported pure functions,
  * independent of the component. The component computes placement from them, and
@@ -169,7 +169,7 @@ export {
  * any change; `destroy()` removes everything it added.
  *
  * The styles are injected at mount when they do not already reach the box, so
- * linking `@fndvit/gen-tilesets/tileset.css` is optional. `injectStyles` and
+ * linking `@vit-foundation/gen-tilesets/tileset.css` is optional. `injectStyles` and
  * `TILESET_CSS` are here for a host that wants them in place before the first
  * mount (a shadow root, a server-rendered shell).
  *

@@ -1,12 +1,12 @@
-# `@fndvit/gen-tilesets`
+# `@vit-foundation/gen-tilesets`
 
 The engine and the renderer. The **only published package** in this repository.
 
 To **render** a tileset you need two imports, and no more:
 
 ```ts
-import { loadTilesetFile } from "@fndvit/gen-tilesets";
-import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
+import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
+import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
 ```
 
 ```svelte
@@ -18,9 +18,9 @@ through a default provider; off the root you add one more import, `prefixedProvi
 still the whole of it. The rest of the surface is for a host that builds *tooling* on top — an
 overlay, a brush, a validator — and it lives on two different subpaths:
 
-- `@fndvit/gen-tilesets` — the engine: `generate`, `selection`, `loadTilesetFile`, and the
+- `@vit-foundation/gen-tilesets` — the engine: `generate`, `selection`, `loadTilesetFile`, and the
   `validate`/`migrate` pair it is built from.
-- `@fndvit/gen-tilesets/render` — the geometry: `cellBox`, `cellAt`; and the renderer itself,
+- `@vit-foundation/gen-tilesets/render` — the geometry: `cellBox`, `cellAt`; and the renderer itself,
   `TilesetRenderer`, for a page with no Svelte (see *Without Svelte*).
 
 `cellAt`'s only caller in this repository is the editor's brush, and `cellBox` has no caller
@@ -29,37 +29,15 @@ picture.
 
 ## How to use it
 
-Six steps, from nothing to tiles on screen. Every snippet in steps 5 and 6 is copied out of a
+Five steps, from nothing to tiles on screen. Every snippet in steps 4 and 5 is copied out of a
 working app — see *Verified* at the end.
 
-### 1. Get a token
+### 1. Install the package
 
-The package is published privately to **GitHub Packages** under the `fndvit` org, so installing it
-needs a token.
-
-On GitHub: **Settings → Developer settings → Personal access tokens → Tokens (classic)**, with the
-`read:packages` scope. It must be a **classic** token — GitHub Packages' npm registry does not
-accept fine-grained ones. Then put it in your shell profile:
+The package is public on npmjs.com, so there is no token and no `.npmrc` to write:
 
 ```sh
-export GITHUB_TOKEN=ghp_…
-```
-
-Org members with read access to this repository get read access to the package automatically, so
-there is no per-person grant to request.
-
-### 2. Install the package
-
-Add this to the consuming project's `.npmrc` — **commit it**; the token comes from the
-environment, never from the file:
-
-```ini
-@fndvit:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-```sh
-pnpm add @fndvit/gen-tilesets@0.8.1 svelte
+pnpm add @vit-foundation/gen-tilesets@0.10.0 svelte
 ```
 
 - **Pin the exact version.** `0.x` promises nothing about output stability (`/CLAUDE.md`), so a
@@ -68,9 +46,12 @@ pnpm add @fndvit/gen-tilesets@0.8.1 svelte
   `@sveltejs/vite-plugin-svelte`. Nothing further: the published `exports` declare the `svelte`
   condition, so a bare `svelte()` plugin with **no `svelte.config.js` at all** resolves and
   compiles `Tileset.svelte`. This is verified, not assumed — see *Publishing* below.
-- **CI in the consuming repo** needs the same `.npmrc` plus a token in its secrets.
+- **Coming from `@fndvit/gen-tilesets`?** That is the same package under its old name, on GitHub
+  Packages, which gets no versions after 0.9.0. Change every import from `@fndvit/` to
+  `@vit-foundation/`, and delete the `@fndvit:registry` and `npm.pkg.github.com` lines from your
+  `.npmrc` and the token from your CI secrets. Nothing else about the API changed in the rename.
 
-### 3. Export the tileset from the editor
+### 2. Export the tileset from the editor
 
 In the editor, the export button is pinned below the sidebar's sections, labelled
 **"Download tileset.zip"**. Press it and you get `tileset.zip` — always that name.
@@ -92,7 +73,7 @@ each hold an asset called `a1`, and a flat folder would silently overwrite one w
 **Every `meta.src` in the JSON is a path relative to the archive root**, with no leading slash:
 `tiles/water/a1.svg`. That one detail drives everything below.
 
-### 4. Unzip it and move the two halves into your project
+### 3. Unzip it and move the two halves into your project
 
 They go to different places, and only one of them is served. **`tiles/` moves whole, as a single
 folder — you never place assets one by one:**
@@ -116,7 +97,7 @@ it read out of `meta.src`, so the JSON points at `tiles/water/a1.svg`; flattenin
 anything inside breaks that silently. Moving the folder as-is is what keeps it true without your
 having to think about it.
 
-### 5. Load it — one call
+### 4. Load it — one call
 
 You cannot skip this. `<Tileset>` imports no validator, so in a production build a file
 `validate()` would reject is **undefined behaviour** (**S3**, as **C5**). The types push you the
@@ -126,7 +107,7 @@ same way: `TilesetFile.schemaVersion` is the literal type `4`, so a JSON import 
 
 ```ts
 // src/routes/+page.svelte — or wherever you hold the file
-import { loadTilesetFile } from "@fndvit/gen-tilesets";
+import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
 import raw from "$lib/tileset.json";
 
 const file = loadTilesetFile(raw);
@@ -148,10 +129,10 @@ report each error at its own path. That is what `apps/editor` does, and nothing 
 changed:
 
 ```ts
-import { migrate, validate } from "@fndvit/gen-tilesets";
+import { migrate, validate } from "@vit-foundation/gen-tilesets";
 ```
 
-### 6. Anchor the asset paths, and render
+### 5. Anchor the asset paths, and render
 
 **`provider` is optional.** It defaults to `defaultProvider`, which reads `meta.src` and hands it
 to an `<img>`. If your assets are served at exactly the paths `meta.src` names *and* your page is
@@ -167,10 +148,10 @@ happens to be right. On `/deep/page` the browser asks for `/deep/tiles/water/a1.
 ```svelte
 <!-- src/routes/+page.svelte -->
 <script lang="ts">
-  import { loadTilesetFile } from "@fndvit/gen-tilesets";
-  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
+  import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
+  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
   // `AssetRef` is only for the optional `onAssetError` below.
-  import { prefixedProvider, type AssetRef } from "@fndvit/gen-tilesets/render";
+  import { prefixedProvider, type AssetRef } from "@vit-foundation/gen-tilesets/render";
   import { base } from "$app/paths";
   import raw from "$lib/tileset.json";
 
@@ -241,7 +222,7 @@ import raw from "./tileset.json";
 
 The two bases differ by a slash — SvelteKit's `base` carries none, `BASE_URL` always does (`"/"` by
 default) — and `prefixedProvider` normalises both, so this is the only change. Vite handles JSON
-imports natively, so steps 5 and 6 are otherwise unchanged.
+imports natively, so steps 4 and 5 are otherwise unchanged.
 
 ### Things worth knowing
 
@@ -274,7 +255,7 @@ imports natively, so steps 5 and 6 are otherwise unchanged.
 - **The styles load themselves.** A Svelte bundler picks up the component's `tileset.css`.
   Anywhere else, the renderer adds a `<style>` at mount, first in `<head>` or first in the shadow
   root it is in, unless the same rules already reach it. You can link the file yourself
-  instead: `import "@fndvit/gen-tilesets/tileset.css"`. To override a rule, match or beat its
+  instead: `import "@vit-foundation/gen-tilesets/tileset.css"`. To override a rule, match or beat its
   selector, for example `.cell[data-tileset-cell] img`. A rule of equal specificity wins because
   it comes later. **Under a strict CSP** (`style-src` without `'unsafe-inline'`) that `<style>` is
   blocked. The renderer then adopts a constructed stylesheet instead, which cascades after yours,
@@ -288,7 +269,7 @@ imports natively, so steps 5 and 6 are otherwise unchanged.
 ### Verified
 
 The SvelteKit snippets above were extracted from a SvelteKit 2 app built for the purpose,
-installing `@fndvit/gen-tilesets` **from the registry**: `svelte-check` reports 0 errors and 0
+installing `@vit-foundation/gen-tilesets` **from the registry**: `svelte-check` reports 0 errors and 0
 warnings, and `vite build` succeeds. The path trap is not hypothetical — the same page on
 `/deep/…` with the default provider server-renders `src="tiles/water/a1.svg"` and 404s, and with
 `prefixedProvider(base)` renders `src="../tiles/water/a1.svg"`, which resolves to
@@ -315,7 +296,7 @@ Since 0.9.0 `<Tileset>` is a thin wrapper over a plain class, and the class is e
 Framework, a plain HTML page or another framework uses the same implementation:
 
 ```js
-import { TilesetRenderer } from "@fndvit/gen-tilesets/render";
+import { TilesetRenderer } from "@vit-foundation/gen-tilesets/render";
 
 const renderer = new TilesetRenderer(element, { file, options }); // draws into element
 renderer.update({ options: { ...options, seed: "b" } });          // any change; omitted fields keep their value
@@ -330,13 +311,13 @@ optional peer dependency; nothing here imports it.
 
 ### Observable Framework
 
-Add the package to the project (`npm install @fndvit/gen-tilesets`, with the token from step 1),
+Add the package to the project (`npm install @vit-foundation/gen-tilesets`),
 and put the editor's export zip in `src/` as it comes. A page:
 
 ````md
 ```js
-import {loadTilesetFile} from "@fndvit/gen-tilesets";
-import {TilesetRenderer} from "@fndvit/gen-tilesets/render";
+import {loadTilesetFile} from "@vit-foundation/gen-tilesets";
+import {TilesetRenderer} from "@vit-foundation/gen-tilesets/render";
 
 // The editor's export, as it comes: tileset.json beside a tiles/ folder.
 const zip = await FileAttachment("atlas.zip").zip();
@@ -391,13 +372,14 @@ for a box not yet on the page too.
 Link the file yourself when you want the rules in place before any script runs, or when a strict
 CSP blocks inline styles, which would otherwise push the injected rules after your own CSS:
 
-- **With a bundler** (Vite, webpack): `import "@fndvit/gen-tilesets/tileset.css";`. With
+- **With a bundler** (Vite, webpack): `import "@vit-foundation/gen-tilesets/tileset.css";`. With
   TypeScript 6, that line needs a declaration for `*.css` in your project, which Vite's templates
   already have (`/// <reference types="vite/client" />`).
-- **In Observable Framework**, copy `node_modules/@fndvit/gen-tilesets/dist/render/tileset.css`
+- **In Observable Framework**, copy `node_modules/@vit-foundation/gen-tilesets/dist/render/tileset.css`
   into `src/` and add `<link rel="stylesheet" href="./tileset.css">` to the page. Framework turns a
-  CSS `import` from `node_modules` into a module import the browser refuses, and `npm:` fetches
-  from the public registry, where this package is not.
+  CSS `import` from `node_modules` into a module import the browser refuses. (Before 0.10.0 the
+  package was not on the public registry, so `npm:` could not fetch it either; that is no longer
+  why, and an `npm:` import of the stylesheet has not been tried.)
 - **Anywhere else**, serve the file and `<link>` it.
 
 The renderer recognises a linked copy of the same version and adds nothing. `injectStyles(element)`
@@ -409,8 +391,8 @@ Ten lines: build on mount, `update()` on change, `destroy()` on unmount. In Reac
 
 ```tsx
 import { useEffect, useRef } from "react";
-import type { TilesetFile } from "@fndvit/gen-tilesets";
-import { TilesetRenderer, type TilesetOptions } from "@fndvit/gen-tilesets/render";
+import type { TilesetFile } from "@vit-foundation/gen-tilesets";
+import { TilesetRenderer, type TilesetOptions } from "@vit-foundation/gen-tilesets/render";
 
 export function Tileset({ file, options }: { file: TilesetFile; options?: TilesetOptions }) {
   const host = useRef<HTMLDivElement>(null);
@@ -521,14 +503,14 @@ antialiased edge stops being a large fraction of the shape. A development build 
 records the whole investigation, including four theories about browser rendering that turned out to
 be false.
 
-`cellBox` and `cellAt` are exported from `@fndvit/gen-tilesets/render` — not from the root entry,
+`cellBox` and `cellAt` are exported from `@vit-foundation/gen-tilesets/render` — not from the root entry,
 which is engine-only — as pure functions rather than component methods, because there is exactly
 one coordinate mapping and every overlay shares it (**R1**).
 
 ## Options
 
 Every setting is a field of one object, `options: TilesetOptions`, exported from
-`@fndvit/gen-tilesets/render` with a doc comment on every field. Defaults are written in exactly
+`@vit-foundation/gen-tilesets/render` with a doc comment on every field. Defaults are written in exactly
 one place, `resolveOptions`, and this table is that function's output (`DEFAULT_OPTIONS`):
 
 | Field | Type | Default | When it matters |
@@ -579,7 +561,7 @@ cell overlaps one of them, as whole tiles, and keeps doing so as they move.
 - **It follows the layout**: the section or a target resizing, text rewrapping at any width or
   breakpoint, web fonts landing, elements added or removed, `class`/`style` toggled, text edited in
   place. **It does not follow** a target moved by a CSS animation or transition, which resizes and
-  mutates nothing — call `refresh()` from `@fndvit/gen-tilesets/render` when one ends.
+  mutates nothing — call `refresh()` from `@vit-foundation/gen-tilesets/render` when one ends.
 - **Nothing is drawn over the page before the mask exists.** With `avoid` set the tileset stays
   hidden until its first measurement, which under SSR means until hydration. Space is still
   reserved, so nothing shifts when it appears.
@@ -652,7 +634,7 @@ development build warns about a rule that does only that.
 ### Reuse at another size
 
 ```ts
-import { loadTilesetFile, reshape } from "@fndvit/gen-tilesets";
+import { loadTilesetFile, reshape } from "@vit-foundation/gen-tilesets";
 
 const hero = loadTilesetFile(raw);
 const banner = reshape(hero, { rows: 3 });              // same design, three rows
@@ -789,9 +771,9 @@ you like:
 
 ```svelte
 <script lang="ts">
-  import { loadTilesetFile } from "@fndvit/gen-tilesets";
-  import TileDecoration from "@fndvit/gen-tilesets/TileDecoration.svelte";
-  import { prefixedProvider } from "@fndvit/gen-tilesets/render";
+  import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
+  import TileDecoration from "@vit-foundation/gen-tilesets/TileDecoration.svelte";
+  import { prefixedProvider } from "@vit-foundation/gen-tilesets/render";
 
   const provider = prefixedProvider(import.meta.env.BASE_URL);
   const style = loadTilesetFile(raw);
@@ -869,9 +851,17 @@ bound this package when it was built.
 
 ## Publishing
 
-`git tag v0.1.1 && git push --tags` — `.github/workflows/publish.yml` runs the tests, the
-typecheck, `svelte-package`, and `pnpm publish` against `npm.pkg.github.com` using the Actions
-`GITHUB_TOKEN`. No personal token, no secret to rotate.
+`git tag vX.Y.Z && git push --tags` — `.github/workflows/publish.yml` runs the tests, the
+typecheck and `svelte-package`, packs the tarball with `pnpm pack` and publishes it to
+npmjs.com with `npm publish`. pnpm packs because only pnpm applies `publishConfig.exports`; npm
+publishes because npm's **trusted publishing** is how the job authenticates — the package's
+npmjs.com settings trust `fndvit/gen-tilesets`'s `publish.yml`, and the job proves its identity
+with a GitHub OIDC token. No npm token, no secret to rotate, and npm attaches provenance.
+
+Trusted publishing can only be configured on a package that already exists, so the very first
+version under this name (0.10.0) was published by hand: `pnpm pack` in this directory, then
+`npm publish vit-foundation-gen-tilesets-0.10.0.tgz --access public` from an account in the
+`vit-foundation` npm org. Versions up to 0.9.0 are on GitHub Packages as `@fndvit/gen-tilesets`.
 
 Bump the version in `package.json` first: the tag does not set it, and a tag whose version is
 already published fails. Note that **the package page's README is the one in the published

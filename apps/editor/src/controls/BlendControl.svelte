@@ -21,7 +21,7 @@
      would open the control rather than needing this file edited.
 -->
 <script lang="ts">
-  import { acceptedBlends, TARGETS, type BlendName, type TargetName } from "@fndvit/gen-tilesets";
+  import { acceptedBlends, TARGETS, type BlendName, type TargetName } from "@vit-foundation/gen-tilesets";
 
   interface Props {
     target: TargetName;

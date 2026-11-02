@@ -83,10 +83,10 @@ own quotation warns about. Also listed in [Review findings](/review-findings/). 
 
 ### Releasing
 
-`packages/tileset/package.json` is the only published package (`@fndvit/gen-tilesets`), and its
+`packages/tileset/package.json` is the only published package (`@vit-foundation/gen-tilesets`), and its
 `version` field is the only place the release number is written. `.github/workflows/publish.yml` runs on any `v*` tag: it installs, runs `pnpm test` and
-`pnpm typecheck`, then `pnpm --filter @fndvit/gen-tilesets publish` to GitHub Packages, with the
-repository's own `GITHUB_TOKEN`. The tag does not set the version. The workflow publishes whatever
+`pnpm typecheck`, builds, packs the tarball with `pnpm pack` and publishes it publicly to npmjs.com
+with `npm publish`, authenticated by npm trusted publishing (a GitHub OIDC token, no secret). The tag does not set the version. The workflow publishes whatever
 `package.json` says.
 
 The workspace consumes the package's `src/` (its `exports`), and the tarball carries `dist/` (its

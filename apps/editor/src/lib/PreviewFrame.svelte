@@ -37,7 +37,7 @@
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { activeRules, type ResponsiveRule } from "@fndvit/gen-tilesets";
+  import { activeRules, type ResponsiveRule } from "@vit-foundation/gen-tilesets";
   import ReferenceControls from "./ReferenceControls.svelte";
   import ReferenceLayer from "./ReferenceLayer.svelte";
   import { frameExtent, layerHeight, loadReference, type Reference } from "../reference.js";

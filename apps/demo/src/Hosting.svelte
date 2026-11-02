@@ -22,8 +22,8 @@
   24 x 6 at a 1440 px reference, zero bleed.
 -->
 <script lang="ts">
-  import { loadTilesetFile } from "@fndvit/gen-tilesets";
-  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
+  import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
+  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
   import {
     prefixedProvider,
     type AlignX,
@@ -31,7 +31,7 @@
     type Sizing,
     type Substrate,
     type TilesetOptions,
-  } from "@fndvit/gen-tilesets/render";
+  } from "@vit-foundation/gen-tilesets/render";
 
   const provider = prefixedProvider("/atlas");
 

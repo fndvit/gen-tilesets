@@ -18,8 +18,8 @@
  */
 
 import { zipSync } from "fflate";
-import { assetKey } from "@fndvit/gen-tilesets/render";
-import type { TileAsset, TilesetFile } from "@fndvit/gen-tilesets";
+import { assetKey } from "@vit-foundation/gen-tilesets/render";
+import type { TileAsset, TilesetFile } from "@vit-foundation/gen-tilesets";
 import { entries, type ExportEntry } from "./export.js";
 import { stored } from "./assets.js";
 

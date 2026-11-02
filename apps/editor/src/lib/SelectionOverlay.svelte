@@ -32,12 +32,12 @@
   acts on. It also costs two generations per frame where one suffices.
 -->
 <script lang="ts">
-  import { selection, type TilesetConfig } from "@fndvit/gen-tilesets";
+  import { selection, type TilesetConfig } from "@vit-foundation/gen-tilesets";
   import {
     cellPlacementPercent,
     naturalHeight,
     type GridGeometry,
-  } from "@fndvit/gen-tilesets/render";
+  } from "@vit-foundation/gen-tilesets/render";
 
   interface Props {
     g: GridGeometry;

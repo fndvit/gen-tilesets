@@ -4,7 +4,7 @@
   `onChange` hands back. Switch the Source to `random` to see its advisory.
 -->
 <script lang="ts">
-  import { loadTilesetFile, type PaletteEntry } from "@fndvit/gen-tilesets";
+  import { loadTilesetFile, type PaletteEntry } from "@vit-foundation/gen-tilesets";
   import PaletteBar from "../../../editor/src/controls/PaletteBar.svelte";
   import raw from "../fixtures/basic.json";
 

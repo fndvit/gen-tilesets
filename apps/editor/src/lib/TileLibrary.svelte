@@ -20,7 +20,7 @@
      advisory. Both are display behaviour; neither touches the file.
 -->
 <script lang="ts">
-  import { canonicalAssets, type Tile, type TileAsset } from "@fndvit/gen-tilesets";
+  import { canonicalAssets, type Tile, type TileAsset } from "@vit-foundation/gen-tilesets";
   import {
     attach,
     exportPath,

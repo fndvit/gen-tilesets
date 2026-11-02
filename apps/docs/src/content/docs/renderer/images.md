@@ -106,7 +106,7 @@ picture.
 | `render/Tileset.svelte:709-724` | An `$effect`, canvas only, calls `bank.sync(sources, () => bankVersion++, onError)`. `onError` turns the key back into a pair with `parseAssetKey` and reports it through `onAssetError`. |
 | `render/Tileset.svelte:950-951` | The paint effect reads `bank.ready`, and reads `bankVersion` so that it re-runs when a decode lands. |
 | `render/Tileset.svelte:451-452`, `1284` | DOM substrate: an `<img>`'s `onload` calls `checkLoaded(cell, src, img)`, which runs `sizeChecks.check(src, img)` and sends a refusal to `handleLoadError`. |
-| `apps/editor/src/assets.ts` `measure` | Imports `requireNaturalSize` from `@fndvit/gen-tilesets/render` and fails the attach when it rejects. |
+| `apps/editor/src/assets.ts` `measure` | Imports `requireNaturalSize` from `@vit-foundation/gen-tilesets/render` and fails the attach when it rejects. |
 
 Callees: the browser's `Image`, `HTMLImageElement.decode()` and `createImageBitmap`.
 

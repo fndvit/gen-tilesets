@@ -37,7 +37,7 @@
  * half-built Operation would be restoring something the author never committed.
  */
 
-import type { TilesetFile } from "@fndvit/gen-tilesets";
+import type { TilesetFile } from "@vit-foundation/gen-tilesets";
 import { newDocument, type Transition } from "./document.js";
 import { applied, historyOf, replaced, undone, type History } from "./history.js";
 

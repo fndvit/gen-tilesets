@@ -38,7 +38,7 @@ import {
   type PaletteEntry,
   type ParamSchema,
   type TargetName,
-} from "@fndvit/gen-tilesets";
+} from "@vit-foundation/gen-tilesets";
 import { defaultFor } from "./controls/affordance.js";
 import { defaultNumericMapping, isTileTarget } from "./controls/mapping.js";
 

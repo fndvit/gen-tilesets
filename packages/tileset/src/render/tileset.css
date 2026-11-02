@@ -1,5 +1,5 @@
 /*
-  `@fndvit/gen-tilesets/tileset.css` — the renderer's one stylesheet.
+  `@vit-foundation/gen-tilesets/tileset.css` — the renderer's one stylesheet.
 
   **This file is the source.** `styles.ts`'s `TILESET_CSS` is generated from it by
   `scripts/gen-css.mjs` (comments stripped, whitespace collapsed), and

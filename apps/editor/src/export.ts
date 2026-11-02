@@ -31,7 +31,7 @@
  * directory structure is the pair, for the same reason the key is."
  */
 
-import type { TileAsset, TilesetFile } from "@fndvit/gen-tilesets";
+import type { TileAsset, TilesetFile } from "@vit-foundation/gen-tilesets";
 import { ENGINE_VERSION } from "./document.js";
 
 /** One file in the zip. Bytes, so the writer needs no knowledge of where they came from. */

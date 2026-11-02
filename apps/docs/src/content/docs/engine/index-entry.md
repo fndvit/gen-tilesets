@@ -1,6 +1,6 @@
 ---
 title: index.ts
-description: The engine entry point of @fndvit/gen-tilesets. What it exports, grouped, and why each group is public.
+description: The engine entry point of @vit-foundation/gen-tilesets. What it exports, grouped, and why each group is public.
 sidebar:
   order: 3
 ---
@@ -11,12 +11,12 @@ sidebar:
 ## Overview
 
 The index module is the front of the published package. When an app writes
-`import { … } from "@fndvit/gen-tilesets"`, this file decides what it gets. It contains no logic of
+`import { … } from "@vit-foundation/gen-tilesets"`, this file decides what it gets. It contains no logic of
 its own: it gathers the engine's functions and types from the other modules and re-exports them.
 
 It also draws a boundary. Everything reachable from here is pure engine code, with no page, no
 pixels and no images. The drawing code lives behind a second entry point,
-`@fndvit/gen-tilesets/render`. A host app imports this entry to load a file, inspect or reshape it,
+`@vit-foundation/gen-tilesets/render`. A host app imports this entry to load a file, inspect or reshape it,
 and run generation; it imports the render entry to put the result on screen.
 
 This page lists the exports and the reasons the file's own comments give for exporting them. What
@@ -73,14 +73,14 @@ Modules in this section that are reachable only inside the package: `dev.ts` (`D
 
 ### Callers / callees
 
-The apps import this entry as `@fndvit/gen-tilesets`: 30 non-test files in `apps/editor/src` and
+The apps import this entry as `@vit-foundation/gen-tilesets`: 30 non-test files in `apps/editor/src` and
 `apps/demo/src`. Each symbol's own page lists its call sites.
 
 ### Tests
 
 No test file. The package's own tests import from the individual modules (for example
 `./generate.js`), not from `index.ts`. Twelve editor test files (`apps/editor/src/*.test.ts`,
-`controls/*.test.ts`) import from `@fndvit/gen-tilesets`, so the symbols they use are exercised
+`controls/*.test.ts`) import from `@vit-foundation/gen-tilesets`, so the symbols they use are exercised
 through this entry. Nothing pins the export list as a whole.
 
 ### Gotchas & rejected alternatives

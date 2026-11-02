@@ -76,7 +76,7 @@ export function loadTilesetFile(raw: unknown, label = "tileset file"): TilesetFi
   if (outcome.kind === "newer") {
     throw new Error(
       `${label} declares schemaVersion ${outcome.declared}, but this build of ` +
-        `@fndvit/gen-tilesets knows ${SCHEMA_VERSION}. Upgrade the package.`,
+        `@vit-foundation/gen-tilesets knows ${SCHEMA_VERSION}. Upgrade the package.`,
     );
   }
 

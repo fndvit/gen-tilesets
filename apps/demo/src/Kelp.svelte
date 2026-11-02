@@ -15,9 +15,9 @@
   archive is what a consumer has.
 -->
 <script lang="ts">
-  import { loadTilesetFile, type TilesetFile } from "@fndvit/gen-tilesets";
-  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
-  import { prefixedProvider, type AssetRef, type Overflow } from "@fndvit/gen-tilesets/render";
+  import { loadTilesetFile, type TilesetFile } from "@vit-foundation/gen-tilesets";
+  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
+  import { prefixedProvider, type AssetRef, type Overflow } from "@vit-foundation/gen-tilesets/render";
 
   const ARCHIVE = "/kelp";
   const provider = prefixedProvider(ARCHIVE);

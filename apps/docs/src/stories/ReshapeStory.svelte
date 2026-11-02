@@ -4,9 +4,9 @@
   share a cell they draw the same tile — positional hashing, not a sequence.
 -->
 <script lang="ts">
-  import { loadTilesetFile, reshape, reshapeErrors, shapeOf } from "@fndvit/gen-tilesets";
-  import { prefixedProvider } from "@fndvit/gen-tilesets/render";
-  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
+  import { loadTilesetFile, reshape, reshapeErrors, shapeOf } from "@vit-foundation/gen-tilesets";
+  import { prefixedProvider } from "@vit-foundation/gen-tilesets/render";
+  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
   import raw from "../fixtures/basic.json";
 
   const base = loadTilesetFile(raw, "fixtures/basic.json");

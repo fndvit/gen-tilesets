@@ -1,10 +1,10 @@
 /**
  * Full-page captures of the built demo, across substrate x width x DPR.
  *
- *   pnpm --filter @fndvit/tileset-demo build
- *   pnpm --filter @fndvit/tileset-demo preview          # port 4173
- *   pnpm --filter @fndvit/tileset-demo shots:capture .shots/<name>
- *   pnpm --filter @fndvit/tileset-demo shots:diff .shots/<baseline> .shots/<name>
+ *   pnpm --filter @vit-foundation/tileset-demo build
+ *   pnpm --filter @vit-foundation/tileset-demo preview          # port 4173
+ *   pnpm --filter @vit-foundation/tileset-demo shots:capture .shots/<name>
+ *   pnpm --filter @vit-foundation/tileset-demo shots:diff .shots/<baseline> .shots/<name>
  *
  * This is the check a renderer change has to pass, because `.svelte` cannot be
  * unit-tested here and this project's defects are one-pixel seams that no

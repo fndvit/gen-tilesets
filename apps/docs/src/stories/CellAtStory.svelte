@@ -5,7 +5,7 @@
   The `TileState` shown is read from `generate()`'s grid with `tileStateAt`.
 -->
 <script lang="ts">
-  import { generate, loadTilesetFile, tileStateAt } from "@fndvit/gen-tilesets";
+  import { generate, loadTilesetFile, tileStateAt } from "@vit-foundation/gen-tilesets";
   import {
     cellAt,
     cellBox,
@@ -13,8 +13,8 @@
     prefixedProvider,
     toRenderSpace,
     type GridGeometry,
-  } from "@fndvit/gen-tilesets/render";
-  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
+  } from "@vit-foundation/gen-tilesets/render";
+  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
   import raw from "../fixtures/basic.json";
 
   const file = loadTilesetFile(raw, "fixtures/basic.json");

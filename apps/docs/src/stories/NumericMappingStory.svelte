@@ -4,7 +4,7 @@
   passes under a `constant` Source.
 -->
 <script lang="ts">
-  import { ATTRIBUTES, type AttributeName, type NumericMapping as Mapping } from "@fndvit/gen-tilesets";
+  import { ATTRIBUTES, type AttributeName, type NumericMapping as Mapping } from "@vit-foundation/gen-tilesets";
   import NumericMapping from "../../../editor/src/controls/NumericMapping.svelte";
 
   const attrs = Object.keys(ATTRIBUTES) as AttributeName[];
