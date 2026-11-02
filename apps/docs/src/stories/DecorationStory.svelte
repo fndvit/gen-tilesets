@@ -4,9 +4,9 @@
   asked for until the column is narrower than that (then `max-width: 100%` wins).
 -->
 <script lang="ts">
-  import { loadTilesetFile } from "@fndvit/gen-tilesets";
-  import { prefixedProvider } from "@fndvit/gen-tilesets/render";
-  import TileDecoration from "@fndvit/gen-tilesets/TileDecoration.svelte";
+  import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
+  import { prefixedProvider } from "@vit-foundation/gen-tilesets/render";
+  import TileDecoration from "@vit-foundation/gen-tilesets/TileDecoration.svelte";
   import raw from "../fixtures/basic.json";
 
   const style = loadTilesetFile(raw, "fixtures/basic.json");

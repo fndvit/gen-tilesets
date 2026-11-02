@@ -3,7 +3,7 @@
   `acceptedBlends(target)`; `tileId` accepts only `set`, so it shows no choice.
 -->
 <script lang="ts">
-  import { TARGETS, type BlendName, type TargetName } from "@fndvit/gen-tilesets";
+  import { TARGETS, type BlendName, type TargetName } from "@vit-foundation/gen-tilesets";
   import BlendControl from "../../../editor/src/controls/BlendControl.svelte";
 
   const targets = Object.keys(TARGETS) as TargetName[];

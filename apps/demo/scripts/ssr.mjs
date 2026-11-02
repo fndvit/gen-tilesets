@@ -72,10 +72,10 @@ const vite = await createServer({
 });
 
 const { render } = await vite.ssrLoadModule("svelte/server");
-const { loadTilesetFile } = await vite.ssrLoadModule("@fndvit/gen-tilesets");
-const { prefixedProvider } = await vite.ssrLoadModule("@fndvit/gen-tilesets/render");
-const Tileset = (await vite.ssrLoadModule("@fndvit/gen-tilesets/Tileset.svelte")).default;
-const TileDecoration = (await vite.ssrLoadModule("@fndvit/gen-tilesets/TileDecoration.svelte")).default;
+const { loadTilesetFile } = await vite.ssrLoadModule("@vit-foundation/gen-tilesets");
+const { prefixedProvider } = await vite.ssrLoadModule("@vit-foundation/gen-tilesets/render");
+const Tileset = (await vite.ssrLoadModule("@vit-foundation/gen-tilesets/Tileset.svelte")).default;
+const TileDecoration = (await vite.ssrLoadModule("@vit-foundation/gen-tilesets/TileDecoration.svelte")).default;
 const files = Object.fromEntries(
   ["atlas", "kelp"].map((n) => [
     n,
@@ -94,10 +94,10 @@ async function page(name, width) {
 <body><div id="app" style="width:${width}px">${out.body}</div>
 <script type="module">
   import { hydrate } from "svelte";
-  import { loadTilesetFile } from "@fndvit/gen-tilesets";
-  import { prefixedProvider } from "@fndvit/gen-tilesets/render";
-  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
-  import TileDecoration from "@fndvit/gen-tilesets/TileDecoration.svelte";
+  import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
+  import { prefixedProvider } from "@vit-foundation/gen-tilesets/render";
+  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
+  import TileDecoration from "@vit-foundation/gen-tilesets/TileDecoration.svelte";
   const file = loadTilesetFile(await (await fetch("/${fileOf(name)}/tileset.json")).json(), "${fileOf(name)}.zip");
   const options = ${CASES[name]};
   const props = ${decoration} ? { style: file, rows: 2, columns: 3, cellSize: 48, options } : { file, options };

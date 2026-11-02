@@ -126,7 +126,7 @@ Engine types: [`AssetProvider`](/api/render/type-aliases/assetprovider/),
 | `download.ts:43` | `stored` to read original bytes for export. |
 | `reference.ts:56` | `measure`, reused for the reference image. |
 
-Callees: `assetKey`, `parseAssetKey` and `requireNaturalSize` from `@fndvit/gen-tilesets/render`, `URL.createObjectURL` /
+Callees: `assetKey`, `parseAssetKey` and `requireNaturalSize` from `@vit-foundation/gen-tilesets/render`, `URL.createObjectURL` /
 `revokeObjectURL`, `Image`.
 
 ### Tests

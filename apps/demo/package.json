@@ -1,5 +1,5 @@
 {
-  "name": "@fndvit/tileset-demo",
+  "name": "@vit-foundation/tileset-demo",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "shots:diff": "node scripts/diff.mjs"
   },
   "dependencies": {
-    "@fndvit/gen-tilesets": "workspace:*"
+    "@vit-foundation/gen-tilesets": "workspace:*"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.0",

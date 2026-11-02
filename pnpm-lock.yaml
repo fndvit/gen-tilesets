@@ -26,7 +26,7 @@ importers:
 
   apps/demo:
     dependencies:
-      '@fndvit/gen-tilesets':
+      '@vit-foundation/gen-tilesets':
         specifier: workspace:*
         version: link:../../packages/tileset
     devDependencies:
@@ -51,7 +51,7 @@ importers:
 
   apps/docs:
     dependencies:
-      '@fndvit/gen-tilesets':
+      '@vit-foundation/gen-tilesets':
         specifier: workspace:*
         version: link:../../packages/tileset
     devDependencies:
@@ -88,7 +88,7 @@ importers:
 
   apps/editor:
     dependencies:
-      '@fndvit/gen-tilesets':
+      '@vit-foundation/gen-tilesets':
         specifier: workspace:*
         version: link:../../packages/tileset
       fflate:

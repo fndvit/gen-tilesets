@@ -16,10 +16,10 @@
   what the comments record.
 -->
 <script lang="ts">
-  import { selections } from "@fndvit/gen-tilesets";
-  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
-  import { naturalHeight, naturalRatio, type AssetRef } from "@fndvit/gen-tilesets/render";
-  import { activeRules, reshape, ruleOverride, type TilesetFile } from "@fndvit/gen-tilesets";
+  import { selections } from "@vit-foundation/gen-tilesets";
+  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
+  import { naturalHeight, naturalRatio, type AssetRef } from "@vit-foundation/gen-tilesets/render";
+  import { activeRules, reshape, ruleOverride, type TilesetFile } from "@vit-foundation/gen-tilesets";
   import { editorProvider, replaceAll } from "./assets.js";
   import { bleed } from "./derive.js";
   import { exportZip } from "./download.js";

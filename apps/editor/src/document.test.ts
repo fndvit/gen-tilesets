@@ -11,7 +11,7 @@ import {
   type Transition,
 } from "./document.js";
 import { parseCellSize, parseReferenceWidth, parseRows, parseYOffset } from "./fields.js";
-import { validate } from "@fndvit/gen-tilesets";
+import { validate } from "@vit-foundation/gen-tilesets";
 
 const doc = () => newDocument();
 

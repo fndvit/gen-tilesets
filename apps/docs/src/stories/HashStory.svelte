@@ -5,7 +5,7 @@
   there are, which is what keeps a resize stable.
 -->
 <script lang="ts">
-  import { effectiveSeeds, generate, hash, loadTilesetFile } from "@fndvit/gen-tilesets";
+  import { effectiveSeeds, generate, hash, loadTilesetFile } from "@vit-foundation/gen-tilesets";
   import raw from "../fixtures/basic.json";
 
   const file = loadTilesetFile(raw, "fixtures/basic.json");

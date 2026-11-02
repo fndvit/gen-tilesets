@@ -1,6 +1,6 @@
 {
-  "name": "@fndvit/gen-tilesets",
-  "version": "0.9.0",
+  "name": "@vit-foundation/gen-tilesets",
+  "version": "0.10.0",
   "description": "Procedural tileset generator: a pure, deterministic engine and a Svelte renderer.",
   "license": "MIT",
   "repository": {
@@ -39,8 +39,8 @@
     "./tileset.css": "./src/render/tileset.css"
   },
   "publishConfig": {
-    "access": "restricted",
-    "registry": "https://npm.pkg.github.com",
+    "access": "public",
+    "registry": "https://registry.npmjs.org",
     "types": "./dist/index.d.ts",
     "exports": {
       ".": {

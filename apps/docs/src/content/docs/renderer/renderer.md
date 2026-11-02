@@ -29,7 +29,7 @@ r.destroy();
 **It draws both substrates.** Under `"canvas"` it paints one `<canvas>`; under `"dom"` it keeps one
 `.cell` element per shown cell. A switch between them at runtime keeps the box. `<Tileset>` and
 `<TileDecoration>` are thin Svelte wrappers around it (0.9.0), and `TileDecorationRenderer`
-(`decoration.ts`) is the plain-JS decoration. Both are exported from `@fndvit/gen-tilesets/render`
+(`decoration.ts`) is the plain-JS decoration. Both are exported from `@vit-foundation/gen-tilesets/render`
 since 0.9.0. The package README has an Observable Framework example and a wrapper pattern for other
 frameworks.
 
@@ -193,7 +193,7 @@ render throws calls it before rethrowing, since no instance reaches the caller t
 
 ### Public surface
 
-Exported from `@fndvit/gen-tilesets/render` since 0.9.0.
+Exported from `@vit-foundation/gen-tilesets/render` since 0.9.0.
 
 | Export | What |
 | --- | --- |

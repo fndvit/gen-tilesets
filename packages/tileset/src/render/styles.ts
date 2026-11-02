@@ -1,7 +1,7 @@
 /**
  * The renderer's stylesheet, delivered at runtime.
  *
- * `tileset.css` is the source and ships as `@fndvit/gen-tilesets/tileset.css`
+ * `tileset.css` is the source and ships as `@vit-foundation/gen-tilesets/tileset.css`
  * for a host that links it; `TILESET_CSS` is the same text, generated, for
  * `injectStyles` to put wherever the renderer mounts. A Svelte host gets the file
  * through the bundler too (`Tileset.svelte` imports it, which is what styles
@@ -200,7 +200,7 @@ export function injectStyles(box: Element): void {
     // document.
     if (DEV && !warned.has(doc)) {
       warned.add(doc);
-      console.warn("gen-tilesets: styles were blocked by CSP; link `@fndvit/gen-tilesets/tileset.css` instead.");
+      console.warn("gen-tilesets: styles were blocked by CSP; link `@vit-foundation/gen-tilesets/tileset.css` instead.");
     }
     return;
   }

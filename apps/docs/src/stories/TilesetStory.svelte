@@ -4,9 +4,9 @@
   fixture that stops validating fails here loudly rather than rendering wrong.
 -->
 <script lang="ts">
-  import { loadTilesetFile } from "@fndvit/gen-tilesets";
-  import { prefixedProvider } from "@fndvit/gen-tilesets/render";
-  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
+  import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
+  import { prefixedProvider } from "@vit-foundation/gen-tilesets/render";
+  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
   import raw from "../fixtures/basic.json";
 
   const file = loadTilesetFile(raw, "fixtures/basic.json");

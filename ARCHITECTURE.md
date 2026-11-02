@@ -5,7 +5,7 @@ authoritative and this document restates nothing normative.
 
 ## The shape of it
 
-One pure engine and one renderer, published together as `@fndvit/gen-tilesets`. The editor is a
+One pure engine and one renderer, published together as `@vit-foundation/gen-tilesets`. The editor is a
 consumer of that package with no privileged access: its preview is an ordinary `<Tileset>`.
 
 **The renderer is three layers** (0.9.0), and only the outermost knows a framework:
@@ -18,7 +18,7 @@ TilesetRenderer (renderer.ts)  plain DOM: owns the elements, measurement, image 
 <Tileset>, <TileDecoration>    Svelte wrappers: props, bind:box, the server placeholder
 ```
 
-`TilesetRenderer` and `TileDecorationRenderer` are exported from `@fndvit/gen-tilesets/render`,
+`TilesetRenderer` and `TileDecorationRenderer` are exported from `@vit-foundation/gen-tilesets/render`,
 so Observable, plain HTML or another framework's wrapper uses the same implementation the Svelte
 components do. `TilesetModel` is not exported: it is the renderer's plumbing.
 
@@ -60,16 +60,16 @@ place they meet.
 
 | Path | Package | What |
 | --- | --- | --- |
-| `packages/tileset` | `@fndvit/gen-tilesets` | Engine and renderer. **The only published package.** |
-| `apps/editor` | `@fndvit/tileset-editor` | The authoring tool. Svelte 5, Vite, `fflate`. Dev server 5174. |
-| `apps/demo` | `@fndvit/tileset-demo` | A fixture page for the renderer. Port 5173. |
+| `packages/tileset` | `@vit-foundation/gen-tilesets` | Engine and renderer. **The only published package.** |
+| `apps/editor` | `@vit-foundation/tileset-editor` | The authoring tool. Svelte 5, Vite, `fflate`. Dev server 5174. |
+| `apps/demo` | `@vit-foundation/tileset-demo` | A fixture page for the renderer. Port 5173. |
 
 pnpm workspace. Root scripts: `pnpm test` and `pnpm typecheck`, both recursive. CI runs both on
 every push; a `v*` tag publishes the package (`.github/workflows/`). There is no `pnpm citations`
 here — `citations.mjs` went with the spec to `../gen-tileset-spec-archive/scripts/`, and the
 citations in the source are no longer checked by anything.
 
-`@fndvit/gen-tilesets` is at `0.8.0`. Everything `05` §10 says about version bumps describes a
+`@vit-foundation/gen-tilesets` is at `0.8.0`. Everything `05` §10 says about version bumps describes a
 future state; `05` §10.3 puts all of V1 at `0.x`, where no bump kind binds. **ADR-004 is the
 release valve that makes vector tables generatable before then, and it expires at 1.0.0.**
 
@@ -123,7 +123,7 @@ header of `registry/sources.ts` and `spec/FREEZE.md` A-5.
 | `renderer.ts` | **`TilesetRenderer` — the renderer, with no framework.** The one entry point (**S1**): takes a `TilesetFile` and calls `generate()` (through the model) itself; nothing accepts a bare grid. `new TilesetRenderer(host, { file, options, id? })`, `update()`, `box`, `destroy()`. Derives nothing itself: it feeds `TilesetModel` and owns what the model cannot — the elements, the measurement subscription, asset settling, the image bank, the canvas paint and the DOM cells. Every trigger queues one microtask render. Exported. |
 | `Tileset.svelte` | The Svelte wrapper. Mounts a `TilesetRenderer` in an effect, hands it every prop change, exposes `renderer.box` through `bind:box`. Its root is a `div[data-tileset-host]` with `display: contents`. On the server it writes `Placeholder.svelte` instead. |
 | `placeholder.ts`, `Placeholder.svelte` | The render box as the renderer builds it before its first measurement, computed without a grid, so server HTML reserves the tileset's space (**S8**). `setAside` retires it on mount. |
-| `styles.ts`, `tileset.css` | The one global stylesheet (class *and* `data-tileset-*` attribute per selector), shipped as `@fndvit/gen-tilesets/tileset.css`, bundled by the Svelte components, and injected by `injectStyles` once a box is in a page and the rules do not already reach it. `TILESET_CSS` is generated from the file. |
+| `styles.ts`, `tileset.css` | The one global stylesheet (class *and* `data-tileset-*` attribute per selector), shipped as `@vit-foundation/gen-tilesets/tileset.css`, bundled by the Svelte components, and injected by `injectStyles` once a box is in a page and the rules do not already reach it. `TILESET_CSS` is generated from the file. |
 | `model.ts` | **`TilesetModel` — everything the renderer derives, with no DOM.** Inputs `(file, options, measured width/height/rects, dpr)`; outputs the resolved options, the S3 assertion, the rules in force (keyed on `activeKey`, so a resize inside a band touches nothing), the grid via `GridCache`, the geometry for each substrate, the keep-out mask, the canvas draw list and the DOM cell list. Each stage is a `Memo` that recomputes like a `$derived` (`Object.is` per input, read lazily) on a clock that moves only when an input changed. `cellStyle` / `affineCellStyle` are the DOM cell's placement; the affine one is what a server-side render would write. The first step of making the renderer framework-free. |
 | `breakpoints.ts` | What `<Tileset>` does with rules, testable: `GridCache` (one grid per `(rows, columns)`, so crossing a breakpoint twice generates once), `reservationCss` (the container-query height reserved before measurement), `FlipFlop` (names the scrollbar feedback loop), `inertCellSizeRules`. |
 | `options.ts` | **`TilesetOptions`** — every setting in one typed object, each field documented. `resolveOptions` is the only place a default is written; `optionErrors` and `legacyPropErrors` are the development-build checks. `copyOptions` turns an in-place edit of deeply reactive options into a new object the model can see. Named `options` because `file.config` already owns `config`. |
@@ -304,7 +304,7 @@ thin. `model.test.ts` runs in node; `renderer.test.ts`, `decoration.test.ts`, `s
 picture are covered outside Vitest, by `apps/demo`:
 
 - `svelte-check`;
-- the screenshot harness (`pnpm --filter @fndvit/tileset-demo shots:capture <dir>`, then
+- the screenshot harness (`pnpm --filter @vit-foundation/tileset-demo shots:capture <dir>`, then
   `shots:diff`): 32 captures of both substrates, fluid and fixed, `avoid` on and off, fractional
   cell sizes, DPR 1 and 2, compared to a git-ignored baseline at 0 px;
 - `scripts/ssr.mjs`: the server HTML reserves a pinned height per case, and hydration leaves one

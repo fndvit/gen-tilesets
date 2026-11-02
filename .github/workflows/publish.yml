@@ -1,11 +1,16 @@
-# Publish `@fndvit/gen-tilesets` to GitHub Packages on a version tag.
+# Publish `@vit-foundation/gen-tilesets` to the public npm registry on a version tag.
 #
-# `GITHUB_TOKEN` already carries `packages: write` for this repository, so there
-# is no personal token to mint, rotate, or leak into a secret. The release
-# gesture is therefore just `git tag v0.1.0 && git push --tags`.
+# Authentication is npm trusted publishing: npm trusts this repository's
+# `publish.yml` (configured on the package's npmjs.com settings page) and the
+# job proves who it is with a GitHub OIDC token (`id-token: write`). There is
+# no npm token to mint, rotate, or leak into a secret, and npm attaches
+# provenance on its own. Rejected: an `NPM_TOKEN` secret, which is exactly the
+# long-lived credential this avoids. (Before 0.10.0 the package went to GitHub
+# Packages, whose npm registry needs a token even to install a public package.)
 #
-# `actions/setup-node` writes the `.npmrc` that `pnpm publish` reads; the scope
-# must match the org, because GitHub Packages resolves a package by its scope.
+# pnpm packs and npm publishes. Only pnpm applies `publishConfig.exports`, which
+# swaps the workspace's `src` exports for the built `dist` ones; only npm (>=
+# 11.5.1) speaks trusted publishing. Publishing the packed tarball gets both.
 name: publish
 
 on:
@@ -18,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -28,17 +33,20 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://npm.pkg.github.com
-          scope: "@fndvit"
+          registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
 
-      # Both must be green — CLAUDE.md. `prepublishOnly` runs them again for a
-      # local publish; here they run before the tarball is built so a red tag
-      # fails loudly rather than shipping.
+      # Both must be green — CLAUDE.md. They run before the tarball is built so
+      # a red tag fails loudly rather than shipping. `pnpm pack` does not run
+      # `prepublishOnly`, so the build is explicit.
       - run: pnpm test
       - run: pnpm typecheck
+      - run: pnpm --filter @vit-foundation/gen-tilesets build
 
-      - run: pnpm --filter @fndvit/gen-tilesets publish --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: npm install -g npm@latest
+
+      - working-directory: packages/tileset
+        run: |
+          pnpm pack
+          npm publish ./vit-foundation-gen-tilesets-*.tgz --access public

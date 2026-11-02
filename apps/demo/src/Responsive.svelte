@@ -22,10 +22,10 @@
   switching it to `sizing: "fixed"` keeps the tile size and crops instead.
 -->
 <script lang="ts">
-  import { activeKey, loadTilesetFile, type TilesetFile } from "@fndvit/gen-tilesets";
-  import TileDecoration from "@fndvit/gen-tilesets/TileDecoration.svelte";
-  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
-  import { prefixedProvider, type HostRule, type Substrate } from "@fndvit/gen-tilesets/render";
+  import { activeKey, loadTilesetFile, type TilesetFile } from "@vit-foundation/gen-tilesets";
+  import TileDecoration from "@vit-foundation/gen-tilesets/TileDecoration.svelte";
+  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
+  import { prefixedProvider, type HostRule, type Substrate } from "@vit-foundation/gen-tilesets/render";
 
   const provider = prefixedProvider("/atlas");
 

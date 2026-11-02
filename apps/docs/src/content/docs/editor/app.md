@@ -85,7 +85,7 @@ Which component renders which, in source order. Conditional children are marked.
         - [`ReferenceControls`](/editor/reference-controls/)
         - [`ReferenceLayer`](/editor/reference-layer/) (*if* a reference image is loaded)
         - `children(Wpx)` snippet:
-          - `<Tileset>` from `@fndvit/gen-tilesets/Tileset.svelte`
+          - `<Tileset>` from `@vit-foundation/gen-tilesets/Tileset.svelte`
           - [`SelectionOverlay`](/editor/selection-overlay/) (*if* `shadow !== null`)
           - [`PaintLayer`](/editor/paint-layer/) (*if* the draft has a `cellList` param and `renderBox` is bound)
       - notes, asset failure list, "The file" `<details>` with the JSON

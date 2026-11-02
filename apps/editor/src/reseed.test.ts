@@ -7,7 +7,7 @@
  * picture does not.*
  */
 
-import type { Operation, TilesetConfig } from "@fndvit/gen-tilesets";
+import type { Operation, TilesetConfig } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { newDocument, rerollAssets, rerollOperation, setReseedOnLoad } from "./document.js";
 import {

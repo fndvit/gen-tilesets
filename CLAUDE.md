@@ -14,7 +14,7 @@ ordinary consumer of that package — its preview is a plain `<Tileset>`.
 | `CHANGELOG.md`        | What was built, per version.                                      |
 | `SUBPIXEL-GEOMETRY.md`| Why the residual has nowhere good to go, every approach tried, and what is still open. **Read before touching `uniform.ts`, a crop policy, or the substrate default.** |
 | `RESPONSIVE-HOSTING.md`| Why a gap painted for a heading does not stay under it when the page reflows, and the answers. Routes A, B and D are analysis only; **Route E (§7, `options.avoid`) is built** and says why it replaced Route B; **Route C is built as responsive rules (§9)** and says what that costs. §8 (decorations): the `avoid` scope fix is built, fit-to-slot is analysis only. |
-| `packages/tileset`    | `@fndvit/gen-tilesets` — engine and renderer. **The only published package.** |
+| `packages/tileset`    | `@vit-foundation/gen-tilesets` — engine and renderer. **The only published package.** |
 | `apps/editor`         | The editor. Private, unpublished. Dev server on 5174.             |
 | `apps/demo`           | A fixture page for the renderer. Private, unpublished. Port 5173.  |
 
@@ -59,7 +59,7 @@ went the way it did.
 
 ## Versioning
 
-`packages/tileset` is published as `@fndvit/gen-tilesets`; the two apps are not. Consumers pin an
+`packages/tileset` is published as `@vit-foundation/gen-tilesets`; the two apps are not. Consumers pin an
 **exact** version.
 
 We are at `0.x`, and `0.x` promises nothing about output stability — that is deliberate, and it is
@@ -68,7 +68,8 @@ generated and drawn output must be pinned by real vector tables; until then, an 
 version bump and a changelog line, not a crisis.
 
 **Releasing** is `git tag vX.Y.Z && git push --tags`. That runs `.github/workflows/publish.yml`,
-which tests, typechecks, builds and publishes to GitHub Packages under the `fndvit` org. Bump
+which tests, typechecks, builds and publishes **publicly to npmjs.com** under the `vit-foundation`
+org, authenticated by npm trusted publishing (no token secret). Bump
 `packages/tileset/package.json` first — the tag does not set the version, and a tag whose version
 is already published fails.
 

@@ -78,7 +78,7 @@ if (process.argv.includes("--check")) {
     current = lf(readFileSync(out, "utf8"));
   } catch {}
   if (current !== module || source !== stamped) {
-    console.error("tileset.css or css.generated.ts is stale: run `pnpm --filter @fndvit/gen-tilesets css`.");
+    console.error("tileset.css or css.generated.ts is stale: run `pnpm --filter @vit-foundation/gen-tilesets css`.");
     process.exit(1);
   }
 } else {

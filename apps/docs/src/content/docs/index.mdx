@@ -1,9 +1,9 @@
 ---
 title: Start here
-description: Contributor reference for @fndvit/gen-tilesets and the editor.
+description: Contributor reference for @vit-foundation/gen-tilesets and the editor.
 ---
 
-A file-by-file reference for `packages/tileset` (`@fndvit/gen-tilesets`) and `apps/editor`,
+A file-by-file reference for `packages/tileset` (`@vit-foundation/gen-tilesets`) and `apps/editor`,
 for contributors and maintainers. `apps/demo` is out of scope.
 
 **Every page is written from source code only:** `.ts`, `.svelte` and `*.test.ts`. No page is
@@ -55,7 +55,7 @@ They are not mocks.
 
 ## Keeping it honest
 
-- `pnpm --filter @fndvit/tileset-docs build` runs `scripts/coverage.ts` first. It fails if any
+- `pnpm --filter @vit-foundation/tileset-docs build` runs `scripts/coverage.ts` first. It fails if any
   non-test `.ts` or `.svelte` file under `packages/tileset/src` or `apps/editor/src` has no module
   page whose **Written from** line names it by its full path.
 - CI builds the site on every push, so a page that stops compiling, or a public entry point that

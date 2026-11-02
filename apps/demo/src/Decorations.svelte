@@ -27,9 +27,9 @@
   four sides of the grid. A gutter or a clipped edge has nowhere to hide here.
 -->
 <script lang="ts">
-  import { loadTilesetFile } from "@fndvit/gen-tilesets";
-  import TileDecoration from "@fndvit/gen-tilesets/TileDecoration.svelte";
-  import { prefixedProvider, type AssetRef } from "@fndvit/gen-tilesets/render";
+  import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
+  import TileDecoration from "@vit-foundation/gen-tilesets/TileDecoration.svelte";
+  import { prefixedProvider, type AssetRef } from "@vit-foundation/gen-tilesets/render";
 
   /**
    * Drawn by the host (`App.svelte`), not here — `08` §5.1 puts the draw with

@@ -31,8 +31,8 @@
   then visible rather than invisible.
 -->
 <script lang="ts">
-  import { loadTilesetFile } from "@fndvit/gen-tilesets";
-  import Tileset from "@fndvit/gen-tilesets/Tileset.svelte";
+  import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
+  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
   import {
     domGeometry,
     naturalHeight,
@@ -41,7 +41,7 @@
     uniformGeometry,
     type AssetRef,
     type GridGeometry,
-  } from "@fndvit/gen-tilesets/render";
+  } from "@vit-foundation/gen-tilesets/render";
 
   /** The same served archive the footer fixture reads, so no asset is duplicated. */
   const ARCHIVE = "/atlas";

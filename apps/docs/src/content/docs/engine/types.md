@@ -118,7 +118,7 @@ Field meanings the comments pin down:
 `validate.ts`, and in `render/`: `Tileset.svelte`, `TileDecoration.svelte`, `breakpoints.ts`,
 `geometry.ts`, `occlusion.ts`, `options.ts`, `uniform.ts`. The apps reach these types through the
 package entry: 30 non-test files in `apps/editor/src` and `apps/demo/src` import from
-`@fndvit/gen-tilesets`.
+`@vit-foundation/gen-tilesets`.
 
 `tileStateAt` has no non-test caller in the three source trees. It is used by
 `generate.test.ts`, `selection.test.ts` and `shape.test.ts`.

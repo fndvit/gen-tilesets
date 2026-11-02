@@ -19,7 +19,7 @@
   `TileLibrary.svelte`.
 -->
 <script lang="ts">
-  import { paletteTotal, type PaletteEntry, type Tile } from "@fndvit/gen-tilesets";
+  import { paletteTotal, type PaletteEntry, type Tile } from "@vit-foundation/gen-tilesets";
 
   interface Props {
     palette: PaletteEntry[];

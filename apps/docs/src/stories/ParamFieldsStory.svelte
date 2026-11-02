@@ -4,7 +4,7 @@
   picking another Selection or Source changes the controls with no code here.
 -->
 <script lang="ts">
-  import { selections, sources } from "@fndvit/gen-tilesets";
+  import { selections, sources } from "@vit-foundation/gen-tilesets";
   import ParamFields from "../../../editor/src/controls/ParamFields.svelte";
 
   const options = [

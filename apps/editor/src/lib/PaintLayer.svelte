@@ -27,7 +27,7 @@
     cellPlacementPercent,
     naturalHeight,
     type GridGeometry,
-  } from "@fndvit/gen-tilesets/render";
+  } from "@vit-foundation/gen-tilesets/render";
   import { addCell, cellUnder, hasCell, metricsOf, removeCell, type Cell } from "../paint.js";
 
   interface Props {

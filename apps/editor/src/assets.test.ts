@@ -6,7 +6,7 @@
  * lifetime, which is where undo and id allocation meet it.
  */
 
-import type { Drawable } from "@fndvit/gen-tilesets/render";
+import type { Drawable } from "@vit-foundation/gen-tilesets/render";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { attach, editorProvider, heldAssetIds, heldTileIds, replaceAll } from "./assets.js";
 import { nextAssetId, nextTileId } from "./ids.js";

@@ -8,6 +8,24 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.10.0 — public on npm, as `@vit-foundation/gen-tilesets`
+
+The package is renamed from `@fndvit/gen-tilesets` to **`@vit-foundation/gen-tilesets`** and
+published **publicly on npmjs.com**. Installing it needs no token and no `.npmrc`, and CDNs
+(jsDelivr, unpkg) and Observable's `npm:` can reach it. The `fndvit` scope is obsolete. Versions
+up to 0.9.0 stay on GitHub Packages under the old name, and nothing further goes there.
+
+The rename is the only change: same code, same output. Consumers change `@fndvit/` to
+`@vit-foundation/` in their imports and drop the GitHub Packages lines from `.npmrc`. The private
+apps were renamed too (`@vit-foundation/tileset-editor`, `-demo`, `-docs`). The GitHub repository
+stays at `fndvit/gen-tilesets`.
+
+`publish.yml` now packs with pnpm and publishes with npm through trusted publishing (GitHub OIDC),
+with `id-token: write` in place of `packages: write`. 0.10.0 itself was published by hand, because
+npm only lets trusted publishing be configured on a package that exists.
+
+---
+
 ## 0.9.0 — the framework-agnostic core
 
 The renderer is now a plain TypeScript class, `TilesetRenderer`, and `<Tileset>` and

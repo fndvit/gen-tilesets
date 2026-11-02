@@ -71,7 +71,7 @@ original bytes.
 the same name.
 
 Callees: `entries` (`export.ts`), `stored` (`assets.ts`), `assetKey`
-(`@fndvit/gen-tilesets/render`), `zipSync` (`fflate`), `Blob`, `URL.createObjectURL` /
+(`@vit-foundation/gen-tilesets/render`), `zipSync` (`fflate`), `Blob`, `URL.createObjectURL` /
 `revokeObjectURL`, `document.createElement`.
 
 ### Tests

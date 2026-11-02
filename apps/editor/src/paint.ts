@@ -35,7 +35,7 @@ import {
   toRenderSpace,
   type BoxMetrics,
   type GridGeometry,
-} from "@fndvit/gen-tilesets/render";
+} from "@vit-foundation/gen-tilesets/render";
 
 /** A painted cell. The wire shape `04` §4.4 gives `cellList`, and a tuple in the file. */
 export type Cell = [number, number];
@@ -47,7 +47,7 @@ export type Cell = [number, number];
  * `07` §8.2's "single most likely place to get this wrong" is **R1**'s failure. It
  * is re-exported so this module's callers and tests are unchanged.
  */
-export { metricsOf, toRenderSpace, type BoxMetrics } from "@fndvit/gen-tilesets/render";
+export { metricsOf, toRenderSpace, type BoxMetrics } from "@vit-foundation/gen-tilesets/render";
 
 /**
  * The cell under a pointer, or `null` outside the grid.

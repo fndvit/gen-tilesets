@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { validate, type Operation, type TilesetFile } from "@fndvit/gen-tilesets";
+import { validate, type Operation, type TilesetFile } from "@vit-foundation/gen-tilesets";
 import {
   addOperation,
   addRule,

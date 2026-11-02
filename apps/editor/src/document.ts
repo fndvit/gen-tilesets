@@ -45,7 +45,7 @@ import {
   type Tile,
   type TileAsset,
   type TilesetFile,
-} from "@fndvit/gen-tilesets";
+} from "@vit-foundation/gen-tilesets";
 import { deriveColumns } from "./derive.js";
 import {
   parseCellSize,
