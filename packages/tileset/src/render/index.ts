@@ -161,3 +161,26 @@ export {
   type AssetRef,
   type Drawable,
 } from "./provider.js";
+
+/**
+ * The renderer itself — what `<Tileset>` and `<TileDecoration>` wrap, for a host
+ * with no Svelte (Observable, plain HTML, another framework). `new
+ * TilesetRenderer(host, { file, options })` draws into `host`; `update()` takes
+ * any change; `destroy()` removes everything it added.
+ *
+ * The styles are injected at mount when they do not already reach the box, so
+ * linking `@fndvit/gen-tilesets/tileset.css` is optional. `injectStyles` and
+ * `TILESET_CSS` are here for a host that wants them in place before the first
+ * mount (a shadow root, a server-rendered shell).
+ *
+ * `TilesetModel`, the placeholder helpers and the box-style functions stay
+ * unexported on purpose: they are the wrappers' plumbing, and exporting them
+ * would freeze code that is still being reshaped.
+ */
+export { TilesetRenderer, type TilesetRendererInit, type TilesetRendererInputs } from "./renderer.js";
+export {
+  TileDecorationRenderer,
+  type TileDecorationInit,
+  type TileDecorationInputs,
+} from "./decoration.js";
+export { injectStyles, TILESET_CSS } from "./styles.js";

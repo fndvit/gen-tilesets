@@ -1,6 +1,6 @@
 ---
 title: Tileset.svelte
-description: The renderer's one entry point. Takes a TilesetFile and options, generates the grid, places it for the box, masks it, and paints it on a canvas or as DOM cells.
+description: The Svelte entry point. A thin wrapper that mounts TilesetRenderer, hands it every prop change, exposes its box, and writes a placeholder on the server.
 sidebar:
   order: 1
 ---
@@ -9,38 +9,29 @@ import TilesetStory from "../../../stories/TilesetStory.svelte";
 
 **Written from:** `packages/tileset/src/render/Tileset.svelte`,
 `packages/tileset/src/render/placeholder.ts` (with `placeholder.test.ts`),
-`packages/tileset/src/render/Placeholder.svelte`, the tests of the modules it is
-built from (`options.test.ts`, `breakpoints.test.ts`, `measure.test.ts`, `geometry.test.ts`,
-`sizing.test.ts`, `uniform.test.ts`, `occlusion.test.ts`, `edges.test.ts`, `provider.test.ts`,
-`images.test.ts`), and
+`packages/tileset/src/render/Placeholder.svelte`, `apps/demo/scripts/ssr.mjs`, and
 the call sites in `apps/editor/src/App.svelte`, `apps/demo/src` and `render/TileDecoration.svelte`.
 
 ## Overview
 
-`<Tileset>` is the component that puts a tileset on a page. A host gives it a tileset file and,
-optionally, a settings object. The component generates the grid of tiles from the file, works out
-where every cell goes for the width of the box it has been given, hides any tiles that would sit on
-top of page content the host asked it to avoid, and paints the result.
+`<Tileset>` is how a Svelte page puts a tileset on screen. A host gives it a tileset file and,
+optionally, a settings object. It generates the grid, places it for the box it was given, hides
+tiles that would cover content the host asked it to avoid, and paints the result, on one canvas by
+default or as one element per cell.
 
-It can paint in two ways. The default, **canvas**, draws the whole grid as one bitmap, which is
-seamless and cheap. The alternative, **DOM**, creates one element per cell, so each tile can be
-clicked. Either way the box reserves its correct height before anything is drawn, so the page does
-not jump.
+**Since 0.9.0 it is a thin wrapper over [`TilesetRenderer`](/renderer/renderer/)**, which does all
+of that and works without Svelte. [`model.ts`](/renderer/model/) derives everything the renderer
+draws. This component adds only what a Svelte host needs:
 
-**Since 0.9.0 it is a thin wrapper over [`TilesetRenderer`](/renderer/renderer/)**, which does
-everything this page describes; the component mounts it in an effect, passes every prop change to
-`update()`, and exposes its box through `bind:box`. On the server no effect runs, so the component
-writes a **placeholder** instead: the render box exactly as the renderer builds it before its first
-measurement (`placeholder.ts` computes it from the stages before `generate()`, and
-`Placeholder.svelte` writes it out). The page reserves the tileset's space before any script runs,
-and the swap to the real box moves nothing. Cells in the server HTML (which the DOM substrate had
-until 0.9.0) wait on a server-side renderer. The sections below were written for the component
-before it became a wrapper; Block 6 of the vanilla-core refactor rewrites them.
+- props, and `bind:box`;
+- options edited in place (a `$state` object) counting as a change;
+- a placeholder in server-rendered HTML, so the page reserves the tileset's space before any
+  script runs;
+- a development check for the props that moved into `options` in 0.6.0.
 
-It is the whole of the pipeline in one place: file → load check → generate → measure → place →
-mask → draw. The editor's preview is this same component on the editor's file, and
-`<TileDecoration>` is a thin wrapper around it. The modules this page links to are the pieces it
-is built from; this page is about how they are wired together.
+The editor's preview is this component on the editor's file, and
+[`<TileDecoration>`](/renderer/tile-decoration/) is the same kind of wrapper over
+`TileDecorationRenderer`.
 
 ## Try it
 
@@ -54,334 +45,123 @@ design the picture only rescales, and the grid is never regenerated.
 
 ### Purpose
 
-The header lists the rules the component exists to keep:
+The rules the renderer keeps, and so this component with it:
 
 - **S1: one entry point.** It accepts a `TilesetFile` and calls `generate()` itself. Nothing in
   the package accepts a `Grid<TileState>` as an input.
 - **S2: the editor's preview is this component** on the editor's file. Overlays draw *over* it,
   never instead of it. There is no preview mode.
 - **S3: no validation on the draw path.** In production it has undefined behaviour on a file
-  `validate()` would reject. In a development build it asserts validity once per file (see
-  *Development checks*).
-- **S7: no random number and no ambient state.** `Math.random()` does not appear, which makes
-  "`loadSalt` is drawn once by the host" structural: the component has no draw to repeat.
-- **Four stages, and only the last is a substrate** (0.6.0): `generate()` makes the grid;
-  `geometry.ts` / `uniform.ts` place it; `occlusion.ts` turns keep-out rects into a mask; one of two
-  template branches paints.
+  `validate()` would reject. A development build asserts validity once per file.
+- **S7: no random number and no ambient state.** `loadSalt` is drawn once by the host, so the
+  component has no draw to repeat.
 
 ### Public surface
 
-Imported as `@fndvit/gen-tilesets/Tileset.svelte`. It is not exported from
-[`render/index.ts`](/renderer/render-index/).
+Imported as `@fndvit/gen-tilesets/Tileset.svelte`.
 
 | Prop | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `file` | `TilesetFile` | required | Parsed, valid, and held stable by the host (cited as **S3**). |
+| `file` | `TilesetFile` | required | Parsed, valid, and held stable by the host (**S3**). |
 | `options` | [`TilesetOptions`](/api/render/interfaces/tilesetoptions/) `\| undefined` | `undefined` | Every setting. Defaults are in `resolveOptions`; see [options.ts](/renderer/options/). |
-| `box` | `HTMLElement \| null` | `null` | **Bindable.** The render box element, for converting pointer events to render space. |
+| `box` | `HTMLElement \| null` | `null` | **Bindable.** `renderer.box`: the render box, for converting pointer events to render space. `null` until the renderer mounts and after teardown. |
 | `...rest` | anything | none | Collected only so a development build can throw on a pre-0.6.0 prop (`seed`, `loadSalt`, `provider`, `onAssetError`, `substrate`). |
 
-No events and no snippets. Callbacks go through `options.onAssetError`.
+No events and no snippets. Callbacks go through `options.onAssetError`. The attributes a host can
+select on are listed in [DOM hooks](/renderer/dom-hooks/).
 
-**DOM attributes a host can rely on:** the box carries `data-tileset-box` and, once measured,
-`data-measured`. Under `substrate: "dom"` each cell is a `.cell` with `data-x` and `data-y`, and
-`data-masked` when the keep-out mask hides it. With responsive rules, the box sits inside a
-`.container` carrying `data-tileset-wrapper` set to the instance id. The package's stylesheet
-(`tileset.css`, see [styles.ts](/renderer/styles/)) selects on each element's class *and* its
-`data-tileset-*` attribute (`data-tileset-cell`, `data-tileset-canvas` and `data-tileset-extent`
-too), so its rules never reach a host's own `.cell` or `.container`.
+**The root element is a `div[data-tileset-host]` with `display: contents`**, holding the render
+box. It has no box of its own, so the render box's `width: 100%` resolves against the page's
+element, and a flex or grid parent sees the render box as its item. Host CSS that selected the box
+by position (`.hero > .tileset`) no longer matches it since 0.9.0; select `[data-tileset-box]`.
 
-### Inputs → outputs
+### How it drives the renderer
 
-#### Props and options
+**One effect builds the renderer, then feeds it.** The first run builds a `TilesetRenderer` on the
+host element; every later run calls `update({ file, options })`. One effect rather than a mount
+effect plus an update effect: a mount effect reads nothing, so a constructor that threw on an
+invalid prop was never retried, and a host that fixed the prop kept a placeholder for good.
 
-`resolved` is `resolveOptions(options)`, after a development-only check. It is then unpacked into
-**one `$derived` per field** (`seedOption`, `loadSalt`, `substrate`, `overflow`, `baseSizing`,
-`baseAlignX`, `baseAlignY`, `hostRules`, `provider`, `padding`). A `$derived` propagates only when
-its value changes, so a host writing `options={{ ... }}` inline does not re-run `generate()` when
-only, say, `avoid.padding` changed. The comment calls this "what keeps R12 true".
+- **The options are copied** (`copyOptions`), which reads every field a host could edit in place,
+  so `opts.seed = "b"` on a `$state` object re-runs the effect. The renderer copies again in
+  `update()`, for a host with no Svelte. The model's per-field memos stop an unchanged copy, so an
+  inline `options={{…}}` re-running the effect per parent render regenerates nothing (**R12**).
+- **The renderer is built and updated `untrack`ed.** Its development checks walk the whole file;
+  tracked, they would make the effect depend on every field of a `$state` file in development only.
+- **The id is `$props.id()`**, stable between server and client, so the server's reservation CSS
+  and the client's agree.
+- A second effect, which reads nothing, destroys the renderer on teardown.
 
-- `targets` is the normalised `avoid.targets`, kept at the previous identity while `sameTargets`
-  says nothing changed, so an inline `[a, b]` does not re-register observers.
-- `onAssetError` is read **untracked** at call time (`reportAssetError`). It used to be called
-  from inside `drawables`' derivation, where a tracked read made every new identity of an inline
-  callback re-resolve every asset. Every report now arrives asynchronously, and the read stays
-  untracked so that moving a call back into a derivation cannot bring that back.
-- `effectiveSeed` is `seedOption ?? checked.config.defaultSeed` (cited as **S4**: with no options
-  the picture is fixed).
+### The server render
 
-#### Responsive rules
+No effect runs on the server, so the component writes a **placeholder**: the render box exactly as
+the renderer builds it before its first measurement. `placeholder.ts` computes it from the stages
+before `generate()` (no grid is read), and `Placeholder.svelte` writes it out, with the
+responsive reservation stylesheet when there are rules. The box carries `data-tileset-placeholder`.
 
-- `rules = effectiveRules(checked, hostRules)`: the host's rules if given (`[]` included), else the
-  file's, else none.
-- `ruleKey` is `activeKey(rules, measuredWidth)` once measured, else `""`. It changes only when a
-  rule starts or stops matching, and every later derived keys on it, so "a resize inside a band
-  costs nothing".
-- `shaped` is `reshape(checked, ruleOverride(active))` plus the active rules. With no rule active,
-  `reshape` keeps `config` by reference, so a density-only rule never reaches `generate()`.
-- `sizing`, `alignX`, `alignY` come from `renderOverride(base, active)`.
-- `reservation` is `reservationCss(uid, checked, rules, base)` when rules exist, injected as a
-  `<style>` inside the container wrapper. `uid` is `$props.id()`, stable between server and client.
+On the client the effect calls `setAside(host)` before building the renderer, so the renderer's
+first measurement is of its own box, and Svelte removes the placeholder in the same task, before
+any paint.
 
-See [breakpoints.ts](/renderer/breakpoints/) for the reservation CSS and the cache.
+**The DOM substrate's server HTML no longer holds cells** (0.9.0). The page reserves the same
+height; cells and their `<img>` requests arrive at hydration. Cells in server HTML wait on a
+server-side `renderHtml()`; `affineCellStyle` in `model.ts` is kept pure as its seam.
 
-#### Grid and asset resolution
+### Development checks
 
-- `grid = gridCache.get(checked.config, config, effectiveSeed, loadSalt)`. It regenerates when
-  `file.config`, the seed or `loadSalt` change, or a rule produces a `(rows, columns)` not seen
-  before, **and on nothing else**: not a provider change, not a resize, not hydration, not a
-  keep-out change.
-- `spill = maxSpill(grid)` and `drawn = drawnTiles(grid)` are per grid, not per resize.
-- `metaByKey` maps `assetKey(tileId, assetId)` to each `TileAsset`'s `meta`, or to one shared,
-  frozen `NO_META` when it has none, so that asset keeps the same `meta` identity across
-  derivations.
-- `drawables` calls `provider(ref)` **once per distinct key** in the grid, through
-  `resolutions = new DrawableCache()` ([provider.ts](/renderer/provider/)), which outlives the
-  derivation: it first `retain`s the keys in `metaByKey`, then `resolve`s each key, and resolves
-  again only when the provider or the asset's `meta` changes identity. A reseed re-derives
-  `drawables` without changing any asset, and resolving afresh used to report a failing provider
-  again on every reseed. A synchronous throw is reported through
-  `onAssetError` on a microtask and stored as a handled `Promise.reject(cause)`; a returned
-  promise that rejects is reported when it rejects. The comment says memoising
-  makes "the provider is pure" structural rather than an obligation, and records the objection that
-  it "silently repairs an impure provider" and caches a lazy provider's rejection too.
-
-#### Lifecycle and measurement
-
-- `dpr` starts at `currentDpr()` (1 on the server) and is updated by `observeDpr`.
-- One `$effect` registers `box` and `targets` with the page's shared scheduler (`track`). Its
-  callback writes `measuredWidth`, `measuredHeight` and `keepout` together, so geometry and mask
-  come from one measurement in the same frame. See [measure.ts](/renderer/measure/).
-- `geometry` is the `GridGeometry` for the current shape, width, sizing and alignment. `Hpx` is
-  read only when `alignY` is not `"top"`, "so a top-aligned grid does not re-derive everything when
-  its own extent changes the box's height".
-- **Before measurement** (`measuredWidth` 0, which includes the server): the canvas wrapper
-  declares `aspect-ratio: naturalRatio`, or `height: fixedHeight px` under fixed sizing, and the
-  canvas is empty. The DOM box declares the ratio (or an `.extent` of `fixedHeight`) and places every
-  column with affine CSS. With rules, the reservation CSS provides the height instead.
-- **After measurement** the box takes its height from its content: the canvas, or the DOM's
-  `.extent`.
-
-#### Substrate: canvas
-
-```
-uniform      = uniformGeometry(geometry, dpr)             // canvas and measured, else null
-canvasColumns = visibleColumns(ideal lattice, columns, Wpx, spill)
-presentation = canvasPresentation(geometry, uniform, dpr, canvasColumns)
-items        = uniformDrawList(geometry, grid, dpr, 0, assetKey, presentation)
-```
-
-- `sources` maps each key to its `src`. A promise from a lazy provider is awaited and lands in the
-  map when it settles; keys no longer referenced are dropped. The effect that fills it runs on
-  **both** substrates, because it also records `settled` for the DOM (below); only `bank.sync` is
-  canvas-only.
-- `bank.sync(sources, …)` decodes images ([images.ts](/renderer/images/)); a decode failure, or a
-  picture with no natural size, is turned back into a pair with `parseAssetKey` and reported. The
-  bank shares one `NaturalSizeChecks` with the DOM substrate, so a `src` is probed once.
-- **Paint** (`$effect`): sizes the backing store to `rasterWidthDev x rasterHeightDev`, clears it,
-  enables high-quality smoothing, then for each item: skip if masked; skip if no decoded image
-  (cited as **R3**: no placeholder, no sibling asset); compute `coverRect` against the square cell;
-  then either a plain `drawImage` (identity, opaque) or `save` / `globalAlpha` / `transform(matrix)`
-  / `drawImage` / `restore`. While `pending` it clears and draws nothing.
-- **Template:** a `.tileset` wrapper (the box) containing one `<canvas class="presented">` styled
-  `width: widthCss; margin-left: leftCss`, plus `position: relative; top: topCss` for a non-top
-  `alignY`. The canvas's `height` is `auto`.
-
-#### Substrate: DOM
-
-```
-domCell    = domGeometry(geometry, dpr)                   // dom and measured, else null
-domColumns = visibleColumns(domLattice(domCell), …)       // every column before measurement
-shownCells = non-empty cells in domColumns, row-major
-```
-
-- Each shown cell renders `<div class="cell" style={cellStyle(...)} data-x data-y data-masked>`
-  around `{#await drawables.get(key)}` an `<img alt="" loading="lazy" draggable="false">`, inside
-  `{#if !loadBlocked(loadFailed, key, drawables.get(key), settledFor(key, drawables.get(key)))}`.
-  `loadFailed` is a `Map` from key to the `src` that failed (`recordLoadFailure`). An `<img>`
-  `error` records it and reports once; `loadBlocked` then unmounts every cell whose drawable has
-  that `src`. A new `src` for the key is retried.
-- A lazy provider's `src` is not on its promise, so the sources effect also records `settled`: key
-  → `{ from, src, rejected }`, tagged with the promise it came from. `settledFor(key, value)` returns
-  the entry only when `from === value`, so a newer promise for the key is never judged by an older
-  one's outcome. With it, `loadBlocked` unmounts the **whole `.cell`** of a lazy drawable that
-  rejected or whose `<img>` failed. Before, such a cell stayed mounted, empty, and still took a
-  host's clicks. An inner guard (`loadFailed.get(key) !== drawable.src`) inside `{#await}` covers
-  the one effect between the promise settling and `settled` recording it.
-- An `<img>` `load` calls `checkLoaded(cell, src, img)`, which runs `sizeChecks.check(src, img)` and
-  refuses a picture with no natural size through the same `handleLoadError`, so the DOM agrees with
-  canvas. It shows until the probe settles, about one frame. `cell` and `src` are parameters, bound
-  when `load` fires: the template's `cell` and `drawable` are live bindings of a keyed `{#each}` and
-  `{#await}`, and read in the probe's `.catch` instead, a reseed during the probe had moved them to
-  the cell's new asset and blamed a healthy one.
-- `cellStyle` = `domPlacement` + `transform: cssTransform(cell)` only when not an identity +
-  `opacity` only when below 1.
-- `domPlacement`, **before measurement:** `cellPlacementAffine` as `width`, `margin-left`,
-  `margin-top`, and `top: N%` for a non-top `alignY`. Under fluid/top these are bare percentages,
-  byte-identical to 0.5.0. **After measurement:** px from `domCell`, with the translation added as
-  `translationDev` device px.
-- `.extent` (a zero-width in-flow child) carries the height: `gridHeightDev / dpr` once measured,
-  `fixedHeight` before that under fixed sizing.
-- Each block is keyed by `` `${x},${y}` ``, not by flat index, so a breakpoint that changes
-  `columns` keeps every cell present in both grids mounted.
-
-#### Keep-out (`avoid`) and `pending`
-
-- `lattice` is the lattice the active substrate painted: `presentation.lattice` for canvas,
-  `domLattice(domCell)` for DOM.
-- `paintedCellDev` is that substrate's integer cell.
-- `mask` is `stableMask(lastMask, occlusionMask(…))`, called with the lattice, the grid size,
-  `keepout`, `padding`, and `drawn` with `paintedCellDev`. It is `null` until all inputs exist. See
-  [occlusion.ts](/renderer/occlusion/).
-- `pending` is true while `avoid` is set and there is no mask yet, **or** while rules exist and
-  nothing has been measured. Canvas draws nothing; the DOM box gets `visibility: hidden`. Space is
-  still reserved, so nothing reflows when it appears.
-
-#### Development checks
-
-All are guarded by `DEV` from `../dev.ts`, which folds to `false` in a production build.
-
-| Check | Throws or warns |
+| Check | Where |
 | --- | --- |
-| `legacyPropErrors(rest)` + `optionErrors(options)` | Throws, listing every message. |
-| `assertValidFile(file, …)` as `checked` | Throws with a hint to use `loadTilesetFile()`. |
-| `rulesReshapeErrors(checked, rules)`, only for host rules | Throws. A file's own rules were already checked by `assertValidFile`. |
-| `FlipFlop` on `ruleKey` | Warns once that a breakpoint is flipping, naming `scrollbar-gutter: stable`. |
-| `inertCellSizeRules` | Warns once per rule that only changes `cellSize` under fluid. |
-| `cellTooSmall`, `assetTooSmall` (canvas paint only) | Warns once per cell size / per asset. See [warn.ts](/renderer/warn/). |
-
-### Invariants
-
-- **Assert before generating, structurally.** Every derived reads `checked`, never `file`. A
-  derived that existed only for its throw "is the line a later refactor deletes as dead"; here the
-  assertion cannot be dropped without dropping the data.
-- **S8: the box declares its natural ratio** and no explicit height until it has something to
-  measure. Host CSS may override the height; `align.y` then chooses which rows are cropped.
-- **S9: no padding and no border** on the box, so `Wpx` is unambiguously its width.
-- **R9: the box is the only clipping boundary** (`overflow: hidden`). A cell is *not* one
-  (`.cell { overflow: visible }`), because scale and rotation exist to spill. `yOffset`'s clip and
-  the horizontal bleed are both just a negative origin meeting the box edge. Since 0.8.0,
-  `overflow: "visible"` (DOM only) hands that one boundary to the host.
-- **R10: row-major paint order**, for free from `grid.cells` order in both substrates.
-- **R5: geometry is committed before resolution** and never revised by it, so a missing asset
-  leaves a hole rather than collapsing the grid.
-- **R6: shared edges.** DOM cells are placed by margins, not transforms, so the substrate snaps
-  their border boxes and one number gives one snapped edge; canvas draws on integer device pixels.
-- **Decorative output (cited as §4.5).** The box is `aria-hidden="true"` and every image has
-  `alt=""`. "Meaningful content is never a tile."
-- **`box` is the box, not the canvas.** Under canvas they are different elements of different
-  widths, and binding the canvas would hand a pointer conversion a rect wider than the render box.
+| `legacyPropErrors(rest)` and `optionErrors(options)`, thrown together as "`<Tileset>`'s props are not valid" | Here, so one throw reports everything wrong with the props, worded for this component. |
+| The file (`assertValidFile`), host responsive rules, flip-flopping breakpoints, `cellSize`-only rules, soft cells and assets | The renderer and the model. See [renderer.ts](/renderer/renderer/) and [model.ts](/renderer/model/). |
 
 ### Callers / callees
 
 | Caller | How |
 | --- | --- |
-| `apps/editor/src/App.svelte:20, 825-829` | `<Tileset {file} options={{ loadSalt, provider: editorProvider, onAssetError }} bind:box={renderBox} />`, the editor preview (cited as **S2**). |
-| `render/TileDecoration.svelte:36, 124` | `<Tileset {file} {options} />` on a reshaped style. |
-| `apps/demo/src/App.svelte:21, 146` | `seed`, `loadSalt`, `substrate`, `provider`, `onAssetError`. |
-| `apps/demo/src/Hosting.svelte:26, 162` | A full `options` object built from controls (sizing, align, substrate). |
-| `apps/demo/src/Responsive.svelte:27, 131` | A responsive hero. |
-| `apps/demo/src/Square2x2.svelte:35, 221` | With `bind:box`, beside a geometry readout. |
-| `apps/demo/src/Kelp.svelte:71` | `substrate: "dom"` with `overflow`. |
-| `apps/docs/src/stories/TilesetStory.svelte` | The *Try it* story above. |
+| `apps/editor/src/App.svelte` | The editor preview, with `bind:box` (**S2**). |
+| `apps/demo/src/*.svelte` | Every demo section: substrates, sizing and alignment, responsive rules, `avoid`, `bind:box`. |
+| `apps/demo/scripts/ssr.mjs` | Renders it with `svelte/server` to check the placeholder. |
+| `apps/docs/src/stories/*.svelte` | The stories on these pages. |
 
-**Callees**, by module: `assertValidFile` (`../load.ts`); `activeKey`, `ruleOverride`,
-`rulesReshapeErrors` (`../responsive.ts`); `reshape` (`../shape.ts`); `DEV` (`../dev.ts`);
-[geometry.ts](/renderer/geometry/), [transform.ts](/renderer/transform/),
-[edges.ts](/renderer/edges/), [uniform.ts](/renderer/uniform/), [warn.ts](/renderer/warn/),
-[measure.ts](/renderer/measure/), [breakpoints.ts](/renderer/breakpoints/),
-[occlusion.ts](/renderer/occlusion/), [options.ts](/renderer/options/),
-[images.ts](/renderer/images/), [provider.ts](/renderer/provider/), and the `RenderRect` type from
-[space.ts](/renderer/space/).
+**Callees:** `TilesetRenderer` ([renderer.ts](/renderer/renderer/)), `copyOptions`,
+`legacyPropErrors`, `optionErrors` ([options.ts](/renderer/options/)), `placeholder`, `setAside`
+(`placeholder.ts`), `DEV` (`../dev.ts`), and `tileset.css` ([styles.ts](/renderer/styles/)), imported
+so a bundler puts the rules in `<head>`, server-rendered pages included.
 
 ### Tests
 
-No test file. `.svelte` components cannot be unit-tested in this repo, which is why the logic lives
-in the `.ts` modules above and each has its own tests. What is *not* covered by any test is the
-wiring on this page: which derived feeds which, the gating on substrate and measurement, the
-template's height arrangement, and the asset-error paths. `svelte-check`, the two apps and the
-story above are its only coverage.
+`.svelte` components cannot be unit-tested in this repo, which is why the component is this thin:
+everything it drives is tested in `renderer.test.ts`, `model.test.ts` and `placeholder.test.ts`.
+The wrapper itself is covered by:
+
+- `svelte-check`;
+- `apps/demo/scripts/ssr.mjs`: for 7 cases × 2 widths × 2 DPRs, the server HTML reserves a pinned
+  height (measured from the pre-0.9.0 component), hydration leaves one measured box and no
+  placeholder, and nothing is logged;
+- the demo's screenshot harness (`shots:capture`, `shots:diff`), 32 captures compared to a pinned
+  baseline at 0 px.
 
 ### Gotchas & rejected alternatives
+
+These are the renderer's now, but they explain what a host sees through this component.
 
 - **No `width`, `config` or `layout` prop.** Every quantity is a fixed fraction of `Wpx`, so the
   host's CSS decides the width. Splitting the file across two props would let a host pair
   mismatched halves.
 - **Placement by margin, not `transform: translate()`.** A transformed element is rasterised at
   sub-pixel precision, so at any fractional cell size every edge was antialiased, and two partial
-  coverages "never sum to one", leaving a sliver of backdrop at every seam. A percentage margin
-  resolves against the containing block's *width*, vertically too, so placement stays a fraction of
-  `Wpx` and a host-set height cannot stretch a cell.
-- **`transform` is omitted for an identity cell**, and **`opacity` at 1**, because opacity below 1
-  forces a stacking context on every cell.
-- **No `will-change: transform`.** It promoted every cell to its own layer with its own pixel
-  snapping, which is "compute each cell's left and size independently, round both" reached through
-  the compositor.
+  coverages "never sum to one", leaving a sliver of backdrop at every seam.
 - **The canvas `height` is `auto` on purpose,** "the one line not to tidy". The canvas's intrinsic
-  ratio makes the vertical scale equal the horizontal one; writing a height would make cells
-  non-square again.
-- **The ratio is declared only until there is something to measure.** `naturalRatio` and the
-  quantised grid height differ by up to half a CSS pixel at a fractional `yOffset`; declaring the
-  ratio permanently would show a hairline under the bottom row (canvas) or shave the bottom row
-  (DOM). `min-height` was rejected because it would stretch the picture anisotropically.
-- **The `.extent` child, not an inline height on the box.** An inline style would beat a host
-  stylesheet's `height` and break vertical bleed.
-- **Vertical alignment moves the canvas with `position: relative; top`**, never a margin, so the
-  wrapper's height does not move with the shift. A bottom-aligned margin "would be a fixed point at
-  any value".
-- **One `<canvas>`, conditionally styled,** not two `{#if}` arms, so the backing store is not
-  discarded at the first measurement.
+  ratio makes the vertical scale equal the horizontal one.
+- **The ratio is declared only until there is something to measure.** Declaring it permanently
+  would show a hairline under the bottom row (canvas) or shave it (DOM).
 - **The container wrapper exists only when rules do.** `container-type: inline-size` gives an
   element no width from its content, so in a shrink-to-fit context it would collapse.
-- **The hit area is the rest pose.** Animate the `<img>` inside a `.cell`, never the `.cell`, or the
-  hit area moves under the pointer.
-- **The keep-out mask is an attribute, not part of the style string**, which is rewritten on every
-  resize. Masked cells use `visibility: hidden`: no layout change, the image stays decoded, and the
-  cell takes no hits.
-- **There were three substrates until 0.6.0.** `"svg"` measured nothing but showed a backdrop
-  hairline at every shared edge (the comment cites "+52% leak, the worst measured"), and every new
-  feature would have had to be built a third time for it. It was removed rather than left at a lower
-  feature level.
+- **The hit area is the rest pose.** Animate the `<img>` inside a cell, never the cell.
+- **A plain block host was rejected** for `display: contents`: in a shrink-to-fit parent its width
+  comes from content whose width is a percentage of it, so it collapses.
+- **There were three substrates until 0.6.0.** `"svg"` showed a backdrop hairline at every shared
+  edge and would have needed every feature built a third time.
 
-### Review notes
-
-- **Async provider rejections are never reported.** `drawables` reports only a *synchronous* throw.
-  A provider that returns a promise which rejects is swallowed by `.catch(() => {})` on canvas
-  and rendered as nothing by `{:catch}` on DOM, with no `onAssetError` call on either path. The
-  comment there said the rejection "has already been reported … where the provider threw", which
-  held only for a synchronous throw. `TilesetOptions.onAssetError` promises it "fires for a
-  resolution failure and a load failure alike". **Fixed in 0.8.1:** `resolveDrawable` reports a
-  rejected promise too, and the comment now says so.
-- **Unhandled rejections on the DOM substrate.** A synchronous throw is stored as
-  `Promise.reject(cause)`. Under DOM, only cells that are mounted `{#await}` it, so a failing asset
-  whose cells are all culled, or all in `loadFailed`, leaves a rejection with no handler. The error
-  is already reported; this would only add console noise. **Fixed in 0.8.1:** the stored
-  rejection is marked handled.
-- **`loadFailed` is never cleared.** Once an `<img>` fails for a key, every cell using that key stays
-  unmounted for the component's lifetime, even if the host changes `provider` or `file`. On canvas
-  the equivalent (`ImageBank`'s failed set) is cleared when the `src` changes. **Fixed in 0.8.1:**
-  `loadFailed` maps key to the failed `src`, and a new `src` is retried.
-- **A failing provider is reported again on every reseed**, because `drawables` re-derives with the
-  grid and resolved every key afresh. **Fixed:** `DrawableCache` resolves a key again only when the
-  provider or its `meta` changes.
-- **A lazy cell that can never draw stays mounted.** Since 0.8.0 made the drawn tile the unit of
-  hitting, this is a bug, not a cosmetic gap: `loadBlocked` never blocked a promise, so a cell whose lazy provider rejected, or whose `<img>` failed, stayed as an
-  empty `.cell` that still took a host's clicks. **Fixed:** the sources effect runs on both
-  substrates and records `settled`, which `loadBlocked` reads through `settledFor`.
-- **Stale template comment** (lines 1073-1077): "under `substrate="canvas"` the render box *is* the
-  canvas: one element". Since the split the box is the wrapper and the canvas is a separate, wider
-  element, as the comment at line 1108 and the `box` prop's docstring say.
-- **Stale comment** (lines 378-384): "Placement is `cellPlacementPercent`'s … called per cell from
-  `cellStyle`". Placement now goes through `domPlacement`, which calls `cellPlacementAffine` before
-  measurement and `domGeometry` after.
-- **Detached docstring** (lines 834-843): the doc comment describing `mask` and `lastMask` is
-  followed directly by the doc comment for `drawn`, so it is attached to nothing (and tools will
-  associate neither comment with `mask`).
-- **Stale CSS comment** on `.cell` (lines 1375-1378): "`width` is set inline as a percentage … and
-  `margin-left` / `margin-top` … as percentages". That is only true before measurement; afterwards
-  they are px from `domGeometry`.
-- **Slightly inaccurate comment** (lines 177-178): "Nothing below this block reads `resolved` or
-  `options` again, except the one `untrack`ed read in `reportAssetError`". The `targets` derived
-  just below (line 196) also reads `resolved.avoid`.
-- **No softness warnings under DOM.** `cellTooSmall` and `assetTooSmall` run only in the canvas
-  paint effect.
+The review notes on the pre-0.9.0 component (async rejections, `loadFailed`, stale comments) were
+all fixed or became moot when its logic moved; they are in this page's git history.

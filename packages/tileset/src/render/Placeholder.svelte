@@ -33,7 +33,7 @@
 {/snippet}
 
 {#if p.wrapper !== null}
-  <div {...{ [WRAPPER_ATTRIBUTE]: p.wrapper.id }} class="container">
+  <div {...{ [WRAPPER_ATTRIBUTE]: p.wrapper.id }} class="tileset-container">
     {@html `<style>${p.wrapper.css}</style>`}
     {@render box()}
   </div>

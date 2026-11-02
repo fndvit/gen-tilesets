@@ -34,18 +34,22 @@
   regardless (measured); webpack does not.
 */
 
-/* The responsive-rules wrapper. Selected by `.container` as well as the
+/* The responsive-rules wrapper. Selected by `.tileset-container` as well as the
    attribute because `<TileDecoration>` also carries `data-tileset-wrapper` —
    only so `options.avoid` resolves outside it (`measure.ts`'s `scopeOf`) — and
    it was never a size container: containment takes away the width an element
-   gets from its content. */
-.container[data-tileset-wrapper] {
+   gets from its content.
+   The class was `container` until 0.9.0. The attribute keeps this rule off a
+   host's `.container`, but nothing kept a host's `.container` rule (Bootstrap's
+   and Tailwind's centre it, cap its width and pad it) off this element, which
+   would narrow every responsive tileset on such a page. */
+.tileset-container[data-tileset-wrapper] {
   container-type: inline-size;
 }
 
 .tileset[data-tileset-box] {
   /* See the header. */
-  --gen-tilesets: vbb1415d4;
+  --gen-tilesets: vcd3122af;
   position: relative;
   display: block;
   width: 100%;

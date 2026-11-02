@@ -144,7 +144,7 @@ export function reshapeDecoration(style: TilesetFile, rows: number, columns: num
     const errors = reshapeErrors(style, shape);
     if (errors.length > 0) {
       throw new Error(
-        `<TileDecoration>'s \`style\` cannot be placed at ${columns} x ${rows}:\n` +
+        `The decoration's \`style\` cannot be placed at ${columns} x ${rows}:\n` +
           errors.map((e) => `  - ${e}`).join("\n"),
       );
     }

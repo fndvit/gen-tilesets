@@ -101,6 +101,11 @@
   // development checks walk the whole file, and tracked they would make this
   // effect depend on every field of a `$state` file in development only, so the
   // two builds would re-run it on different edits.
+  //
+  // The renderer copies the options again in `update()`. Both copies stay: this
+  // one is what makes the effect track the fields, and the renderer's is what a
+  // host with no Svelte relies on. Skipping it when a wrapper already copied
+  // would need a flag in the public API to save a few field reads.
   $effect(() => {
     const f = file;
     const o = copyOptions(options);
