@@ -1,0 +1,293 @@
+{
+  "schemaVersion": 4,
+  "engineVersion": "0.10.0",
+  "config": {
+    "rows": 14,
+    "columns": 29,
+    "defaultSeed": "tidal-shoal-51",
+    "assetSalt": 72,
+    "reseedAssetsOnLoad": true,
+    "tiles": [
+      {
+        "id": "t1",
+        "name": "Pink",
+        "assets": [
+          {
+            "id": "a4",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a4.svg",
+              "width": 64,
+              "height": 64
+            }
+          },
+          {
+            "id": "a5",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a5.svg",
+              "width": 64,
+              "height": 64
+            }
+          },
+          {
+            "id": "a6",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a6.svg",
+              "width": 64,
+              "height": 64
+            }
+          },
+          {
+            "id": "a7",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a7.svg",
+              "width": 64,
+              "height": 64
+            }
+          },
+          {
+            "id": "a8",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a8.svg",
+              "width": 64,
+              "height": 64
+            }
+          }
+        ]
+      },
+      {
+        "id": "t2",
+        "name": "Beige",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t2/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a5",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t2/a5.svg",
+              "width": 64,
+              "height": 64
+            }
+          },
+          {
+            "id": "a6",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t2/a6.svg",
+              "width": 64,
+              "height": 64
+            }
+          },
+          {
+            "id": "a7",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t2/a7.svg",
+              "width": 64,
+              "height": 64
+            }
+          }
+        ]
+      },
+      {
+        "id": "t3",
+        "name": "Blue",
+        "assets": [
+          {
+            "id": "a2",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a2.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a4",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a4.svg",
+              "width": 64,
+              "height": 64
+            }
+          },
+          {
+            "id": "a5",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a5.svg",
+              "width": 64,
+              "height": 64
+            }
+          },
+          {
+            "id": "a6",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a6.svg",
+              "width": 64,
+              "height": 64
+            }
+          },
+          {
+            "id": "a7",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a7.svg",
+              "width": 64,
+              "height": 64
+            }
+          }
+        ]
+      },
+      {
+        "id": "t4",
+        "name": "splitBlue",
+        "assets": [
+          {
+            "id": "a2",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t4/a2.svg",
+              "width": 12,
+              "height": 12
+            }
+          }
+        ]
+      },
+      {
+        "id": "t5",
+        "name": "stripesFull",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t5/a1.svg",
+              "width": 39,
+              "height": 39
+            }
+          }
+        ]
+      }
+    ],
+    "operations": [
+      {
+        "id": "op1",
+        "salt": 234,
+        "reseedOnLoad": true,
+        "selection": {
+          "type": "all"
+        },
+        "source": {
+          "type": "valueNoise",
+          "cellsPerFeature": 5,
+          "octaves": 2
+        },
+        "target": "tileId",
+        "mapping": {
+          "palette": [
+            {
+              "tileId": "t2",
+              "weight": 1
+            },
+            {
+              "tileId": "t3",
+              "weight": 1
+            }
+          ]
+        },
+        "blend": "set"
+      },
+      {
+        "id": "op5",
+        "salt": 44,
+        "reseedOnLoad": false,
+        "selection": {
+          "type": "random",
+          "density": 0.35
+        },
+        "source": {
+          "type": "constant"
+        },
+        "target": "tileId",
+        "mapping": {
+          "palette": [
+            {
+              "tileId": "t1",
+              "weight": 1
+            }
+          ]
+        },
+        "blend": "set"
+      },
+      {
+        "id": "op4",
+        "salt": 213,
+        "reseedOnLoad": true,
+        "selection": {
+          "type": "all"
+        },
+        "source": {
+          "type": "random"
+        },
+        "target": "rotation",
+        "mapping": {
+          "range": [
+            0,
+            270
+          ],
+          "steps": 4
+        },
+        "blend": "set"
+      },
+      {
+        "id": "op6",
+        "salt": 2,
+        "reseedOnLoad": false,
+        "selection": {
+          "type": "random",
+          "density": 0.012
+        },
+        "source": {
+          "type": "constant"
+        },
+        "target": "tileId",
+        "mapping": {
+          "palette": [
+            {
+              "tileId": "t5",
+              "weight": 1
+            }
+          ]
+        },
+        "blend": "set"
+      }
+    ]
+  },
+  "layout": {
+    "cellSize": 25,
+    "referenceWidth": 720,
+    "yOffset": 0.25,
+    "horizontalAlignment": "column"
+  },
+  "responsive": [
+    {
+      "maxWidth": 500,
+      "columns": 9,
+      "rows": 14
+    }
+  ]
+}

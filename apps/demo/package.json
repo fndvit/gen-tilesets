@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "shots:capture": "node scripts/capture.mjs",
-    "shots:diff": "node scripts/diff.mjs"
+    "shots:diff": "node scripts/diff.mjs",
+    "shots:readme": "node scripts/readme-shots.mjs"
   },
   "dependencies": {
     "@vit-foundation/gen-tilesets": "workspace:*"
