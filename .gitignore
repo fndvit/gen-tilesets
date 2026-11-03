@@ -37,3 +37,9 @@ npm-debug.log*
 pnpm-debug.log*
 # Demo screenshot captures (apps/demo/scripts/capture.mjs)
 .shots/
+
+# Internal notes, kept locally only
+/ARCHITECTURE.md
+/CLAUDE.md
+/RESPONSIVE-HOSTING.md
+/SUBPIXEL-GEOMETRY.md

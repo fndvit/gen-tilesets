@@ -183,8 +183,7 @@ pnpm --filter @vit-foundation/tileset-editor dev   # editor on :5174
 pnpm --filter @vit-foundation/tileset-demo dev     # demo on :5173
 ```
 
-[`ARCHITECTURE.md`](ARCHITECTURE.md) explains how the code is laid out, and
-[`CHANGELOG.md`](CHANGELOG.md) what changed per version. Releasing is in
+[`CHANGELOG.md`](CHANGELOG.md) says what changed per version. Releasing is in
 [`packages/tileset/RELEASING.md`](packages/tileset/RELEASING.md).
 
 ## License
