@@ -1,902 +1,168 @@
-# `@vit-foundation/gen-tilesets`
+# gen-tilesets
 
-The engine and the renderer. The **only published package** in this repository.
+Procedural tilesets for the web: a deterministic generator, and a renderer that draws its output in
+any page, with or without Svelte.
 
-To **render** a tileset you need two imports, and no more:
+![A generated tileset filling a page header](https://raw.githubusercontent.com/fndvit/gen-tilesets/main/packages/tileset/docs/images/hero.png)
 
-```ts
-import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
-import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
-```
+You design a tileset in the [editor](https://gen-tilesets-editor.vercel.app): which tiles exist,
+and the rules that place, rotate, scale and fade them across a grid. You export it as a zip, and
+this package draws it in your page. The same file and the same seed always produce the same picture,
+on any machine. The tileset scales with its container, can change its shape at breakpoints, and can
+keep clear of the text laid over it.
 
-```svelte
-<Tileset file={loadTilesetFile(raw)} />
-```
-
-That is the whole of it at the site root. `<Tileset>` calls `generate()` itself and resolves assets
-through a default provider; off the root you add one more import, `prefixedProvider`, and that is
-still the whole of it. The rest of the surface is for a host that builds *tooling* on top — an
-overlay, a brush, a validator — and it lives on two different subpaths:
-
-- `@vit-foundation/gen-tilesets` — the engine: `generate`, `selection`, `loadTilesetFile`, and the
-  `validate`/`migrate` pair it is built from.
-- `@vit-foundation/gen-tilesets/render` — the geometry: `cellBox`, `cellAt`; and the renderer itself,
-  `TilesetRenderer`, for a page with no Svelte (see *Without Svelte*).
-
-`cellAt`'s only caller in this repository is the editor's brush, and `cellBox` has no caller
-outside this package at all. Reach for them when you are building an editor, not to draw a
-picture.
-
-## How to use it
-
-Five steps, from nothing to tiles on screen. Every snippet in steps 4 and 5 is copied out of a
-working app — see *Verified* at the end.
-
-### 1. Install the package
-
-The package is public on npmjs.com, so there is no token and no `.npmrc` to write:
+## Install
 
 ```sh
-pnpm add @vit-foundation/gen-tilesets@0.10.0 svelte
+npm install @vit-foundation/gen-tilesets
 ```
 
-- **Pin the exact version.** `0.x` promises nothing about output stability (`/CLAUDE.md`), so a
-  range is a promise this package does not make.
-- **Peers.** `svelte@^5.20` is a peer dependency, and the consuming app needs
-  `@sveltejs/vite-plugin-svelte`. Nothing further: the published `exports` declare the `svelte`
-  condition, so a bare `svelte()` plugin with **no `svelte.config.js` at all** resolves and
-  compiles `Tileset.svelte`. This is verified, not assumed — see *Publishing* below.
-- **Coming from `@fndvit/gen-tilesets`?** That is the same package under its old name, on GitHub
-  Packages, which gets no versions after 0.9.0. Change every import from `@fndvit/` to
-  `@vit-foundation/`, and delete the `@fndvit:registry` and `npm.pkg.github.com` lines from your
-  `.npmrc` and the token from your CI secrets. Nothing else about the API changed in the rename.
+Pin an exact version: the package is `0.x`, and a minor version may change the generated output.
+`svelte@^5.20` is an optional peer dependency, needed only for the Svelte components.
 
-### 2. Export the tileset from the editor
+## Usage
 
-In the editor, the export button is pinned below the sidebar's sections, labelled
-**"Download tileset.zip"**. Press it and you get `tileset.zip` — always that name.
+The editor exports `tileset.zip`, which holds `tileset.json` and a `tiles/` folder of images. Serve
+`tiles/` as it is, keeping its internal structure. Then load the JSON with `loadTilesetFile`, which
+upgrades and validates it and throws if the file is invalid, and render it.
 
-One thing to know before you press it: the editor's asset store is **session-scoped**. If you
-reloaded the page since attaching your images, the export throws rather than shipping a folder
-that is quietly missing files; re-import your last zip first, then export.
-
-The archive holds two things:
-
-```
-tileset.json
-tiles/<tileId>/<assetId>.<ext>
-```
-
-Nested, not a flat folder, because `TileAsset.id` is unique only *within its Tile* — two Tiles may
-each hold an asset called `a1`, and a flat folder would silently overwrite one with the other.
-
-**Every `meta.src` in the JSON is a path relative to the archive root**, with no leading slash:
-`tiles/water/a1.svg`. That one detail drives everything below.
-
-### 3. Unzip it and move the two halves into your project
-
-They go to different places, and only one of them is served. **`tiles/` moves whole, as a single
-folder — you never place assets one by one:**
-
-```
-tileset.zip
-├── tileset.json   →  move the file    →  <your-app>/src/lib/tileset.json
-└── tiles/         →  move the folder  →  <your-app>/static/tiles/
-```
-
-So the archive's `tiles/water/a1.svg` ends up at `<your-app>/static/tiles/water/a1.svg`, and the
-browser fetches it from `/tiles/water/a1.svg`.
-
-| Half | Where | Why |
-| --- | --- | --- |
-| `tiles/` | `static/tiles/` | must be fetchable by the browser at `/tiles/…` |
-| `tileset.json` | `src/lib/tileset.json` | **not** served — you `import` it, so it is bundled, needs no fetch, and cannot 404 |
-
-Keep the folder's internal structure exactly as it came. The export writes each file at the path
-it read out of `meta.src`, so the JSON points at `tiles/water/a1.svg`; flattening or renaming
-anything inside breaks that silently. Moving the folder as-is is what keeps it true without your
-having to think about it.
-
-### 4. Load it — one call
-
-You cannot skip this. `<Tileset>` imports no validator, so in a production build a file
-`validate()` would reject is **undefined behaviour** (**S3**, as **C5**). The types push you the
-same way: `TilesetFile.schemaVersion` is the literal type `4`, so a JSON import (which widens it to
-`number`) never assigns to `TilesetFile` directly. Validation is what earns the cast, and
-`loadTilesetFile` is what performs it:
-
-```ts
-// src/routes/+page.svelte — or wherever you hold the file
-import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
-import raw from "$lib/tileset.json";
-
-const file = loadTilesetFile(raw);
-```
-
-It runs `06`'s `migrate()` and then `validate()` — in that order, because rewriting a
-`schemaVersion` is a coercion and `validate()` never coerces — and **throws** on either failing. A
-file from a newer build of the package gets its own message telling you to upgrade rather than a
-list of shape errors against a schema it was not written for.
-
-*In a development build, `<Tileset>` now checks this for you and throws if you skipped it*, naming
-the offending paths. In production it does not: the check compiles out entirely, so the cost is
-paid where the mistake is made and nowhere else.
-
-**If you need more than a throw**, use the two functions underneath directly. `loadTilesetFile`
-discards the migration steps and the structured `ValidationError[]`, which is exactly what an
-editing host cannot afford — it wants to show *"upgraded from schemaVersion 1"* as an advisory and
-report each error at its own path. That is what `apps/editor` does, and nothing about that path
-changed:
-
-```ts
-import { migrate, validate } from "@vit-foundation/gen-tilesets";
-```
-
-### 5. Anchor the asset paths, and render
-
-**`provider` is optional.** It defaults to `defaultProvider`, which reads `meta.src` and hands it
-to an `<img>`. If your assets are served at exactly the paths `meta.src` names *and* your page is
-at the site root, pass nothing — `apps/demo` in this repository does precisely that.
-
-Everywhere else you need a prefix, and the reason is worth knowing because nothing reports it.
-`meta.src` is **relative**, so the browser resolves it against the *current page URL*. On `/` that
-happens to be right. On `/deep/page` the browser asks for `/deep/tiles/water/a1.svg` and gets a
-404 — with no build error and no type error, because nothing here is wrong at compile time.
-
-`prefixedProvider` anchors it:
-
-```svelte
-<!-- src/routes/+page.svelte -->
-<script lang="ts">
-  import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
-  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
-  // `AssetRef` is only for the optional `onAssetError` below.
-  import { prefixedProvider, type AssetRef } from "@vit-foundation/gen-tilesets/render";
-  import { base } from "$app/paths";
-  import raw from "$lib/tileset.json";
-
-  const file = loadTilesetFile(raw);
-  const provider = prefixedProvider(base);
-
-  // `onAssetError` is OPTIONAL — everything below is. Drop it and the render is
-  // still correct; you just get no report when a picture is missing, because
-  // nothing is substituted and nothing returns null. `<Tileset {file}
-  // options={{ provider }} />` is the whole of the required form.
-  let failures = $state<string[]>([]);
-
-  function onAssetError(ref: AssetRef, cause: unknown): void {
-    failures = [...failures, `${ref.tileId}/${ref.assetId}: ${String(cause)}`];
-  }
-</script>
-
-<div class="frame">
-  <Tileset {file} options={{ provider, onAssetError }} />
-</div>
-
-<!-- Optional, with the handler above: somewhere to show what failed. -->
-{#if failures.length > 0}
-  <ul>{#each failures as f (f)}<li>{f}</li>{/each}</ul>
-{/if}
-
-<style>
-  /* The host owns the width. The component declares its own aspect ratio and no
-     height, so nothing here sets one and there is no layout shift. */
-  .frame { width: 100%; max-width: 900px; }
-</style>
-```
-
-Use `base` from `$app/paths` rather than a hardcoded `/`. SvelteKit computes it **per route**
-(`paths.relative` defaults to `true`), so the same call is correct at any route depth *and* under a
-sub-path deployment. You do not need to special-case the root: at `/`, `base` is `""`, and
-`prefixedProvider` still anchors to `/tiles/…` rather than handing back the relative path.
-
-Like `defaultProvider`, it **throws** on an absent or non-string `meta.src` rather than
-substituting a placeholder, because resolution never substitutes — a missing picture must reach you
-through `onAssetError`, not become a wrong picture.
-
-That is the whole integration.
-
-### If you are not using SvelteKit
-
-Plain Vite + Svelte 5 works with the same six steps and no aliases, no `optimizeDeps` entries and
-no extra plugins. Two things differ.
-
-**Where the two halves go** — `public/` instead of `static/`, and `tileset.json` anywhere under
-`src/`:
-
-```
-tileset.json   →  move the file    →  <your-app>/src/tileset.json
-tiles/         →  move the folder  →  <your-app>/public/tiles/
-```
-
-Again `tiles/` moves whole, so `tiles/water/a1.svg` lands at
-`<your-app>/public/tiles/water/a1.svg` and is served at `/tiles/water/a1.svg`.
-
-**The prefix and the import.** Pass Vite's base instead of SvelteKit's, and import the JSON by
-relative path rather than through `$lib`:
-
-```ts
-const provider = prefixedProvider(import.meta.env.BASE_URL);
-import raw from "./tileset.json";
-```
-
-The two bases differ by a slash — SvelteKit's `base` carries none, `BASE_URL` always does (`"/"` by
-default) — and `prefixedProvider` normalises both, so this is the only change. Vite handles JSON
-imports natively, so steps 4 and 5 are otherwise unchanged.
-
-### Things worth knowing
-
-- **It is deterministic by default.** With no `seed` and no `loadSalt` you get
-  `seed = file.config.defaultSeed` and `loadSalt = 0` — the same picture on every load, every
-  machine, forever (**S4**). Variation is always something you ask for.
-- **If you want per-load variation, draw `loadSalt` in a `load` function.** Never at module scope
-  or in component init: both run twice under SSR and give you two different pictures for one page.
-  A `load` return value is serialized to the client, so server and hydration agree.
-- **Every setting goes in one `options` object** — see [Options](#options). `file` is the data
-  and `box` is the bindable element; everything else, from `seed` to `avoid`, is a field of
-  `options`, typed and documented as `TilesetOptions`.
-- **`substrate` defaults to `"canvas"`.** Both substrates compute the same uniform square cell,
-  so a cell is square by construction, neighbours share an edge, and the centre-crop has nothing to
-  remove. Take `"canvas"` unless you need something it cannot do: it is one element with no per-cell
-  nodes, so no host-page CSS can reopen a seam, and the residual becomes one isotropic resample of
-  one bitmap. Its cost is that it emits an empty box of the right ratio during SSR and fills it after
-  mount. Pass `substrate: "dom"` if you need the tiles present in the server-rendered HTML or need to
-  hit-test individual cells — each `.cell` carries `data-x`/`data-y`, and the browser hits it where
-  it is *drawn* (moved, scaled and turned), not on its home square. Animate the `<img>` inside a
-  cell, never `.cell` itself, or the hit area moves under the pointer. Its cost is that the grid does not fit its box exactly, so it always
-  overhangs slightly at the sides and the outer columns are cut; its box is also a few pixels taller
-  than the natural height, because it sizes itself to the grid rather than cutting the bottom row.
-  (`"svg"` was a third substrate until 0.6.0 and is gone — see the changelog.)
-- **`onAssetError` is the only report of a missing picture.** Nothing is substituted and nothing
-  returns null, so a tile whose file is absent draws an empty cell silently unless you wire this.
-- **An SVG asset must declare `width` and `height`**, not only a `viewBox`. One without them has
-  no natural size, and from 0.8.1 both substrates refuse it: an empty cell and an `onAssetError`
-  saying so. (Canvas could not draw it the right size, and the two substrates disagreed.)
-- **The styles load themselves.** A Svelte bundler picks up the component's `tileset.css`.
-  Anywhere else, the renderer adds a `<style>` at mount, first in `<head>` or first in the shadow
-  root it is in, unless the same rules already reach it. You can link the file yourself
-  instead: `import "@vit-foundation/gen-tilesets/tileset.css"`. To override a rule, match or beat its
-  selector, for example `.cell[data-tileset-cell] img`. A rule of equal specificity wins because
-  it comes later. **Under a strict CSP** (`style-src` without `'unsafe-inline'`) that `<style>` is
-  blocked. The renderer then adopts a constructed stylesheet instead, which cascades after yours,
-  so an override needs one more class or attribute than the rule it overrides. Tilesets with
-  responsive rules also lose their pre-measurement height under such a policy, for now.
-- **`<Tileset>` validates its `file` in a development build, and throws.** It is keyed on the file,
-  so it runs when the file changes rather than per frame, and it compiles out of a production build
-  along with the validator itself. If it fires, the fix is `loadTilesetFile` — the message says so.
-  The production posture is unchanged: there, an invalid file is still undefined behaviour.
-
-### Verified
-
-The SvelteKit snippets above were extracted from a SvelteKit 2 app built for the purpose,
-installing `@vit-foundation/gen-tilesets` **from the registry**: `svelte-check` reports 0 errors and 0
-warnings, and `vite build` succeeds. The path trap is not hypothetical — the same page on
-`/deep/…` with the default provider server-renders `src="tiles/water/a1.svg"` and 404s, and with
-`prefixedProvider(base)` renders `src="../tiles/water/a1.svg"`, which resolves to
-`/tiles/water/a1.svg` and returns 200.
-
-The **plain Vite variant** was checked separately, against a throwaway Vite 8 + Svelte 5 app
-installing the packed tarball with no `svelte.config.js` and no aliases: `vite build` succeeds and
-`svelte-check` reports 0 errors and 0 warnings, over a `tileset.json` and a `tiles/` folder in the
-export's own layout. The slash claim is measured, not reasoned — under `--base=/deep/`,
-`import.meta.env.BASE_URL` is `/deep/`, and `prefixedProvider` trims the trailing slash before
-joining, so the result is `/deep/tiles/water/a1.svg` and not `/deep//tiles/…`.
-
-**The development check is measured too, in both directions.** `prefixedProvider`'s join is
-covered across `""`, `"/"`, `"/app"` and `"/app/"` by `src/render/provider.test.ts`, and the
-`loadTilesetFile` sequence by `src/load.test.ts`. That the check *leaves* a production build is a
-build-output assertion rather than a claim: `apps/demo` compiled for production contains no string
-from `validate.ts` at all, and the bundle is 58.56 kB where the same build with an unfoldable
-`DEV` was 68.77 kB. `src/dev.ts` records how to re-measure it, and why the expression is shaped
-the way it is.
-
-## Without Svelte
-
-Since 0.9.0 `<Tileset>` is a thin wrapper over a plain class, and the class is exported. Observable
-Framework, a plain HTML page or another framework uses the same implementation:
+### Vanilla JS
 
 ```js
+import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
 import { TilesetRenderer } from "@vit-foundation/gen-tilesets/render";
 
-const renderer = new TilesetRenderer(element, { file, options }); // draws into element
-renderer.update({ options: { ...options, seed: "b" } });          // any change; omitted fields keep their value
-renderer.box;                                                     // the render box, for pointer conversion
-renderer.destroy();                                               // removes everything it added
+const file = loadTilesetFile(await (await fetch("/tileset.json")).json());
+const renderer = new TilesetRenderer(document.querySelector("#hero"), { file });
+
+renderer.update({ options: { seed: "another" } }); // change anything later
+renderer.destroy();                                  // remove everything it added
 ```
 
-`file` and `options` are exactly `<Tileset>`'s props, so the rest of this README applies unchanged.
-`TileDecorationRenderer` is `<TileDecoration>` the same way:
-`new TileDecorationRenderer(element, { style, rows, columns, cellSize, options })`. `svelte` is an
-optional peer dependency; nothing here imports it.
+The renderer injects its own stylesheet, so there is nothing else to include. The same class works
+in Observable Framework, and a React or Vue wrapper around it is about ten lines. See
+[Without Svelte](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/without-svelte.md).
 
-### Observable Framework
+### Svelte
 
-Add the package to the project (`npm install @vit-foundation/gen-tilesets`),
-and put the editor's export zip in `src/` as it comes. A page:
+```svelte
+<script>
+  import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
+  import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
+  import raw from "./tileset.json";
 
-````md
-```js
-import {loadTilesetFile} from "@vit-foundation/gen-tilesets";
-import {TilesetRenderer} from "@vit-foundation/gen-tilesets/render";
+  const file = loadTilesetFile(raw);
+</script>
 
-// The editor's export, as it comes: tileset.json beside a tiles/ folder.
-const zip = await FileAttachment("atlas.zip").zip();
-const file = loadTilesetFile(await zip.file("tileset.json").json());
-// Each asset's meta.src is a path inside the zip. A zip entry has no MIME type,
-// and a browser will not draw an SVG blob without one, so set it.
-const TYPES = {svg: "image/svg+xml", png: "image/png", webp: "image/webp", jpg: "image/jpeg"};
-// One blob URL per file, shared by every tileset on the page.
-const urls = new Map();
-const provider = (ref) => {
-  const path = ref.meta.src;
-  if (!urls.has(path)) {
-    const type = TYPES[path.split(".").pop()];
-    urls.set(path, zip.file(path).arrayBuffer().then((bytes) => URL.createObjectURL(new Blob([bytes], {type}))));
-  }
-  return urls.get(path).then((src) => ({src}));
-};
+<Tileset {file} />
 ```
 
-```js
-// `invalidation` is per block, so the block that displays the tileset passes its own.
-function tileset(options, invalidation) {
-  const host = html`<div>`;
-  const renderer = new TilesetRenderer(host, {file, options: {provider, ...options}});
-  invalidation.then(() => renderer.destroy());
-  return host;
-}
-```
+`<Tileset>` takes the same `file` and `options` as `TilesetRenderer`. Its width comes from its parent,
+and it reserves its own height.
 
-```js
-display(tileset({substrate: "canvas"}, invalidation));
-```
-````
+### Where the images go
 
-Three things are specific to Framework:
+Image paths in `tileset.json` are relative (`tiles/water/a1.svg`). On any page other than the site
+root, anchor them with `prefixedProvider`, or the browser looks for them under the page's own path:
 
-- **The zip, not a `tiles/` folder.** Framework publishes only files a page names literally, and
-  the asset paths are chosen at runtime, so a folder of tiles would not be copied. The provider may
-  return a promise, so reading from the zip on demand is fine.
-- **The MIME type.** Without it every SVG fails to decode (`EncodingError`) and nothing draws.
-  The failure reaches `options.onAssetError` and nowhere else.
-- **Pass the displaying block's `invalidation`.** Framework gives each block its own; the helper's
-  block never re-runs, so a renderer tied to that one is never destroyed. Measured: a block that
-  re-ran on two seed changes destroyed both old renderers this way, and none with the helper's own
-  `invalidation`, leaving their observers running on detached boxes.
-
-### The stylesheet
-
-The renderer needs `tileset.css`. **You do not have to do anything:** it injects the rules into the
-page (or the shadow root) when a renderer is built, unless they already reach it, which it checks
-for a box not yet on the page too.
-Link the file yourself when you want the rules in place before any script runs, or when a strict
-CSP blocks inline styles, which would otherwise push the injected rules after your own CSS:
-
-- **With a bundler** (Vite, webpack): `import "@vit-foundation/gen-tilesets/tileset.css";`. With
-  TypeScript 6, that line needs a declaration for `*.css` in your project, which Vite's templates
-  already have (`/// <reference types="vite/client" />`).
-- **In Observable Framework**, copy `node_modules/@vit-foundation/gen-tilesets/dist/render/tileset.css`
-  into `src/` and add `<link rel="stylesheet" href="./tileset.css">` to the page. Framework turns a
-  CSS `import` from `node_modules` into a module import the browser refuses. (Before 0.10.0 the
-  package was not on the public registry, so `npm:` could not fetch it either; that is no longer
-  why, and an `npm:` import of the stylesheet has not been tried.)
-- **Anywhere else**, serve the file and `<link>` it.
-
-The renderer recognises a linked copy of the same version and adds nothing. `injectStyles(element)`
-and `TILESET_CSS` are exported for a host that wants the rules somewhere specific first.
-
-### A wrapper for another framework
-
-Ten lines: build on mount, `update()` on change, `destroy()` on unmount. In React:
-
-```tsx
-import { useEffect, useRef } from "react";
-import type { TilesetFile } from "@vit-foundation/gen-tilesets";
-import { TilesetRenderer, type TilesetOptions } from "@vit-foundation/gen-tilesets/render";
-
-export function Tileset({ file, options }: { file: TilesetFile; options?: TilesetOptions }) {
-  const host = useRef<HTMLDivElement>(null);
-  const renderer = useRef<TilesetRenderer | null>(null);
-  useEffect(() => {
-    renderer.current = new TilesetRenderer(host.current!, { file, options });
-    return () => renderer.current?.destroy();
-  }, []);
-  useEffect(() => renderer.current?.update({ file, options }), [file, options]);
-  return <div ref={host} data-tileset-wrapper="" style={{ display: "contents" }} />;
-}
-```
-
-`update()` with unchanged values regenerates nothing, so an inline `options={{…}}` that is a new
-object on every render costs a comparison, not a redraw. Keep both attributes on the host:
-
-- **`display: contents`**, so the host has no box of its own and the tileset sizes against your
-  layout. A plain block `<div>` collapses in a shrink-to-fit parent: measured in a 600 px flex row,
-  the DOM substrate drew nothing (0 × 0) and the canvas came out 300 px wide.
-- **`data-tileset-wrapper`.** `options.avoid`'s selectors resolve in the nearest ancestor of the
-  tileset that the package did not add; unmarked, that is this `<div>`, which holds no headings, so
-  nothing would be avoided. The attributes you can select on are listed in the docs' *DOM hooks* page.
-
-### Verified (0.9.0)
-
-The Observable page and the React wrapper above were copied from throwaway projects that installed
-the packed tarball, and checked in Chrome: the canvas had opaque pixels, and the DOM substrate's
-cells had loaded `<img>`s. The four-line sketch at the top of the section is the same calls.
-
-- **Observable Framework 1.13.4**, `observable build`: both substrates, with and without the
-  linked stylesheet. With it linked, nothing was injected. Each box's first measurement was its
-  final size, with no `ResizeObserver` loop error.
-- **Vite 8 + React 19**, under `StrictMode` (which mounts, destroys and remounts every effect):
-  both substrates, exactly two boxes on the page; `tsc` with `skipLibCheck: false` passes on
-  TypeScript 6.0.3, and with the CSS import nothing was injected. With a heading laid over a DOM
-  tileset and `avoid: { targets: "h2" }`, 121 cells were masked; with `data-tileset-wrapper`
-  removed from the host, none were. In a 600 px flex row, both substrates filled 600 px.
-- **Vite 8 + Svelte 5** with no `svelte.config.js`: `<Tileset>` in both substrates, `vite build` and
-  `svelte-check` with 0 errors.
-- `dist/render/` has no bare import, so the renderer loads without a bundler.
-
-## The engine
-
-`generate(config, seed, loadSalt) → Grid<TileState>` is a **pure function**. Given the same
-triple it returns a structurally identical result on any machine, in any runtime, at any time
-(`02` **G1**).
-
-It never receives a viewport, a device pixel ratio, a `cellSize`, an asset URL, or wall-clock
-time (`02` §4.2, **G5**). Randomness is **positional hashing**, not a sequential PRNG, so resize
-is stable and per-operation reroll is possible (`02` §6.1).
-
-`generate()` **trusts its input.** `validate()` is a separate function and is not on the
-critical path (**C5**). `migrate()` runs *before* `validate()`, because rewriting a version is a
-coercion and `validate()` never coerces.
-
-### Cell attributes
-
-Operations write these per cell; a fresh cell holds the default.
-
-| Attribute | Default | Domain | What it does |
-| --- | --- | --- | --- |
-| `scale` | `1` | any number | Uniform scale, multiplied into both axes. |
-| `scaleX`, `scaleY` | `1` | any number | Per-axis scale. Negative is a flip. |
-| `rotation` | `0` | degrees, wraps at 360 | Clockwise, about the tile's centre, after scale. |
-| `opacity` | `1` | `[0, 1]`, clamped | |
-| `translateX`, `translateY` | `0` | any number | Moves the drawn tile off its cell, in **cells** (`0.5` is half a cell), `y` down. Applied after scale and rotation, so the tile turns about where it lands. |
-
-A translated tile is still its home cell in every other sense: Selections, hashing and paint
-order go by where it lives, not where it is drawn. It never changes the tileset's size; a tile
-moved past the edge is cut or not visible. The movement is rounded to a whole device pixel, so
-neighbours moved by the same amount still meet with no seam. Jitter is `random` → `[-0.2, 0.2]` →
-`add`.
-
-## The renderer
-
-`<Tileset file={...} options?={...} bind:box? />`, or `new TilesetRenderer(element, { file,
-options })` without Svelte — one entry point (**S1**), and the component is a wrapper over the
-class. It takes a parsed `TilesetFile` and calls `generate()` itself; nothing here accepts a bare
-grid.
-
-**One geometry, two presentations.** Both substrates compute the same uniform square cell —
-`scaleFactor * cellSize * dpr`, quantised to one integer on both axes. That is what makes the
-picture correct: a cell is square by construction, so the centre-crop of **R8** has nothing left to
-remove, and neighbours share an edge, so a gap is unrepresentable. They differ only in where the
-quantisation residual goes.
-
-| `substrate` | Residual goes to | Take it for |
+| Setup | `tiles/` goes in | Provider |
 | --- | --- | --- |
-| `"canvas"` (default) | one isotropic resample of one bitmap, where no internal edge exists to seam | **proportion.** No chord, exact quarter turns, no gaps at any cell size, and seamlessness no host CSS can undo |
-| `"dom"` | the **box** — sideways the grid overhangs and is clipped, so the outer columns are cut; vertically the box takes its height from the grid, so nothing is. `overflow: "visible"` lifts the clip | **interactivity**, and SSR. The only one you can hit-test per cell — by the drawn tile, with `data-x`/`data-y` saying which |
+| SvelteKit | `static/tiles/` | `prefixedProvider(base)`, with `base` from `$app/paths` |
+| Vite | `public/tiles/` | `prefixedProvider(import.meta.env.BASE_URL)` |
+| Plain HTML | next to the page's root | `prefixedProvider("/")` |
 
-`"canvas"` rounds the cell to nearest, because the presentation cancels the quantisation
-and only its magnitude is left to minimise. `"dom"` rounds **up**: it has no presentation to cancel
-anything, so the grid always covers its box and the cut is the whole residual. Rounding to nearest
-there left the sign free, and about half of all widths came out a band of page backdrop down each
-side instead.
+```js
+import { prefixedProvider } from "@vit-foundation/gen-tilesets/render";
 
-Vertically `"dom"` cuts nothing at all: after measuring, its box takes its height from the grid it
-contains rather than from the declared ratio, so the bottom row is always flush. The box can end up
-to `rows` device px taller than the natural height — which `naturalHeight` has always called a
-default rather than a constraint, and which host CSS can still override.
+const options = { provider: prefixedProvider(base) };
+```
 
-Two rules about assets follow from the geometry rather than from this package, and both are real:
-an asset must carry **at least as many pixels as the largest cell it is drawn into** (upscaling
-cannot invent detail), and a curve needs a cell of roughly **40 device pixels or more** before its
-antialiased edge stops being a large fraction of the shape. A development build warns about both.
-[`SUBPIXEL-GEOMETRY.md`](https://github.com/fndvit/gen-tilesets/blob/main/SUBPIXEL-GEOMETRY.md)
-records the whole investigation, including four theories about browser rendering that turned out to
-be false.
+A missing image is never replaced. Its cell stays empty, and `options.onAssetError` reports it.
+→ [Getting started](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/getting-started.md)
 
-`cellBox` and `cellAt` are exported from `@vit-foundation/gen-tilesets/render` — not from the root entry,
-which is engine-only — as pure functions rather than component methods, because there is exactly
-one coordinate mapping and every overlay shares it (**R1**).
+## Features
+
+### Deterministic, with variation on request
+
+With no options, the same file always draws the same picture. Pass `seed` to place one file twice
+with different pictures, or `loadSalt` to get a new picture on every page load.
+
+### Canvas or DOM
+
+The default `substrate: "canvas"` paints one seamless bitmap. `substrate: "dom"` renders one element
+per cell instead, so the tiles are in the server-rendered HTML and each cell can be hit-tested.
+→ [Options](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/options.md)
+
+### Hosting over content
+
+![Tiles cleared around a heading and a paragraph](https://raw.githubusercontent.com/fndvit/gen-tilesets/main/packages/tileset/docs/images/avoid.png)
+
+Name the elements laid over the tileset, and every tile they overlap is hidden. The mask follows the
+page's real layout as text rewraps and elements move.
+
+```js
+{ avoid: { targets: "h1, p, .cta", padding: 8 } }
+```
+
+→ [Hosting over content](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/hosting-over-content.md)
+
+### One design, many shapes
+
+![The same design at desktop and phone widths](https://raw.githubusercontent.com/fndvit/gen-tilesets/main/packages/tileset/docs/images/responsive.png)
+
+A file's rows, columns and cell size can change without a second file. `reshape(file, { rows: 3 })`
+reuses a design at another size. Responsive rules, written in the editor or passed in code, change
+the shape with the width of the tileset's box.
+
+```json
+"responsive": [{ "maxWidth": 500, "columns": 9, "rows": 14 }]
+```
+
+→ [One design, many shapes](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/responsive.md)
+
+### Decorations
+
+![Small tile blocks around a page](https://raw.githubusercontent.com/fndvit/gen-tilesets/main/packages/tileset/docs/images/decorations.png)
+
+Author one decoration style and place it as small blocks of any size around a page. Each placement
+gets its own seed.
+
+```svelte
+<TileDecoration {style} rows={3} columns={2} cellSize={44} options={{ seed: "top-left" }} />
+```
+
+→ [Decorations](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/decorations.md)
 
 ## Options
 
-Every setting is a field of one object, `options: TilesetOptions`, exported from
-`@vit-foundation/gen-tilesets/render` with a doc comment on every field. Defaults are written in exactly
-one place, `resolveOptions`, and this table is that function's output (`DEFAULT_OPTIONS`):
+Every setting is a field of one optional `options` object:
 
-| Field | Type | Default | When it matters |
-| --- | --- | --- | --- |
-| `seed` | `string` | `file.config.defaultSeed` | Variation between two placements of one file. |
-| `loadSalt` | `number` | `0` | Per-load variation. Draw it once per session, in a `load` function (see above). |
-| `substrate` | `"canvas" \| "dom"` | `"canvas"` | `"dom"` for SSR-complete HTML or per-cell hit-testing. |
-| `overflow` | `"hidden" \| "visible"` | `"hidden"` | `substrate: "dom"` only. `"visible"` stops the box clipping, so a tile translated or scaled past the edge shows whole. Also shows the side bleed, the extra columns culled in for spill, and row 0's `yOffset` crop. Put `overflow: hidden` on an ancestor to clip where you want. An error with `"canvas"`. |
-| `sizing` | `"fluid" \| "fixed"` | `"fluid"` | `"fixed"` keeps cells at `layout.cellSize` CSS px and crops instead of scaling. |
-| `align.x` | `"left" \| "center" \| "right"` | `"center"` | Under `"fixed"`: which side is cropped. No effect under `"fluid"`. |
-| `align.y` | `"top" \| "center" \| "bottom"` | `"top"` | When the host gives the tileset its own height: which rows are cropped. |
-| `avoid.targets` | selector, element, or elements | — (off) | Hide every tile whose cell overlaps these. See [Hosting over content](#hosting-over-content). |
-| `avoid.padding` | `number` (CSS px) | `0` | Clearance around each target. |
-| `responsive` | `HostRule[]` | the file's own rules | Shape overrides by box width, **replacing** the file's; `[]` turns them off. See [One design, many shapes](#one-design-many-shapes). |
-| `provider` | `AssetProvider` | `defaultProvider` | Anywhere but the site root: `prefixedProvider(base)`. Create it once, not inline. |
-| `onAssetError` | `(ref, cause) => void` | none | The only report of a missing picture. |
-
-```svelte
-<Tileset {file} />                                                   <!-- every default -->
-<Tileset {file} options={{ provider, substrate: "dom" }} />
-<Tileset {file} options={{ sizing: "fixed", align: { x: "left", y: "bottom" } }} />
-```
-
-`undefined` means the same as absent in every field, so a wrapper can forward its own optional
-values without spreading. In a development build `<Tileset>` checks the object and throws on an
-unknown field or value — `substrate: "svg"` names the two that exist rather than quietly drawing a
-canvas — and on any of the pre-0.6.0 top-level props (`seed`, `loadSalt`, `provider`,
-`onAssetError`, `substrate`), naming where each one went. In production the check compiles out.
-
-## Hosting over content
-
-A tileset behind a hero's text used to need its gaps painted in the editor against a screenshot,
-and the gaps stayed where they were painted while the text rewrapped. `options.avoid` replaces that
-with the page's actual layout: the tileset measures the elements you name and hides every tile whose
-cell overlaps one of them, as whole tiles, and keeps doing so as they move.
-
-```svelte
-<section class="hero">
-  <Tileset {file} options={{ provider, avoid: { targets: "h1, p, .cta", padding: 8 } }} />
-  <div class="copy"><h1>…</h1><p>…</p><a class="cta">…</a></div>
-</section>
-```
-
-- **`targets`** is a selector, resolved inside the tileset's **parent element** (the section above —
-  past any wrapper the package itself adds, such as `<TileDecoration>`'s box) and never matching the
-  tileset's own cells; or an element, or a list of them, from `bind:this`.
-  A list written inline is compared by content, so it does not re-register anything on each render.
-- **It follows the layout**: the section or a target resizing, text rewrapping at any width or
-  breakpoint, web fonts landing, elements added or removed, `class`/`style` toggled, text edited in
-  place. **It does not follow** a target moved by a CSS animation or transition, which resizes and
-  mutates nothing — call `refresh()` from `@vit-foundation/gen-tilesets/render` when one ends.
-- **Nothing is drawn over the page before the mask exists.** With `avoid` set the tileset stays
-  hidden until its first measurement, which under SSR means until hydration. Space is still
-  reserved, so nothing shifts when it appears.
-- **The picture itself does not change.** The grid is generated exactly as without `avoid`; the
-  mask is applied when painting. An uncovered cell shows the tile it always had, and the same
-  `(file, seed, loadSalt)` is still the same picture.
-- **It works on both substrates.** Under `"dom"` a hidden cell carries `data-masked` and
-  `visibility: hidden`; under `"canvas"` it is skipped when painting. Both update in the same frame
-  as the layout change that caused it, so a resize never shows a frame of tiles over the text.
-- **The test is the drawn tile, not the cell.** A tile is hidden when the tile *as drawn* — moved,
-  scaled or turned — meets the element, wherever its home cell is; one whose home is under the text
-  but which is drawn clear of it stays. Turned tiles are tested by their bounding box, so they are
-  hidden slightly early rather than late. Only the generated pose counts: a hover effect that grows
-  a tile over the text does not hide it. `padding` is plain clearance. (Before 0.8.0 the test was
-  the home square and `padding` covered spill; a design that padded for spill may now want less.)
-
-Every tileset on a page shares one `ResizeObserver`, one `MutationObserver` and one
-`IntersectionObserver`, reads all its rects before writing anything, and skips tilesets far off
-screen. Without `avoid`, nothing outside the tileset's own box is measured.
-
-### Fixed cells, cropped
-
-`sizing: "fixed"` keeps every cell at `layout.cellSize` CSS px and lets the box crop the grid, where
-`"fluid"` scales the whole picture with the box. `align.x` chooses the crop: `"left"` keeps the
-design's left edge and cuts from the right, `"right"` the reverse, `"center"` both sides. Columns
-are never added, so **author the grid for the widest box it will be shown in** — a wider box shows
-page backdrop beside it. The box's height is then a constant, reserved exactly in the server HTML.
-
-Culling comes with it: cells outside the box are not mounted under `"dom"` and not rasterised under
-`"canvas"`, so a 76-column grid on a phone costs what the handful of visible columns cost.
-
-## One design, many shapes
-
-A tileset is two things, and the package keeps them apart:
-
-- **the design** — `tiles`, `operations`, `defaultSeed`, the salts. *What* is drawn. Shared, never
-  overridden.
-- **the shape** — `rows`, `columns`, `cellSize`, `bleed`, `yOffset`. *How many cells, and how big.*
-  Overridable, without a second file.
-
-| You want | Use | New file? |
+| Field | Default | Purpose |
 | --- | --- | --- |
-| A one-off tileset | a `TilesetFile` in `<Tileset>` | — |
-| The same design at another fixed size, in another place (the hero as a 3-row banner on another page) | `reshape(file, { rows: 3 })` | no |
-| One placement whose shape changes with its box's width (the hero gets 14 rows on a phone) | `responsive` rules, in the file or in `options` | no |
-| Small blocks in margins that keep one tile size | `<TileDecoration>` — see [Decorations](#decorations) | no |
-| Different tiles or Operations on a phone | a second file, swapped by the host | **yes** |
-
-**They are one mechanism.** `reshape` applies an override where you place the tileset; a responsive
-rule is an override with a width condition, which `<Tileset>` applies itself; `<TileDecoration>` is
-`reshape` with `bleed: 0, yOffset: 0` plus a box. They combine: reshape a file into a banner, then
-give the banner rules of its own.
-
-### The shape fields
-
-| Field | Means | Note |
-| --- | --- | --- |
-| `rows`, `columns` | the grid | Pinned by a coordinate-bound Operation — see below. |
-| `cellSize` | design px per cell | CSS px under `sizing: "fixed"`. **Under `"fluid"` it changes nothing on its own** — see below. |
-| `bleed` | columns that overhang the box, in cells | Stands in for `referenceWidth`, which is derived: `(columns − bleed) × cellSize`. Absent means the base's bleed, kept in cells. `0` fits the grid to its box exactly. |
-| `yOffset` | fraction of a cell, `[0, 1)` | Shifts the grid up, clipping row 0's top. |
-
-An override never names `referenceWidth`: changing `columns` would make you redo that sum by hand,
-and getting it wrong adds or removes a bleed silently. Every field you do not name is the base's.
-
-**Under fluid sizing the density knob is `columns`.** A fluid cell is `box width × cellSize /
-referenceWidth`, and `reshape` keeps the bleed in cells, so a `cellSize` change alone cancels out. A
-development build warns about a rule that does only that.
-
-### Reuse at another size
-
-```ts
-import { loadTilesetFile, reshape } from "@vit-foundation/gen-tilesets";
-
-const hero = loadTilesetFile(raw);
-const banner = reshape(hero, { rows: 3 });              // same design, three rows
-const strip = reshape(hero, { rows: 2, columns: 40 });  // wider and shorter, same bleed in cells
-```
-
-```svelte
-<Tileset file={banner} options={{ provider }} />
-```
-
-`reshape` is pure and shares `tiles` and `operations` by reference. It **drops the file's own
-`responsive` rules**, which were written for the shape it replaces; pass `options.responsive` for
-rules of the banner's own. `reshapeErrors(file, override)` is the matching check, returning one
-message per problem — `<TileDecoration>` and `<Tileset>` run it in a development build.
-
-A cell present in both grids keeps its tile: randomness is addressed by `(x, y)`, so a bigger grid
-extends the picture and a smaller one trims it, rather than reshuffling. **The exception is
-`gradient`**, which spans whatever grid it is in — a ramp across 25 columns becomes a ramp across 9.
-`valueNoise` keeps its grain in cells, so its features scale with `cellSize`.
-
-### Responsive rules
-
-A rule is a width condition plus the shape fields it changes:
-
-```json
-{
-  "schemaVersion": 4,
-  "config": { "rows": 8, "columns": 25, "…": "…" },
-  "layout": { "cellSize": 60, "referenceWidth": 1440, "yOffset": 0, "horizontalAlignment": "column" },
-  "responsive": [
-    { "maxWidth": 900, "columns": 15 },
-    { "maxWidth": 500, "columns": 9, "rows": 14 }
-  ]
-}
-```
-
-- **The width is the tileset's box, in CSS px** — not the viewport. A tileset in a sidebar responds
-  to the sidebar.
-- **Bounds are inclusive**, as in CSS `(max-width: 500px)`.
-- **Every matching rule applies, in order, and a later rule wins field by field** — CSS's cascade. At
-  400px above, both hold: 9 × 14. At 700px only the first: 15 columns, and the base's 8 rows. Above
-  900px, the base.
-- **A rule changes the shape, never the design.** If a phone needs different tiles or Operations,
-  that is a second file.
-
-**In the file** is where a designer puts them: the editor has a Breakpoints section, and its preview
-handle shows each rule taking over. **In code**, a host passes its own:
-
-```svelte
-<!-- Replaces the file's rules. A host rule may also set sizing and align. -->
-<Tileset {file} options={{ responsive: [{ maxWidth: 600, sizing: "fixed", cellSize: 44, align: { x: "left" } }] }} />
-
-<!-- The file's rules plus one more — say what you mean. -->
-<Tileset {file} options={{ responsive: [...(file.responsive ?? []), { maxWidth: 360, rows: 16 }] }} />
-
-<!-- No rules at all. -->
-<Tileset {file} options={{ responsive: [] }} />
-```
-
-Precedence, in one line: **`options.responsive` if given, else the file's rules, else none** — and a
-reshaped file has none of its own.
-
-**What a breakpoint costs.** Inside a band, nothing: the picture scales, as it always did. Crossing
-into a band that changes only `cellSize`, `bleed`, `yOffset`, `sizing` or `align` recomputes
-geometry and nothing else. Crossing into one that changes `rows` or `columns` generates that grid
-once — each shape is cached, so dragging a window back and forth regenerates nothing after the
-first pass. Under `"dom"`, cells present on both sides keep their element.
-
-**Before measurement** — the server HTML, the first client frame — the box reserves the height the
-right rule will have, with a container query, so a phone load does not jump. The tiles appear once
-the box is measured, as with `avoid`. That needs a wrapper with `container-type: inline-size`, which
-`<Tileset>` renders **only when there are rules**, and it has one requirement: **the tileset's
-parent needs a definite width** (a block, or a flex/grid item with a set basis). In a shrink-to-fit
-context — an inline-block, a flex item with an auto basis — inline-size containment collapses it to
-nothing.
-
-If a breakpoint that changes `rows` flips back and forth on its own, the extra rows are adding a
-page scrollbar, which narrows the box back across the bound. A development build names it;
-`scrollbar-gutter: stable` on the page root fixes it.
-
-### Which Operations survive a shape change
-
-**An Operation that picks cells by hand pins the grid's `rows` and `columns`.** Those are `rect`
-and `cellList`, flagged `coordinateBound` in the registry: they hold literal cell coordinates, which
-mean something only in the grid they were drawn in. Everything else about the shape can still
-change — `cellSize`, `bleed` and `yOffset` move no cell, so a file with a `rect` in it can still
-take them. `all`, `checkerboard`, `everyNth` and `random` are rules and hold at any size.
-
-It is checked everywhere it can go wrong, and never by a list of names:
-
-- `validate()` rejects a file whose rule names `rows` or `columns` over a stack with a coordinate-bound
-  Operation — `COORDINATE_BOUND_RESIZE`, at the rule's field, naming the Operation.
-- `reshapeErrors` and `rulesReshapeErrors` do the same for `reshape` and host rules; `<Tileset>` and
-  `<TileDecoration>` throw on them in a development build.
-- The editor disables what would break it — `rows`/`columns` in a rule while a `rect` exists, and
-  `rect`/`cellList` while a rule resizes the grid — and says why.
-
-### Sizing with CSS
-
-Under fluid sizing, **CSS on the tileset's container controls its size completely**. The box is
-`width: 100%` of its parent, measured with a `ResizeObserver`; nothing reads the viewport. So
-`width`, `min-width`, `max-width`, `clamp()`, a flex basis and `flex-shrink: 0` on the parent all
-apply. "Fluid down to 800px, then stop shrinking and crop both sides":
-
-```css
-.hero      { overflow: hidden; display: flex; justify-content: center; }
-.hero-slot { flex: none; width: max(100%, 800px); } /* the tileset's parent */
-```
-
-Style a wrapper you own, not the tileset's box, which the package styles. What CSS controls is the
-**box**; a fluid cell is always the same fraction of it. CSS cannot change the number of rows or
-columns, or switch to exact-pixel cells — those are shape overrides and `sizing`, above. (The crop
-above freezes cells at their 800px size, which looks like `sizing: "fixed"` at that scale.)
-
-### Common mistakes
-
-- **A rule with `rows` or `columns` in a file with a `rect`.** Refused; use `cellSize`/`bleed`, or
-  rebuild the gap from procedural Selections.
-- **A fluid rule that changes only `cellSize`.** Nothing happens. Change `columns`, or make the rule
-  `sizing: "fixed"` (host rules only).
-- **Expecting a rule to change tiles or Operations.** Rules are shape only; that is a second file.
-- **A responsive tileset in a shrink-to-fit parent.** It collapses; give the parent a width.
-- **Writing `referenceWidth` in an override.** Not a field; say `bleed`.
-
-## Decorations
-
-A page usually wants more than one tileset: a couple of tailor-made ones, **plus** a scattering of
-small tile blocks around it — a 2x2 in a corner, a stepped 3x4 beside a heading, an L of three
-cells under a photo. A dozen of those are one visual language and differ only in how many cells
-they occupy.
-
-They do **not** need a dozen files. Author one *decoration style* and place it as many times as
-you like:
-
-```svelte
-<script lang="ts">
-  import { loadTilesetFile } from "@vit-foundation/gen-tilesets";
-  import TileDecoration from "@vit-foundation/gen-tilesets/TileDecoration.svelte";
-  import { prefixedProvider } from "@vit-foundation/gen-tilesets/render";
-
-  const provider = prefixedProvider(import.meta.env.BASE_URL);
-  const style = loadTilesetFile(raw);
-</script>
-
-<TileDecoration {style} rows={3} columns={2} cellSize={44} options={{ provider, seed: "board-tl" }} />
-<TileDecoration {style} rows={2} columns={4} cellSize={44} options={{ provider, seed: "board-br" }} />
-```
-
-Each placement declares `rows`, `columns` and `cellSize`, and shares the style's `tiles`,
-`operations` and assets — by reference, so there is nothing to drift. `rows`/`columns`/`layout` in
-the style file itself are placeholders that every placement overrides.
-
-**`options.seed` is what makes two decorations of the same size differ.** `generate()` is pure in
-`(config, seed, loadSalt)`, so a distinct string per spot re-rolls every Operation and the asset
-walk alike. Two spots with the same size and the same seed are the same picture, deliberately.
-
-### A style must be reusable at any size
-
-One constraint, and it is checkable:
-
-- **No `rect` and no `cellList` Selection.** Both are `coordinateBound` — they hold literal cell
-  coordinates, which mean nothing in a 3x2 spot. `reshapeErrors(style, {rows, columns})` returns one
-  message per offending Operation, and `<TileDecoration>` throws on a non-empty result **in a
-  development build**, so this fails loudly rather than drawing a plausible wrong picture. Use `all`,
-  `checkerboard`, `everyNth` and `random`.
-- **Put a `{tileId: null}` entry in a palette.** That is `04` §6.3's "clear this cell", and it is
-  where each spot's silhouette comes from — emptiness is *generated* from the seed rather than
-  painted per spot, which is what removes the need for a mask. Not enforced: a style without one is
-  a solid block, which is a legitimate decoration.
-- **`gradient` renormalizes per decoration.** It takes its domain from the Selection's extent,
-  which under `selection: {type: "all"}` is the grid — so a ramp authored across 40 columns becomes
-  a 3-step ramp in a 3-column spot. Legal and sometimes wanted; know that it is happening.
-  `valueNoise` does *not*: it samples grid-absolute coordinates, so its feature size in cells is
-  invariant and a decoration keeps the grain of the tileset it was authored beside.
-
-### What you get for free
-
-A decoration is the **zero-bleed** case, and that is not a coincidence — its preset derives
-`referenceWidth` as `columns * cellSize` and zeroes `yOffset`, because a small block of whole cells
-in a margin has no design for a bleed to belong to. Three exactnesses follow by construction rather
-than by care: `originX` is exactly 0, the scale is exactly 1, and the canvas presentation scale is
-exactly 1 at integer DPR. **`SUBPIXEL-GEOMETRY.md`'s whole subject is absent here** rather than
-merely small — measured in a browser at DPR 1 and 2, and asserted in `src/shape.test.ts`
-rather than believed.
-
-The box sizes itself to `columns * cellSize` px with `max-width: 100%`, so a decoration wider than
-a phone shrinks rather than opening a horizontal scrollbar; the tiles just come out smaller, since
-every quantity is a fraction of the box's width. To keep the tile size and crop instead, give it a
-rule that turns fixed just below its own width:
-
-```svelte
-<TileDecoration {style} rows={3} columns={6} cellSize={44}
-  options={{ provider, responsive: [{ maxWidth: 6 * 44 - 0.01, sizing: "fixed", align: { x: "left" } }] }} />
-```
-
-The style's own `responsive` rules, if it has any, are dropped: they were written for its shape, not
-for this placement.
-
-If you would rather own the box yourself, `reshape(style, {rows, columns, cellSize, bleed: 0,
-yOffset: 0})` — `decorationFile` until 0.7.0 — gives you the derived `TilesetFile` to hand to a
-plain `<Tileset>`. `<TileDecoration>` is an ordinary consumer of `<Tileset>` and adds no stage to the
-pipeline — what it saves you is getting `referenceWidth` and the box width to agree, which is one
-number in two places and reintroduces a bleed silently when they disagree.
-
-## Layout
-
-See `/ARCHITECTURE.md` for the module map. The specification is **archived outside this
-repository** at `../gen-tileset-spec-archive/` and is no longer maintained — the code is the
-authority. Citations like `07` §6.4 point into that archive; `02`–`08` are the documents that
-bound this package when it was built.
-
-`vignette` is specified in `04` §5.2 and deliberately **not registered** — see the header of
-`src/registry/sources.ts`.
-
-## Publishing
-
-`git tag vX.Y.Z && git push --tags` — `.github/workflows/publish.yml` runs the tests, the
-typecheck and `svelte-package`, packs the tarball with `pnpm pack` and publishes it to
-npmjs.com with `npm publish`. pnpm packs because only pnpm applies `publishConfig.exports`; npm
-publishes because npm's **trusted publishing** is how the job authenticates — the package's
-npmjs.com settings trust `fndvit/gen-tilesets`'s `publish.yml`, and the job proves its identity
-with a GitHub OIDC token. No npm token, no secret to rotate, and npm attaches provenance.
-
-Trusted publishing can only be configured on a package that already exists, so the very first
-version under this name (0.10.0) was published by hand: `pnpm pack` in this directory, then
-`npm publish vit-foundation-gen-tilesets-0.10.0.tgz --access public` from an account in the
-`vit-foundation` npm org. Versions up to 0.9.0 are on GitHub Packages as `@fndvit/gen-tilesets`.
-
-Bump the version in `package.json` first: the tag does not set it, and a tag whose version is
-already published fails. Note that **the package page's README is the one in the published
-tarball** — a README fix reaches nobody until a new version ships.
-
-Two decisions here are not obvious from the manifest:
-
-**`exports` points at `src`; `publishConfig.exports` points at `dist`.** pnpm replaces `exports`
-and `types` in the published manifest, so the workspace compiles source — `apps/editor` and
-`apps/demo` build with no `dist` on disk at all — while the tarball carries built `.js` and
-`.d.ts`. *Rejected:* pointing `exports` straight at `dist`, which is what the first attempt at
-this did. It publishes the same tarball but breaks `pnpm dev` until someone remembers to build,
-and it makes the engine the editor previews with a stale artifact rather than the source.
-
-**No preprocessor, and no `svelte.config.js`.** `Tileset.svelte` is written `lang="ts"` and is
-published that way. Svelte 5's compiler strips TypeScript itself, so `vitePreprocess()` is a
-no-op for scripts here — verified directly: it returns the source unchanged, and a throwaway
-consumer with a bare `svelte()` plugin compiles the packed component. *Rejected:* carrying a
-`svelte.config.js` with `vitePreprocess()` to match the two apps. It preprocesses nothing and
-implies a build requirement the package does not have.
-
-`svelte-check` is part of this package's `typecheck` because it is the only type coverage
-`Tileset.svelte` gets from inside its own package. `tsconfig.json` must therefore `include`
-`src/**/*.svelte` — with only `*.ts` in scope, `svelte-check` finds no input and
-`--fail-on-warnings` fails on that warning alone.
-
-`svelte-package` stages a compiled copy of the package in `.svelte-kit/__package__/` and leaves
-it behind, where Vitest's default `include` finds its `.test.js` files. `vitest.config.ts`
-excludes that directory and `build:prune` removes it; without the exclusion every test runs
-twice after a build, the second time against a stale artifact — and passes, which is what makes
-it worth guarding.
-
-## Scripts
-
-`pnpm test` · `pnpm test:watch` · `pnpm typecheck` · `pnpm build`
-
-Tests assert **properties**, never fixed expected values. The vector tables of `05` §11 and
-`07` §11.3 do not exist yet — read `/spec/FREEZE.md` before generating any.
+| `seed` | the file's `defaultSeed` | A different picture from the same file. |
+| `loadSalt` | `0` | A different picture on each load. |
+| `substrate` | `"canvas"` | `"dom"` for server-rendered tiles and per-cell hit-testing. |
+| `overflow` | `"hidden"` | `"visible"` lets tiles show past the box (`"dom"` only). |
+| `sizing` | `"fluid"` | `"fixed"` keeps cells at their pixel size and crops instead of scaling. |
+| `align` | `{ x: "center", y: "top" }` | Which side is cropped. |
+| `avoid` | off | Elements to keep clear: `{ targets, padding }`. |
+| `responsive` | the file's rules | Breakpoint rules that replace the file's. `[]` turns them off. |
+| `provider` | `defaultProvider` | How an image path becomes a URL. |
+| `onAssetError` | none | Called when an image fails to load. |
+
+The `TilesetOptions` type documents every field. →
+[Options](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/options.md)
+
+## Documentation
+
+- [Getting started](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/getting-started.md): from the editor's export to tiles on screen
+- [Options](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/options.md): every setting, the two substrates, fixed sizing, sizing with CSS
+- [Hosting over content](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/hosting-over-content.md)
+- [One design, many shapes](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/responsive.md): `reshape` and responsive rules
+- [Decorations](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/decorations.md)
+- [Without Svelte](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/without-svelte.md): plain JS, Observable Framework, React
+- [The engine](https://github.com/fndvit/gen-tilesets/blob/main/apps/docs/src/content/docs/guides/engine.md): `generate()`, cell attributes, and geometry for building tools
+
+## License
+
+MIT

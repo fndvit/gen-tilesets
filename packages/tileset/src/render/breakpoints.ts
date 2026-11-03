@@ -143,7 +143,7 @@ export function reservationCss(
  * frame rate. The picture is still a pure function of the width at every frame;
  * it is the width that is oscillating. So this does not hold the picture
  * (hysteresis would make it depend on history) — it names the cause in a
- * development build, and the README gives the fix: `scrollbar-gutter: stable`.
+ * development build, and the responsive guide gives the fix: `scrollbar-gutter: stable`.
  *
  * Fires once per instance: `limit` alternations between two keys within `windowMs`.
  */

@@ -32,6 +32,7 @@ export default defineConfig({
       ],
       sidebar: [
         { label: "Start here", link: "/" },
+        { label: "Guides", items: [{ autogenerate: { directory: "guides" } }] },
         { label: "Concepts", items: [{ autogenerate: { directory: "concepts" } }] },
         { label: "Engine", items: [{ autogenerate: { directory: "engine" } }] },
         { label: "Renderer", items: [{ autogenerate: { directory: "renderer" } }] },

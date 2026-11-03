@@ -80,7 +80,7 @@ the number by hand anywhere is the failure it exists to prevent.
 The workspace consumes the package's **source** and the tarball carries **built `dist`**, via
 `publishConfig.exports`. So a change is visible in `pnpm dev` with no build step — and a
 publishing mistake is invisible there. Verify a release by packing and installing the tarball into
-a throwaway app, not by trusting the apps. `packages/tileset/README.md` has the procedure.
+a throwaway app, not by trusting the apps. `packages/tileset/RELEASING.md` has the procedure.
 
 ## Testing
 
