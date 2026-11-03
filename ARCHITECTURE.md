@@ -88,7 +88,7 @@ are inside this workspace:
 | anyone installing the tarball | `publishConfig.exports` | `dist/**/*.js` + `.d.ts` — built by `svelte-package` |
 
 pnpm replaces `exports` and `types` at publish time, so the two apps never need a build step and
-the tarball never ships TypeScript. `packages/tileset/README.md` records why, and what was
+the tarball never ships TypeScript. `packages/tileset/RELEASING.md` records why, and what was
 rejected.
 
 ## `packages/tileset/src` — the engine

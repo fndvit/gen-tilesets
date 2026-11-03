@@ -30,8 +30,8 @@ r.destroy();
 `.cell` element per shown cell. A switch between them at runtime keeps the box. `<Tileset>` and
 `<TileDecoration>` are thin Svelte wrappers around it (0.9.0), and `TileDecorationRenderer`
 (`decoration.ts`) is the plain-JS decoration. Both are exported from `@vit-foundation/gen-tilesets/render`
-since 0.9.0. The package README has an Observable Framework example and a wrapper pattern for other
-frameworks.
+since 0.9.0. The [Without Svelte](/guides/without-svelte/) guide has an Observable Framework example and a
+wrapper pattern for other frameworks.
 
 ## In detail
 

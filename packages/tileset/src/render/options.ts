@@ -17,8 +17,8 @@
  * a silent wrong picture. Passing one throws in a development build, naming its
  * new place (`legacyPropErrors`).
  *
- * **Defaults live in `resolveOptions` and nowhere else**, so the table in the
- * README and the behaviour cannot drift apart without a test noticing.
+ * **Defaults live in `resolveOptions` and nowhere else**, so the options table in the
+ * docs and the behaviour cannot drift apart without a test noticing.
  *
  * Every field accepts `undefined` as well as absence, and they mean the same
  * thing: the package compiles under `exactOptionalPropertyTypes`, where `seed?:
@@ -63,7 +63,7 @@ export interface TilesetOptions {
   /**
    * Per-load variation, drawn **once per render session by the host** and held
    * (`07` **R12**). Default `0`. Never draw it at module scope under SSR — see the
-   * README.
+   * Getting started guide.
    */
   loadSalt?: number | undefined;
 
