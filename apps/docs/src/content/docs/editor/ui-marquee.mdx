@@ -1,0 +1,64 @@
+---
+title: ui/Marquee.svelte
+description: The console strip, which scrolls its text right to left only when it does not fit.
+sidebar:
+  order: 67
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Marquee.svelte`.
+
+## Overview
+
+`Marquee` is the thin grey strip in monospace text that sums up an operation in one line, for
+example `Checkerbox * opacity [0.5 - 1] * random source * set`. When the summary fits, it stays
+still. When it is too long, it scrolls slowly from right to left in a loop, and stops while the
+pointer is over it so it can be read. With reduced motion turned on, it never moves.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports. Edit the text to watch it switch between still and scrolling.
+
+<UiPrimitivesStory show="marquee" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `text` | `string` | required | Shown as given; also the `title`. |
+
+### Inputs → outputs
+
+- `clientWidth` of the strip and `offsetWidth` of the text copy (including its trailing
+  `--space-6` gap) are bound. The text overflows when the copy is wider than the strip.
+- When it overflows, a second, `aria-hidden` copy is added, and the track animates
+  `translateX(0 → -50%)`, which moves exactly one copy, over
+  `marqueeDuration(copyWidth, --marquee-speed)` seconds, linearly and forever.
+- Hover pauses the animation. `prefers-reduced-motion: reduce` turns it off, and the overflow is
+  clipped.
+- Strip: `.t-console`, `--color-inactive`, `--rule` frame, `--console-pad-y` vertical
+  padding.
+
+### Invariants
+
+- **Constant speed.** A longer summary takes longer to pass instead of moving faster.
+- **Read once.** The duplicate copy is hidden from assistive technology.
+
+### Callers / callees
+
+No callers in the editor yet (the operation header in Block E). Callees: `marqueeDuration` from
+`lib/ui/marquee.ts`.
+
+### Tests
+
+None for the component. `lib/ui/marquee.test.ts` covers the duration.
+
+### Gotchas & rejected alternatives
+
+- **No `text-transform`.** Figma capitalises the summary, but the summary holds ids and values
+  that a blanket transform would rewrite (`tileId` → `TileId`). Casing is the caller's.
+- **The speed is read from the token at mount.** Changing `--marquee-speed` later has no effect
+  on a strip that is already mounted.

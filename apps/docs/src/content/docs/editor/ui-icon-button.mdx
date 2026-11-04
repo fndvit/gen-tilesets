@@ -1,0 +1,55 @@
+---
+title: ui/IconButton.svelte
+description: A bare button holding one icon, named for screen readers, with an optional seed tone.
+sidebar:
+  order: 61
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/IconButton.svelte`.
+
+## Overview
+
+`IconButton` is the small button made of nothing but an icon: delete an operation, re-seed it,
+move it up or down. It has no background or frame of its own, so it looks like the icon sitting
+on whatever bar or surface holds it. Hovering dims it. The re-seed button is magenta, the one
+colour the design reserves for anything random.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
+
+<UiPrimitivesStory show="icon-button" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `icon` | `IconName` | required | Which icon. |
+| `label` | `string` | required | `aria-label` and `title`. |
+| `onclick` | `(event: MouseEvent) => void` | required | |
+| `disabled` | `boolean` | `false` | Drawn in `--color-inactive`, stays in place. |
+| `tone` | `"default" \| "seed"` | `"default"` | `seed` = `--color-seed`. |
+
+### Invariants
+
+- **`label` is required.** The icon is the only visible content, so the words have to be given.
+- **Seed means non-deterministic.** The design system gives `--color-seed` one meaning, so
+  `tone="seed"` is for re-seed only.
+
+### Inputs → outputs
+
+- `color: inherit`, so on a bar it is `--color-on-bar`.
+- Hover: `--color-inactive`, except for `seed`, which keeps its colour. Figma has no seed hover
+  yet.
+
+### Callers / callees
+
+No callers in the editor yet. Callees: `lib/ui/Icon.svelte`.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).

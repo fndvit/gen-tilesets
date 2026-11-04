@@ -1,0 +1,65 @@
+/*
+  The five text styles and the font they need, and nothing else.
+
+  Split out of `base.css` so a page outside the editor (the docs stories) can
+  wear the editor's type without also taking its global focus ring and
+  reduced-motion rule. Text styles are classes rather than element rules so a
+  <button>, a <label> and an <h2> can all wear "label" without fighting a
+  cascade.
+*/
+
+@import "@fontsource/roboto-mono/500.css";
+
+/*
+  Figma trims every text box to cap height ("text-box-trim: both, cap /
+  alphabetic"), which is what makes 4px of padding look like 4px around an
+  uppercase word. Browsers without `text-box` fall back to line-height 1.
+*/
+.t-section,
+.t-label,
+.t-body,
+.t-xs,
+.t-console {
+  margin: 0;
+  line-height: 1;
+  text-box: trim-both cap alphabetic;
+}
+
+/* "Section Header" — 24 Medium, uppercase. */
+.t-section {
+  font-family: var(--font-ui);
+  font-size: var(--text-section-size);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+}
+
+/* "UI small UC" — 20 Roman, uppercase. Field labels, group titles, weights. */
+.t-label {
+  font-family: var(--font-ui);
+  font-size: var(--text-label-size);
+  font-weight: var(--weight-regular);
+  text-transform: uppercase;
+}
+
+/* "UI regular" — 14 Light. Questions and running text. */
+.t-body {
+  font-family: var(--font-ui);
+  font-size: var(--text-body-size);
+  font-weight: var(--weight-light);
+}
+
+/* "UI XS Bold" — 10 Medium, uppercase. Chips, tabs, small buttons. */
+.t-xs {
+  font-family: var(--font-ui);
+  font-size: var(--text-xs-size);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+}
+
+/* "Console" — Roboto Mono 10 Medium. Summaries and glyph labels. */
+.t-console {
+  font-family: var(--font-mono);
+  font-size: var(--text-console-size);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--text-console-tracking);
+}

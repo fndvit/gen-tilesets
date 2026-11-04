@@ -48,6 +48,7 @@
   --text-xs-size: 10px; /* "UI XS Bold" */
   --text-console-size: 10px; /* "Console" */
   --text-console-tracking: 0.02em; /* Figma: 2% */
+  --leading-hint: 1.3; /* multi-line hint bubbles; every other style is one trimmed line */
 
   /* ── Space (2px base) ──────────────────────────────────────────────── */
   --space-1: 2px;
@@ -74,6 +75,11 @@
   --glyph-h: 60px;
   --glyph-cell: 10px;
   --glyph-gap: 1px;
+  --glyph-slot: 43px; /* artwork square inside a glyph cell */
+  --glyph-cols: 5; /* cells per row in a glyph grid */
+  --chip-gap: 9px; /* between choice chips; off the 2px scale in Figma */
+  --console-pad-y: 3px; /* console strip; off the 2px scale in Figma */
+  --hint-w: 260px; /* widest a field hint bubble grows */
   /* ── Border ────────────────────────────────────────────────────────── */
   --rule-w: 1px;
   --rule: var(--rule-w) solid var(--color-rule);

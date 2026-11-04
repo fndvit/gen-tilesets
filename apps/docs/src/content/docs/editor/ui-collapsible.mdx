@@ -1,0 +1,78 @@
+---
+title: ui/Collapsible.svelte
+description: A black bar that shows and hides what follows it, in the section and tile group sizes from Figma.
+sidebar:
+  order: 63
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Collapsible.svelte`.
+
+## Overview
+
+`Collapsible` is the black header bar that opens and closes a part of the sidebar. In the
+section size, it heads Grid & Size, Tiles and Operations. In the smaller group size, it heads each
+tile group. The title is on the left. On the right is a chevron that points up when open and down
+when closed, and optionally some decoration, such as a closed tile group's thumbnails. A tile
+group's bar can also rename the group (click the title) and holds a trash button before the
+title, as the operation header does.
+
+Whether a bar is open lasts only for the session. It is never saved in the tileset file.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
+
+<UiPrimitivesStory show="collapsible" client:only="svelte" />
+
+## In detail
+
+### Purpose
+
+The shared disclosure for the redesign. `Section.svelte` will be rebuilt on it in Block C, and
+the tile group in Block D. It renders the body bare, because the section body and the tile group
+body have different padding and frames in Figma.
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `title` | `string` | required | Uppercased by the text style. |
+| `open` | `boolean` (bindable) | `true` | Shown or hidden. |
+| `variant` | `"section" \| "group"` | `"section"` | `section`: `.t-section`, `--bar-h-section`. `group`: `.t-label`, `--bar-h-group`, 1px border. |
+| `level` | `2 \| 3 \| 4` | 2 for section, 3 for group | Heading level of the bar. |
+| `onRename` | `(title: string) => void` | — | Makes the title an [`InlineEdit`](/editor/ui-inline-edit/). |
+| `actions` | `Snippet` | — | Controls before the title, e.g. the trash `IconButton`. |
+| `extras` | `Snippet` | — | Decorative content beside the chevron. |
+| `children` | `Snippet` | required | The body. |
+
+### Inputs → outputs
+
+- `<h{level}>` wrapping the bar. In the bar: `actions`, then the title (an `InlineEdit` when
+  `onRename` is set), then a `<button aria-expanded aria-controls>` that fills the rest of the
+  bar. Without `actions` or `onRename`, the title is inside that button and the whole bar
+  toggles. With `onRename`, the button is named `Expand {title}` or `Collapse {title}`.
+- The body is `<div id>` (from `$props.id()`) and is rendered only while open.
+- The chevron rotates 180° when open, over `--dur-fast`.
+
+### Invariants
+
+- **Open state is never persisted.** `09` §12 postpones persisted editor state and **E4** keeps
+  it out of `meta`, the same rule `Section.svelte` documents.
+- **`extras` must not be interactive.** It sits inside the button.
+
+### Callers / callees
+
+No callers in the editor yet. Callees: `lib/ui/Icon.svelte` (`fold`), `lib/ui/InlineEdit.svelte`.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).
+
+### Gotchas & rejected alternatives
+
+- **Heading around button**, not the reverse, so the sidebar keeps an outline and the button
+  keeps the disclosure semantics. Same shape as `Section.svelte`.
+- **Rename and delete sit outside the disclosure button.** Interactive content cannot be nested
+  in a button, so the bar is split: actions and the editable title, then the toggle.

@@ -1,0 +1,61 @@
+---
+title: ui/TabBar.svelte
+description: Equal-width step tabs, in the closed (all black) and open (one paper tab) looks from Figma.
+sidebar:
+  order: 68
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/TabBar.svelte`.
+
+## Overview
+
+`TabBar` is the row of four step names under each operation's summary: Selection, Attribute,
+Source and Blend. When the operation is closed, all four are black. When it is open, the current
+step turns white and joins the panel below it. Clicking a step opens the operation at that step.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports. The first bar is the closed look; the second is open at the selected step.
+
+<UiPrimitivesStory show="tab-bar" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `tabs` | `{ id: string; label: string }[]` | required | Equal-width tabs, in order. |
+| `active` | `string \| null` | required | `null` gives the closed look. |
+| `onSelect` | `(id: string) => void` | required | Click, Enter or Space. |
+| `label` | `string` | required | `aria-label` of the tablist. |
+| `panelId` | `string` | — | `aria-controls` of the active tab. |
+
+### Inputs → outputs
+
+- `role="tablist"` of `role="tab"` buttons with `aria-selected`. The single tab stop is the
+  focused tab, else the active one, else the first.
+- Left, Right, Home and End move focus only (`rovingIndex`). Up and Down are left to the page.
+- Closed: black tabs, `.t-xs` in `--color-on-bar`. Open: every tab gets a right and bottom
+  `--rule`, and the active one is paper with ink text and no bottom rule.
+
+### Invariants
+
+- **Manual activation.** Selecting a step opens the operation's draft, which is a real action, so
+  moving focus never selects.
+
+### Callers / callees
+
+No callers in the editor yet (the operation header in Block E). Callees: `rovingIndex` from
+`lib/ui/keys.ts`.
+
+### Tests
+
+None for the component. `lib/ui/keys.test.ts` covers the arithmetic.
+
+### Gotchas & rejected alternatives
+
+- **Height follows the container** (`height: 100%`, at least `--bar-h-group`). In the closed
+  header, the tabs fill what the console strip leaves of `--op-header-h`.

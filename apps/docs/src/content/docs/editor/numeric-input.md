@@ -16,7 +16,7 @@ field of every breakpoint rule, and the weight beside each picture in the tile l
 
 The author types, and the field writes to the document only once the text is a legal value.
 While the text is incomplete, such as `1.` on the way to `1.5`, or out of range, the field keeps
-showing what the author typed, marks itself as pending, and leaves the document alone. Leaving
+showing what the author typed and leaves the document alone. Leaving
 the field puts the document's real value back in the box.
 
 In the editor's pipeline (import → document → draft/history → preview → export), it is one of
@@ -40,7 +40,7 @@ to `"1"` under the cursor.
 | `value` | `number` | required | The file's current value. The component never writes it. |
 | `parse` | `(text: string) => ParseResult` | required | The field's rule. `ParseResult` is `number \| null` (`fields.ts:39`); `null` means *do not commit*. |
 | `onCommit` | `(text: string) => void` | required | Called with the **text**, and only when `parse(text)` is not `null`. |
-| `note` | `string` | `undefined` | Shown in `<em>` beside the label. |
+| `hint` | `string` | `undefined` | Explanation shown on hovering the label (`FieldRow`'s `hint`), and the input's `aria-describedby`. |
 | `step` | `string` | `"any"` | Passed to `<input type="number">`. |
 
 No events, no bindings, no snippets. The callback receives text, not the parsed number, because
@@ -54,8 +54,6 @@ the transitions in `document.ts` parse again on their own terms.
   follows the typing on every parseable keystroke.
 - **On `blur`:** `draft = null`. Refused text reverts to the last legal value, and accepted text is
   normalised (`"1."` becomes `"1"`, `"007"` becomes `"7"`).
-- `pending` is `parse(text) === null`. It adds the `pending` class to the `<label>`. It is
-  advisory only.
 
 ### Invariants
 
@@ -73,13 +71,23 @@ the transitions in `document.ts` parse again on their own terms.
 | Caller | Field | `parse` |
 | --- | --- | --- |
 | `App.svelte:434` | rows | `parseRows` |
-| `App.svelte:441` | y offset (`note="[0, 1) — clips row 0"`) | `parseYOffset` |
+| `App.svelte` | y offset (with a `hint` explaining the fraction) | `parseYOffset` |
 | `App.svelte:454` | design width | `parseReferenceWidth` |
 | `App.svelte:460` | cell size | `parseCellSize` |
 | `App.svelte:534` | each breakpoint rule field | `RULE_PARSERS[field]` |
 | `lib/TileLibrary.svelte:294` | asset weight | `parseWeight` |
 
-Callees: `format` and the `ParseResult` type from `fields.ts:27`.
+Callees: `format` and the `ParseResult` type from `fields.ts:27`, and
+[`ui/FieldRow`](/editor/ui-field-row/) for the row (label on the left, field on the right, with
+`for` pointing at the input's `$props.id()`).
+
+### Look
+
+The Figma *Numeric input*: the label in `.t-label`, the field a `--field-w` underline (`--rule`
+along the bottom) with right-aligned `.t-label` text, `--space-2` side padding and no number
+spinners. Focus thickens the underline to `--focus-w` instead of drawing the editor's focus ring,
+because a box around an underline field reads as a different control. Every value is a token
+from `styles/tokens.css`.
 
 ### Tests
 
@@ -96,7 +104,5 @@ test file of its own; `document.test.ts` is the test that imports them.
 
 ### Review notes
 
-- The `note` prop's doc comment (line 37) says it is "Used for the destructive three of §9.3". The
-  only caller that passes `note` is the **y offset** field (`App.svelte:444`), which is not one of
-  the destructive three. The comment is stale.
-- Line 54 refers to "an undo at Step 10". Undo exists. The reference to a build step is stale.
+- There is no visual pending state. Half-typed text looks the same as committed text, by
+  decision in the Block B review.

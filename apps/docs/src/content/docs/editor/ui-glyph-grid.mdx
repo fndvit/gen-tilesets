@@ -1,0 +1,54 @@
+---
+title: ui/GlyphGrid.svelte
+description: A step's options as a five-column grid of glyph cells, with radio-group keyboard behaviour.
+sidebar:
+  order: 70
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/GlyphGrid.svelte`.
+
+## Overview
+
+`GlyphGrid` lays out a step's choices, five to a row, as glyph cells, for example the six ways
+to choose which cells an operation affects. Exactly one is chosen. The arrow keys move the choice,
+up and down by a row.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports. The second grid shows label-only cells, as Attribute, Source and Blend will until their
+glyphs are designed.
+
+<UiPrimitivesStory show="glyph-grid" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+Generic over `T extends string`.
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `items` | `{ value: T; label: string; src?: string; disabled?: boolean }[]` | required | |
+| `value` | `T \| null` | required | The chosen item, or none. |
+| `onChange` | `(value: T) => void` | required | |
+| `label` | `string` | required | `aria-label` of the radio group. |
+
+### Inputs → outputs
+
+- `role="radiogroup"`, a CSS grid of `repeat(var(--glyph-cols), minmax(0, 1fr))` with
+  `--space-2` gaps.
+- The tab stop is the chosen cell, or the first one if none is chosen.
+- Arrows, Home and End: `rovingIndex(key, i, n, cols)`, where `cols` is read from
+  `--glyph-cols`. The new item is committed and focused. A disabled target is skipped (the key
+  does nothing).
+
+### Callers / callees
+
+No callers in the editor yet (the operation draft in Block E). Callees:
+`lib/ui/OperationGlyph.svelte`, and `rovingIndex` from `lib/ui/keys.ts`.
+
+### Tests
+
+None for the component. `lib/ui/keys.test.ts` covers grid movement.

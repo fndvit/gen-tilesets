@@ -460,7 +460,7 @@
             <NumericInput
               label="y offset"
               step="0.05"
-              note="[0, 1) — clips row 0"
+              hint="Shifts the grid up by a fraction of a cell, from 0 to just under 1. The top of row 0 is clipped."
               value={layout.yOffset}
               parse={parseYOffset}
               onCommit={(t) => session.apply(setYOffset(t))}

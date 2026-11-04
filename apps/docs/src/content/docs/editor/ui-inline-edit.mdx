@@ -1,0 +1,68 @@
+---
+title: ui/InlineEdit.svelte
+description: Text that turns into an input when clicked, and commits only a real, non-empty change.
+sidebar:
+  order: 73
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/InlineEdit.svelte`.
+
+## Overview
+
+`InlineEdit` is a name that you can click to rename, used for a tile group's title on its black
+bar. Clicking the name turns it into a text field with the name selected. Enter or clicking
+elsewhere saves; Escape cancels. Saving an empty name, or the same name, changes nothing.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone on a bar. The story loads the editor's
+`tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and
+prints the current value.
+
+<UiPrimitivesStory show="inline-edit" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `value` | `string` | required | The current name, from the file. |
+| `label` | `string` | required | Accessible name, e.g. "Rename tile group". |
+| `onCommit` | `(value: string) => void` | required | Called with the trimmed new name. |
+| `textClass` | `string` | `"t-label"` | Text style, so the field matches the text it replaces. |
+
+### Inputs → outputs
+
+- At rest: a `<button>` showing `value`, named `{label}: {value}`. Hover dims it to
+  `--color-inactive`, like the rest of a bar.
+- Click: the draft is set to `value`, an `<input>` replaces the button, and it is focused with all
+  text selected. It is sized to its content (`field-sizing: content`, with `size` as the fallback)
+  and has a `--focus-w` underline in `currentColor`, which is also its focus cue (no ring).
+- Enter or blur: `onCommit(draft.trim())`, unless the result is empty or equal to `value`. Escape:
+  no commit. Either way focus returns to the button.
+
+### Invariants
+
+- **Only a real change commits.** A name cannot be blanked, and an idle click leaves no undo
+  entry.
+- **The component holds no file state.** It shows `value`. The draft lives only while editing.
+
+### Callers / callees
+
+| Caller | Use |
+| --- | --- |
+| `lib/ui/Collapsible.svelte` | the title, when `onRename` is set |
+
+No callees.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).
+
+### Gotchas & rejected alternatives
+
+- **Enter and blur both commit.** Enter removes the input, which can fire blur. The `editing`
+  guard in `finish` makes the second call a no-op.

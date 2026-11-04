@@ -25,6 +25,7 @@
 -->
 <script lang="ts">
   import { format, type ParseResult } from "../fields.js";
+  import FieldRow from "./ui/FieldRow.svelte";
 
   interface Props {
     label: string;
@@ -34,12 +35,14 @@
     parse: (text: string) => ParseResult;
     /** Called only with a value `parse` accepted. */
     onCommit: (text: string) => void;
-    /** Shown beside the label. Used for the destructive three of §9.3. */
-    note?: string;
+    /** Explanation shown on hovering the label (`FieldRow`'s `hint`). */
+    hint?: string;
     step?: string;
   }
 
-  let { label, value, parse, onCommit, note, step = "any" }: Props = $props();
+  let { label, value, parse, onCommit, hint, step = "any" }: Props = $props();
+
+  const inputId = $props.id();
 
   /**
    * **The in-flight text of E5, and nothing else.**
@@ -51,7 +54,7 @@
    *
    * Modelling it as `string | null` rather than as a mirrored string is what
    * keeps the file the single source of truth. A mirror has to be re-synced when
-   * the value changes underneath it — a reset, or an undo at Step 10 — and the
+   * the value changes underneath it — a reset, or an undo — and the
    * re-sync has to know not to fire while the author is typing. Here that falls
    * out: a `null` draft follows the file automatically, and a non-null one is
    * the author's and is left alone.
@@ -59,9 +62,6 @@
   let draft = $state<string | null>(null);
 
   const text = $derived(draft ?? format(value));
-
-  /** `true` while the text denotes nothing the file may hold. Advisory only. */
-  const pending = $derived(parse(text) === null);
 
   function onInput(event: Event): void {
     const next = (event.currentTarget as HTMLInputElement).value;
@@ -88,62 +88,53 @@
   }
 </script>
 
-<label class="field" class:pending>
-  <span class="label">
-    {label}
-    {#if note}<em>{note}</em>{/if}
-  </span>
-  <input
-    type="number"
-    {step}
-    value={text}
-    oninput={onInput}
-    onblur={onBlur}
-    spellcheck="false"
-  />
-</label>
+<!--
+  The row is `ui/FieldRow`; this component adds only the underline field, the
+  Figma *Numeric input*: `.t-label` text, right-aligned, on a 1px ink rule.
+-->
+<FieldRow {label} for={inputId} {...hint ? { hint } : {}}>
+  {#snippet children(describedBy)}
+    <input
+      id={inputId}
+      class="t-label"
+      aria-describedby={describedBy}
+      type="number"
+      {step}
+      value={text}
+      oninput={onInput}
+      onblur={onBlur}
+      spellcheck="false"
+    />
+  {/snippet}
+</FieldRow>
 
 <style>
-  .field {
-    display: grid;
-    grid-template-columns: 1fr 5.5rem;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-  }
-
-  .label {
-    color: #4a5568;
-  }
-
-  .label em {
-    display: block;
-    font-size: 0.7rem;
-    font-style: normal;
-    color: #5a6b80;
-  }
-
   input {
-    background: #f7fafc;
-    border: 1px solid #cbd5e0;
-    color: inherit;
-    border-radius: 4px;
-    padding: 0.3rem 0.4rem;
-    font: inherit;
-    font-size: 0.85rem;
-    width: 100%;
-  }
-
-  input:focus {
-    outline: none;
-    border-color: #a0aec0;
+    width: var(--field-w);
+    padding: 0 var(--space-2);
+    border: 0;
+    border-bottom: var(--rule);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--color-ink);
+    text-align: right;
+    appearance: textfield;
   }
 
   /*
-    The control is holding text the file has not taken. Not an error state — the
-    author is mid-keystroke, and the file is still drawing its last legal value.
+    Focus thickens the underline instead of drawing the global ring: a box
+    around an underline field reads as a different control.
   */
-  .pending input {
-    border-color: #b7791f;
+  input:focus-visible {
+    outline: none;
+    border-bottom-width: var(--focus-w);
+    margin-bottom: calc(var(--rule-w) - var(--focus-w));
+  }
+
+  /* No spinners: the field is a typed value, as in Figma. */
+  input::-webkit-inner-spin-button,
+  input::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
   }
 </style>
