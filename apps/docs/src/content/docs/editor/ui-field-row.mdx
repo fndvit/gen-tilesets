@@ -15,6 +15,10 @@ import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
 and its control on the right, such as a number field or a set of choice chips. If a setting needs
 explaining, the explanation appears when the pointer is over its name, never in the row itself.
 
+Inside an open operation the rows are compact: the operation body sets `--field-label-w` (the
+width of a label column) and `--field-justify: flex-start`, so each control sits right after its
+label. The control shrinks rather than making the row wider than the sidebar.
+
 ## Try it
 
 The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
@@ -55,6 +59,11 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 | `lib/NumericInput.svelte` | every numeric field, with `for` |
 | `lib/sections/GridSection.svelte` | Alignment, a group row around a `Toggle` |
 | `lib/sections/SidebarFooter.svelte` | Seed (with `for`), Assets, Assets on load, Fresh load |
+| `controls/ParamControl.svelte` | a segmented or slider parameter, with the range as `hint` |
+| `controls/ParamFields.svelte` | "Cells", the painted-cell count of a `cellList` |
+| `controls/NumericMapping.svelte` | "Values" (Continuous / Stepped) |
+| `controls/PaletteBar.svelte` | "Tile", the selected entry's picker |
+| `lib/operations/OperationBody.svelte` | "Reseed on load" |
 
 Callees: `lib/ui/Hint.svelte`.
 

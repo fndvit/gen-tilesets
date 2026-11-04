@@ -14,7 +14,15 @@
 
 import type { Operation } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
-import { fromOperation, isComplete, newDraft, toOperation, toShadowOperation } from "./draft.svelte.js";
+import {
+  draftDiffers,
+  fromOperation,
+  isComplete,
+  newDraft,
+  retarget,
+  toOperation,
+  toShadowOperation,
+} from "./draft.svelte.js";
 
 const numeric: Operation = {
   id: "op3",
@@ -128,5 +136,48 @@ describe("toShadowOperation", () => {
 
   it("is null before a Selection type is chosen", () => {
     expect(toShadowOperation(newDraft("op1"))).toBeNull();
+  });
+});
+
+describe("draftDiffers", () => {
+  it("leaves a fresh create-draft unchanged until a step is answered", () => {
+    const draft = newDraft("op1");
+    expect(draftDiffers(draft, null)).toBe(false);
+    draft.selectionType = "all";
+    expect(draftDiffers(draft, null)).toBe(true);
+  });
+
+  it("sees no change in a reopened Operation, whatever step is open", () => {
+    const draft = fromOperation(numeric);
+    draft.step = "blend";
+    expect(draftDiffers(draft, numeric)).toBe(false);
+    expect(draftDiffers(fromOperation(tileTargeted), tileTargeted)).toBe(false);
+  });
+
+  it("sees an edited parameter, a new Blend and a new salt", () => {
+    const params = fromOperation(numeric);
+    params.selectionParams.parity = 0;
+    expect(draftDiffers(params, numeric)).toBe(true);
+
+    const blend = fromOperation(numeric);
+    blend.blend = "set";
+    expect(draftDiffers(blend, numeric)).toBe(true);
+
+    const salt = fromOperation(numeric);
+    salt.salt += 1;
+    expect(draftDiffers(salt, numeric)).toBe(true);
+  });
+
+  it("ignores a retarget there and back, since the unused mapping never commits", () => {
+    const draft = fromOperation(tileTargeted);
+    retarget(draft, "opacity");
+    retarget(draft, "tileId");
+    expect(draftDiffers(draft, tileTargeted)).toBe(false);
+  });
+
+  it("counts an edit made incomplete as a change", () => {
+    const draft = fromOperation(tileTargeted);
+    draft.palette = [];
+    expect(draftDiffers(draft, tileTargeted)).toBe(true);
   });
 });

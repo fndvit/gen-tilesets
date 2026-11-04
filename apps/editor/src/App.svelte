@@ -24,19 +24,17 @@
   import type { Transition } from "./document.js";
   import { toShadowOperation } from "./draft.svelte.js";
   import { drafting } from "./drafting.svelte.js";
-  import { nextOperationId } from "./ids.js";
   import { atRisk, needsConfirmation, orphans } from "./orphans.js";
-  import OperationDraft from "./lib/OperationDraft.svelte";
-  import OperationStack from "./lib/OperationStack.svelte";
   import PaintLayer from "./lib/PaintLayer.svelte";
   import PreviewFrame from "./lib/PreviewFrame.svelte";
   import BreakpointsSection from "./lib/sections/BreakpointsSection.svelte";
   import DerivedSection from "./lib/sections/DerivedSection.svelte";
   import GridSection from "./lib/sections/GridSection.svelte";
   import SidebarFooter from "./lib/sections/SidebarFooter.svelte";
+  import OperationsSection from "./lib/sections/OperationsSection.svelte";
   import TilesSection from "./lib/sections/TilesSection.svelte";
   import Button from "./lib/ui/Button.svelte";
-  import Section from "./lib/Section.svelte";
+  import ScrollArea from "./lib/ui/ScrollArea.svelte";
   import SelectionOverlay from "./lib/SelectionOverlay.svelte";
   import type { Cell } from "./paint.js";
   import { session } from "./session.svelte.js";
@@ -280,44 +278,15 @@
       scrolls.
     -->
     <div class="scrollable">
-      <GridSection {risked} {destructive} />
-      <BreakpointsSection {risked} />
-      <DerivedSection />
+      <ScrollArea>
+        <GridSection {risked} {destructive} />
+        <BreakpointsSection {risked} />
+        <DerivedSection />
 
-      <TilesSection />
+        <TilesSection />
 
-      <Section title="Operations">
-        <!--
-          The draft opens **inside this section**, and `OperationStack` places
-          it: under the row it edits, or under the button that starts a new
-          one. It is not a section of its own: it is a workflow that is either
-          running or not, and a collapsible one would hide a step the author is
-          mid-way through. Collapsing Operations does hide it, which is right —
-          it belongs to this card — and nothing is lost, since `drafting` holds
-          the draft until it is committed or discarded.
-
-          `editingId` comes from `drafting.editing`, not from looking the id up
-          in the stack: that lookup is exactly the inference `drafting.svelte.ts`
-          records the mode to avoid.
-        -->
-        <OperationStack
-          onCreate={() => drafting.start(nextOperationId(config.operations.map((o) => o.id)))}
-          onEdit={(op) => drafting.edit(op)}
-          editingId={drafting.editing ? (drafting.draft?.id ?? null) : null}
-        >
-          {#snippet draftPanel()}
-            {#if drafting.draft !== null}
-              {@const draft = drafting.draft}
-              <OperationDraft
-                {draft}
-                editing={drafting.editing}
-                nested={drafting.editing}
-                onClose={() => drafting.discard()}
-              />
-            {/if}
-          {/snippet}
-        </OperationStack>
-      </Section>
+        <OperationsSection />
+      </ScrollArea>
     </div>
 
     <SidebarFooter bind:loadSalt onNew={newTileset} />
@@ -519,8 +488,9 @@
     background: var(--color-surface);
   }
 
+  /* `ScrollArea` scrolls; its handle sits on the content, so the sidebar never narrows. */
   .scrollable {
-    overflow-y: auto;
+    min-height: 0;
   }
 
   /*

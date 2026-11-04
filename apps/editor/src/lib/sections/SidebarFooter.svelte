@@ -269,6 +269,7 @@
     text-align: right;
   }
 
+  input:hover,
   input:focus-visible {
     outline: none;
     border-bottom-width: var(--focus-w);

@@ -1,6 +1,6 @@
 ---
 title: ParamControl.svelte
-description: One generated control for one parameter. A segmented row, a slider with an exact field, or a number field, chosen by its affordance.
+description: One generated control for one parameter. A field row holding a toggle, a slider with a readout, or a number field, chosen by its affordance.
 sidebar:
   order: 48
 ---
@@ -10,13 +10,15 @@ and the call site in `controls/ParamFields.svelte`.
 
 ## Overview
 
-`ParamControl` is a single setting row inside the Selection or Source step of the operation draft:
-a label, the range of values it accepts, and an input. The input takes one of three forms. A
-choice between a few values is a row of buttons. A number with both ends bounded is a slider
-with an exact-value box beside it. Anything else is a plain number box.
+`ParamControl` is a single setting row inside the Selection or Source step of an open operation:
+a label on the left, an input on the right. The label is the parameter's name in words ("Cells
+Per Feature" for `cellsPerFeature`), and hovering it shows the range of values it accepts. The
+input takes one of three forms. A choice between a few values is a [toggle](/editor/ui-toggle/).
+A number with both ends bounded is a [slider](/editor/ui-slider/) with the current value printed
+beside it. Anything else is a [number field](/editor/numeric-input/).
 
-Typing is forgiving. The box keeps whatever the author has typed, and passes a value on only when
-it is a legal number for that setting. Leaving the box shows the current value again.
+Typing is forgiving. The field keeps whatever the author has typed, and passes a value on only
+when it is a legal number for that setting. Leaving the field shows the current value again.
 
 In the editor's pipeline (import → document → **draft**/history → preview → export), it writes one
 parameter of the draft.
@@ -26,40 +28,42 @@ parameter of the draft.
 ### Purpose
 
 The component renders an [`Affordance`](/editor/affordance/) for one
-[`ParamSpec`](/api/index/type-aliases/paramspec/). It applies the same in-flight text model as
-[NumericInput](/editor/numeric-input/): half-typed text never reaches the draft, and a value the
-spec refuses is not clamped into range.
+[`ParamSpec`](/api/index/type-aliases/paramspec/). A half-typed number never reaches the draft,
+and a value the spec refuses is not clamped into range. Since Block E it is built from the
+editor's primitives: [FieldRow](/editor/ui-field-row/), [NumericInput](/editor/numeric-input/),
+[Toggle](/editor/ui-toggle/) and [Slider](/editor/ui-slider/).
 
 ### Public surface
 
 | Prop | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `name` | `string` | required | The parameter name, shown as the label and used for `aria-label`. |
-| `spec` | `ParamSpec` | required | The parameter's spec, for `admits` and the range readout. |
+| `name` | `string` | required | The parameter name. Shown through `labelFor`, which also labels the input. |
+| `spec` | `ParamSpec` | required | The parameter's spec, for `admits` and the range hint. |
 | `affordance` | `Affordance` | required | Which control to draw, from `affordanceFor(spec)`. |
 | `value` | `unknown` | required | The draft's current value. |
 | `onChange` | `(value: unknown) => void` | required | Called with a new value. |
 
 ### Inputs → outputs
 
+`label` is `labelFor(name)` from [labels.ts](/editor/operation-labels/). `hint` is
+`"Accepts " + rangeLabel(spec) + "."`, or none when `rangeLabel` is `""`.
+
 | `affordance.kind` | Renders | Commits |
 | --- | --- | --- |
-| `"segmented"` | one button per `affordance.values`, `on` when `value === option` | `onChange(option)` on click |
-| `"slider"` | `<input type="range">` over `[min, max]` at `step`, plus an exact `<input type="number">` | the slider calls `onChange(n)` only when `admits(spec, n)`; the exact field goes through `commit()` |
-| `"number"` | `<input type="number">`, `step` `1` for integers else `"any"` | `commit()` |
+| `"segmented"` | `FieldRow` with a `Toggle`, one option per `affordance.values` | `onChange(v)` on a choice |
+| `"slider"` | `FieldRow` with a `Slider` over `[min, max]` at `step`, and a `.t-label` readout of the value | `slide(n)` on input and on commit: `onChange(n)` only when `admits(spec, n)` |
+| `"number"` | `NumericInput`, `step` `"1"` for integers else `"any"` | `onCommit(text)` → `onChange(Number(text.trim()))`, after `parse` accepted it |
 | `"cellList"` | nothing (handled by `ParamFields`) | — |
 
-`commit(text)` sets `draft = text` and calls `onChange(n)` only when the trimmed text is
-non-empty, `Number.isFinite(n)`, and `admits(spec, n)`. Blur sets `draft = null`.
+`parse(text)` returns the number when the trimmed text is non-empty, `Number.isFinite(n)`, and
+`admits(spec, n)`; otherwise `null`, which `NumericInput` takes as "do not commit".
 
-The label shows a range readout, `rangeLabel(spec)` from [affordance.ts](/editor/affordance/):
+The range text is `rangeLabel(spec)` from [affordance.ts](/editor/affordance/):
 
 - `""` for `enum` and `cellList`;
 - `"integer"` for an unbounded integer, `""` for an unbounded number;
 - otherwise `"[lo, hi]"`, each end bracketed on its own: `[` / `]` for an inclusive bound, `(` /
   `)` for an exclusive or missing one, with `−∞` / `∞` for a missing end.
-
-`pending` (`class:pending`) is true while `draft !== null && !admits(spec, Number(draft))`.
 
 ### Invariants
 
@@ -67,15 +71,18 @@ The label shows a range readout, `rangeLabel(spec)` from [affordance.ts](/editor
 - **A slider is checked with `admits`, like typed input.** `affordanceFor` already insets an
   exclusive end by one step, so no slider position should be refused; the check in `slide()` is
   the guard for a float step that lands a hair past the bound.
+- **The range is a hint on the label**, never text in the row.
 
 ### Callers / callees
 
 | Caller | Use |
 | --- | --- |
-| `controls/ParamFields.svelte:13` | import |
-| `controls/ParamFields.svelte:47` | one per non-`cellList` parameter |
+| `controls/ParamFields.svelte:14` | import |
+| `controls/ParamFields.svelte:49` | one per non-`cellList` parameter |
 
-Callees: `admits`, `rangeLabel` and the `Affordance` type from `affordance.ts` (line 11).
+Callees: `admits`, `rangeLabel` and the `Affordance` type from `affordance.ts` (line 20);
+`labelFor` from `lib/operations/labels.ts` (line 19); `NumericInput`, `FieldRow`, `Slider`,
+`Toggle` (lines 15–18).
 
 ### Tests
 
@@ -91,6 +98,8 @@ inclusive ends are left alone.
 
 - **Narrowed on `kind === "number"`, not a bare `{:else}`.** `cellList` is in the union and
   `ParamFields` handles it first; the explicit branch keeps that routing checkable.
+- **The slider follows the thumb live.** The draft is transient, so each `onInput` costs no undo
+  entry.
 
 ### Review notes
 
@@ -107,6 +116,8 @@ inclusive ends are left alone.
   each end on its own.
 - **`pending` and `commit` disagree on blank text.** `commit` refuses `""` explicitly, but
   `pending` evaluates `Number("")`, which is `0`; for a spec that admits `0`, an emptied box is not
-  marked pending. (inconsistency)
+  marked pending. (inconsistency) **Fixed in Block E:** the number branch is a `NumericInput`, and
+  its `parse` refuses blank text; there is no separate `pending` flag.
 - The exact field keeps its `draft` text until blur. Dragging the slider without leaving the exact
-  field first leaves the field showing the old typed text. (inconsistency, minor)
+  field first leaves the field showing the old typed text. (inconsistency, minor) **Fixed in
+  Block E:** the slider has no exact field any more, only a readout of the value.

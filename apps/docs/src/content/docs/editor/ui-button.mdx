@@ -42,7 +42,10 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 ### Callers / callees
 
 Callers: `lib/sections/SidebarFooter.svelte` (Undo, New, Download), `lib/ImportPanel.svelte`
-(Import), `lib/ui/Popup.svelte` (Close), `App.svelte` (the confirmation's Change it and Cancel).
+(Import), `lib/ui/Popup.svelte` (Close), `App.svelte` (the confirmation's Change it and Cancel),
+`lib/tiles/TileGroup.svelte` (Reset weights), `lib/operations/OperationBody.svelte` (Discard,
+Save / Add), `lib/sections/OperationsSection.svelte` (the popup's Keep editing and Discard),
+`controls/PaletteBar.svelte` (Earlier, Later, Remove, + Entry, + Clear).
 Callees: none.
 
 ### Tests

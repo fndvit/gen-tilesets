@@ -38,17 +38,20 @@
 {/if}
 
 <style>
+  /* The help cursor says a hint is there before it opens. */
   .anchor {
     position: relative;
     display: flex;
     min-width: 0;
+    cursor: help;
   }
 
   .hint {
     position: absolute;
     top: var(--hint-top, calc(100% + var(--space-2)));
     bottom: var(--hint-bottom, auto);
-    left: 0;
+    left: var(--hint-left, 0);
+    right: var(--hint-right, auto);
     z-index: 2;
     width: max-content;
     max-width: var(--hint-w);

@@ -7,7 +7,8 @@ sidebar:
 
 **Written from:** `apps/editor/src/draft.svelte.ts`, `draft.test.ts`, `blend.test.ts`,
 `controls/mapping.test.ts` (the parts that import this module), and the call sites in
-`drafting.svelte.ts`, `lib/OperationDraft.svelte` and `App.svelte`.
+`drafting.svelte.ts`, `lib/operations/OperationBody.svelte`, `lib/operations/OperationHeader.svelte`,
+`lib/sections/OperationsSection.svelte` and `App.svelte`.
 
 ## Overview
 
@@ -58,6 +59,7 @@ returns non-`null`.
 | `toShadowOperation(draft)` | `(Draft) → Operation \| null` | An Operation that `selection()` can resolve, for the overlay. |
 | `fromOperation(op)` | `(Operation) → Draft` | Reopens an Operation as an edit-draft. |
 | `toOperation(draft)` | `(Draft) → Operation \| null` | The committed Operation, or `null` if incomplete. |
+| `draftDiffers(draft, op)` | `(Draft, Operation \| null) → boolean` | Whether discarding the draft would lose anything. `op` is the stored Operation for an edit-draft, `null` for a create-draft. |
 
 `Draft` fields:
 
@@ -103,6 +105,12 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 - **`toOperation`.** `null` unless complete. Otherwise it returns
   `{ id, salt, reseedOnLoad, selection: { type, ...params }, source: { type, ...params }, target,
   mapping: mappingOf(draft), blend }`.
+- **`draftDiffers(draft, op)`.** For a create-draft (`op` is `null`), true once any of
+  `selectionType`, `target` or `sourceType` is set. For an edit-draft, true if `toOperation(draft)`
+  is `null` (an edit made incomplete, such as an emptied palette, can be discarded but not saved).
+  Otherwise it compares `toOperation(draft)` with `toOperation(fromOperation(op))` as JSON with
+  object keys sorted (`stableJson`), so key order, the open step and the unused mapping slot never
+  count as a change.
 
 ### Invariants
 
@@ -129,14 +137,16 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 | Caller | Uses |
 | --- | --- |
 | `drafting.svelte.ts:27`, `:56`, `:69` | `newDraft`, `fromOperation`, `Draft` |
-| `lib/OperationDraft.svelte:91`, `:96` | `defaultParams(...)` when a Selection or Source type is chosen |
-| `lib/OperationDraft.svelte:143`, `:199` | `STEPS` |
-| `lib/OperationDraft.svelte:146` | `isComplete` |
-| `lib/OperationDraft.svelte:169` | `toOperation` on commit, then `replaceOperation`/`addOperation` (`:171`) |
-| `lib/OperationDraft.svelte:305` | `retarget(draft, target)` |
-| `App.svelte:274` | `toShadowOperation(draft)` for the overlay's shadow config |
+| `lib/operations/OperationBody.svelte:189`, `:194` | `defaultParams(...)` when a Selection or Source type is chosen |
+| `lib/operations/OperationBody.svelte:211`, `:214` | `STEPS` and `isComplete` for Save's "Still open" hint |
+| `lib/operations/OperationBody.svelte:225` | `toOperation` on commit, then `replaceOperation`/`addOperation` (`:227`) |
+| `lib/operations/OperationBody.svelte:266` | `retarget(draft, target)` |
+| `lib/operations/OperationHeader.svelte:58` | `STEPS` as the step tabs |
+| `lib/sections/OperationsSection.svelte:63` | `draftDiffers` before switching away from an open draft |
+| `lib/operations/labels.ts:91` | `mappingOf(draft)` for the header's summary |
+| `App.svelte:228` | `toShadowOperation(draft)` for the overlay's shadow config |
 
-`mappingOf` is used internally (`:350`) and by `controls/mapping.test.ts`.
+`mappingOf` is also used internally (`:350`) and by `controls/mapping.test.ts`.
 
 ### Tests
 
@@ -146,6 +156,10 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
   containers rather than aliasing (it mutates the draft's palette and `numeric.range` and checks
   the source Operation). A reopened draft is complete immediately. `toShadowOperation` carries the
   real salt (7) and is `null` before a Selection type.
+  `draftDiffers`: a fresh create-draft is unchanged until a step is answered; a reopened
+  Operation is unchanged whatever step is open; an edited parameter, a new Blend and a new salt
+  are changes; retargeting there and back is not, since the unused mapping never commits; an edit
+  made incomplete is a change.
 - **`blend.test.ts`.** A new draft's `blend` is `null`. For every Target, `retarget` yields
   `TARGETS[target].default`, and the other three steps stay `null`. Retargeting keeps an accepted
   Blend and falls back when the new Target vetoes it, or accepts nothing else. `isComplete`
@@ -167,7 +181,7 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 - **Why not `toOperation` for the overlay?** It returns `null` on the Selection step, which is
   exactly when the overlay is most needed.
 - **`salt`/`reseedOnLoad` are carried, not reset.** Writing `0`/`false` on an edit would silently
-  undo a reroll done from the stack row.
+  undo a reroll done from the operation header.
 
 ### Review notes
 

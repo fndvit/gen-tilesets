@@ -2,16 +2,17 @@
   A black bar that shows and hides what follows it: the Figma *Section Header*
   and *Tile Group Header*.
 
-  Title on the left; on the right, an optional `extras` snippet (a closed tile
-  group's thumbnails) and the fold chevron, which points down when closed and
-  up when open.
+  The fold chevron first, then the title, then an optional `extras` snippet (a
+  closed tile group's thumbnails) at the right. The chevron points down when
+  closed and up when open. It is on the left so `ScrollArea`'s overlay handle,
+  which sits over the right edge, never covers it (Pol, Block E review).
 
   For a tile group the bar also edits: `onRename` makes the title an
   `InlineEdit` (click to rename), and `actions` puts controls such as the trash
-  `IconButton` before the title, where the operation header has its trash. Those
-  sit outside the disclosure button, which then covers the rest of the bar
-  (empty space, extras, chevron), so clicking anywhere but the title or an
-  action still opens and closes it. `note` is text shown after the title but
+  `IconButton` at the right end, with a wider right margin that keeps it clear
+  of the scroll handle. Those sit outside the disclosure button. The chevron is
+  then a button of its own, and the empty space after the title toggles too,
+  so clicking anywhere but the title or an action still opens and closes it. `note` is text shown after the title but
   not edited with it (a duplicate name's ` (t3)`), and `hint` explains the
   title on hover (`ui/Hint`).
 
@@ -64,6 +65,10 @@
 
   const bodyId = $props.id();
   const textClass = $derived(variant === "section" ? "t-section" : "t-label");
+
+  function toggle(): void {
+    open = !open;
+  }
 </script>
 
 <div class="collapsible {variant}">
@@ -73,8 +78,17 @@
   -->
   <svelte:element this={`h${level}`} class="heading on-bar">
     <div class="bar">
-      {#if actions}<span class="actions">{@render actions()}</span>{/if}
       {#if onRename}
+        <button
+          type="button"
+          class="chev-button"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          aria-label="{open ? 'Collapse' : 'Expand'} {title}"
+          onclick={toggle}
+        >
+          <span class="chev" class:open><Icon name="fold" /></span>
+        </button>
         <Hint text={hint}>
           {#snippet children(hintId)}
             <span class="named">
@@ -89,23 +103,29 @@
             </span>
           {/snippet}
         </Hint>
-      {/if}
-      <button
-        type="button"
-        class="toggle"
-        aria-expanded={open}
-        aria-controls={bodyId}
-        aria-label={onRename ? `${open ? "Collapse" : "Expand"} ${title}` : undefined}
-        onclick={() => (open = !open)}
-      >
-        {#if !onRename}<span class="title {textClass}"
-            >{title}{#if note}&nbsp;{note}{/if}</span
-          >{/if}
-        <span class="end">
+        <!--
+          The rest of the bar toggles for the pointer only; the chevron button is
+          the control for the keyboard and for assistive technology.
+        -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <span class="fill" onclick={toggle}>
           {#if extras}<span class="extras">{@render extras()}</span>{/if}
-          <span class="chev" class:open><Icon name="fold" /></span>
         </span>
-      </button>
+      {:else}
+        <button
+          type="button"
+          class="toggle"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onclick={toggle}
+        >
+          <span class="chev" class:open><Icon name="fold" /></span>
+          <span class="title {textClass}">{title}{#if note}&nbsp;{note}{/if}</span>
+          {#if extras}<span class="extras">{@render extras()}</span>{/if}
+        </button>
+      {/if}
+      {#if actions}<span class="actions">{@render actions()}</span>{/if}
     </div>
   </svelte:element>
 
@@ -142,11 +162,14 @@
     border: var(--rule-w) solid var(--color-bar);
   }
 
+  /* The right end, clear of `ScrollArea`'s overlay handle. */
   .actions {
     display: flex;
     align-items: center;
     gap: var(--space-4);
     flex: none;
+    margin-left: auto;
+    margin-right: var(--space-4);
   }
 
   .named {
@@ -161,14 +184,11 @@
     white-space: nowrap;
   }
 
-  .toggle {
+  .toggle,
+  .chev-button {
     display: flex;
-    flex: 1;
     align-items: center;
-    justify-content: space-between;
     gap: var(--space-4);
-    min-width: 0;
-    align-self: stretch;
     padding: 0;
     border: 0;
     background: none;
@@ -179,7 +199,18 @@
     transition: color var(--dur-fast) var(--ease);
   }
 
-  .toggle:hover {
+  .toggle {
+    flex: 1;
+    min-width: 0;
+    align-self: stretch;
+  }
+
+  .chev-button {
+    flex: none;
+  }
+
+  .toggle:hover,
+  .chev-button:hover {
     color: var(--color-inactive);
   }
 
@@ -189,18 +220,22 @@
     white-space: nowrap;
   }
 
-  .end {
+  /* After the title: the empty bar (it toggles) with the extras at its right. */
+  .fill {
     display: flex;
+    flex: 1;
+    align-self: stretch;
     align-items: center;
-    gap: var(--space-6);
-    flex: none;
-    margin-left: auto;
+    justify-content: flex-end;
+    min-width: 0;
+    cursor: pointer;
   }
 
   .extras {
     display: flex;
     align-items: center;
     gap: var(--space-1);
+    margin-left: auto;
   }
 
   .chev {

@@ -37,6 +37,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 - When it overflows, a second, `aria-hidden` copy is added, and the track animates
   `translateX(0 → -50%)`, which moves exactly one copy, over
   `marqueeDuration(copyWidth, --marquee-speed)` seconds, linearly and forever.
+- The strip has `contain: inline-size`, so the text never sets its width: a long summary scrolls
+  inside the strip instead of widening the operation header and the sidebar.
 - Hover pauses the animation. `prefers-reduced-motion: reduce` turns it off, and the overflow is
   clipped.
 - Strip: `.t-console`, `--color-inactive`, `--rule` frame, `--console-pad-y` vertical
@@ -49,7 +51,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 ### Callers / callees
 
-No callers in the editor yet (the operation header in Block E). Callees: `marqueeDuration` from
+Caller: `lib/operations/OperationHeader.svelte`, for the operation's summary (see
+[OperationHeader](/editor/operation-header/)). Callees: `marqueeDuration` from
 `lib/ui/marquee.ts`.
 
 ### Tests

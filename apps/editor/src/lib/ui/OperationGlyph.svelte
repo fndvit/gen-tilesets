@@ -96,6 +96,12 @@
     white-space: nowrap;
   }
 
+  /* With no artwork the label is the whole cell, so a long one wraps rather than running into the next cell. */
+  .label-only .label {
+    white-space: normal;
+    text-align: center;
+  }
+
   .slot {
     display: flex;
     padding: var(--space-1);

@@ -48,7 +48,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 ### Callers / callees
 
-No callers in the editor yet (the operation header in Block E). Callees: `rovingIndex` from
+Caller: `lib/operations/OperationHeader.svelte`, the four step tabs, with `panelId` set to the
+open body's id (see [OperationHeader](/editor/operation-header/)). Callees: `rovingIndex` from
 `lib/ui/keys.ts`.
 
 ### Tests

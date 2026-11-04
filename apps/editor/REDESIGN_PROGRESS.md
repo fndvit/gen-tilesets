@@ -5,8 +5,8 @@
 
 ## Current position
 
-**Stage 1, Block D (Tiles) is done: reviewed by Pol and tested on 2026-11-04.**
-Next is **Block E, Operations**. Start it in a new session.
+**Stage 1, Block E (Operations) is done and approved (2026-11-04).** Next: Block F (sweep +
+review), planned below and to be approved by Pol before it starts.
 
 ## Stage 1 blocks
 
@@ -18,7 +18,7 @@ Each block is implemented, then reviewed with Pol, then tested, before the next 
 | B. Primitives | `lib/ui/`: Icon, IconButton, Collapsible, FieldRow, Toggle, AddBar, Slider, Marquee, TabBar, GlyphGrid + OperationGlyph (artwork-agnostic); restyle `NumericInput`; a docs page for each new file | Done (committed `cd31b44`) |
 | C. Layout + Grid & Size | Page grid, sidebar split into scrollable and fixed parts, header removed, `Section` rebuilt on Collapsible, Grid & Size section; sections extracted to `lib/sections/`; `Button`, `Popup` | Done, approved |
 | D. Tiles | TileLibrary rebuilt as TileGroup / TileAsset, weight slider, N files → 1 group, add variant via picker | Done, approved |
-| E. Operations | OperationHeader, step tabs open the draft, selection glyph grid, label-only grids, ParamFields restyle, token restyle of PaletteBar / NumericMapping / BlendControl | |
+| E. Operations | OperationHeader, step tabs open the draft, selection glyph grid, label-only grids, ParamFields restyle, token restyle of PaletteBar / NumericMapping; BlendControl replaced by a glyph grid | Done, approved |
 | F. Sweep + review | Hardcoded colours replaced by tokens, docs pages, visual review against Figma | |
 
 ## Decisions
@@ -113,6 +113,62 @@ Block D (2026-11-04, decided in planning by Pol):
   the square "+" row sets every variant to 1 (`resetAssetWeights`, one undo entry). It is disabled
   while all weights are already 1.
 
+Block E (2026-11-04, decided in planning by Pol):
+- **Save / Discard** are `Button`s at the bottom right of the open body (Add for a new
+  operation). A disabled Save has a hint, "Still open: …".
+- **Blend** is a label-only glyph grid of every accepted Blend, default preselected. The "other
+  blends" disclosure (§7.7, reveal on request) is gone. `tileId` shows one cell, Set.
+- **Switching** to another operation's tab, or the add bar, with unsaved changes opens a popup
+  (Keep editing / Discard). With no change it switches at once (`draftDiffers`).
+- Defaults to confirm in the review: a closed operation's tab opens its draft at that step; only
+  Save / Discard close it. A new operation is a header with the next index above the add bar; its
+  trash discards it. The summary follows the draft live (`Checkered * Opacity [0.5 - 1] * Random *
+  Set`, tile names, `—` for unanswered). Re-seed while open rerolls the file and the draft takes the
+  new salt. **Re-seed stays magenta when open**, though Figma's Opened variant draws it white.
+  Reseed on load is a Toggle at the end of the Source step (stochastic only), saved with Save.
+- Files: `lib/sections/OperationsSection.svelte`, `lib/operations/OperationHeader.svelte`,
+  `OperationBody.svelte`, `labels.ts`. `OperationStack`, `OperationDraft`, `BlendControl` and their
+  docs pages are deleted. `Popup` gained an `actions` snippet; `Hint` gained `--hint-left/right`.
+  The editor's tsconfig now includes `vite/client` types for the `.svg` imports.
+- Labels: registry names are shown as words (`cellList` → Handpick, `checkerboard` → Checkered,
+  `valueNoise` → Noise, `tileId` → Tile, else title case). The Selection grid follows Figma's
+  order.
+- Param fields: number → `NumericInput`, enum → `Toggle`, bounded → `Slider` with a value readout
+  (the old exact-number box beside the slider is gone). Range is a hint on the label. A painted
+  `cellList` is a "Cells" row with the count.
+- Palette: ink segments with paper dividers, `clear` in paper, selected in inactive grey. Tile is
+  a select on an underline, Weight a `NumericInput`, then Earlier / Later / Remove and + Entry /
+  + Clear buttons. The order and `random` advisories became the Palette label's hint. Fixed on the
+  way: adding an entry left nothing selected (the selection pointed past the end).
+- Numeric mapping: ink track and block thumbs as `Slider`, From / To (Value when collapsed), Steps
+  (Continuous | Stepped) and Step count. The domain, the collapse reason and the rotation
+  advisory are the label's hint.
+
+Block E review (Pol, 2026-11-04): "the functionalities are all there, but the UI is not
+intuitive enough." Taken on now:
+- **No horizontal scroll in the sidebar.** A long summary (three tile names) made the stack's
+  implicit `auto` grid column grow to the text, 413px past the sidebar. Grids that stack rows now
+  use `minmax(0, 1fr)` (stack, params, mapping, palette), `Marquee` has `contain: inline-size`,
+  and a `FieldRow` control shrinks. The slider readout is rounded to the step, and label-only glyph
+  labels wrap ("Translate X" ran into the next cell).
+- **Compact fields in the operation body**: labels 14px in sentence case (`--label-size`,
+  `--label-case`), in a 128px column with each control right after it (`--field-label-w`,
+  `--field-justify`). Block F's overall sizing pass may tune the numbers.
+- **Next action**: a **Next: <step>** button before Save while a step is unanswered. It goes to
+  the first unanswered step after the current one.
+- **Hover feedback** where there was none: underline fields (numeric, seed, palette tile select)
+  and slider tracks thicken on hover, palette segments take the selected look, and hint anchors
+  show the help cursor.
+- **Overlay scrollbar** (second look): the classic scrollbar narrowed the sidebar when it
+  appeared. New primitive `ui/ScrollArea` (+ `scrollbar.ts`, tested) hides it and draws a 6px
+  mid-grey handle over the content, as in VS Code: shown on hover, while scrolling (800ms) and
+  while dragged, draggable. The preview column still uses the native scrollbar.
+- **Chevrons on the left** (third look): the handle covered the fold chevrons at the right of the
+  section and tile group bars. `Collapsible` now puts the chevron first, then the title; the tile
+  group's trash moved to the right end with an extra 8px margin. A group bar's chevron is its own
+  button (named Expand/Collapse), and the empty bar after the title still toggles on click.
+Left for later: the operations stack design as a whole (Stage 2 backlog, item 7).
+
 ## Known issues / notes
 
 - **Field rows are about 29px apart, not Figma's 22.** Figma's rows are 14px tall because its
@@ -131,7 +187,14 @@ Block D (2026-11-04, decided in planning by Pol):
   on hover, deletes, disabled on the last variant, reachable by Shift+Tab; thumbnail hint; zero weight allowed then refused on the last one (popup, thumb snaps back); Shift+arrow
   0.1; one undo per commit; live % during a drag; rename; trash; closed thumbnails; no page scroll;
   no console errors.
-- Operations still has its old insides (Block E), so it looks out of place until then.
+- Block E testing (headless Chrome, 24 checks): add a full operation (one undo entry), summary,
+  arrows disabled at the ends and reorder, a tab opens that step, reseed-on-load only for a
+  stochastic Source, instant switch with no change, popup with a change (Keep editing keeps the
+  draft, Discard switches), Blend grid, re-seed while open survives Save, delete while open
+  discards, Add disabled with its hint, Handpick paints and counts, palette entries, Constant
+  collapses to one Value field, no page scroll, no console errors (only the missing favicon 404).
+- Label-only glyph cells keep the 60px glyph height, so the Attribute grid is tall. Revisit when
+  Stage 2 designs those glyphs.
 - The sidebar colour `#E4F6F5` was sampled from a lossless Figma render, because it is not a
   Figma variable. Pol confirmed it in the Block A review.
 
@@ -159,3 +222,5 @@ Block D (2026-11-04, decided in planning by Pol):
 4. Destructive params confirm **on blur**, and only when the value really changed. Redesigned dialog.
 5. Remove the "The file" debug view.
 6. Glyphs for Attribute, Source and Blend.
+7. Operations stack design (Pol, Block E review): it should be obvious which action comes next.
+   Block E added a Next button only; the stack, header and body need a design pass in Figma.

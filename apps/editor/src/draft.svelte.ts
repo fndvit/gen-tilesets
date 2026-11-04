@@ -359,3 +359,31 @@ export function toOperation(draft: Draft): Operation | null {
     blend: draft.blend!,
   };
 }
+
+/**
+ * Whether discarding the draft would lose anything — the question the switch
+ * confirmation asks before another operation opens (Block E).
+ *
+ * A create-draft (`op` is `null`) has something to lose once any step is
+ * answered. An edit-draft is compared as the Operation it would commit against
+ * the one in the file, both built by `toOperation`, so the unused mapping slot
+ * and the open step never count as a change. An edit made incomplete (a palette
+ * emptied) differs, because saving it is not possible and discarding it is.
+ */
+export function draftDiffers(draft: Draft, op: Operation | null): boolean {
+  if (op === null) {
+    return draft.selectionType !== null || draft.target !== null || draft.sourceType !== null;
+  }
+  const current = toOperation(draft);
+  if (current === null) return true;
+  return stableJson(current) !== stableJson(toOperation(fromOperation(op)));
+}
+
+/** JSON with object keys sorted, so key order never reads as a change. */
+function stableJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
+    v !== null && typeof v === "object" && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)))
+      : v,
+  );
+}

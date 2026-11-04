@@ -55,15 +55,14 @@ Which component renders which, in source order. Conditional children are marked.
 - `main.ts` mounts `App` into `#app`
   - `App.svelte` (`main`: the page grid)
     - `aside` (sidebar, 1px ink frame, `--color-surface`)
-      - `.scrollable`
+      - `.scrollable`, holding a [`ScrollArea`](/editor/ui-scroll-area/) (overlay scroll handle)
         - [`GridSection`](/editor/grid-section/) "Grid & Size"
         - [`BreakpointsSection`](/editor/breakpoints-section/) (open when the file has rules)
         - [`DerivedSection`](/editor/derived-section/) (closed)
-        - [`Section`](/editor/section/) "Tiles"
-          - [`TilesSection`](/editor/tiles-section/)
-        - [`Section`](/editor/section/) "Operations"
-          - [`OperationStack`](/editor/operation-stack/), with a `draftPanel` snippet
-            - [`OperationDraft`](/editor/operation-draft/) (*if* a draft is open)
+        - [`TilesSection`](/editor/tiles-section/) "Tiles"
+        - [`OperationsSection`](/editor/operations-section/) "Operations"
+          - an [`OperationHeader`](/editor/operation-header/) per Operation, and
+            [`OperationBody`](/editor/operation-body/) under the open one (*if* a draft is open)
       - [`SidebarFooter`](/editor/sidebar-footer/) (`.fixed`)
         - [`ImportPanel`](/editor/import-panel/), [`Popup`](/editor/ui-popup/)s for reports
     - `section.preview`
@@ -85,7 +84,7 @@ Which component renders which, in source order. Conditional children are marked.
 | Source | What |
 | --- | --- |
 | [`session`](/editor/session/) | `file`; `apply`, `reset` |
-| [`drafting`](/editor/drafting/) | `draft`, `editing`; `start`, `edit`, `discard` |
+| [`drafting`](/editor/drafting/) | `draft`, `editing`; `discard` |
 | local `$state` | `failures`, `renderBox`, `loadSalt` (bound into the footer), `pending` |
 
 #### Derived values
@@ -132,9 +131,10 @@ confirm step does not have to work out which field the value belonged to.
 
 #### Operations panel
 
-`onCreate` starts a draft with `nextOperationId(config.operations.map((o) => o.id))`; `onEdit`
-calls `drafting.edit(op)`. `editingId` is `drafting.draft.id` only when `drafting.editing` is
-true, so a create-draft renders under the button and an edit-draft under its row.
+`App` renders `<OperationsSection />` with no props. Starting, opening and committing drafts all
+happen in [OperationsSection](/editor/operations-section/) and
+[OperationBody](/editor/operation-body/). What stays here is the preview side of the draft (the
+shadow config, the overlay and the brush) and one guard.
 
 An `$effect` discards an edit-draft whose Operation is no longer in the stack (removed, or
 undone away). Committing it would otherwise run `replaceOperation` against an id that matches
@@ -181,10 +181,9 @@ Callees, by import: from the package, [`selections`](/api/index/variables/select
 [`reshape`](/api/index/functions/reshape/), [`activeRules`](/api/index/functions/activerules/),
 [`ruleOverride`](/api/index/functions/ruleoverride/), [`naturalRatio`](/api/render/functions/naturalratio/),
 `Tileset.svelte`; from the editor, `assets.ts` (`editorProvider`, `replaceAll`), `document.ts`
-(the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `ids.ts`
-(`nextOperationId`), `orphans.ts`, `session.svelte.ts`, the four `lib/sections/` components,
-`Section`, `TilesSection`, `OperationStack`, `OperationDraft`, `PreviewFrame`, `SelectionOverlay`,
-`PaintLayer` and `ui/Button`.
+(the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `orphans.ts`, `session.svelte.ts`,
+the six `lib/sections/` components (Grid, Breakpoints, Derived, Tiles, Operations, SidebarFooter),
+`PreviewFrame`, `SelectionOverlay`, `PaintLayer` and `ui/Button`.
 
 ### Tests
 
@@ -229,4 +228,6 @@ validates.
   takes one undo per character. The tile rename no longer has this problem: `TileGroup` uses `ui/InlineEdit`, which commits once
   on Enter or blur. The source does not say whether the seed behaviour is intended.
 - Clicking "Add operation" while an edit-draft is open calls `drafting.start`, which replaces the
-  open draft without asking. Nothing in the source says whether that is intended.
+  open draft without asking. Nothing in the source says whether that is intended. **Fixed in
+  Block E:** `OperationsSection` asks first, in an "Unsaved changes" popup, when the open draft
+  differs from the file (`draftDiffers`).

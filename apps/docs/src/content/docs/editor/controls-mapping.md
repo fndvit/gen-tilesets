@@ -6,7 +6,7 @@ sidebar:
 ---
 
 **Written from:** `apps/editor/src/controls/mapping.ts`, `controls/mapping.test.ts`, and the call
-sites in `controls/NumericMapping.svelte`, `lib/OperationDraft.svelte` and `draft.svelte.ts`.
+sites in `controls/NumericMapping.svelte`, `lib/operations/OperationBody.svelte` and `draft.svelte.ts`.
 
 ## Overview
 
@@ -88,8 +88,8 @@ Types are the package's [`AttributeName`](/api/index/type-aliases/attributename/
 
 | Caller | Uses |
 | --- | --- |
-| `controls/NumericMapping.svelte:26` | `admitsTyped`, `endpointsCoincide`, `MIN_STEPS`, `trackFor` |
-| `lib/OperationDraft.svelte:25`, `:313` | `isTileTarget` |
+| `controls/NumericMapping.svelte:31` | `admitsTyped`, `endpointsCoincide`, `MIN_STEPS`, `trackFor` |
+| `lib/operations/OperationBody.svelte:46`, `:270` | `isTileTarget` |
 | `draft.svelte.ts:43`, `:177`, `:209`, `:217` | `defaultNumericMapping`, `isTileTarget` |
 | `controls/mapping.test.ts:4`–`12` | everything |
 
@@ -106,7 +106,7 @@ Callees: [`ATTRIBUTES`](/api/index/variables/attributes/), [`TARGETS`](/api/inde
 - **Rotation advisory:** `[0, 360] × 4` and `[90, 450] × 3` are flagged; `[0, 270] × 4` is not;
   continuous and non-rotation mappings are not; the arithmetic `0, 120, 240, 360` is confirmed.
 - **Draft integration:** `isTileTarget`, `retarget`, `isComplete`, `toOperation` (see
-  [OperationDraft](/editor/operation-draft/)).
+  [OperationBody](/editor/operation-body/)).
 - **Steps:** `MIN_STEPS === 2`; stepped `[−1, 1] × 2` reaches both ends.
 
 ### Gotchas & rejected alternatives

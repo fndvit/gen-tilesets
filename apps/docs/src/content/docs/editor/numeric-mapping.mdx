@@ -9,19 +9,21 @@ import NumericMappingStory from "../../../stories/NumericMappingStory.svelte";
 
 
 **Written from:** `apps/editor/src/controls/NumericMapping.svelte`, `controls/mapping.test.ts`, and
-the call site in `lib/OperationDraft.svelte`.
+the call site in `lib/operations/OperationBody.svelte`.
 
 ## Overview
 
-This control appears in the Attribute step of the operation draft when the author picks a
-number attribute such as `rotation`, `scaleX` or `opacity`. It is a track with two handles. The
-handles mark the lowest and highest value the operation will write, and each cell gets a value
-between them according to its Source. Exact numbers can be typed in two boxes underneath.
+This control appears in the attribute step of an open operation when the author picks a
+number attribute such as Rotation, Scale X or Opacity. It is a track with two handles, under the
+attribute's name. The handles mark the lowest and highest value the operation will write, and
+each cell gets a value between them according to its Source. Exact numbers can be typed in the
+"From" and "To" fields underneath.
 
 The handles may cross. Crossing them reverses the effect, which is the only way to invert a
-Source. A switch below chooses between **continuous** (any value in between) and **stepped** (a
-fixed number of evenly spaced values). When the Source is `constant`, the two handles become one,
-because a fixed value is a range whose ends are equal.
+Source. A "Values" toggle below chooses between **Continuous** (any value in between) and
+**Stepped** (a fixed number of evenly spaced values, set in a "Steps" field). When the Source is
+`constant`, the two handles become one, with a single "Value" field, because a fixed value is a
+range whose ends are equal. Explanations, such as the track's domain, are hints on the labels.
 
 The author never sees the word "mapping". In the editor's pipeline (import → document →
 **draft**/history → preview → export), it edits the draft's numeric mapping.
@@ -55,18 +57,26 @@ separate control whose absence means *continuous*; the handles collapse to one u
 
 - `track = trackFor(target, mapping.range)`: a soft track widens to contain the current values;
   a hard one does not. The slider step is `(max − min) / 200`.
-- The hint reads "soft track" or "domain" and `[min, max]` (`)` for a wrapping track), or "fixed
-  value — the Source is `constant`" when collapsed.
-- The filled span runs between the two handles whichever way round they are.
+- The label is `labelFor(target)` from [labels.ts](/editor/operation-labels/), wrapped in a
+  [Hint](/editor/ui-hint/). The hint joins two sentences:
+  - "Soft track" or "Domain", then `min to max`, plus ", wrapping" for a wrapping track; or, when
+    collapsed, "A fixed value: the Constant source gives every cell the same number, so both ends
+    are one.";
+  - when `endpointsCoincide(target, mapping)`, the rotation advisory: the two ends are the same
+    angle, so one result lands twice as often.
+- The filled span runs between the two handles whichever way round they are. The handles are
+  styled as `Slider`'s ink blocks (`--slider-thumb-w`, `--slider-thumb-h`).
 - `setEnd(index, value)`: refused unless `admitsTyped(target, value)`. Sets that end, and the other
   end too when collapsed. Calls `onChange({ ...mapping, range })`.
-- Typed ends: per-end draft text; a non-empty finite parse goes through `setEnd`; blur clears the
-  draft.
-- `setStepped(true)` sets `steps: mapping.steps ?? 2`. `setStepped(false)` **removes the key**.
-- `setSteps(text)`: accepts only an integer `≥ MIN_STEPS` (2).
-- Under continuous, a note says continuous never reaches the far end (`t < 1`), so a flip needs
-  stepped `[−1, 1] × 2`.
-- When `endpointsCoincide(target, mapping)`, the rotation advisory is shown.
+- Typed ends are [NumericInput](/editor/numeric-input/)s: "From" and "To", or one "Value" when
+  collapsed. `parseEnd` refuses blank, non-finite and `!admitsTyped` text, so a half-typed end
+  never reaches the draft.
+- A [FieldRow](/editor/ui-field-row/) "Values" holds a [Toggle](/editor/ui-toggle/)
+  Continuous / Stepped. Its hint says continuous never reaches the far end (`t < 1`), and a flip
+  is `-1 to 1 in 2 steps`. `setStepped(true)` sets `steps: mapping.steps ?? MIN_STEPS`;
+  `setStepped(false)` **removes the key**.
+- While stepped, a NumericInput "Steps" (`step="1"`) whose `parseSteps` accepts only an integer
+  `≥ MIN_STEPS` (2).
 
 ### Invariants
 
@@ -83,11 +93,13 @@ separate control whose absence means *continuous*; the handles collapse to one u
 
 | Caller | Use |
 | --- | --- |
-| `lib/OperationDraft.svelte:26` | `import NumericMappingControl from "../controls/NumericMapping.svelte"` |
-| `lib/OperationDraft.svelte:321` | `target={draft.target as AttributeName}`, `mapping={draft.numeric}`, `{collapsed}`, writes `draft.numeric` |
+| `lib/operations/OperationBody.svelte:47` | `import NumericMappingControl from "../../controls/NumericMapping.svelte"` |
+| `lib/operations/OperationBody.svelte:278` | `target={draft.target as AttributeName}`, `mapping={draft.numeric}`, `{collapsed}`, writes `draft.numeric` |
 
-Callees (`NumericMapping.svelte:26`): `admitsTyped`, `endpointsCoincide`, `MIN_STEPS`, `trackFor`
-from [controls/mapping.ts](/editor/controls-mapping/).
+Callees (`NumericMapping.svelte:26`–`31`): `admitsTyped`, `endpointsCoincide`, `MIN_STEPS`,
+`trackFor` from [controls/mapping.ts](/editor/controls-mapping/); `labelFor`
+([labels.ts](/editor/operation-labels/)); [NumericInput](/editor/numeric-input/),
+[FieldRow](/editor/ui-field-row/), [Hint](/editor/ui-hint/), [Toggle](/editor/ui-toggle/).
 
 ### Tests
 
@@ -107,6 +119,8 @@ reaches both ends while continuous `[−1, 1]` at `t = 0.5` gives `0`.
 ### Review notes
 
 - `setSteps` has no draft-text model, unlike the two range boxes. Typing `1` on the way to `12`
-  is ignored (fine), but an emptied box is not reverted on blur. (inconsistency, minor)
+  is ignored (fine), but an emptied box is not reverted on blur. (inconsistency, minor) **Fixed in
+  Block E:** "Steps" is a `NumericInput`, which keeps the in-flight text and shows the value again
+  on blur.
 - `step = (track.max − track.min) / 200` here, while `affordance.ts` uses `/ 100` for generated
   sliders. Both are UI constants; neither comment mentions the other. (inconsistency, minor)

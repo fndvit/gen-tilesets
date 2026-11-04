@@ -5,8 +5,8 @@ sidebar:
   order: 11
 ---
 
-**Written from:** `apps/editor/src/drafting.svelte.ts`, and the call sites in `App.svelte` and
-`lib/ImportPanel.svelte`. No test file.
+**Written from:** `apps/editor/src/drafting.svelte.ts`, and the call sites in `App.svelte`,
+`lib/sections/OperationsSection.svelte` and `lib/ImportPanel.svelte`. No test file.
 
 ## Overview
 
@@ -52,8 +52,9 @@ hash channels, stack index and salt intact. `discard` does not reset `mode`. Tha
 because `editing` is false while `open` is `null` and the next `start` or `edit` sets the mode.
 
 The returned `draft` is the live `$state` object. Callers mutate it in place:
-`App.svelte`'s `paintCells` writes `draft.selectionParams[name]`, and `OperationDraft.svelte`'s
-controls write the other fields.
+`App.svelte`'s `paintCells` writes `draft.selectionParams[name]`, `OperationBody.svelte`'s
+controls write the other fields, and `OperationsSection.svelte` sets `draft.step` and, after a
+re-seed, `draft.salt`.
 
 ### Invariants
 
@@ -71,13 +72,14 @@ controls write the other fields.
 
 | Caller | Uses |
 | --- | --- |
-| `App.svelte:642` | `drafting.start(nextOperationId(...))` from the stack's *create* |
-| `App.svelte:643` | `drafting.edit(op)` from a stack row |
-| `App.svelte:644`, `:651`, `:652` | `drafting.editing` passed to `OperationStack` and `OperationDraft` |
-| `App.svelte:647-653` | `drafting.draft` mounts the panel; `onClose={() => drafting.discard()}` |
-| `App.svelte:241`, `:272`, `:337` | `drafting.draft` for the brush's `painting`, the overlay's `shadow`, and `paintCells` |
-| `App.svelte:300-302` | `$effect`: if an edit-draft's id has left `config.operations`, `drafting.discard()` |
-| `lib/ImportPanel.svelte:213` | `drafting.discard()` after `session.open`, since the draft names ids the new document lacks |
+| `lib/sections/OperationsSection.svelte:36`, `:43`, `:44` | `drafting.draft`, and `drafting.editing` for `editingId` and `creating` |
+| `lib/sections/OperationsSection.svelte:63` | `drafting.editing` picks what `draftDiffers` compares against |
+| `lib/sections/OperationsSection.svelte:78` | `drafting.edit(op)` from a header's step tab |
+| `lib/sections/OperationsSection.svelte:84` | `drafting.start(nextOperationId(...))` from *Add operation* |
+| `lib/sections/OperationsSection.svelte:119`, `:131`, `:138`, `:154` | `drafting.discard()`: Discard in a body, the new operation's trash, and the popup's Discard |
+| `App.svelte:195`, `:226`, `:265` | `drafting.draft` for the brush's `painting`, the overlay's `shadow`, and `paintCells` |
+| `App.svelte:253-257` | `$effect`: if an edit-draft's id has left `config.operations`, `drafting.discard()` |
+| `lib/ImportPanel.svelte:233` | `drafting.discard()` after `session.open`, since the draft names ids the new document lacks |
 
 Callees: `newDraft`, `fromOperation` from [draft.svelte.ts](/editor/draft/).
 
@@ -93,7 +95,7 @@ logic is tested through [draft.svelte.ts](/editor/draft/).
   threading it through the preview would put a create-operation concern into the component whose
   only job is drawing the file.
 - **Stale edit-drafts are discarded, not converted.** Falling back to `addOperation` would
-  resurrect a deleted Operation (`App.svelte:284-297`).
+  resurrect a deleted Operation (`App.svelte:237-257`).
 
 ### Review notes
 

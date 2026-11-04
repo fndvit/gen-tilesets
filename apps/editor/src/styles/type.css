@@ -33,12 +33,16 @@
   text-transform: uppercase;
 }
 
-/* "UI small UC" — 20 Roman, uppercase. Field labels, group titles, weights. */
+/*
+  "UI small UC" — 20 Roman, uppercase. Field labels, group titles, weights.
+  A container can set `--label-size` and `--label-case` to make every field
+  inside it compact (an operation body does).
+*/
 .t-label {
   font-family: var(--font-ui);
-  font-size: var(--text-label-size);
+  font-size: var(--label-size, var(--text-label-size));
   font-weight: var(--weight-regular);
-  text-transform: uppercase;
+  text-transform: var(--label-case, uppercase);
 }
 
 /* "UI regular" — 14 Light. Questions and running text. */

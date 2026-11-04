@@ -13,10 +13,11 @@ import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
 
 `Collapsible` is the black header bar that opens and closes a part of the sidebar. In the
 section size, it heads Grid & Size, Tiles and Operations. In the smaller group size, it heads each
-tile group. The title is on the left. On the right is a chevron that points up when open and down
-when closed, and optionally some decoration, such as a closed tile group's thumbnails. A tile
-group's bar can also rename the group (click the title) and holds a trash button before the
-title, as the operation header does.
+tile group. A chevron that points up when open and down when closed comes first, then the title,
+and optionally some decoration at the right, such as a closed tile group's thumbnails. The
+chevron is on the left so the sidebar's overlay scroll handle, which sits over the right edge,
+never covers it. A tile group's bar can also rename the group (click the title) and holds a trash
+button at its right end, with a wider margin that keeps it clear of the scroll handle.
 
 Whether a bar is open lasts only for the session. It is never saved in the tileset file.
 
@@ -46,16 +47,19 @@ body have different padding and frames in Figma.
 | `onRename` | `(title: string) => void` | — | Makes the title an [`InlineEdit`](/editor/ui-inline-edit/). |
 | `note` | `string` | — | Text after the title, not edited with it (a duplicate name's `(t3)`). |
 | `hint` | `string` | — | Explanation shown on hovering the title ([`Hint`](/editor/ui-hint/)). Only with `onRename`. |
-| `actions` | `Snippet` | — | Controls before the title, e.g. the trash `IconButton`. |
-| `extras` | `Snippet` | — | Decorative content beside the chevron. |
+| `actions` | `Snippet` | — | Controls at the bar's right end, e.g. the trash `IconButton`. |
+| `extras` | `Snippet` | — | Decorative content at the right of the title. |
 | `children` | `Snippet` | required | The body. |
 
 ### Inputs → outputs
 
-- `<h{level}>` wrapping the bar. In the bar: `actions`, then the title (an `InlineEdit` when
-  `onRename` is set), then a `<button aria-expanded aria-controls>` that fills the rest of the
-  bar. Without `actions` or `onRename`, the title is inside that button and the whole bar
-  toggles. With `onRename`, the button is named `Expand {title}` or `Collapse {title}`.
+- `<h{level}>` wrapping the bar. Without `onRename`: a `<button aria-expanded aria-controls>`
+  holding the chevron, the title and `extras` fills the bar, then `actions`. With `onRename`: a
+  chevron-only `<button aria-expanded aria-controls>` named `Expand {title}` or
+  `Collapse {title}`, the `InlineEdit` title, then the empty rest of the bar (with `extras` at
+  its right), which toggles on click for the pointer only, then `actions`.
+- `actions` sits at the right end with `margin-right: var(--space-4)`, clear of `ScrollArea`'s
+  overlay handle.
 - With `onRename`, the `InlineEdit` and the `note` sit in a `Hint` wrapper, whose id goes to the
   `InlineEdit`'s `aria-describedby`. Without it, the note follows the title inside the button.
 - The body is `<div id>` (from `$props.id()`) and is rendered only while open.

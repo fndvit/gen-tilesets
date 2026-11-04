@@ -20,6 +20,10 @@
 -->
 <script lang="ts">
   import { paletteTotal, type PaletteEntry, type Tile } from "@vit-foundation/gen-tilesets";
+  import NumericInput from "../lib/NumericInput.svelte";
+  import Button from "../lib/ui/Button.svelte";
+  import FieldRow from "../lib/ui/FieldRow.svelte";
+  import Hint from "../lib/ui/Hint.svelte";
 
   interface Props {
     palette: PaletteEntry[];
@@ -38,14 +42,6 @@
 
   const nameOf = (tileId: string | null): string =>
     tileId === null ? "clear" : (tiles.find((t) => t.id === tileId)?.name ?? tileId);
-
-  /** A stable colour per entry, so a segment stays recognisable while dragging. */
-  const hueOf = (tileId: string | null): string => {
-    if (tileId === null) return "#e2e8f0";
-    let h = 0;
-    for (const ch of tileId) h = (h * 31 + ch.charCodeAt(0)) % 360;
-    return `hsl(${h} 45% 42%)`;
-  };
 
   function replace(next: PaletteEntry[]): void {
     onChange(next);
@@ -113,8 +109,11 @@
   }
 
   function add(tileId: string | null): void {
+    // Read before `replace`: the parent can hand back the longer palette at once,
+    // and `palette.length` afterwards would point one past the new entry.
+    const index = palette.length;
     replace([...palette, { tileId, weight: 1 }]);
-    selected = palette.length;
+    selected = index;
   }
 
   function remove(index: number): void {
@@ -136,13 +135,40 @@
 
   /** §12.2's eighth advisory — `04` §6.4's *accepted, not a defect*. */
   const orderMeaningless = $derived(sourceType === "random" && palette.length > 1);
+
+  /**
+   * The label's hint: order matters (`04` **O6**), and under `random` it does
+   * not, which is §12.2's eighth advisory. "Under a `random` Source, reordering
+   * a palette reshuffles the canvas with no visible reason, because uniform
+   * values make adjacency meaningless" (`04` §6.4); §7.6 carries it as an
+   * advisory rather than giving the editor two palette presentations.
+   */
+  const paletteHint = $derived(
+    orderMeaningless
+      ? "Under the Random source every value is equally likely, so neighbours mean nothing: reordering only reshuffles the canvas."
+      : "Order matters: under a banded source, entries next to each other on the bar end up next to each other on the canvas. Drag a segment to move it.",
+  );
+
+  const tileOptions = $derived([
+    // **`null` is an ordinary palette entry** meaning *clear this cell* (`04`
+    // §6.3, `02` §8.1). It is offered alongside the Tiles and is **not** a Tile
+    // in the library: "empty" never appears as a selectable entry there.
+    { value: "", label: "clear" },
+    ...tiles.map((t) => ({ value: t.id, label: t.name })),
+  ]);
+
+  function parseWeight(text: string): number | null {
+    const n = Number(text.trim());
+    return text.trim() !== "" && Number.isFinite(n) && n >= 0 ? n : null;
+  }
 </script>
 
 <div class="palette">
-  <div class="row">
-    <span class="label">palette</span>
-    <span class="hint">order is meaningful — <code>04</code> <strong>O6</strong></span>
-  </div>
+  <Hint text={paletteHint}>
+    {#snippet children()}
+      <span class="t-label">Palette</span>
+    {/snippet}
+  </Hint>
 
   <!--
     Weights are the segment widths. A zero-weight entry is legal and means
@@ -161,250 +187,164 @@
     {#each palette as entry, index (index)}
       {@const share = total > 0 ? entry.weight / total : 0}
       <button
-        class="segment"
+        type="button"
+        class="segment t-xs"
         class:on={selected === index}
         class:zero={entry.weight === 0}
         class:null={entry.tileId === null}
-        style="flex-grow: {share}; background: {hueOf(entry.tileId)};"
+        style:flex-grow={share}
         onpointerdown={(e) => onPointerDown(e, index)}
         onclick={() => (selected = index)}
-        title="{nameOf(entry.tileId)} — weight {entry.weight}"
-        aria-label="Palette entry {index + 1}: {nameOf(entry.tileId)}"
+        aria-label="Palette entry {index + 1}: {nameOf(entry.tileId)}, weight {entry.weight}"
+        aria-pressed={selected === index}
       >
         {#if share > 0.12}<span>{nameOf(entry.tileId)}</span>{/if}
       </button>
     {/each}
   </div>
 
-  <p class="thresholds">
+  <p class="thresholds t-console">
     {#each palette as entry, index (index)}
       <span class:on={selected === index}>
-        {nameOf(entry.tileId)}
-        <em>{total > 0 ? Math.round((entry.weight / total) * 100) : 0}%</em>
+        {nameOf(entry.tileId)} {total > 0 ? Math.round((entry.weight / total) * 100) : 0}%
       </span>
     {/each}
   </p>
 
   {#if current !== undefined}
-    <div class="entry">
-      <select
-        value={current.tileId ?? ""}
-        onchange={(e) => setTile(selected, e.currentTarget.value === "" ? null : e.currentTarget.value)}
-        aria-label="Tile for this entry"
-      >
-        <!--
-          **`null` is an ordinary palette entry** meaning *clear this cell*
-          (`04` §6.3, `02` §8.1). It is offered here alongside the Tiles, and it
-          is **not** a Tile in the library — `02` §8.1 is explicit that "empty"
-          never appears as a selectable entry there.
-        -->
-        <option value="">∅ clear this cell</option>
-        {#each tiles as tile (tile.id)}
-          <option value={tile.id}>{tile.name} ({tile.id})</option>
-        {/each}
-      </select>
+    <FieldRow label="Tile" align="center">
+      {#snippet children()}
+        <select
+          class="select t-body"
+          value={current.tileId ?? ""}
+          onchange={(e) => setTile(selected, e.currentTarget.value === "" ? null : e.currentTarget.value)}
+          aria-label="Tile for entry {selected + 1}"
+        >
+          {#each tileOptions as option (option.value)}
+            <option value={option.value}>{option.label}</option>
+          {/each}
+        </select>
+      {/snippet}
+    </FieldRow>
 
-      <input
-        type="number"
-        min="0"
-        step="1"
-        value={current.weight}
-        oninput={(e) => setWeight(selected, e.currentTarget.value)}
-        aria-label="Weight"
+    <NumericInput
+      label="Weight"
+      value={current.weight}
+      parse={parseWeight}
+      onCommit={(text) => setWeight(selected, text)}
+      hint="Zero keeps the entry listed but never chosen. The weights cannot all be zero."
+    />
+
+    <div class="actions">
+      <Button label="Earlier" disabled={selected === 0} onclick={() => move(selected, selected - 1)} />
+      <Button
+        label="Later"
+        disabled={selected === palette.length - 1}
+        onclick={() => move(selected, selected + 1)}
       />
-
-      <button onclick={() => move(selected, selected - 1)} aria-label="Move earlier">←</button>
-      <button onclick={() => move(selected, selected + 1)} aria-label="Move later">→</button>
-      <button
-        class="remove"
-        disabled={palette.length <= 1}
-        onclick={() => remove(selected)}
-        aria-label="Remove entry"
-      >
-        ×
-      </button>
+      <Button label="Remove" disabled={palette.length <= 1} onclick={() => remove(selected)} />
     </div>
   {/if}
 
-  <div class="add">
-    <button onclick={() => add(tiles[0]?.id ?? null)}>+ entry</button>
-    <button onclick={() => add(null)}>+ clear</button>
-    {#if tiles.length === 0}
-      <span class="hint">No Tiles yet — only <code>∅ clear</code> is available.</span>
-    {/if}
+  <!-- With no Tiles yet, a new entry is `clear`, the only one available. -->
+  <div class="actions">
+    <Button label="+ Entry" onclick={() => add(tiles[0]?.id ?? null)} />
+    <Button label="+ Clear" onclick={() => add(null)} />
   </div>
-
-  {#if orderMeaningless}
-    <!--
-      §12.2's eighth advisory, from `04` §6.4's *accepted, not a defect*: "under a
-      `random` Source, reordering a palette reshuffles the canvas with no visible
-      reason, because uniform values make adjacency meaningless. The bar
-      presentation implies a spatial meaning that a `random` Source does not
-      deliver." §7.6 carries it as an advisory rather than giving the editor two
-      palette presentations.
-    -->
-    <p class="advisory">
-      Under <code>random</code> the values are uniform, so adjacency means nothing —
-      reordering reshuffles the canvas with no visible reason. The bar implies a spatial
-      meaning this Source does not deliver (<code>04</code>&nbsp;§6.4).
-    </p>
-  {/if}
 </div>
 
 <style>
+  /* One column that never grows past the body (the implicit `auto` column would). */
   .palette {
     display: grid;
-    gap: 0.4rem;
-  }
-
-  .row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.5rem;
-  }
-
-  .label {
-    font-size: 0.8rem;
-    color: #1a202c;
-  }
-
-  .hint {
-    font-size: 0.68rem;
-    color: #a0aec0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+    color: var(--color-ink);
   }
 
   .bar {
     display: flex;
-    height: 2rem;
-    border-radius: 4px;
-    overflow: hidden;
-    background: #f7fafc;
+    height: var(--thumb);
+    border: var(--rule);
+    background: var(--color-paper);
     touch-action: none;
   }
 
   .segment {
     flex-basis: 0;
     min-width: 0;
+    padding: 0 var(--space-2);
     border: 0;
-    border-right: 1px solid #f4f6f9;
-    color: #f7fafc;
-    font: inherit;
-    font-size: 0.7rem;
-    cursor: grab;
-    padding: 0;
+    border-right: var(--rule-w) solid var(--color-paper);
+    background: var(--color-ink);
+    color: var(--color-paper);
     overflow: hidden;
     white-space: nowrap;
+    cursor: grab;
+  }
+
+  .segment:last-child {
+    border-right: 0;
   }
 
   .segment:active {
     cursor: grabbing;
   }
 
+  /* An empty entry clears cells, so it reads as paper, not as a tile. */
+  .segment.null {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    border-right-color: var(--color-ink);
+  }
+
+  /* Selected and hover = the glyph look: inactive fill, ink text. */
+  .segment:hover,
   .segment.on {
-    box-shadow: inset 0 0 0 2px #1a202c;
+    background: var(--color-inactive);
+    color: var(--color-ink);
   }
 
   /* A zero-weight entry is legal and must stay visible (§7.6). */
   .segment.zero {
     flex: none;
-    width: 4px;
-    background-image: repeating-linear-gradient(
-      45deg,
-      #a0aec0 0 2px,
-      transparent 2px 4px
-    ) !important;
-  }
-
-  .segment.null {
-    background-image: repeating-linear-gradient(
-      -45deg,
-      #cbd5e0 0 6px,
-      #e2e8f0 6px 12px
-    ) !important;
-    color: #5a6b80;
+    width: var(--space-2);
+    padding: 0;
   }
 
   .thresholds {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: var(--space-4);
     margin: 0;
-    font-size: 0.68rem;
-    color: #a0aec0;
   }
 
-  .thresholds span.on {
-    color: #4a5568;
+  /* Inactive grey is unreadable on paper, so the selected share is underlined instead. */
+  .thresholds .on {
+    text-decoration: underline;
   }
 
-  .thresholds em {
-    font-style: normal;
-    color: #5a6b80;
-  }
-
-  .entry {
-    display: flex;
-    gap: 0.3rem;
-    align-items: center;
-  }
-
-  select,
-  input {
-    background: #f7fafc;
-    border: 1px solid #cbd5e0;
-    color: inherit;
-    border-radius: 4px;
-    padding: 0.22rem 0.3rem;
-    font: inherit;
-    font-size: 0.75rem;
-    min-width: 0;
-  }
-
-  select {
-    flex: 1;
-  }
-
-  input {
-    width: 3.5rem;
-  }
-
-  .entry button,
-  .add button {
-    background: #cbd5e0;
-    border: 1px solid #a0aec0;
-    color: #1a202c;
-    border-radius: 4px;
-    padding: 0.2rem 0.45rem;
-    font: inherit;
-    font-size: 0.72rem;
+  .select {
+    width: var(--field-w);
+    padding: 0;
+    border: 0;
+    border-bottom: var(--rule);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--color-ink);
     cursor: pointer;
   }
 
-  .entry button:disabled {
-    opacity: 0.4;
-    cursor: default;
+  /* As the numeric fields: hover and focus thicken the underline. */
+  .select:hover,
+  .select:focus-visible {
+    outline: none;
+    border-bottom-width: var(--focus-w);
+    margin-bottom: calc(var(--rule-w) - var(--focus-w));
   }
 
-  .remove:hover:not(:disabled) {
-    color: #c53030;
-  }
-
-  .add {
+  .actions {
     display: flex;
-    gap: 0.3rem;
-    align-items: center;
-  }
-
-  .advisory {
-    margin: 0;
-    font-size: 0.68rem;
-    line-height: 1.45;
-    color: #8a6d1f;
-  }
-
-  code {
-    font-family: ui-monospace, monospace;
-    color: #2b6cb0;
+    gap: var(--chip-gap);
   }
 </style>

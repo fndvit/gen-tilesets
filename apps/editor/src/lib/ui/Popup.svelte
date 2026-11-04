@@ -24,9 +24,14 @@
     open?: boolean;
     onClose?: () => void;
     children: Snippet;
+    /**
+     * Buttons in place of Close, for a popup that asks something. Receives
+     * `close`, so a choice can act and then close the dialog.
+     */
+    actions?: Snippet<[() => void]>;
   }
 
-  let { title, open = $bindable(false), onClose, children }: Props = $props();
+  let { title, open = $bindable(false), onClose, children, actions }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
   const titleId = $props.id();
@@ -52,7 +57,11 @@
     {@render children()}
   </div>
   <div class="actions">
-    <Button label="Close" onclick={() => dialog?.close()} />
+    {#if actions}
+      {@render actions(() => dialog?.close())}
+    {:else}
+      <Button label="Close" onclick={() => dialog?.close()} />
+    {/if}
   </div>
 </dialog>
 
@@ -98,6 +107,7 @@
   .actions {
     display: flex;
     justify-content: flex-end;
+    gap: var(--chip-gap);
     padding: 0 calc(var(--space-3) + var(--space-2)) calc(var(--space-3) + var(--space-2));
   }
 </style>

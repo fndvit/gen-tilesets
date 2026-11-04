@@ -1,6 +1,6 @@
 ---
 title: tiles/TileGroup.svelte
-description: One Tile in the Tiles section. A group bar with trash, an editable title and closed-state thumbnails, over its variants and a square "+".
+description: One Tile in the Tiles section. A group bar with a chevron, an editable title, trash and closed-state thumbnails, over its variants and a square "+".
 sidebar:
   order: 44
 ---
@@ -10,8 +10,8 @@ sidebar:
 
 ## Overview
 
-The Figma *Tile Group*. A black bar holds a trash icon, the group's name (click it to rename) and
-the fold chevron. While the group is closed, the bar also shows its first four pictures as small
+The Figma *Tile Group*. A black bar holds the fold chevron, the group's name (click it to
+rename) and, at the right end, a trash icon. While the group is closed, the bar also shows its first four pictures as small
 thumbnails. Open, a white framed body lists the variants, one [tile asset](/editor/tile-asset/)
 row each, and ends with a square "+" that adds more and a "Reset weights" button that sets
 every variant back to the same weight (greyed out when they already are). Dropping image files anywhere on the group

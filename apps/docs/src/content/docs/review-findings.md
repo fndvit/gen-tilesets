@@ -120,15 +120,15 @@ was fixed in the editor redesign. The other kinds were spot-checked, not all re-
 | [ids.ts](/editor/ids/) | `IDENTIFIER` duplicates the private regex at `packages/tileset/src/validate.ts:99`, so the two can drift | inconsistency |
 | [draft.svelte.ts](/editor/draft/) | Named `.svelte.ts` but holds no rune, and must stay rune-free to remain importable by three test files; the suffix invites a `$state` that would break them | inconsistency |
 | [App.svelte](/editor/app/) | The seed field and tile rename commit on every keystroke, so each keystroke is a separate undo entry | inconsistency |
-| [OperationStack.svelte](/editor/operation-stack/) | The × button's aria-label leaves out the op id, which the other four row buttons include | inconsistency |
-| [OperationDraft.svelte](/editor/operation-draft/) | Under a `constant` Source the control collapses, but a stored `range[1]` stays in the file, hidden | inconsistency |
+| `OperationStack.svelte` (file removed in Block E) | The × button's aria-label leaves out the op id, which the other four row buttons include | inconsistency |
+| `OperationDraft.svelte` (file removed in Block E) | Under a `constant` Source the control collapses, but a stored `range[1]` stays in the file, hidden | inconsistency |
 | [ParamControl.svelte](/editor/param-control/) | `pending` treats empty text as `Number("")` = 0, while `commit` refuses `""` | inconsistency |
 | [ParamControl.svelte](/editor/param-control/) | Dragging the slider leaves stale typed text in the exact-value field until blur | inconsistency |
 | [PaletteBar.svelte](/editor/palette-bar/) | A refused weight edit leaves the refused number in the box; no draft-text model | inconsistency |
 | [PaletteBar.svelte](/editor/palette-bar/) | The weight input has `step="1"`, but weights may be fractional | inconsistency |
 | [NumericMapping.svelte](/editor/numeric-mapping/) | The `steps` input has no draft-text model, unlike the two range ends | inconsistency |
 | [NumericMapping.svelte](/editor/numeric-mapping/) | Slider step is `/200` here but `/100` in affordance.ts; neither comment mentions the other | inconsistency |
-| [BlendControl.svelte](/editor/blend-control/) | The single-option sentence always talks about palettes, though the branch applies to any target with one accepted Blend (not reachable today) | inconsistency |
+| `BlendControl.svelte` (file removed in Block E) | The single-option sentence always talks about palettes, though the branch applies to any target with one accepted Blend (not reachable today) | inconsistency |
 | [PreviewFrame.svelte](/editor/preview-frame/) | `clearReference` resets `yOffset` but not `opacity` or `inFront` | inconsistency |
 | [PreviewFrame.svelte](/editor/preview-frame/) | `9px` is a CSS literal in three rules as well as `HANDLE = 9` in the script | inconsistency |
 | [ReferenceControls.svelte](/editor/reference-controls/) | The y input has no draft-text model, so an emptied box is not reverted on blur | inconsistency |
@@ -153,9 +153,9 @@ was fixed in the editor redesign. The other kinds were spot-checked, not all re-
 | [NumericInput.svelte](/editor/numeric-input/) | `note`'s comment says it is "used for the destructive three"; its only user is y offset, not one of them | stale comment |
 | [NumericInput.svelte](/editor/numeric-input/) | l.54 refers to "an undo at Step 10"; undo exists | stale comment |
 | TileLibrary.svelte (removed) | Header says the palette bar "is Step 6b"; it exists as PaletteBar.svelte | stale comment. Resolved: the file was removed in the editor redesign |
-| [OperationStack.svelte](/editor/operation-stack/) | `onCreate` comment says "Step 6 supplies it"; App.svelte does | stale comment |
-| [OperationDraft.svelte](/editor/operation-draft/) | Comment says "five Targets… four attributes plus tileId"; there are 8 Targets | stale comment |
-| [OperationDraft.svelte](/editor/operation-draft/) | The `draft` prop comment refers to "Step 8's overlay" | stale comment |
+| `OperationStack.svelte` (file removed in Block E) | `onCreate` comment says "Step 6 supplies it"; App.svelte does | stale comment |
+| `OperationDraft.svelte` (file removed in Block E) | Comment says "five Targets… four attributes plus tileId"; there are 8 Targets | stale comment |
+| `OperationDraft.svelte` (file removed in Block E) | The `draft` prop comment refers to "Step 8's overlay" | stale comment |
 | [PreviewFrame.svelte](/editor/preview-frame/) | l.321 says "Step 7's brush will need it"; the brush exists | stale comment |
 | [ReferenceLayer.svelte](/editor/reference-layer/) | Header says "nothing else names a z-index", but the grab surface has 2 and PreviewFrame's handles 4 | stale comment |
 | [SelectionOverlay.svelte](/editor/selection-overlay/) | The header's E7 statement says geometry "comes from `cellBox`"; the code uses `cellPlacementPercent` | stale comment |

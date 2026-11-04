@@ -124,9 +124,10 @@
   }
 
   /*
-    Focus thickens the underline instead of drawing the global ring: a box
-    around an underline field reads as a different control.
+    Hover and focus thicken the underline instead of drawing the global ring: a
+    box around an underline field reads as a different control.
   */
+  input:hover,
   input:focus-visible {
     outline: none;
     border-bottom-width: var(--focus-w);

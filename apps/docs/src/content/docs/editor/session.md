@@ -6,8 +6,8 @@ sidebar:
 ---
 
 **Written from:** `apps/editor/src/session.svelte.ts`, and the call sites in `App.svelte`,
-`lib/ImportPanel.svelte`, `lib/sections/TilesSection.svelte`, `lib/OperationStack.svelte` and
-`lib/OperationDraft.svelte`. No test file of its own. Its rule is tested in `history.test.ts`.
+`lib/ImportPanel.svelte`, `lib/sections/TilesSection.svelte`, `lib/sections/OperationsSection.svelte`
+and `lib/operations/OperationBody.svelte`. No test file of its own. Its rule is tested in `history.test.ts`.
 
 ## Overview
 
@@ -88,10 +88,10 @@ one.
 | `lib/ImportPanel.svelte:210` | `session.open(file as TilesetFile)` after validate and `replaceAll` |
 | `lib/sections/TilesSection.svelte:42`, `:102`, `:116-119` | `session.file` reads, and the `refused()` before/after identity check |
 | `lib/sections/TilesSection.svelte:73`, `:80`, `:112`, `:118`, `:174` | `session.apply` for the Tiles section's transitions |
-| `lib/OperationStack.svelte:88` | `session.file.config.operations` |
-| `lib/OperationStack.svelte:153-226` | `session.apply` for move, reroll, remove, and the reseed flag |
-| `lib/OperationDraft.svelte:71`, `:316` | `session.file` reads (rules, tiles) |
-| `lib/OperationDraft.svelte:171` | `session.apply(editing ? replaceOperation(op) : addOperation(op))` |
+| `lib/sections/OperationsSection.svelte:34`, `:35`, `:94` | `session.file.config.operations` and `.tiles`; the rerolled Operation's new salt |
+| `lib/sections/OperationsSection.svelte:92`, `:110`, `:112`, `:113` | `session.apply` for reroll, remove and move |
+| `lib/operations/OperationBody.svelte:106`, `:273` | `session.file` reads (breakpoints, tiles) |
+| `lib/operations/OperationBody.svelte:227` | `session.apply(editing ? replaceOperation(op) : addOperation(op))` |
 
 Callees: `newDocument`, `Transition` from `document.ts`; `applied`, `historyOf`, `replaced`,
 `undone`, `History` from `history.ts`.

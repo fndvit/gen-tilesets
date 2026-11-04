@@ -10,6 +10,7 @@
 <script lang="ts">
   import type { ParamSchema } from "@vit-foundation/gen-tilesets";
   import { affordanceFor } from "./affordance.js";
+  import FieldRow from "../lib/ui/FieldRow.svelte";
   import ParamControl from "./ParamControl.svelte";
 
   interface Props {
@@ -24,9 +25,8 @@
   const entries = $derived(Object.entries(schema));
 </script>
 
-{#if entries.length === 0}
-  <p class="none">No parameters.</p>
-{:else}
+<!-- A type with no parameters shows nothing: the step's glyph already says it all. -->
+{#if entries.length > 0}
   <div class="params">
     {#each entries as [name, spec] (name)}
       {@const affordance = affordanceFor(spec)}
@@ -35,14 +35,16 @@
           §7.3 — "`cellList` is painted, not generated". The author paints cells
           on the preview; pointer events convert to render space and then through
           `cellAt`, which the editor never reimplements (`07` §8.2, `08` **S10**).
-          The surface is `PaintLayer.svelte`, over the preview.
+          The surface is `PaintLayer.svelte`, over the preview. Here it is a count.
         -->
-        <p class="painted">
-          <strong>{name}</strong> is painted on the preview, not typed (§7.3).
-          {#if Array.isArray(values[name])}
-            <em>{(values[name] as unknown[]).length} cells</em>
-          {/if}
-        </p>
+        <FieldRow
+          label="Cells"
+          hint="Paint on the preview. Drag to continue a stroke; start on a painted cell to erase."
+        >
+          {#snippet children()}
+            <span class="t-label">{Array.isArray(values[name]) ? (values[name] as unknown[]).length : 0}</span>
+          {/snippet}
+        </FieldRow>
       {:else}
         <ParamControl
           {name}
@@ -57,25 +59,10 @@
 {/if}
 
 <style>
+  /* One column that never grows past the body (the implicit `auto` column would). */
   .params {
     display: grid;
-    gap: 0.45rem;
-  }
-
-  .none,
-  .painted {
-    margin: 0;
-    font-size: 0.75rem;
-    color: #a0aec0;
-  }
-
-  .painted strong {
-    color: #4a5568;
-    font-weight: 500;
-  }
-
-  .painted em {
-    font-style: normal;
-    color: #5a6b80;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
   }
 </style>

@@ -119,7 +119,7 @@ did not hold.
 | Caller | Uses |
 | --- | --- |
 | `controls/ParamFields.svelte:12`, `:32` | `affordanceFor` |
-| `controls/ParamControl.svelte:11` | `admits`, `rangeLabel`, `Affordance` |
+| `controls/ParamControl.svelte:20` | `admits`, `rangeLabel`, `Affordance` |
 | `draft.svelte.ts:42`, `:124` | `defaultFor`, inside `defaultParams` |
 | `controls/affordance.test.ts:4` | all four functions |
 

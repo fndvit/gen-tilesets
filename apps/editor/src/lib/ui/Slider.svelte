@@ -82,7 +82,8 @@
 
 <style>
   .slider {
-    --thumb-offset: calc((var(--rule-w) - var(--slider-thumb-h)) / 2);
+    --track-h: var(--rule-w);
+    --thumb-offset: calc((var(--track-h) - var(--slider-thumb-h)) / 2);
     appearance: none;
     display: block;
     width: 100%;
@@ -97,8 +98,13 @@
     cursor: default;
   }
 
+  /* Hover thickens the track, as it thickens an underline field. */
+  .slider:hover:not(:disabled) {
+    --track-h: var(--focus-w);
+  }
+
   .slider::-webkit-slider-runnable-track {
-    height: var(--rule-w);
+    height: var(--track-h);
     background: var(--color-ink);
   }
 
@@ -113,7 +119,7 @@
   }
 
   .slider::-moz-range-track {
-    height: var(--rule-w);
+    height: var(--track-h);
     background: var(--color-ink);
   }
 

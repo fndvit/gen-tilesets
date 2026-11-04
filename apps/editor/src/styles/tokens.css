@@ -14,6 +14,7 @@
   --white: #ffffff;
   --grey-200: #e2e2e2; /* Figma variable "Inactive" */
   --grey-100: #f2f2f2; /* preview grid rule */
+  --grey-500: #808080; /* scroll handle: reads on black bars and on paper */
   --aqua-50: #e4f6f5; /* sidebar surface */
   --magenta: #ff00c3; /* seed / non-deterministic */
 
@@ -55,7 +56,10 @@
   --icon: 12px;
   --icon-add: 18px;
   --field-w: 106px;
+  --field-label-w-compact: 128px; /* the label column in an operation body */
   --slider-thumb-w: 10px;
+  --scrollbar-w: 6px; /* ScrollArea's overlay handle */
+  --scrollbar-inset: 2px;
   --slider-thumb-h: 20px;
   --glyph-w: 75px;
   --glyph-h: 60px;
@@ -81,8 +85,11 @@
 
   /* ── Motion ────────────────────────────────────────────────────────── */
   --dur-fast: 120ms;
+  --dur-slow: 300ms; /* the scroll handle fading */
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --marquee-speed: 40px; /* per second */
+  --scrollbar-opacity: 0.6;
+  --scrollbar-opacity-hover: 0.9;
 }
 
 /*
@@ -106,6 +113,7 @@
   --color-inactive: var(--grey-200); /* selected glyph, console strip, disabled */
   --color-rule: var(--black);
   --color-grid: var(--grey-100);
+  --color-scrollbar: var(--grey-500);
   --color-seed: var(--magenta);
   /* Placeholders until the Stage 2 warnings group decides them. */
   --color-danger: var(--black);

@@ -13,7 +13,7 @@ import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
 
 `Hint` puts a small black bubble with white text under whatever it wraps, while the pointer is
 over it. The editor's rule is that explanations never take space in the layout. They are hints.
-Field labels, tile thumbnails and tile group titles all use this one component.
+Field labels, tile thumbnails, tile group titles and the operation body all use this one component.
 
 ## Try it
 
@@ -37,13 +37,25 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
   bubble (ink background, paper text, at most `--hint-w` wide, `--leading-hint`).
 - The bubble is `display: none` until the anchor is hovered, so a hidden hint takes no room and
   cannot make the page scroll. A screen reader still reads it through `aria-describedby`.
-- It opens below. A container near the bottom of the screen sets `--hint-top: auto` and
-  `--hint-bottom` to open it above (the sidebar footer does).
+- It opens below, from the anchor's left edge. Four custom properties move it, each with a
+  default:
+
+  | Property | Default | Use |
+  | --- | --- | --- |
+  | `--hint-top` | `calc(100% + var(--space-2))` | Set to `auto` to stop opening below. |
+  | `--hint-bottom` | `auto` | Set to open above. |
+  | `--hint-left` | `0` | Set to `auto` to stop aligning to the left edge. |
+  | `--hint-right` | `auto` | Set to `0` to align to the right edge. |
+
+  The sidebar footer opens its hints above. `OperationBody`'s Discard / Save row opens Save's
+  hint above and right-aligned, so it stays inside the sidebar.
 
 ### Callers / callees
 
 Callers: `lib/ui/FieldRow.svelte` (labels), `lib/ui/Collapsible.svelte` (a tile group's title),
-`lib/tiles/TileAsset.svelte` (the thumbnail). No callees.
+`lib/tiles/TileAsset.svelte` (the thumbnail), `lib/operations/OperationBody.svelte` (the step's
+question, and Save), `controls/PaletteBar.svelte` ("Palette"), `controls/NumericMapping.svelte`
+(the attribute's label). No callees.
 
 ### Tests
 

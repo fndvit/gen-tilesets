@@ -7,8 +7,8 @@ sidebar:
 
 **Written from:** `apps/editor/src/document.ts`, `document.test.ts`, `library.test.ts`,
 `rules.test.ts`, `reseed.test.ts`, `history.test.ts`, and the call sites in `App.svelte`,
-`lib/sections/TilesSection.svelte`, `lib/OperationStack.svelte`, `lib/OperationDraft.svelte` and
-`session.svelte.ts`.
+`lib/sections/TilesSection.svelte`, `lib/sections/OperationsSection.svelte`,
+`lib/operations/OperationBody.svelte` and `session.svelte.ts`.
 
 ## Overview
 
@@ -179,7 +179,7 @@ index is an argument: the subject is named by id, but a destination has no id.
 - **The seed is trimmed** because the engine hashes the string, and `"sunset "` and `"sunset"`
   would be two different pictures.
 - **`setReseedOnLoad` writes whatever it is asked.** Hiding the control over a non-stochastic
-  Source is the view's job (`offersReseedOnLoad`). Refusing here would be the silent clearing the
+  Source is the view's job (today `OperationBody`'s `stochastic` check). Refusing here would be the silent clearing the
   source forbids.
 
 ### Callers / callees
@@ -194,8 +194,11 @@ index is an argument: the subject is named by id, but a destination has no id.
 | `App.svelte:679`, `:681`, `:695`, `:703` | `setDefaultSeed`, `rerollSeed`, `rerollAssets`, `setReseedAssetsOnLoad` |
 | `App.svelte:346` | `ENGINE_VERSION` shown in the header |
 | `lib/sections/TilesSection.svelte:73`, `:80`, `:102`, `:112`, `:127`, `:133`, `:174` | `addTiles`, `addAssets`, `tileReferences`, `deleteTile`, `deleteAsset`, `setAssetWeight` (weight passed as `String(weight)`), `renameTile`, `resetAssetWeights` |
-| `lib/OperationStack.svelte:153`, `:163`, `:193`, `:202`, `:226` | `moveOperation`, `rerollOperation`, `removeOperation`, `setReseedOnLoad` |
-| `lib/OperationDraft.svelte:171` | `replaceOperation` or `addOperation` on commit |
+| `lib/sections/OperationsSection.svelte:92`, `:110`, `:112`, `:113` | `rerollOperation`, `removeOperation`, `moveOperation` |
+| `lib/operations/OperationBody.svelte:227` | `replaceOperation` or `addOperation` on commit |
+
+`setReseedOnLoad` has no UI caller since Block E. The flag is now a toggle on the draft, committed
+with the rest of the Operation by `replaceOperation`; only `reseed.test.ts` calls the transition.
 
 Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseReferenceWidth`,
 `parseYOffset`, `parseWeight`, `RULE_PARSERS` (`fields.ts`); `nextSalt` (`reseed.ts`);

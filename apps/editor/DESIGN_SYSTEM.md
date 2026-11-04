@@ -65,20 +65,22 @@ Figma does (`text-box: trim-both cap alphabetic`, with `line-height: 1` as the f
 
 | Pattern | Anatomy | Where it appears |
 |---|---|---|
-| **Bar** | Black, white text and icons, 4px padding, title on one side and a chevron on the other | Section header, tile group header, add bar, step tabs |
+| **Bar** | Black, white text and icons, 4px padding. A section or group bar has the chevron first, then the title; any action (trash) sits at the right end with an extra 8px margin, clear of the overlay scroll handle (Pol, Block E review) | Section header, tile group header, add bar, step tabs |
 | **Field row** | `.t-label` label on the left, control on the right, aligned to the bottom. No explanatory text in the row: an explanation is a `hint`, shown on hovering the label | Numeric and boolean inputs, operation params |
 | **Numeric input** | Field row whose control is a `--field-w` underline (1px ink bottom rule) as long as the input. Half-typed text looks the same as committed text | Cell size, rows, Y offset |
 | **Boolean / choice input** | Field row whose control is a set of chips: 1px ink border, 4px padding, `.t-xs`, `--chip-gap` apart. Selected = filled ink | Alignment, enum params |
 | **Button** | A text action in the chip look: 1px border, 4px padding, `.t-xs`, hover inverts. Never stays filled. `wide` fills its container | Undo, Import, New, Download, Close, Change it / Cancel |
 | **Popup** | Native modal `<dialog>`: black `.t-section` title bar, paper body, Close button, 1px ink frame. Esc closes | Import and export reports |
 | **Add bar** | Full-width black bar (`--bar-h-add`) with a centred 18px "+". The square variant is 32×32 | Add tile group, add operation, add tile |
-| **Tile group** | Group bar (trash, title editable on click, then up to 4 thumbnails at 14px and the chevron) above a white body with a 1px ink border holding tile asset rows | Tiles section |
+| **Tile group** | Group bar (chevron, title editable on click, up to 4 thumbnails at 14px, then trash at the right end) above a white body with a 1px ink border holding tile asset rows | Tiles section |
 | **Tile asset** | 32px thumbnail · slider (1px track, 10×20 block thumb) · `.t-label` % (46px wide, right-aligned), 6px gap. Rows 10px apart, body padding 4px inside the frame | Group body |
 | **Delete badge** | A `--badge` ink circle with a white 6px cross, 4px out from a thumbnail's top-right corner. Shown on row hover or focus-within, focusable while hidden; disabled = `--color-inactive`. The one round shape and the one control hidden at rest (Pol, Block D) | Tile asset |
 | **Operation header** | Black index cell · icon column (delete, re-seed in seed colour) · console strip above the tab row · icon column (up/down). 40px tall | Operations section |
 | **Console strip** | `.t-console` on `--color-inactive` with a 1px ink border and 3px vertical padding. Scrolls right to left only when it overflows | Operation summary |
 | **Tab row** | Equal-width black tabs in `.t-xs`. Active = paper with ink text | Operation steps |
 | **Glyph grid** | `--glyph-cols` cells per row, 4px apart: a `.t-console` label above a `--glyph-slot` artwork slot (any iconography; see below). Selected and hover = `--color-inactive` fill with a 1px border | Operation step options |
+| **Operation body** | Paper, `--rule` frame without a top border, 6px padding, 8px between parts: a `.t-body` question, a glyph grid, then field rows. Ends in a right-aligned row of `Button`s: Discard, then **Next: <step>** while a step is unanswered (it goes to the first unanswered step after this one), then Save (Add for a new one). A disabled Save has a hint naming the unanswered steps. **Fields are compact** inside it: the body sets `--label-size: var(--text-body-size)`, `--label-case: none`, `--field-label-w: var(--field-label-w-compact)` (128px) and `--field-justify: flex-start`, so labels are 14px sentence case in a column and each control sits right after its label | Operations section, under the open header |
+| **Question popup** | A `Popup` whose `actions` replace Close with the choices (Keep editing, Discard) | Switching away from an open operation with unsaved changes |
 
 ### Operation glyphs
 
@@ -111,19 +113,23 @@ iconography. Until they are designed, their grids show label-only cells.
 | Hover, on a paper chip | Invert (ink fill, paper text) |
 | Hover, on a glyph cell | Same as selected: `--color-inactive` fill and a 1px ink border. Never inverted, which would sink ink artwork into an ink fill |
 | Hover, on a seed control | No change. The seed colour is a meaning, not a state |
-| Explanations | A hint (`ui/Hint`) on the label, thumbnail or title: an ink bubble with paper `.t-body` text (`--hint-w` at most) under the label, shown at once on hovering the label, and the control's `aria-describedby`. Never as text in the layout, never a native `title` |
+| Hover, on an underline field or a slider | The underline (or track) thickens to `--focus-w`, as on focus. Numeric inputs, the seed field, the palette's tile select, sliders and the numeric mapping track |
+| Hover, on a palette segment | Same as selected: `--color-inactive` fill |
+| Explanations | A hint (`ui/Hint`; `--hint-top/bottom/left/right` place the bubble) on the label, thumbnail or title: an ink bubble with paper `.t-body` text (`--hint-w` at most) under the label, shown at once on hovering the label, and the control's `aria-describedby`. Never as text in the layout, never a native `title`. The anchor has `cursor: help`, so the pointer says a hint is there |
 | Selected | Invert (chips, tabs), or `--color-inactive` fill with a border (glyphs) |
 | Focus | 2px outline in `--color-ink`, 1px offset. Inside `.on-bar` the outline is `--color-on-bar`. Underline fields (numeric input, inline edit) never get the ring: their underline thickens to `--focus-w` instead |
 | Disabled | `--color-inactive` and `cursor: default`. Stays in place (never hidden) |
+| Scrolling | The sidebar scrolls in a `ScrollArea`: the native scrollbar is hidden and a `--scrollbar-w` mid-grey handle (`--color-scrollbar`) is drawn over the content, shown while hovered, scrolling or dragged. A scrollbar never takes width (Pol, Block E review) |
+| Width | Nothing in the sidebar may set its width from its content. A grid that stacks rows uses `grid-template-columns: minmax(0, 1fr)`, never the implicit `auto` column, which grows to the widest content (a long summary pushed the sidebar 413px wide). `Marquee` has `contain: inline-size` |
 | Seed / random | `--color-seed`, always |
 | Motion | `--dur-fast` with `--ease`. Nothing animates under `prefers-reduced-motion` |
 
 ## Naming
 
 Components are PascalCase nouns that match the Figma component names (`SectionHeader`,
-`NumericInput`, `TileGroup`, `TileAsset`, `OperationHeader`, `OperationGlyph`, `GlyphGrid`).
+`NumericInput`, `TileGroup`, `TileAsset`, `OperationHeader`, `OperationBody`, `OperationGlyph`, `GlyphGrid`).
 Generic primitives live in `src/lib/ui/`: `Icon`, `IconButton`, `AddBar`, `Collapsible`,
 `FieldRow`, `Hint`, `InlineEdit`, `Toggle`, `Button`, `Popup`, `Slider`, `Marquee`, `TabBar`, `OperationGlyph`, `GlyphGrid`, with icon
 path data in `icons.ts` and keyboard arithmetic in `keys.ts`. Sidebar sections built from them
-live in `src/lib/sections/`, and the tile group and tile asset rows in `src/lib/tiles/`. Every new `.ts` or `.svelte` file under `src/` needs a
+live in `src/lib/sections/`, the tile group and tile asset rows in `src/lib/tiles/`, and the operation header, body and display labels (`labels.ts`) in `src/lib/operations/`. Every new `.ts` or `.svelte` file under `src/` needs a
 page in `apps/docs/src/content/docs/editor/`, or the docs coverage check fails.

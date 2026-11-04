@@ -6,7 +6,7 @@ sidebar:
 ---
 
 **Written from:** `apps/editor/src/reseed.ts`, `reseed.test.ts`, and the call sites in
-`document.ts`, `App.svelte` and `lib/OperationStack.svelte`.
+`document.ts`, `App.svelte` and `lib/operations/OperationBody.svelte`.
 
 ## Overview
 
@@ -93,7 +93,7 @@ The fourth writes no field, so it lives in editor state and reaches `<Tileset>` 
 | `App.svelte:186` | `loadVaries(config)`, which enables the load-preview button (`:722`) |
 | `App.svelte:187` | `inertFlags(config)` for the advisory |
 | `App.svelte:722` | `loadSalt = drawLoadSalt()` |
-| `lib/OperationStack.svelte:221` | `offersReseedOnLoad(op)` gates the checkbox |
+| none | `offersReseedOnLoad` has no caller since Block E (see Review notes) |
 
 `isStochastic` is used only inside this module (`:68`, `:84`). `SALT_MODULUS` is used inside this
 module and in `reseed.test.ts`.
@@ -125,4 +125,9 @@ Callees: [`sources`](/api/index/variables/sources/) from the engine; `Math.rando
 
 ### Review notes
 
-None found.
+- **`offersReseedOnLoad` is no longer called.** Block E moved the reseed-on-load control from the
+  stack row into the Source step of [OperationBody](/editor/operation-body/), where it is a toggle
+  on the draft, shown when `sources.get(draft.sourceType).stochastic === true`
+  (`OperationBody.svelte:171`). That is the same rule read from the draft instead of from an
+  Operation, so the behaviour is unchanged, but the function and its "checkbox" docstring are now
+  used only by `reseed.test.ts`. (dead code)

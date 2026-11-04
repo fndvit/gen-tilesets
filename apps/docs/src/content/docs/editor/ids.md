@@ -84,7 +84,7 @@ batch never repeats an id.
 
 | Caller | Uses |
 | --- | --- |
-| `App.svelte:642` | `nextOperationId(config.operations.map((o) => o.id))` when a create-draft opens |
+| `lib/sections/OperationsSection.svelte:84` | `nextOperationId(operations.map((o) => o.id))` when *Add operation* opens a create-draft |
 | `lib/sections/TilesSection.svelte:66` | `nextTileId([...tiles.map(t => t.id), ...heldTileIds(), ...reserved])`: one id per drop, `reserved` holding ids of drops still attaching |
 | `assets.ts:207-212` | `nextAssetId([...taken, ...heldAssetIds(tileId)])` inside `attachAll`, once per file that attaches, so no gaps; a new Tile's first asset is `a1` |
 

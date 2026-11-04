@@ -45,9 +45,14 @@
 </div>
 
 <style>
+  /*
+    `contain: inline-size`: the text never sets the strip's width, so a long
+    summary scrolls inside the strip instead of widening its container.
+  */
   .strip {
     display: flex;
     overflow: hidden;
+    contain: inline-size;
     padding-block: var(--console-pad-y);
     border: var(--rule);
     background: var(--color-inactive);

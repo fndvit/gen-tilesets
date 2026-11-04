@@ -56,8 +56,9 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 ### Callers / callees
 
-Caller: `lib/tiles/TileAsset.svelte:70`, the asset weight (0–2, step 0.01; see
-[TileAsset](/editor/tile-asset/)). Callees: `sliderStep` from
+Callers: `lib/tiles/TileAsset.svelte:70`, the asset weight (0–2, step 0.01; see
+[TileAsset](/editor/tile-asset/)); `controls/ParamControl.svelte:71`, a bounded parameter, with
+`onInput` and `onCommit` both checked by `admits` (see [ParamControl](/editor/param-control/)). Callees: `sliderStep` from
 `lib/ui/keys.ts`.
 
 ### Tests

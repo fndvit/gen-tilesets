@@ -9,8 +9,8 @@ sidebar:
 
 ## Overview
 
-`Section` is one sidebar section: the black Figma *Section Header* bar with its title and
-chevron, over the section's content. Clicking the bar collapses or expands it. The open or closed
+`Section` is one sidebar section: the black Figma *Section Header* bar with its chevron and
+title, over the section's content. Clicking the bar collapses or expands it. The open or closed
 state lasts only for the session. It is never saved, and nothing in the document changes when a
 section is collapsed.
 
@@ -50,7 +50,8 @@ No events, no bindings.
 | `lib/sections/GridSection.svelte` | "Grid & Size" |
 | `lib/sections/BreakpointsSection.svelte` | "Breakpoints", `open={rules.length > 0}` |
 | `lib/sections/DerivedSection.svelte` | "Derived", `open={false}` |
-| `App.svelte` | "Tiles", "Operations" |
+| `lib/sections/TilesSection.svelte` | "Tiles" |
+| `lib/sections/OperationsSection.svelte` | "Operations" |
 
 Callees: `lib/ui/Collapsible.svelte`.
 
@@ -62,7 +63,7 @@ No test file.
 
 - **No destructive look.** The old `destructive` prop drew an orange border. Figma has none, and
   the protection for destructive edits is App's confirmation gate, not a colour (Block C).
-- **Collapsing unmounts the content.** Collapsing Operations unmounts the draft panel, but the
+- **Collapsing unmounts the content.** Collapsing Operations unmounts the operation body, but the
   draft survives in `drafting`.
 - **Breakpoints opens by default only for a file that has rules.** Because `open` is read once,
   a rule added later does not reopen a collapsed section.
