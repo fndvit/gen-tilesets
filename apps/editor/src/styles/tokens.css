@@ -1,0 +1,91 @@
+/*
+  Design tokens — the only place a raw visual value is written down.
+
+  Two layers. **Primitives** name a value ("magenta"); **semantic** tokens name a
+  job ("the colour of anything seed-driven"). Components read semantic tokens
+  only, so re-skinning is an edit here and nowhere else. Source and rationale:
+  `apps/editor/DESIGN_SYSTEM.md`, extracted from the Figma file
+  "Tileset Creator Editor" (page *Editor*).
+*/
+
+:root {
+  /* ── Colour primitives ─────────────────────────────────────────────── */
+  --black: #000000;
+  --white: #ffffff;
+  --grey-200: #e2e2e2; /* Figma variable "Inactive" */
+  --grey-100: #f2f2f2; /* preview grid rule */
+  --aqua-50: #e4f6f5; /* sidebar surface */
+  --magenta: #ff00c3; /* seed / non-deterministic */
+
+  /* ── Semantic colour ───────────────────────────────────────────────── */
+  --color-ink: var(--black); /* text, rules, filled chips */
+  --color-paper: var(--white); /* panels, unfilled chips */
+  --color-surface: var(--aqua-50); /* sidebar background */
+  --color-bar: var(--black); /* section, group and operation bars */
+  --color-on-bar: var(--white); /* text and icons on a bar */
+  --color-inactive: var(--grey-200); /* selected glyph, console strip, disabled */
+  --color-rule: var(--black);
+  --color-grid: var(--grey-100);
+  --color-seed: var(--magenta);
+  /* Placeholders until the Stage 2 warnings group decides them. */
+  --color-danger: var(--black);
+  --color-warn: var(--black);
+
+  /* ── Type ──────────────────────────────────────────────────────────── */
+  /* The design is set in Neue Haas Grotesk Display Pro; Helvetica stands in
+     until a web licence is settled. Swapping it is this one line. */
+  --font-ui: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, monospace;
+
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+
+  /* Figma text styles: size / weight / case / tracking. */
+  --text-section-size: 24px; /* "Section Header" */
+  --text-label-size: 20px; /* "UI small UC" */
+  --text-body-size: 14px; /* "UI regular" */
+  --text-xs-size: 10px; /* "UI XS Bold" */
+  --text-console-size: 10px; /* "Console" */
+  --text-console-tracking: 0.02em; /* Figma: 2% */
+
+  /* ── Space (2px base) ──────────────────────────────────────────────── */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+
+  /* ── Size ──────────────────────────────────────────────────────────── */
+  --sidebar-w: clamp(360px, 28vw, 520px); /* 477 at a 1728 viewport */
+  --bar-h-section: 25px;
+  --bar-h-group: 24px;
+  --bar-h-add: 28px;
+  --op-header-h: 40px;
+  --thumb: 32px;
+  --thumb-sm: 14px;
+  --icon: 12px;
+  --icon-add: 18px;
+  --field-w: 106px;
+  --slider-thumb-w: 10px;
+  --slider-thumb-h: 20px;
+  --glyph-w: 75px;
+  --glyph-h: 60px;
+  --glyph-cell: 10px;
+  --glyph-gap: 1px;
+  /* ── Border ────────────────────────────────────────────────────────── */
+  --rule-w: 1px;
+  --rule: var(--rule-w) solid var(--color-rule);
+  --radius: 0;
+  --radius-xs: 1px; /* glyph cells only */
+
+  /* ── Focus ─────────────────────────────────────────────────────────── */
+  --focus-w: 2px;
+  --focus-offset: 1px;
+
+  /* ── Motion ────────────────────────────────────────────────────────── */
+  --dur-fast: 120ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --marquee-speed: 40px; /* per second */
+}
