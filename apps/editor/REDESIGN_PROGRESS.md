@@ -198,6 +198,51 @@ Left for later: the operations stack design as a whole (Stage 2 backlog, item 7)
 - The sidebar colour `#E4F6F5` was sampled from a lossless Figma render, because it is not a
   Figma variable. Pol confirmed it in the Block A review.
 
+## Block F plan (approved by Pol, 2026-11-04)
+
+Goal: close Stage 1. Everything in the sidebar is on tokens and primitives, sized for
+accessibility, with clear interaction feedback, and documented. The preview's and the footer's
+design are not done here (Stage 2, items 1–2).
+
+1. **Accessibility sizing pass.** Pol: "I want you to be the judge on how the sizes should be, in
+   order to provide accessibility compliance", and the sidebar may get wider. Target WCAG 2.2 AA:
+   - Every pointer target at least 24×24 CSS px (2.5.8), counting the spacing around it:
+     `Toggle` chips, `IconButton`s (trash, re-seed, arrows, chevrons), `Button`s, tabs, glyph
+     cells, palette segments, the delete badge, slider thumbs.
+   - Text contrast at least 4.5:1, and 3:1 for control boundaries and focus indicators (1.4.3,
+     1.4.11). Check every text/background pair in both themes; `--color-inactive` text on paper
+     only where it marks a disabled control (exempt), never for information.
+   - Readable minimum text size (no 10px for content people must read; the console and chip text
+     grow), a type scale that steps clearly, and line-height that survives wrapping.
+   - Reflow at 320px-equivalent and 200% zoom (1.4.10, 1.4.4) without sideways scrolling in the
+     sidebar; the sidebar width clamp (`--sidebar-w`) may grow.
+   - Visible focus everywhere (2.4.7, 2.4.11 not obscured by the overlay scroll handle or sticky
+     parts).
+   Change tokens, not components. Record each decision and its WCAG reason in `DESIGN_SYSTEM.md`.
+2. **Interactivity feedback improvement** (Pol). One rule per kind of control, applied
+   everywhere, so every interactive element answers hover, press and focus:
+   - Black bars that act (add bars, square "+", step tabs, section and group bars): **invert on
+     hover**, the bar turns paper and its content ink (Pol's example: the add buttons).
+   - Paper chips and buttons: invert on hover (already), plus a pressed state.
+   - Underline fields and sliders: thicken on hover (done in Block E), pressed thumb.
+   - Glyph cells, palette segments: selected look on hover (done), pressed state.
+   - Icon buttons: a hover change that keeps the seed colour meaning (e.g. a frame or fill
+     behind the icon rather than a colour change).
+   - Cursors: pointer for actions, text for fields, grab for drag, help for hints.
+   A browser probe checks that every enabled control changes on hover.
+3. **Animate folding.** `Collapsible` opens and closes with Svelte's `slide` over `--dur-fast`
+   (none under `prefers-reduced-motion`). The body still unmounts when closed.
+4. **Preview scroll handle.** The preview column uses `ScrollArea` too (Pol).
+5. **Colour sweep.** Replace the ~36 hex colours left in the preview chrome (`PreviewFrame`,
+   `ReferenceControls`, `SelectionOverlay`, `PaintLayer`, `ReferenceLayer`) and the stray raw px
+   values with tokens. Colours that are part of the rendered picture stay named constants.
+6. **Leftovers.** Remove `offersReseedOnLoad` / `setReseedOnLoad` if only tests use them. Check
+   `Section.svelte` still earns its place over `Collapsible`.
+7. **Visual review against Figma**, section by section, with a list of remaining mismatches:
+   fixed now, or moved to the Stage 2 backlog. Where accessibility (step 1) overrides Figma, say so.
+8. **Docs and checks**: changed files' pages, `DESIGN_SYSTEM.md`, coverage, typecheck, tests,
+   docs build, and a browser run of the earlier block checks plus the hover probe.
+
 ## Tweaks for Block F (Pol, after the Block C review, 2026-11-04)
 
 - **Overall sizing.** Some text is too small and some too big. Controls are too small: the
