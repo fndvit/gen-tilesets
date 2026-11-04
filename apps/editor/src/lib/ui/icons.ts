@@ -34,6 +34,8 @@ export const ICONS = {
   down: { w: 12, h: 6, d: "M6 6L0 0H12Z", mode: "fill" },
   /** Add bars. */
   plus: { w: 18, h: 18, d: "M9 0V18M18 9H0", mode: "stroke", strokeWidth: 1 },
+  /** The cross in a tile asset's delete badge. Not in Figma (Pol, Block D). */
+  close: { w: 6, h: 6, d: "M0 0L6 6M6 0L0 6", mode: "stroke", strokeWidth: 1 },
   /** Delete. */
   trash: {
     w: 12,

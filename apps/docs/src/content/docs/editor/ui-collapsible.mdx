@@ -30,8 +30,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 ### Purpose
 
-The shared disclosure for the redesign. `Section.svelte` is built on it (Block C), and the tile
-group will be in Block D. The bar is `box-sizing: border-box`, so `min-height` is the Figma bar
+The shared disclosure for the redesign. `Section.svelte` (Block C) and
+[`TileGroup`](/editor/tile-group/) (Block D) are built on it. The bar is `box-sizing: border-box`, so `min-height` is the Figma bar
 height with its 4px padding inside. It renders the body bare, because the section body and the tile group
 body have different padding and frames in Figma.
 
@@ -44,6 +44,8 @@ body have different padding and frames in Figma.
 | `variant` | `"section" \| "group"` | `"section"` | `section`: `.t-section`, `--bar-h-section`. `group`: `.t-label`, `--bar-h-group`, 1px border. |
 | `level` | `2 \| 3 \| 4` | 2 for section, 3 for group | Heading level of the bar. |
 | `onRename` | `(title: string) => void` | — | Makes the title an [`InlineEdit`](/editor/ui-inline-edit/). |
+| `note` | `string` | — | Text after the title, not edited with it (a duplicate name's `(t3)`). |
+| `hint` | `string` | — | Explanation shown on hovering the title ([`Hint`](/editor/ui-hint/)). Only with `onRename`. |
 | `actions` | `Snippet` | — | Controls before the title, e.g. the trash `IconButton`. |
 | `extras` | `Snippet` | — | Decorative content beside the chevron. |
 | `children` | `Snippet` | required | The body. |
@@ -54,6 +56,8 @@ body have different padding and frames in Figma.
   `onRename` is set), then a `<button aria-expanded aria-controls>` that fills the rest of the
   bar. Without `actions` or `onRename`, the title is inside that button and the whole bar
   toggles. With `onRename`, the button is named `Expand {title}` or `Collapse {title}`.
+- With `onRename`, the `InlineEdit` and the `note` sit in a `Hint` wrapper, whose id goes to the
+  `InlineEdit`'s `aria-describedby`. Without it, the note follows the title inside the button.
 - The body is `<div id>` (from `$props.id()`) and is rendered only while open.
 - The chevron rotates 180° when open, over `--dur-fast`.
 
@@ -65,7 +69,7 @@ body have different padding and frames in Figma.
 
 ### Callers / callees
 
-Callers: `lib/Section.svelte`, `lib/sections/BreakpointsSection.svelte` (rules, `variant="group"`). Callees: `lib/ui/Icon.svelte` (`fold`), `lib/ui/InlineEdit.svelte`.
+Callers: `lib/Section.svelte`, `lib/sections/BreakpointsSection.svelte` (rules, `variant="group"`), `lib/tiles/TileGroup.svelte`. Callees: `lib/ui/Icon.svelte` (`fold`), `lib/ui/InlineEdit.svelte`, `lib/ui/Hint.svelte`.
 
 ### Tests
 

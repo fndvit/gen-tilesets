@@ -11,7 +11,7 @@ sidebar:
 
 `icons.ts` is the list of icons the redesigned editor can draw, kept as path data copied from
 the Figma file. `Icon.svelte` draws them. There are six: `fold` (the section chevron), `up` and
-`down`, `plus`, `trash`, and `reseed`.
+`down`, `plus`, `close`, `trash`, and `reseed`.
 
 ## In detail
 
@@ -28,6 +28,7 @@ the Figma file. `Icon.svelte` draws them. There are six: `fold` (the section che
 | `fold` | 12×6 | 2px stroke chevron, pointing down | Section Header fold icon |
 | `up` / `down` | 12×6 | filled triangles | Operation header move column |
 | `plus` | 18×18 | 1px stroke cross | Add tile group / Add tile |
+| `close` | 6×6 | 1px stroke cross | Tile asset delete badge (not in Figma, Block D) |
 | `trash` | 12×12 | 1px stroke, round caps (`origin` 0.5, 0.5) | Operation header delete |
 | `reseed` | 12×10 | filled shuffle | Operation header re-seed |
 

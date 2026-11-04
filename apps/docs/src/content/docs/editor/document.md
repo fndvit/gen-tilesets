@@ -7,7 +7,7 @@ sidebar:
 
 **Written from:** `apps/editor/src/document.ts`, `document.test.ts`, `library.test.ts`,
 `rules.test.ts`, `reseed.test.ts`, `history.test.ts`, and the call sites in `App.svelte`,
-`lib/TileLibrary.svelte`, `lib/OperationStack.svelte`, `lib/OperationDraft.svelte` and
+`lib/sections/TilesSection.svelte`, `lib/OperationStack.svelte`, `lib/OperationDraft.svelte` and
 `session.svelte.ts`.
 
 ## Overview
@@ -95,10 +95,13 @@ returns no errors.
 | `tileReferences(file, tileId)` | `→ TileReference[]` | n/a |
 | `addTiles(tiles)` | `→ Transition` | `tiles` empty |
 | `addAssets(tileId, assets)` | `→ Transition` | `assets` empty |
-| `renameTile(tileId, name)` | `→ Transition` | never, including empty or duplicate names |
+| `renameTile(tileId, name)` | `→ Transition` | another Tile has the name (`tileNameTaken`: trimmed, case-insensitive). Empty is allowed. Overrides `09` §10.1 (Pol, Block D) |
+| `tileNameTaken(file, name, exceptId?)` | `→ boolean` | — (query) |
+| `uniqueTileName(file, name)` | `→ string` | — `name`, else `name 2`, `name 3`… |
 | `deleteTile(tileId)` | `→ Transition` | any palette references the Tile |
 | `deleteAsset(tileId, assetId)` | `→ Transition` | Tile unknown; it has `<= 1` asset; remaining weights sum `<= 0` |
 | `setAssetWeight(tileId, assetId, text)` | `→ Transition` | text not `>= 0`; Tile unknown; new sum `<= 0` |
+| `resetAssetWeights(tileId)` | `→ Transition` | Tile unknown, or every weight already 1 (identity, so no undo entry) |
 | `addOperation(op)` | `→ Transition` | rules present and result invalid |
 | `removeOperation(id)` | `→ Transition` | no Operation has that id |
 | `replaceOperation(op)` | `→ Transition` | rules present and result invalid |
@@ -190,7 +193,7 @@ index is an argument: the subject is named by id, but a destination has no id.
 | `App.svelte:526-565` | `moveRule`, `removeRule`, `setRuleField`, `removeRuleField`, `addRuleField`, `addRule` |
 | `App.svelte:679`, `:681`, `:695`, `:703` | `setDefaultSeed`, `rerollSeed`, `rerollAssets`, `setReseedAssetsOnLoad` |
 | `App.svelte:346` | `ENGINE_VERSION` shown in the header |
-| `lib/TileLibrary.svelte:108`, `:128`, `:168`, `:178`, `:187`, `:196`, `:251` | `addTiles`, `addAssets`, `tileReferences`, `deleteTile`, `deleteAsset`, `setAssetWeight`, `renameTile` |
+| `lib/sections/TilesSection.svelte:73`, `:80`, `:102`, `:112`, `:127`, `:133`, `:174` | `addTiles`, `addAssets`, `tileReferences`, `deleteTile`, `deleteAsset`, `setAssetWeight` (weight passed as `String(weight)`), `renameTile`, `resetAssetWeights` |
 | `lib/OperationStack.svelte:153`, `:163`, `:193`, `:202`, `:226` | `moveOperation`, `rerollOperation`, `removeOperation`, `setReseedOnLoad` |
 | `lib/OperationDraft.svelte:171` | `replaceOperation` or `addOperation` on commit |
 
@@ -210,8 +213,8 @@ Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseRefe
   admitted, and `"1."` commits as 1. The parsers and transitions agree on every sample text. For
   the seed: whatever is typed is written, empty is refused, it is trimmed, and nothing else is
   touched.
-- **`library.test.ts`** (tile library and operation stack). Appends, rename never blocked (even to
-  `""` or a duplicate), `tileReferences` ignores numeric targets. The refusals: referenced
+- **`library.test.ts`** (tile library and operation stack). Appends, rename refused to another Tile's
+  name in any case (allowed to `""` and to its own name in another case), `uniqueTileName` numbering, `tileReferences` ignores numeric targets. The refusals: referenced
   `deleteTile`, last-asset `deleteAsset`, last-weighted-asset `deleteAsset`, last non-zero
   weight, a weight the schema rejects. Every
   refusal is `toBe` identity. Operations append, keep order, are removed by id, are returned

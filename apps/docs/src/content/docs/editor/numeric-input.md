@@ -6,7 +6,7 @@ sidebar:
 ---
 
 **Written from:** `apps/editor/src/lib/NumericInput.svelte`, and the call sites in `App.svelte` and
-`lib/TileLibrary.svelte`. The parsers it is given are in [fields.ts](/editor/fields/).
+the section components. The parsers it is given are in [fields.ts](/editor/fields/).
 
 ## Overview
 
@@ -75,7 +75,6 @@ the transitions in `document.ts` parse again on their own terms.
 | `lib/sections/GridSection.svelte` | y offset (with a `hint` explaining the fraction) | `parseYOffset` |
 | `lib/sections/GridSection.svelte` | design width (with a `hint`) | `parseReferenceWidth` |
 | `lib/sections/BreakpointsSection.svelte` | each breakpoint rule field | `RULE_PARSERS[field]` |
-| `lib/TileLibrary.svelte:294` | asset weight | `parseWeight` |
 
 Callees: `format` and the `ParseResult` type from `fields.ts:27`, and
 [`ui/FieldRow`](/editor/ui-field-row/) for the row (label on the left, field on the right, with
@@ -101,8 +100,8 @@ test file of its own; `document.test.ts` is the test that imports them.
 - **Commit on every parse, not on blur only.** The preview updates as the author types.
 - **A value that parses but is then refused by the transition** (for example a weight that
   would zero the last non-zero weight) still calls `onCommit`. The refusal happens in the
-  transition, so the box keeps showing the typed text until blur. `TileLibrary` reports that case
-  itself.
+  transition, so the box keeps showing the typed text until blur. The asset weight, the case this was
+  written for, is now a `ui/Slider` in [TileAsset](/editor/tile-asset/), not a `NumericInput`.
 
 ### Review notes
 

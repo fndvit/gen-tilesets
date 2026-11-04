@@ -12,6 +12,8 @@ import {
   removeOperation,
   renameTile,
   replaceOperation,
+  uniqueTileName,
+  resetAssetWeights,
   setAssetWeight,
   tileReferences,
   type Transition,
@@ -110,13 +112,37 @@ describe("the library — 09 §10", () => {
     expect(more.config.tiles[0]!.assets).toHaveLength(2);
   });
 
-  it("never blocks a rename, including to a duplicate or the empty string — §10.1", () => {
-    // `Tile.name` is "not unique, not charset-limited, possibly empty" (06 C10),
-    // because D1 guarantees a name collision cannot reach output.
+  it("refuses a rename to another Tile's name, ignoring case and spaces (Block D)", () => {
     const file = withTiles(tile("t1", "grass", [1]), tile("t2", "sand", [1]));
-    expect(run(file, renameTile("t2", "grass")).config.tiles[1]!.name).toBe("grass");
+    expect(renameTile("t2", "grass")(file)).toBe(file);
+    expect(renameTile("t2", " GRASS ")(file)).toBe(file);
+    // Its own name in another case is not a collision.
+    expect(run(file, renameTile("t1", "Grass")).config.tiles[0]!.name).toBe("Grass");
+  });
+
+  it("otherwise accepts any name, including the empty string — 06 C10", () => {
+    const file = withTiles(tile("t1", "grass", [1]), tile("t2", "sand", [1]));
     expect(run(file, renameTile("t1", "")).config.tiles[0]!.name).toBe("");
     expect(run(file, renameTile("t1", "a:b/c")).config.tiles[0]!.name).toBe("a:b/c");
+  });
+
+  it("names a new Tile after its file, numbered when the name is taken", () => {
+    const file = withTiles(tile("t1", "grass", [1]), tile("t2", "Grass 2", [1]));
+    expect(uniqueTileName(file, "sand")).toBe("sand");
+    expect(uniqueTileName(file, "grass")).toBe("grass 3");
+  });
+
+  it("resets one Tile's weights to 1, keeping ids and meta, and leaves the others alone", () => {
+    const file = withTiles(tile("t1", "grass", [0, 2, 0.5]), tile("t2", "sand", [3]));
+    const after = run(file, resetAssetWeights("t1"));
+    expect(after.config.tiles[0]!.assets).toEqual(file.config.tiles[0]!.assets.map((a) => ({ ...a, weight: 1 })));
+    expect(after.config.tiles[1]).toBe(file.config.tiles[1]);
+  });
+
+  it("is an identity when the weights are already 1, so it adds no undo entry", () => {
+    const file = withTiles(tile("t1", "grass", [1, 1]));
+    expect(resetAssetWeights("t1")(file)).toBe(file);
+    expect(resetAssetWeights("nope")(file)).toBe(file);
   });
 });
 

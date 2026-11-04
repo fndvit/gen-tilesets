@@ -5,8 +5,8 @@
 
 ## Current position
 
-**Stage 1, Block C (layout + Grid & Size) is done: reviewed by Pol and tested on 2026-11-04.**
-Next is **Block D, Tiles**. Start it in a new session.
+**Stage 1, Block D (Tiles) is done: reviewed by Pol and tested on 2026-11-04.**
+Next is **Block E, Operations**. Start it in a new session.
 
 ## Stage 1 blocks
 
@@ -17,7 +17,7 @@ Each block is implemented, then reviewed with Pol, then tested, before the next 
 | A. Foundation | `styles/tokens.css`, `styles/base.css`, Roboto Mono, this file and `DESIGN_SYSTEM.md` | Done, approved |
 | B. Primitives | `lib/ui/`: Icon, IconButton, Collapsible, FieldRow, Toggle, AddBar, Slider, Marquee, TabBar, GlyphGrid + OperationGlyph (artwork-agnostic); restyle `NumericInput`; a docs page for each new file | Done (committed `cd31b44`) |
 | C. Layout + Grid & Size | Page grid, sidebar split into scrollable and fixed parts, header removed, `Section` rebuilt on Collapsible, Grid & Size section; sections extracted to `lib/sections/`; `Button`, `Popup` | Done, approved |
-| D. Tiles | TileLibrary rebuilt as TileGroup / TileAsset, weight slider, N files → 1 group, add variant via picker | |
+| D. Tiles | TileLibrary rebuilt as TileGroup / TileAsset, weight slider, N files → 1 group, add variant via picker | Done, approved |
 | E. Operations | OperationHeader, step tabs open the draft, selection glyph grid, label-only grids, ParamFields restyle, token restyle of PaletteBar / NumericMapping / BlendControl | |
 | F. Sweep + review | Hardcoded colours replaced by tokens, docs pages, visual review against Figma | |
 
@@ -88,6 +88,31 @@ Block C (2026-11-04, approved in planning by Pol):
 - Engine and schema versions moved from the removed header into Derived. New document moved from
   Derived into the footer.
 
+Block D (2026-11-04, decided in planning by Pol):
+- **Delete asset** = a black circle with a white cross at the thumbnail's top-right corner, shown
+  on row hover (and focus-within, for the keyboard). Disabled with one variant left. It is the one
+  round shape (`--radius-round`) and the one control hidden at rest.
+- **Asset details are hints**: the thumbnail's hint gives size · "not square, so it is
+  centre-cropped". The asset id (`a1`…) is never shown (Pol, Block D review); controls are named
+  by position ("Delete variant 2"). A duplicate name from an imported file shows `(t3)` after the title (`Collapsible note`) and a hint.
+- **Names are unique** (Pol, Block D review; overrides `09` §10.1 "never blocks a rename"). Renaming
+  to another group's name, trimmed and case-insensitive, is refused with a popup (`renameTile`
+  refuses too). A new group whose name is taken becomes `grass 2`, `grass 3` (`uniqueTileName`).
+  Only an imported file can still hold duplicates; the schema allows them.
+- `ui/Hint` was extracted from `FieldRow` so thumbnails and titles share the bubble.
+- Files: `lib/sections/TilesSection.svelte`, `lib/tiles/TileGroup.svelte`,
+  `lib/tiles/TileAsset.svelte`. `TileLibrary.svelte` and its docs page are deleted.
+  `assets.ts` gained `attachAsset` / `attachAll` (ids only for files that attach, no gaps).
+- Refusals (failed attach, Tile in use, last variant, last non-zero weight) open a popup.
+- While a slider is dragged every row's % follows live. The canvas updates on release (S2: no
+  preview mode).
+- Fixed on the way: two overlapping drops could allocate the same tile id (review finding). In-flight
+  ids are now reserved.
+- A new group starts open, and a closed group shows up to 4 thumbnails in its bar (Figma group B).
+- **Reset weights** (Pol, after the Block D review; not in Figma): a text `Button` at the right of
+  the square "+" row sets every variant to 1 (`resetAssetWeights`, one undo entry). It is disabled
+  while all weights are already 1.
+
 ## Known issues / notes
 
 - **Field rows are about 29px apart, not Figma's 22.** Figma's rows are 14px tall because its
@@ -101,14 +126,29 @@ Block C (2026-11-04, approved in planning by Pol):
   and Esc, no page scroll at 1024×700. It found one bug, fixed: a hidden hint still took layout
   room (page scrolled 10px), and the footer's hints opened off-screen. Hints now use
   `display: none` and open upward in the footer (`--hint-top` / `--hint-bottom`).
-- Tiles and Operations still have their old insides (Blocks D and E), so they look out of place
-  next to the new sections until then.
+- Block D testing (headless Chromium, 32 checks, including a refused duplicate rename and `grass 2`; including reset weights: enabled after a change, equalises, disabled when equal, one undo): 3 files → 1 group named after the first;
+  square + and drop-on-group add variants; drop on the section → 1 group; shares; badge hidden, shown
+  on hover, deletes, disabled on the last variant, reachable by Shift+Tab; thumbnail hint; zero weight allowed then refused on the last one (popup, thumb snaps back); Shift+arrow
+  0.1; one undo per commit; live % during a drag; rename; trash; closed thumbnails; no page scroll;
+  no console errors.
+- Operations still has its old insides (Block E), so it looks out of place until then.
 - The sidebar colour `#E4F6F5` was sampled from a lossless Figma render, because it is not a
   Figma variable. Pol confirmed it in the Block A review.
 
+## Tweaks for Block F (Pol, after the Block C review, 2026-11-04)
+
+- **Overall sizing.** Some text is too small and some too big. Controls are too small: the
+  boolean chips (`Toggle`), the re-seed `IconButton`s, and similar. Revisit the type and size
+  tokens against Figma at real size, not per component.
+- **Animate folding.** Sections (and tile groups) should animate open and closed instead of
+  appearing and disappearing. `Collapsible` unmounts its body today; it needs a height
+  transition that still respects `prefers-reduced-motion`.
+- **Footer layout will change.** Its arrangement is temporary anyway (Stage 2 footer design);
+  do not polish it before that.
+
 ## Open questions
 
-- Delete asset (a single variant) is not in Figma. To decide in Block D.
+- None open. (Delete asset was decided in Block D.)
 
 ## Stage 2 backlog (one design group each, discussed before implementing)
 

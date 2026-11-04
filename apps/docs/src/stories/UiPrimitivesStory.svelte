@@ -14,6 +14,7 @@
   import Button from "../../../editor/src/lib/ui/Button.svelte";
   import Collapsible from "../../../editor/src/lib/ui/Collapsible.svelte";
   import FieldRow from "../../../editor/src/lib/ui/FieldRow.svelte";
+  import Hint from "../../../editor/src/lib/ui/Hint.svelte";
   import GlyphGrid from "../../../editor/src/lib/ui/GlyphGrid.svelte";
   import Icon from "../../../editor/src/lib/ui/Icon.svelte";
   import InlineEdit from "../../../editor/src/lib/ui/InlineEdit.svelte";
@@ -46,7 +47,8 @@
     | "marquee"
     | "tab-bar"
     | "operation-glyph"
-    | "glyph-grid";
+    | "glyph-grid"
+    | "hint";
 
   let { show }: { show: Show } = $props();
 
@@ -234,6 +236,12 @@
       <OperationGlyph label="Handpick" src={handpick} selected onclick={() => (log = "handpick")} />
       <OperationGlyph label="Opacity" onclick={() => (log = "opacity")} />
     </div>
+  {:else if show === "hint"}
+    <Hint text="Hover text appears at once, under what it explains, and takes no room in the layout.">
+      {#snippet children(id)}
+        <span class="t-label" aria-describedby={id}>Hover me</span>
+      {/snippet}
+    </Hint>
   {:else if show === "glyph-grid"}
     <div class="stack paper">
       <p class="t-body">Which cells does this operation affect?</p>

@@ -34,10 +34,10 @@
   import DerivedSection from "./lib/sections/DerivedSection.svelte";
   import GridSection from "./lib/sections/GridSection.svelte";
   import SidebarFooter from "./lib/sections/SidebarFooter.svelte";
+  import TilesSection from "./lib/sections/TilesSection.svelte";
   import Button from "./lib/ui/Button.svelte";
   import Section from "./lib/Section.svelte";
   import SelectionOverlay from "./lib/SelectionOverlay.svelte";
-  import TileLibrary from "./lib/TileLibrary.svelte";
   import type { Cell } from "./paint.js";
   import { session } from "./session.svelte.js";
 
@@ -284,9 +284,7 @@
       <BreakpointsSection {risked} />
       <DerivedSection />
 
-      <Section title="Tiles">
-        <TileLibrary />
-      </Section>
+      <TilesSection />
 
       <Section title="Operations">
         <!--

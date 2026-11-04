@@ -66,10 +66,14 @@
   --chip-gap: 9px; /* between choice chips; off the 2px scale in Figma */
   --console-pad-y: 3px; /* console strip; off the 2px scale in Figma */
   --hint-w: 260px; /* widest a field hint bubble grows */
+  --badge: 14px; /* a tile asset's delete badge; not in Figma (Block D) */
+  --asset-gap: 10px; /* between tile asset rows: Figma's 32px rows at a 42px pitch */
+  --share-w: 46px; /* a tile asset's % label */
   /* ── Border ────────────────────────────────────────────────────────── */
   --rule-w: 1px;
   --radius: 0;
   --radius-xs: 1px; /* glyph cells only */
+  --radius-round: 50%; /* the delete badge only: the one round shape */
 
   /* ── Focus ─────────────────────────────────────────────────────────── */
   --focus-w: 2px;

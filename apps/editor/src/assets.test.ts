@@ -8,16 +8,20 @@
 
 import type { Drawable } from "@vit-foundation/gen-tilesets/render";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { attach, editorProvider, heldAssetIds, heldTileIds, replaceAll } from "./assets.js";
+import { attach, attachAll, editorProvider, heldAssetIds, heldTileIds, replaceAll } from "./assets.js";
 import { nextAssetId, nextTileId } from "./ids.js";
 
 class FakeImage {
+  /** Makes the next decode fail, once. */
+  static failNext = false;
   naturalWidth = 10;
   naturalHeight = 10;
   onload: (() => void) | null = null;
   onerror: (() => void) | null = null;
   set src(_url: string) {
-    queueMicrotask(() => this.onload?.());
+    const fail = FakeImage.failNext;
+    FakeImage.failNext = false;
+    queueMicrotask(() => (fail ? this.onerror?.() : this.onload?.()));
   }
 }
 
@@ -85,5 +89,31 @@ describe("attach refuses what the renderer refuses — E13, images.ts requireNat
     } finally {
       delete g.createImageBitmap;
     }
+  });
+});
+
+describe("attachAll — N files make one Tile's variants (redesign Block D)", () => {
+  it("gives a new Tile's files a1…aN, each with all three meta keys", async () => {
+    await replaceAll([]);
+    const { assets, failures } = await attachAll("t1", [], [file("a.png"), file("b.png"), file("c.svg")]);
+    expect(failures).toEqual([]);
+    expect(assets.map((a) => a.id)).toEqual(["a1", "a2", "a3"]);
+    expect(assets[2]).toEqual({ id: "a3", weight: 1, meta: { src: "tiles/t1/a3.svg", width: 10, height: 10 } });
+  });
+
+  it("continues after the Tile's ids and the store's", async () => {
+    await replaceAll([]);
+    await attach("t1", "a2", file("deleted.png"));
+    const { assets } = await attachAll("t1", ["a1"], [file("x.png")]);
+    expect(assets.map((a) => a.id)).toEqual(["a3"]);
+  });
+
+  it("names a failed file and leaves no gap in the ids", async () => {
+    await replaceAll([]);
+    FakeImage.failNext = true;
+    const { assets, attached, failures } = await attachAll("t1", [], [file("bad.png"), file("ok.png")]);
+    expect(assets.map((a) => a.id)).toEqual(["a1"]);
+    expect(attached.map((f) => f.name)).toEqual(["ok.png"]);
+    expect(failures).toEqual(["bad.png: could not be decoded as an image"]);
   });
 });

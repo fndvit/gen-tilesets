@@ -60,7 +60,7 @@ Which component renders which, in source order. Conditional children are marked.
         - [`BreakpointsSection`](/editor/breakpoints-section/) (open when the file has rules)
         - [`DerivedSection`](/editor/derived-section/) (closed)
         - [`Section`](/editor/section/) "Tiles"
-          - [`TileLibrary`](/editor/tile-library/)
+          - [`TilesSection`](/editor/tiles-section/)
         - [`Section`](/editor/section/) "Operations"
           - [`OperationStack`](/editor/operation-stack/), with a `draftPanel` snippet
             - [`OperationDraft`](/editor/operation-draft/) (*if* a draft is open)
@@ -183,7 +183,7 @@ Callees, by import: from the package, [`selections`](/api/index/variables/select
 `Tileset.svelte`; from the editor, `assets.ts` (`editorProvider`, `replaceAll`), `document.ts`
 (the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `ids.ts`
 (`nextOperationId`), `orphans.ts`, `session.svelte.ts`, the four `lib/sections/` components,
-`Section`, `TileLibrary`, `OperationStack`, `OperationDraft`, `PreviewFrame`, `SelectionOverlay`,
+`Section`, `TilesSection`, `OperationStack`, `OperationDraft`, `PreviewFrame`, `SelectionOverlay`,
 `PaintLayer` and `ui/Button`.
 
 ### Tests
@@ -226,7 +226,7 @@ validates.
 - The seed field (now in `SidebarFooter`) commits on every `input` without `NumericInput`'s draft-text model.
   The empty case is safe, because `setDefaultSeed` (`document.ts`) trims and refuses `""`.
   But every keystroke that changes the seed is its own undo entry, so undoing a typed seed
-  takes one undo per character. The same holds for the tile rename in `TileLibrary`. The source
-  does not say whether that is intended.
+  takes one undo per character. The tile rename no longer has this problem: `TileGroup` uses `ui/InlineEdit`, which commits once
+  on Enter or blur. The source does not say whether the seed behaviour is intended.
 - Clicking "Add operation" while an edit-draft is open calls `drafting.start`, which replaces the
   open draft without asking. Nothing in the source says whether that is intended.

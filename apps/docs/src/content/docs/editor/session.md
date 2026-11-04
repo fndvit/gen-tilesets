@@ -6,7 +6,7 @@ sidebar:
 ---
 
 **Written from:** `apps/editor/src/session.svelte.ts`, and the call sites in `App.svelte`,
-`lib/ImportPanel.svelte`, `lib/TileLibrary.svelte`, `lib/OperationStack.svelte` and
+`lib/ImportPanel.svelte`, `lib/sections/TilesSection.svelte`, `lib/OperationStack.svelte` and
 `lib/OperationDraft.svelte`. No test file of its own. Its rule is tested in `history.test.ts`.
 
 ## Overview
@@ -86,8 +86,8 @@ one.
 | `App.svelte:458-722` | `session.apply(...)` for layout, rule, seed and asset-salt transitions |
 | `App.svelte:142` | `session.reset()` in `newTileset`, after `confirm`, for the *New document* button (`:639`) |
 | `lib/ImportPanel.svelte:210` | `session.open(file as TilesetFile)` after validate and `replaceAll` |
-| `lib/TileLibrary.svelte:47`, `:168`, `:195-198` | `session.file` reads, and the before/after identity check that detects a refused weight |
-| `lib/TileLibrary.svelte:108`, `:128`, `:178`, `:187`, `:196`, `:251` | `session.apply` for library transitions |
+| `lib/sections/TilesSection.svelte:42`, `:102`, `:116-119` | `session.file` reads, and the `refused()` before/after identity check |
+| `lib/sections/TilesSection.svelte:73`, `:80`, `:112`, `:118`, `:174` | `session.apply` for the Tiles section's transitions |
 | `lib/OperationStack.svelte:88` | `session.file.config.operations` |
 | `lib/OperationStack.svelte:153-226` | `session.apply` for move, reroll, remove, and the reseed flag |
 | `lib/OperationDraft.svelte:71`, `:316` | `session.file` reads (rules, tiles) |
@@ -114,8 +114,9 @@ of `history.ts` (tested in `history.test.ts`) and `document.ts`.
 - **Undo after import does not restore asset bytes.** The bytes live in the session-scoped store
   ([assets.ts](/editor/assets/)) and were swapped with the document. The source calls this the
   same gap a reload has always had, not a defect in the undo stack.
-- **Refusals are detected by identity.** `TileLibrary.svelte:195-198` compares `session.file`
-  before and after `apply` to learn that a weight change was refused.
+- **Refusals are detected by identity.** `TilesSection.svelte`'s `refused()` (`:116-119`)
+  compares `session.file` before and after `apply` to learn that a delete or weight change was
+  refused, and shows the reason in a `ui/Popup`.
 
 ### Review notes
 

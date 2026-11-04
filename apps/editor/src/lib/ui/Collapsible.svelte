@@ -11,7 +11,9 @@
   `IconButton` before the title, where the operation header has its trash. Those
   sit outside the disclosure button, which then covers the rest of the bar
   (empty space, extras, chevron), so clicking anywhere but the title or an
-  action still opens and closes it.
+  action still opens and closes it. `note` is text shown after the title but
+  not edited with it (a duplicate name's ` (t3)`), and `hint` explains the
+  title on hover (`ui/Hint`).
 
   `variant` picks the Figma size: `section` is the 25px sidebar section bar in
   `.t-section`, `group` the 24px tile group bar in `.t-label`. The body is
@@ -24,6 +26,7 @@
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import Hint from "./Hint.svelte";
   import Icon from "./Icon.svelte";
   import InlineEdit from "./InlineEdit.svelte";
 
@@ -35,10 +38,14 @@
     level?: 2 | 3 | 4;
     /** Makes the title editable on click. Receives the trimmed, changed name. */
     onRename?: (title: string) => void;
+    /** Shown after the title and never edited with it. */
+    note?: string | undefined;
+    /** Explanation shown on hovering the title. */
+    hint?: string | undefined;
     /** Controls before the title (the trash button). Outside the disclosure button. */
     actions?: Snippet;
     /** Decorative content beside the chevron. It sits inside the button, so nothing in it may be interactive. */
-    extras?: Snippet;
+    extras?: Snippet | undefined;
     children: Snippet;
   }
 
@@ -48,6 +55,8 @@
     variant = "section",
     level = variant === "section" ? 2 : 3,
     onRename,
+    note,
+    hint,
     actions,
     extras,
     children,
@@ -66,7 +75,20 @@
     <div class="bar">
       {#if actions}<span class="actions">{@render actions()}</span>{/if}
       {#if onRename}
-        <InlineEdit value={title} label="Rename {title}" onCommit={onRename} {textClass} />
+        <Hint text={hint}>
+          {#snippet children(hintId)}
+            <span class="named">
+              <InlineEdit
+                value={title}
+                label="Rename {title}"
+                onCommit={onRename}
+                {textClass}
+                describedby={hintId}
+              />
+              {#if note}<span class="note {textClass}">{note}</span>{/if}
+            </span>
+          {/snippet}
+        </Hint>
       {/if}
       <button
         type="button"
@@ -76,7 +98,9 @@
         aria-label={onRename ? `${open ? "Collapse" : "Expand"} ${title}` : undefined}
         onclick={() => (open = !open)}
       >
-        {#if !onRename}<span class="title {textClass}">{title}</span>{/if}
+        {#if !onRename}<span class="title {textClass}"
+            >{title}{#if note}&nbsp;{note}{/if}</span
+          >{/if}
         <span class="end">
           {#if extras}<span class="extras">{@render extras()}</span>{/if}
           <span class="chev" class:open><Icon name="fold" /></span>
@@ -123,6 +147,18 @@
     align-items: center;
     gap: var(--space-4);
     flex: none;
+  }
+
+  .named {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .note {
+    flex: none;
+    white-space: nowrap;
   }
 
   .toggle {

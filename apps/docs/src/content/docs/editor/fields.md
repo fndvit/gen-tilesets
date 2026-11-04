@@ -7,7 +7,7 @@ sidebar:
 
 **Written from:** `apps/editor/src/fields.ts`, `document.test.ts` (the *fields* block and the
 refusal tables), `rules.test.ts`, and the call sites in `document.ts`, `App.svelte`,
-`lib/TileLibrary.svelte` and `lib/NumericInput.svelte`.
+and `lib/NumericInput.svelte`.
 
 ## Overview
 
@@ -86,7 +86,6 @@ treats them identically.
 | `document.ts:50-58` | `parseCellSize`, `parseReferenceWidth`, `parseRows`, `parseWeight`, `parseYOffset`, `RULE_PARSERS`, `RuleField` |
 | `App.svelte:438`, `:446`, `:457`, `:463` | `parseRows`, `parseYOffset`, `parseReferenceWidth`, `parseCellSize` as a `NumericInput`'s `parse` prop |
 | `App.svelte:532`, `:537`, `:548`, `:554` | `RULE_FIELDS`, `RULE_PARSERS` for the Breakpoints rows |
-| `lib/TileLibrary.svelte:198`, `:298` | `parseWeight`, to explain a refused zero and as a `parse` prop |
 | `lib/NumericInput.svelte:61` | `format(value)` for the reverted text |
 
 `parseWidth` and `parseBleed` are reached only through `RULE_PARSERS` (`fields.ts:140-145`).

@@ -25,7 +25,7 @@
   list is what once told an author with an *old* file that their editor was at
   fault.
 
-  ## The gestures are `TileLibrary.svelte`'s
+  ## The gestures are `sections/TilesSection.svelte`'s
 
   The same drop-plus-hidden-picker pattern, deliberately: `09` §10.3 fixes what
   an attach *writes* and leaves what starts one alone, so the two surfaces that

@@ -14,11 +14,11 @@
   bubble under the label as soon as the pointer is over the label, and screen
   readers get the same text as the control's description. The children snippet
   receives the bubble's id to put in the control's `aria-describedby`; a group
-  row wires it itself. A native `title` tooltip was rejected: it appears only
-  after a delay and cannot be styled.
+  row wires it itself. The bubble is `ui/Hint`'s.
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import Hint from "./Hint.svelte";
 
   interface Props {
     label: string;
@@ -45,12 +45,15 @@
   aria-describedby={htmlFor ? undefined : hintId}
 >
   <span class="name">
-    {#if htmlFor}
-      <label class="t-label" id={labelId} for={htmlFor}>{label}</label>
-    {:else}
-      <span class="t-label" id={labelId}>{label}</span>
-    {/if}
-    {#if hint}<span class="hint t-body" id={hintId}>{hint}</span>{/if}
+    <Hint text={hint} id={hintId}>
+      {#snippet children()}
+        {#if htmlFor}
+          <label class="t-label" id={labelId} for={htmlFor}>{label}</label>
+        {:else}
+          <span class="t-label" id={labelId}>{label}</span>
+        {/if}
+      {/snippet}
+    </Hint>
   </span>
   <span class="control">
     {@render children(hintId)}
@@ -71,37 +74,7 @@
   }
 
   .name {
-    position: relative;
     min-width: 0;
-  }
-
-  /*
-    Hidden until the label is hovered. `display: none`, so a hidden bubble takes
-    no room and cannot make the page scroll. `aria-describedby` reads its text
-    even while it is hidden, so screen readers always get the hint.
-
-    It opens below the label. A container near the bottom of the screen (the
-    sidebar footer) sets `--hint-top: auto` and `--hint-bottom` to open it above.
-  */
-  .hint {
-    position: absolute;
-    top: var(--hint-top, calc(100% + var(--space-2)));
-    bottom: var(--hint-bottom, auto);
-    left: 0;
-    z-index: 1;
-    width: max-content;
-    max-width: var(--hint-w);
-    padding: var(--space-3);
-    background: var(--color-ink);
-    color: var(--color-paper);
-    line-height: var(--leading-hint);
-    text-box: none;
-    display: none;
-    pointer-events: none;
-  }
-
-  .name:hover .hint {
-    display: block;
   }
 
   .control {

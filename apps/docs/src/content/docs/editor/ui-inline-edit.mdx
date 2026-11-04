@@ -33,6 +33,7 @@ prints the current value.
 | `label` | `string` | required | Accessible name, e.g. "Rename tile group". |
 | `onCommit` | `(value: string) => void` | required | Called with the trimmed new name. |
 | `textClass` | `string` | `"t-label"` | Text style, so the field matches the text it replaces. |
+| `describedby` | `string` | — | A hint's id, for the button's `aria-describedby`. When set, the native `title` is dropped so it does not show beside the hint. |
 
 ### Inputs → outputs
 

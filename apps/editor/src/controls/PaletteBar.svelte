@@ -16,7 +16,7 @@
   sequence rather than sorting a list".
 
   A Tile's asset list, by contrast, gets no drag affordance at all (§10.1) — see
-  `TileLibrary.svelte`.
+  `tiles/TileGroup.svelte`.
 -->
 <script lang="ts">
   import { paletteTotal, type PaletteEntry, type Tile } from "@vit-foundation/gen-tilesets";

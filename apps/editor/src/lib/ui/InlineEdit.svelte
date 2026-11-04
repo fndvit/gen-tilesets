@@ -20,9 +20,11 @@
     onCommit: (value: string) => void;
     /** Text style class, so the field matches what it replaces. */
     textClass?: string;
+    /** Id of a hint describing the text, for `aria-describedby`. */
+    describedby?: string | undefined;
   }
 
-  let { value, label, onCommit, textClass = "t-label" }: Props = $props();
+  let { value, label, onCommit, textClass = "t-label", describedby }: Props = $props();
 
   let editing = $state(false);
   let draft = $state("");
@@ -74,7 +76,8 @@
     type="button"
     class="text {textClass}"
     aria-label="{label}: {value}"
-    title={label}
+    aria-describedby={describedby}
+    title={describedby ? undefined : label}
     onclick={start}
   >
     {value}

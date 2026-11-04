@@ -25,8 +25,8 @@ The visual language of the tileset editor. It was extracted from the Figma file
 | Status | `--color-danger` `--color-warn` | Placeholders until Stage 2 (warnings) |
 | Font | `--font-ui` (Helvetica, standing in for Neue Haas Grotesk Display) · `--font-mono` (Roboto Mono, self-hosted via `@fontsource`) | |
 | Space | `--space-1…6` = 2 / 4 / 6 / 8 / 10 / 12 px | 2px base |
-| Size | `--bar-h-section` 25 · `--bar-h-group` 24 · `--bar-h-add` 28 · `--op-header-h` 40 · `--thumb` 32 · `--thumb-sm` 14 · `--icon` 12 · `--icon-add` 18 · `--field-w` 106 · `--slider-thumb-*` 10×20 · `--glyph-w/h` 75×60 · `--glyph-cell` 10 · `--glyph-gap` 1 · `--glyph-slot` 43 · `--glyph-cols` 5 · `--chip-gap` 9 · `--console-pad-y` 3 · `--sidebar-w` clamp(360, 28vw, 520) | |
-| Border | `--rule` (1px in `--color-rule`, declared with each theme) · `--radius` 0 · `--radius-xs` 1px (glyph cells only) | |
+| Size | `--bar-h-section` 25 · `--bar-h-group` 24 · `--bar-h-add` 28 · `--op-header-h` 40 · `--thumb` 32 · `--thumb-sm` 14 · `--icon` 12 · `--icon-add` 18 · `--field-w` 106 · `--slider-thumb-*` 10×20 · `--glyph-w/h` 75×60 · `--glyph-cell` 10 · `--glyph-gap` 1 · `--glyph-slot` 43 · `--glyph-cols` 5 · `--chip-gap` 9 · `--console-pad-y` 3 · `--badge` 14 · `--asset-gap` 10 · `--share-w` 46 · `--sidebar-w` clamp(360, 28vw, 520) | |
+| Border | `--rule` (1px in `--color-rule`, declared with each theme) · `--radius` 0 · `--radius-xs` 1px (glyph cells only) · `--radius-round` 50% (delete badge only) | |
 | Focus | `--focus-w` 2 · `--focus-offset` 1 | |
 | Motion | `--dur-fast` 120ms · `--ease` · `--marquee-speed` 40px/s | Respects `prefers-reduced-motion` |
 
@@ -73,7 +73,8 @@ Figma does (`text-box: trim-both cap alphabetic`, with `line-height: 1` as the f
 | **Popup** | Native modal `<dialog>`: black `.t-section` title bar, paper body, Close button, 1px ink frame. Esc closes | Import and export reports |
 | **Add bar** | Full-width black bar (`--bar-h-add`) with a centred 18px "+". The square variant is 32×32 | Add tile group, add operation, add tile |
 | **Tile group** | Group bar (trash, title editable on click, then up to 4 thumbnails at 14px and the chevron) above a white body with a 1px ink border holding tile asset rows | Tiles section |
-| **Tile asset** | 32px thumbnail · slider (1px track, 10×20 block thumb) · `.t-label` % (46px wide, right-aligned), 6px gap | Group body |
+| **Tile asset** | 32px thumbnail · slider (1px track, 10×20 block thumb) · `.t-label` % (46px wide, right-aligned), 6px gap. Rows 10px apart, body padding 4px inside the frame | Group body |
+| **Delete badge** | A `--badge` ink circle with a white 6px cross, 4px out from a thumbnail's top-right corner. Shown on row hover or focus-within, focusable while hidden; disabled = `--color-inactive`. The one round shape and the one control hidden at rest (Pol, Block D) | Tile asset |
 | **Operation header** | Black index cell · icon column (delete, re-seed in seed colour) · console strip above the tab row · icon column (up/down). 40px tall | Operations section |
 | **Console strip** | `.t-console` on `--color-inactive` with a 1px ink border and 3px vertical padding. Scrolls right to left only when it overflows | Operation summary |
 | **Tab row** | Equal-width black tabs in `.t-xs`. Active = paper with ink text | Operation steps |
@@ -110,7 +111,7 @@ iconography. Until they are designed, their grids show label-only cells.
 | Hover, on a paper chip | Invert (ink fill, paper text) |
 | Hover, on a glyph cell | Same as selected: `--color-inactive` fill and a 1px ink border. Never inverted, which would sink ink artwork into an ink fill |
 | Hover, on a seed control | No change. The seed colour is a meaning, not a state |
-| Explanations | A `hint` on the label: an ink bubble with paper `.t-body` text (`--hint-w` at most) under the label, shown at once on hovering the label, and the control's `aria-describedby`. Never as text in the layout, never a native `title` |
+| Explanations | A hint (`ui/Hint`) on the label, thumbnail or title: an ink bubble with paper `.t-body` text (`--hint-w` at most) under the label, shown at once on hovering the label, and the control's `aria-describedby`. Never as text in the layout, never a native `title` |
 | Selected | Invert (chips, tabs), or `--color-inactive` fill with a border (glyphs) |
 | Focus | 2px outline in `--color-ink`, 1px offset. Inside `.on-bar` the outline is `--color-on-bar`. Underline fields (numeric input, inline edit) never get the ring: their underline thickens to `--focus-w` instead |
 | Disabled | `--color-inactive` and `cursor: default`. Stays in place (never hidden) |
@@ -122,7 +123,7 @@ iconography. Until they are designed, their grids show label-only cells.
 Components are PascalCase nouns that match the Figma component names (`SectionHeader`,
 `NumericInput`, `TileGroup`, `TileAsset`, `OperationHeader`, `OperationGlyph`, `GlyphGrid`).
 Generic primitives live in `src/lib/ui/`: `Icon`, `IconButton`, `AddBar`, `Collapsible`,
-`FieldRow`, `InlineEdit`, `Toggle`, `Button`, `Popup`, `Slider`, `Marquee`, `TabBar`, `OperationGlyph`, `GlyphGrid`, with icon
+`FieldRow`, `Hint`, `InlineEdit`, `Toggle`, `Button`, `Popup`, `Slider`, `Marquee`, `TabBar`, `OperationGlyph`, `GlyphGrid`, with icon
 path data in `icons.ts` and keyboard arithmetic in `keys.ts`. Sidebar sections built from them
-live in `src/lib/sections/`. Every new `.ts` or `.svelte` file under `src/` needs a
+live in `src/lib/sections/`, and the tile group and tile asset rows in `src/lib/tiles/`. Every new `.ts` or `.svelte` file under `src/` needs a
 page in `apps/docs/src/content/docs/editor/`, or the docs coverage check fails.

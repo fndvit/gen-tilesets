@@ -1,0 +1,56 @@
+---
+title: ui/Hint.svelte
+description: The hover explanation bubble shared by field labels, tile thumbnails and tile group titles.
+sidebar:
+  order: 76
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Hint.svelte`.
+
+## Overview
+
+`Hint` puts a small black bubble with white text under whatever it wraps, while the pointer is
+over it. The editor's rule is that explanations never take space in the layout. They are hints.
+Field labels, tile thumbnails and tile group titles all use this one component.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
+
+<UiPrimitivesStory show="hint" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `text` | `string \| undefined` | — | The explanation. Without it, only the children render. |
+| `id` | `string \| undefined` | generated | The bubble's id. `FieldRow` sets it so its group row can reference it. |
+| `children` | `Snippet<[string \| undefined]>` | required | The wrapped content. Receives the id for `aria-describedby`. |
+
+### Inputs → outputs
+
+- With `text`: a `position: relative; display: flex` anchor around the children and a `.t-body`
+  bubble (ink background, paper text, at most `--hint-w` wide, `--leading-hint`).
+- The bubble is `display: none` until the anchor is hovered, so a hidden hint takes no room and
+  cannot make the page scroll. A screen reader still reads it through `aria-describedby`.
+- It opens below. A container near the bottom of the screen sets `--hint-top: auto` and
+  `--hint-bottom` to open it above (the sidebar footer does).
+
+### Callers / callees
+
+Callers: `lib/ui/FieldRow.svelte` (labels), `lib/ui/Collapsible.svelte` (a tile group's title),
+`lib/tiles/TileAsset.svelte` (the thumbnail). No callees.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).
+
+### Gotchas & rejected alternatives
+
+- **Extracted from `FieldRow` in Block D**, when tile thumbnails and group titles needed the same
+  bubble. The CSS moved unchanged.
+- **A native `title` was rejected.** It appears only after a delay and cannot be styled.
