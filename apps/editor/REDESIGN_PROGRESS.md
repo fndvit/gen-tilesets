@@ -5,8 +5,8 @@
 
 ## Current position
 
-**Stage 1, Block B (primitives) was reviewed by Pol on 2026-11-04; the review changes are in. Next: testing.**
-After the review and testing, next is **Block C, layout + Grid & Size**. Start it in a new session.
+**Stage 1, Block C (layout + Grid & Size) is done: reviewed by Pol and tested on 2026-11-04.**
+Next is **Block D, Tiles**. Start it in a new session.
 
 ## Stage 1 blocks
 
@@ -15,8 +15,8 @@ Each block is implemented, then reviewed with Pol, then tested, before the next 
 | Block | Scope | Status |
 |---|---|---|
 | A. Foundation | `styles/tokens.css`, `styles/base.css`, Roboto Mono, this file and `DESIGN_SYSTEM.md` | Done, approved |
-| B. Primitives | `lib/ui/`: Icon, IconButton, Collapsible, FieldRow, Toggle, AddBar, Slider, Marquee, TabBar, GlyphGrid + OperationGlyph (artwork-agnostic); restyle `NumericInput`; a docs page for each new file | Implemented, in review |
-| C. Layout + Grid & Size | Page grid, sidebar split into scrollable and fixed parts, header removed, `Section` rebuilt on Collapsible, Grid & Size section | |
+| B. Primitives | `lib/ui/`: Icon, IconButton, Collapsible, FieldRow, Toggle, AddBar, Slider, Marquee, TabBar, GlyphGrid + OperationGlyph (artwork-agnostic); restyle `NumericInput`; a docs page for each new file | Done (committed `cd31b44`) |
+| C. Layout + Grid & Size | Page grid, sidebar split into scrollable and fixed parts, header removed, `Section` rebuilt on Collapsible, Grid & Size section; sections extracted to `lib/sections/`; `Button`, `Popup` | Done, approved |
 | D. Tiles | TileLibrary rebuilt as TileGroup / TileAsset, weight slider, N files → 1 group, add variant via picker | |
 | E. Operations | OperationHeader, step tabs open the draft, selection glyph grid, label-only grids, ParamFields restyle, token restyle of PaletteBar / NumericMapping / BlendControl | |
 | F. Sweep + review | Hardcoded colours replaced by tokens, docs pages, visual review against Figma | |
@@ -71,10 +71,38 @@ Block B review (Pol, 2026-11-04):
 - Until Stage 2, seed, import, download and undo sit in the black `.fixed` footer, using
   primitives only.
 
+Block C (2026-11-04, approved in planning by Pol):
+- `Section`'s `destructive` prop (an orange border) is removed. Figma has none, and the
+  confirmation gate protects destructive edits.
+- The footer is drawn with `.theme-inverted` (`tokens.css`), so primitives render inverted
+  without footer-specific styles.
+- One new primitive, `Button` (the chip look, for actions), and `Popup` (native modal dialog).
+- Sidebar sections live in `src/lib/sections/`: `GridSection`, `BreakpointsSection`,
+  `DerivedSection`, `SidebarFooter`. App keeps the shell, the state and the gates.
+- **Import and export reports appear only after the attempt, in a closable popup, never in the
+  footer** (Pol). The inert-flags advisory is a hint on the Fresh load label.
+- Grid & Size order: Cell size, Rows, Y offset, Design width, Alignment (Column | Gutter). The
+  "re-derives columns" paragraph became a hint on the three destructive fields.
+- The confirmation and the orphan advisory sit at the top of the preview (sticky), restyled with
+  tokens only, until Stage 2's warnings design.
+- Engine and schema versions moved from the removed header into Derived. New document moved from
+  Derived into the footer.
+
 ## Known issues / notes
 
-- `App.svelte` still sets `:global(body)` (system font, grey background). Block C removes it in
-  favour of `base.css`.
+- **Field rows are about 29px apart, not Figma's 22.** Figma's rows are 14px tall because its
+  fields are empty. A field showing a value needs room for its digits; the input uses
+  `line-height: 1` (was `normal`, 33px pitch). Forcing a 14px input pushes the digits through the
+  underline. Accepted by Pol in the Block C review.
+- `Collapsible`'s bar was 33px instead of 25 (`min-height` without `border-box`). Fixed in Block C.
+- Block C testing (browser, 27 checks): breakpoints add / edit / reorder / drop / remove, seed and
+  asset rerolls, assets-on-load toggle (click and arrows), fresh load enabled only when something
+  reseeds, undo, hints, collapse, drop import on the footer (armed state, undoable), popup focus
+  and Esc, no page scroll at 1024×700. It found one bug, fixed: a hidden hint still took layout
+  room (page scrolled 10px), and the footer's hints opened off-screen. Hints now use
+  `display: none` and open upward in the footer (`--hint-top` / `--hint-bottom`).
+- Tiles and Operations still have their old insides (Blocks D and E), so they look out of place
+  next to the new sections until then.
 - The sidebar colour `#E4F6F5` was sampled from a lossless Figma render, because it is not a
   Figma variable. Pol confirmed it in the Block A review.
 

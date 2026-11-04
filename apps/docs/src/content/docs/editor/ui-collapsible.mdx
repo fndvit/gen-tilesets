@@ -30,8 +30,9 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 ### Purpose
 
-The shared disclosure for the redesign. `Section.svelte` will be rebuilt on it in Block C, and
-the tile group in Block D. It renders the body bare, because the section body and the tile group
+The shared disclosure for the redesign. `Section.svelte` is built on it (Block C), and the tile
+group will be in Block D. The bar is `box-sizing: border-box`, so `min-height` is the Figma bar
+height with its 4px padding inside. It renders the body bare, because the section body and the tile group
 body have different padding and frames in Figma.
 
 ### Public surface
@@ -64,7 +65,7 @@ body have different padding and frames in Figma.
 
 ### Callers / callees
 
-No callers in the editor yet. Callees: `lib/ui/Icon.svelte` (`fold`), `lib/ui/InlineEdit.svelte`.
+Callers: `lib/Section.svelte`, `lib/sections/BreakpointsSection.svelte` (rules, `variant="group"`). Callees: `lib/ui/Icon.svelte` (`fold`), `lib/ui/InlineEdit.svelte`.
 
 ### Tests
 

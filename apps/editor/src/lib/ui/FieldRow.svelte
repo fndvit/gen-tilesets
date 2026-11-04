@@ -76,12 +76,17 @@
   }
 
   /*
-    Hidden until the label is hovered. `aria-describedby` reads its text even
-    while it is hidden, so screen readers always get the hint.
+    Hidden until the label is hovered. `display: none`, so a hidden bubble takes
+    no room and cannot make the page scroll. `aria-describedby` reads its text
+    even while it is hidden, so screen readers always get the hint.
+
+    It opens below the label. A container near the bottom of the screen (the
+    sidebar footer) sets `--hint-top: auto` and `--hint-bottom` to open it above.
   */
   .hint {
     position: absolute;
-    top: calc(100% + var(--space-2));
+    top: var(--hint-top, calc(100% + var(--space-2)));
+    bottom: var(--hint-bottom, auto);
     left: 0;
     z-index: 1;
     width: max-content;
@@ -91,12 +96,12 @@
     color: var(--color-paper);
     line-height: var(--leading-hint);
     text-box: none;
-    visibility: hidden;
+    display: none;
     pointer-events: none;
   }
 
   .name:hover .hint {
-    visibility: visible;
+    display: block;
   }
 
   .control {

@@ -11,6 +11,7 @@
   import "../../../editor/src/styles/tokens.css";
   import "../../../editor/src/styles/type.css";
   import AddBar from "../../../editor/src/lib/ui/AddBar.svelte";
+  import Button from "../../../editor/src/lib/ui/Button.svelte";
   import Collapsible from "../../../editor/src/lib/ui/Collapsible.svelte";
   import FieldRow from "../../../editor/src/lib/ui/FieldRow.svelte";
   import GlyphGrid from "../../../editor/src/lib/ui/GlyphGrid.svelte";
@@ -19,6 +20,7 @@
   import IconButton from "../../../editor/src/lib/ui/IconButton.svelte";
   import Marquee from "../../../editor/src/lib/ui/Marquee.svelte";
   import OperationGlyph from "../../../editor/src/lib/ui/OperationGlyph.svelte";
+  import Popup from "../../../editor/src/lib/ui/Popup.svelte";
   import Slider from "../../../editor/src/lib/ui/Slider.svelte";
   import TabBar from "../../../editor/src/lib/ui/TabBar.svelte";
   import Toggle from "../../../editor/src/lib/ui/Toggle.svelte";
@@ -34,6 +36,8 @@
     | "icon"
     | "icon-button"
     | "add-bar"
+    | "button"
+    | "popup"
     | "collapsible"
     | "inline-edit"
     | "field-row"
@@ -51,6 +55,7 @@
   const names = Object.keys(ICONS) as IconName[];
 
   let open = $state(true);
+  let popupOpen = $state(false);
   let groupName = $state("Tile group B");
   let alignment = $state<"column" | "gutter">("column");
   let weight = $state(1);
@@ -84,6 +89,8 @@
     switch (show) {
       case "collapsible":
         return `open: ${open} · last: ${log}`;
+      case "popup":
+        return `open: ${popupOpen} · last: ${log}`;
       case "inline-edit":
         return `value: ${groupName}`;
       case "toggle":
@@ -120,6 +127,25 @@
       <AddBar label="Add tile group" onclick={() => (log = "bar")} />
       <AddBar label="Add tile" variant="square" onclick={() => (log = "square")} />
     </div>
+  {:else if show === "button"}
+    <div class="row">
+      <Button label="Undo" onclick={() => (log = "undo")} />
+      <Button label="Import" disabled onclick={() => (log = "import")} />
+    </div>
+    <div class="stack">
+      <Button label="Download tileset.zip" wide onclick={() => (log = "download")} />
+    </div>
+    <div class="row theme-inverted inverted">
+      <Button label="Undo" onclick={() => (log = "undo (inverted)")} />
+      <Button label="New" onclick={() => (log = "new (inverted)")} />
+    </div>
+  {:else if show === "popup"}
+    <div class="row">
+      <Button label="Open the popup" onclick={() => (popupOpen = true)} />
+    </div>
+    <Popup title="Import refused" bind:open={popupOpen} onClose={() => (log = "closed")}>
+      <p class="t-body">Not opened. Nothing in the current document has changed.</p>
+    </Popup>
   {:else if show === "collapsible"}
     <div class="stack">
       <Collapsible title="Grid & Size" bind:open>
@@ -313,5 +339,11 @@
   pre {
     margin: var(--space-6) 0 0;
     font-size: 0.75rem;
+  }
+
+  /* The footer's look: a black block in `.theme-inverted`. */
+  .inverted {
+    padding: var(--space-4);
+    background: var(--color-paper);
   }
 </style>

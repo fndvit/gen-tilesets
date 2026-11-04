@@ -8,6 +8,14 @@
 
 @import "./type.css";
 
+/* The page: paper, ink, the UI face. The shell (`App.svelte`) owns the layout. */
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+}
+
 /*
   One focus ring for the whole editor: ink on light surfaces, paper on bars.
   A component on a bar opts in with `.on-bar` on any ancestor.

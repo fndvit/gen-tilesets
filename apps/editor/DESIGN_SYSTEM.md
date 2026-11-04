@@ -21,12 +21,12 @@ The visual language of the tileset editor. It was extracted from the Figma file
 | Group | Tokens | Notes |
 |---|---|---|
 | Colour, primitive | `--black` `--white` `--grey-200` `--grey-100` `--aqua-50` `--magenta` | Only `tokens.css` reads these |
-| Colour, semantic | `--color-ink` `--color-paper` `--color-surface` `--color-bar` `--color-on-bar` `--color-inactive` `--color-rule` `--color-grid` `--color-seed` | Components read these |
+| Colour, semantic | `--color-ink` `--color-paper` `--color-surface` `--color-bar` `--color-on-bar` `--color-inactive` `--color-rule` `--color-grid` `--color-seed` | Components read these. Declared on `:root, .theme-default`; `.theme-inverted` swaps ink/paper and bar/on-bar (see Layout) |
 | Status | `--color-danger` `--color-warn` | Placeholders until Stage 2 (warnings) |
 | Font | `--font-ui` (Helvetica, standing in for Neue Haas Grotesk Display) · `--font-mono` (Roboto Mono, self-hosted via `@fontsource`) | |
 | Space | `--space-1…6` = 2 / 4 / 6 / 8 / 10 / 12 px | 2px base |
 | Size | `--bar-h-section` 25 · `--bar-h-group` 24 · `--bar-h-add` 28 · `--op-header-h` 40 · `--thumb` 32 · `--thumb-sm` 14 · `--icon` 12 · `--icon-add` 18 · `--field-w` 106 · `--slider-thumb-*` 10×20 · `--glyph-w/h` 75×60 · `--glyph-cell` 10 · `--glyph-gap` 1 · `--glyph-slot` 43 · `--glyph-cols` 5 · `--chip-gap` 9 · `--console-pad-y` 3 · `--sidebar-w` clamp(360, 28vw, 520) | |
-| Border | `--rule` (1px ink) · `--radius` 0 · `--radius-xs` 1px (glyph cells only) | |
+| Border | `--rule` (1px in `--color-rule`, declared with each theme) · `--radius` 0 · `--radius-xs` 1px (glyph cells only) | |
 | Focus | `--focus-w` 2 · `--focus-offset` 1 | |
 | Motion | `--dur-fast` 120ms · `--ease` · `--marquee-speed` 40px/s | Respects `prefers-reduced-motion` |
 
@@ -47,11 +47,18 @@ Figma does (`text-box: trim-both cap alphabetic`, with `line-height: 1` as the f
 
 ## Layout
 
-- **Page:** two columns at full viewport height, sidebar (`--sidebar-w`) and preview (`1fr`).
-- **Sidebar:** a column split into `.scrollable` (the sections, `overflow: auto`) and `.fixed`
-  (a black footer that never scrolls or collapses).
-- **Section:** a bar (`--bar-h-section`, 4px padding) followed by content. Content has 6px
-  padding plus a 4px inner slot.
+- **Page:** two columns at full viewport height (`100dvh`), sidebar (`--sidebar-w`) and preview
+  (`minmax(0, 1fr)`). No header. The page never scrolls; each column scrolls its own content.
+- **Sidebar:** a 1px ink frame on `--color-surface`, split into `.scrollable` (the sections,
+  stacked with no gap) and `.fixed` (a black footer that never scrolls or collapses).
+- **Section:** a bar (`--bar-h-section`, 4px padding inside it, `border-box`) followed by
+  content. Content has 6px padding plus a 4px inner slot (`Section.svelte`); each body sets its
+  own row gap.
+- **Inverted block:** `.theme-inverted` on a container makes every primitive inside render white
+  on black with no style of its own (the sidebar footer). `.theme-default` restores the page
+  inside one (a popup opened from the footer).
+- **Reports after an action** (a refused import, a failed export) open in a `Popup` and never
+  take space in the layout.
 - **Rows:** 8px apart in a field list, 4px apart in lists of bars.
 
 ## Component patterns
@@ -62,6 +69,8 @@ Figma does (`text-box: trim-both cap alphabetic`, with `line-height: 1` as the f
 | **Field row** | `.t-label` label on the left, control on the right, aligned to the bottom. No explanatory text in the row: an explanation is a `hint`, shown on hovering the label | Numeric and boolean inputs, operation params |
 | **Numeric input** | Field row whose control is a `--field-w` underline (1px ink bottom rule) as long as the input. Half-typed text looks the same as committed text | Cell size, rows, Y offset |
 | **Boolean / choice input** | Field row whose control is a set of chips: 1px ink border, 4px padding, `.t-xs`, `--chip-gap` apart. Selected = filled ink | Alignment, enum params |
+| **Button** | A text action in the chip look: 1px border, 4px padding, `.t-xs`, hover inverts. Never stays filled. `wide` fills its container | Undo, Import, New, Download, Close, Change it / Cancel |
+| **Popup** | Native modal `<dialog>`: black `.t-section` title bar, paper body, Close button, 1px ink frame. Esc closes | Import and export reports |
 | **Add bar** | Full-width black bar (`--bar-h-add`) with a centred 18px "+". The square variant is 32×32 | Add tile group, add operation, add tile |
 | **Tile group** | Group bar (trash, title editable on click, then up to 4 thumbnails at 14px and the chevron) above a white body with a 1px ink border holding tile asset rows | Tiles section |
 | **Tile asset** | 32px thumbnail · slider (1px track, 10×20 block thumb) · `.t-label` % (46px wide, right-aligned), 6px gap | Group body |
@@ -113,6 +122,7 @@ iconography. Until they are designed, their grids show label-only cells.
 Components are PascalCase nouns that match the Figma component names (`SectionHeader`,
 `NumericInput`, `TileGroup`, `TileAsset`, `OperationHeader`, `OperationGlyph`, `GlyphGrid`).
 Generic primitives live in `src/lib/ui/`: `Icon`, `IconButton`, `AddBar`, `Collapsible`,
-`FieldRow`, `InlineEdit`, `Toggle`, `Slider`, `Marquee`, `TabBar`, `OperationGlyph`, `GlyphGrid`, with icon
-path data in `icons.ts` and keyboard arithmetic in `keys.ts`. Every new `.ts` or `.svelte` file under `src/` needs a
+`FieldRow`, `InlineEdit`, `Toggle`, `Button`, `Popup`, `Slider`, `Marquee`, `TabBar`, `OperationGlyph`, `GlyphGrid`, with icon
+path data in `icons.ts` and keyboard arithmetic in `keys.ts`. Sidebar sections built from them
+live in `src/lib/sections/`. Every new `.ts` or `.svelte` file under `src/` needs a
 page in `apps/docs/src/content/docs/editor/`, or the docs coverage check fails.

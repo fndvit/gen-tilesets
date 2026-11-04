@@ -98,7 +98,9 @@
     font: inherit;
   }
 
+  /* Border-box, so `min-height` is the Figma bar height with its padding inside. */
   .bar {
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: var(--space-4);

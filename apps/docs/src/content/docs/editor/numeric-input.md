@@ -70,11 +70,11 @@ the transitions in `document.ts` parse again on their own terms.
 
 | Caller | Field | `parse` |
 | --- | --- | --- |
-| `App.svelte:434` | rows | `parseRows` |
-| `App.svelte` | y offset (with a `hint` explaining the fraction) | `parseYOffset` |
-| `App.svelte:454` | design width | `parseReferenceWidth` |
-| `App.svelte:460` | cell size | `parseCellSize` |
-| `App.svelte:534` | each breakpoint rule field | `RULE_PARSERS[field]` |
+| `lib/sections/GridSection.svelte` | cell size (with a `hint`) | `parseCellSize` |
+| `lib/sections/GridSection.svelte` | rows | `parseRows` |
+| `lib/sections/GridSection.svelte` | y offset (with a `hint` explaining the fraction) | `parseYOffset` |
+| `lib/sections/GridSection.svelte` | design width (with a `hint`) | `parseReferenceWidth` |
+| `lib/sections/BreakpointsSection.svelte` | each breakpoint rule field | `RULE_PARSERS[field]` |
 | `lib/TileLibrary.svelte:294` | asset weight | `parseWeight` |
 
 Callees: `format` and the `ParseResult` type from `fields.ts:27`, and
@@ -86,8 +86,10 @@ Callees: `format` and the `ParseResult` type from `fields.ts:27`, and
 The Figma *Numeric input*: the label in `.t-label`, the field a `--field-w` underline (`--rule`
 along the bottom) with right-aligned `.t-label` text, `--space-2` side padding and no number
 spinners. Focus thickens the underline to `--focus-w` instead of drawing the editor's focus ring,
-because a box around an underline field reads as a different control. Every value is a token
-from `styles/tokens.css`.
+because a box around an underline field reads as a different control. The input's line height
+is `1`, not `normal`, so a row is about 21px tall instead of 25: the digits keep their full height
+and sit just above the rule. Figma's rows are 14px only because its fields are empty; a field that
+shows a value needs room for the digits. Every value is a token from `styles/tokens.css`.
 
 ### Tests
 

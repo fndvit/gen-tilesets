@@ -39,7 +39,9 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 - Without `for`: the row is `role="group"`, `aria-labelledby` the label (id from
   `$props.id()`), which names a set of controls such as `Toggle`.
 - With `hint`: a `.t-body` bubble (ink background, paper text, at most `--hint-w` wide) sits under
-  the label with `visibility: hidden`, and is shown while the label is hovered. It has an id.
+  the label with `display: none`, so a hidden bubble takes no room and cannot make the page
+  scroll, and is shown while the label is hovered. It has an id. A container can open it above
+  the label instead by setting `--hint-top: auto` and `--hint-bottom` (the sidebar footer does).
   A native `title` was rejected: it appears only after a delay and cannot be styled. A group row puts it in its own `aria-describedby`. A `for` row hands it to the
   child snippet, which puts it on the input.
 
@@ -53,6 +55,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 | Caller | Use |
 | --- | --- |
 | `lib/NumericInput.svelte` | every numeric field, with `for` |
+| `lib/sections/GridSection.svelte` | Alignment, a group row around a `Toggle` |
+| `lib/sections/SidebarFooter.svelte` | Seed (with `for`), Assets, Assets on load, Fresh load |
 
 No callees.
 

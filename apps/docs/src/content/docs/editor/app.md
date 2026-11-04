@@ -1,6 +1,6 @@
 ---
 title: App.svelte
-description: The editor shell. One page that holds the sidebar of controls, the live preview, the confirmation gate for destructive edits and the export button.
+description: The editor shell. The page grid, the sidebar (scrolling sections over a fixed footer), the live preview and the confirmation gate for destructive edits.
 sidebar:
   order: 40
 ---
@@ -11,15 +11,15 @@ and the components and modules they import. No test file covers either.
 ## Overview
 
 `App.svelte` is the whole editor screen. `main.ts` mounts it into the page, and from then on it
-is the only top-level component. It defines the layout: a fixed-width sidebar on the left that
-scrolls, and a preview column on the right that holds the picture. The page itself never
-scrolls, so whatever the author changes in the sidebar, the picture stays on screen.
+is the only top-level component. It defines the layout: a sidebar on the left (`--sidebar-w`)
+and the preview on the right. The page itself never scrolls, so whatever the author changes in
+the sidebar, the picture stays on screen. There is no header.
 
-The sidebar is a stack of collapsible panels: Grid, Design, Breakpoints, Derived, Tiles,
-Operations, Seed and Import, with a download button pinned underneath. Each panel either edits
-one part of the open tileset document or opens a tool that does. Above both columns the shell
-can show two banners: a confirmation box when an edit would damage hand-placed work, and an
-advisory listing operations that a resize has pushed off the grid.
+The sidebar is two parts, as in Figma. The top part scrolls and holds the sections: Grid & Size,
+Breakpoints, Derived, Tiles and Operations. The bottom part is a fixed black footer with the
+seed, undo, import, new document and download. At the top of the preview the shell can show two
+notices: a confirmation when an edit would damage hand-placed work, and an advisory listing
+operations a resize has pushed off the grid.
 
 The preview is the package's own tileset component mounted on the document the editor holds,
 so the editor shows exactly what a production page would draw. Over it, the shell layers the
@@ -27,16 +27,16 @@ outline of the operation being edited and, when that operation is hand-painted, 
 
 In the editor's pipeline (import → document → draft/history → preview → export), the shell is
 the place where all five meet. It reads the document from the session, routes every edit
-through it, hands the open draft to the preview's overlays, and calls the export.
+through it, and hands the open draft to the preview's overlays.
 
 ## In detail
 
 ### Purpose
 
 `App.svelte` wires the editor's state modules to its components. It owns almost no logic of its
-own: a handful of `$derived` values computed from `session.file` and `drafting.draft`, three
-pieces of local state (`pending`, `loadSalt`, `failures`, plus the export flags), and the
-markup. Every edit goes through `session.apply(transition)` with a transition from
+own: a handful of `$derived` values computed from `session.file` and `drafting.draft`, four
+pieces of local state (`pending`, `loadSalt`, `failures`, `renderBox`), the destructive gate,
+`newTileset`, and the markup. The sidebar sections live in `lib/sections/`. Every edit goes through `session.apply(transition)` with a transition from
 [document.ts](/editor/document/). The header comment states the load-bearing rule: the preview
 is `<Tileset>` on the file, drawing the complete operation stack, and overlays are drawn over
 that output, never in place of it (cited as **S2**).
@@ -53,34 +53,22 @@ Neither file exports anything. `App.svelte` takes no props. `main.ts` has a side
 Which component renders which, in source order. Conditional children are marked.
 
 - `main.ts` mounts `App` into `#app`
-  - `App.svelte`
-    - header: engine and schema version, **Undo** button
-    - confirmation dialog (*if* `pending !== null`)
-    - "Orphaned by a resize" advisory (*if* `orphaned.length > 0`)
-    - `aside` (sidebar)
-      - [`Section`](/editor/section/) "Grid"
-        - [`NumericInput`](/editor/numeric-input/) rows, y offset
-      - [`Section`](/editor/section/) "Design" (`destructive`)
-        - [`NumericInput`](/editor/numeric-input/) design width, cell size
-        - alignment segmented buttons (`column` / `gutter`)
-      - [`Section`](/editor/section/) "Breakpoints" (open when the file has rules)
-        - per rule: [`NumericInput`](/editor/numeric-input/) per present field, an "add field" `<select>`
-        - "Add breakpoint" button
-      - [`Section`](/editor/section/) "Derived" (closed): read-only `<dl>`, "New document"
-      - [`Section`](/editor/section/) "Tiles"
-        - [`TileLibrary`](/editor/tile-library/)
-          - [`NumericInput`](/editor/numeric-input/) per asset weight
-      - [`Section`](/editor/section/) "Operations"
-        - [`OperationStack`](/editor/operation-stack/), with a `draftPanel` snippet
-          - [`OperationDraft`](/editor/operation-draft/) (*if* a draft is open)
-            - [`ParamFields`](/editor/param-fields/) → [`ParamControl`](/editor/param-control/)
-            - [`PaletteBar`](/editor/palette-bar/) or [`NumericMapping`](/editor/numeric-mapping/)
-            - [`BlendControl`](/editor/blend-control/)
-      - [`Section`](/editor/section/) "Seed" (closed): seed field, rerolls, load preview
-      - [`Section`](/editor/section/) "Import" (closed, `destructive`)
-        - [`ImportPanel`](/editor/import-panel/)
-      - download footer: export button, advisories
+  - `App.svelte` (`main`: the page grid)
+    - `aside` (sidebar, 1px ink frame, `--color-surface`)
+      - `.scrollable`
+        - [`GridSection`](/editor/grid-section/) "Grid & Size"
+        - [`BreakpointsSection`](/editor/breakpoints-section/) (open when the file has rules)
+        - [`DerivedSection`](/editor/derived-section/) (closed)
+        - [`Section`](/editor/section/) "Tiles"
+          - [`TileLibrary`](/editor/tile-library/)
+        - [`Section`](/editor/section/) "Operations"
+          - [`OperationStack`](/editor/operation-stack/), with a `draftPanel` snippet
+            - [`OperationDraft`](/editor/operation-draft/) (*if* a draft is open)
+      - [`SidebarFooter`](/editor/sidebar-footer/) (`.fixed`)
+        - [`ImportPanel`](/editor/import-panel/), [`Popup`](/editor/ui-popup/)s for reports
     - `section.preview`
+      - `.notices` (sticky, *if* either is showing): the confirmation (*if* `pending !== null`),
+        "Orphaned by a resize" (*if* `orphaned.length > 0`)
       - [`PreviewFrame`](/editor/preview-frame/)
         - [`ReferenceControls`](/editor/reference-controls/)
         - [`ReferenceLayer`](/editor/reference-layer/) (*if* a reference image is loaded)
@@ -96,25 +84,20 @@ Which component renders which, in source order. Conditional children are marked.
 
 | Source | What |
 | --- | --- |
-| [`session`](/editor/session/) | `file`, `canUndo`; `apply`, `undo`, `reset` |
+| [`session`](/editor/session/) | `file`; `apply`, `reset` |
 | [`drafting`](/editor/drafting/) | `draft`, `editing`; `start`, `edit`, `discard` |
-| local `$state` | `failures`, `renderBox`, `loadSalt`, `pending`, `exporting`, `exportError` |
+| local `$state` | `failures`, `renderBox`, `loadSalt` (bound into the footer), `pending` |
 
 #### Derived values
 
 | Name | From | Used by |
 | --- | --- | --- |
-| `file`, `config`, `layout`, `rules` | `session.file` (`rules` is `file.responsive ?? []`) | everything |
+| `file`, `config`, `rules` | `session.file` (`rules` is `file.responsive ?? []`) | everything |
 | `shapedAt(Wpx)` | [`reshape`](/api/index/functions/reshape/)`(file, `[`ruleOverride`](/api/index/functions/ruleoverride/)`(`[`activeRules`](/api/index/functions/activerules/)`(rules, Wpx)))` | the frame's ratio and both overlays' geometry |
-| `currentBleed` | `bleed(referenceWidth, cellSize, columns)` from `derive.ts` | Derived panel |
-| `visibleHeight` | [`naturalHeight`](/api/render/functions/naturalheight/) at `Wpx = referenceWidth`, so `s = 1` and the result is in design px | Derived panel |
-| `clipped` | `yOffset * cellSize` | Derived panel |
-| `varies`, `inert` | `loadVaries(config)`, `inertFlags(config)` from [reseed.ts](/editor/reseed/) | Seed panel |
-| `risked` | `atRisk(config)` from [orphans.ts](/editor/orphans/) | confirmation, Design and Breakpoints warnings |
+| `risked` | `atRisk(config)` from [orphans.ts](/editor/orphans/) | confirmation, Grid & Size hints, Breakpoints' pinned fields |
 | `orphaned` | `orphans(config, config.defaultSeed, loadSalt)` | top advisory |
 | `painting` | the draft's Selection schema, looked up via [`selections`](/api/index/variables/selections/), searched for a param of type `cellList` | `PaintLayer`, `PreviewFrame`'s `painting` |
 | `shadow` | `toShadowOperation(draft)`, spliced into `config.operations` | `SelectionOverlay` |
-| `empty` | `drawsNothing(file)` from `export.ts` | export advisory |
 
 #### The preview's props
 
@@ -139,19 +122,13 @@ controls keep reading the base, because the base is what they edit.
 
 #### The destructive gate
 
-`destructive(label, transition)` is called by design width, cell size and the alignment toggle.
+`destructive(label, transition)` is passed to `GridSection`, which calls it for cell size, design
+width and the alignment toggle.
 If `needsConfirmation(config)` is true it parks `{ label, apply: transition }` in `pending`;
-otherwise it applies at once. The dialog names every Operation in `risked`, and "Change it"
+otherwise it applies at once. The confirmation, at the top of the preview, names every
+Operation in `risked`, and "Change it"
 calls `session.apply(pending.apply)`. Holding a `Transition` rather than a value means the
 confirm step does not have to work out which field the value belonged to.
-
-#### Breakpoints panel
-
-Each rule shows one `NumericInput` per field in `RULE_FIELDS` that the rule sets, each with a
-× that calls `removeRuleField`. A `<select>` adds a missing field with `addRuleField`. The
-`rows` and `columns` options are disabled (and labelled "pinned") while any Operation is
-coordinate-bound. Arrows call `moveRule`; × calls `removeRule`; "Add breakpoint" calls
-`addRule()`. The panel opens by default only when the file already has rules.
 
 #### Operations panel
 
@@ -164,23 +141,9 @@ undone away). Committing it would otherwise run `replaceOperation` against an id
 nothing, which `session.apply` correctly declines to push, so the button would seem to work
 and do nothing.
 
-#### Seed panel
-
-The text field writes `setDefaultSeed` on every `input`. "New seed" applies `rerollSeed()`.
-"Reroll assets" applies `rerollAssets()` and shows `assetSalt`. A checkbox writes
-`setReseedAssetsOnLoad`. "Preview a fresh load" sets `loadSalt = drawLoadSalt()` and writes no
-field. It is disabled when `loadVaries(config)` is false. If any Operation carries
-`reseedOnLoad` over a non-stochastic Source, an advisory lists them and does not clear the flag.
-
-#### Export
-
-`runExport()` awaits `exportZip(file)`, shows "Building…" while it runs, and puts any thrown
-message in `exportError`. When `drawsNothing(file)` is true, an advisory says so, and the export
-is still allowed.
-
 #### New document
 
-The *New document* button in the Derived panel calls `newTileset`, which is **confirmed and not
+The footer's *New* button calls `newTileset` (passed as `onNew`), which is **confirmed and not
 undoable**. It asks with `confirm(...)` first and returns if the author declines. Then it calls
 `session.reset()`, sets `failures = []`, and awaits `replaceAll([])` to reclaim every picture the
 session held. Reset comes first so the outgoing document is already gone from the preview: no
@@ -196,10 +159,9 @@ failures.
 - **Destructive edits confirm only where something is at risk** (**E12**). A config holding only
   procedural Selections applies directly. The comment quotes the reason: "a dialogue that
   appears every time teaches the author to dismiss it before reading".
-- **`loadSalt` writes no field and is held for the session** (**R12**). Only the "Preview a fresh
-  load" button moves it.
-- **`columns` is displayed, never edited** (**E1**). The Derived panel shows it with a "derived"
-  tag.
+- **`loadSalt` writes no field and is held for the session** (**R12**). Only the footer's Fresh
+  load button moves it.
+- **`columns` is displayed, never edited** (**E1**). The Derived section shows it.
 - **Advisories never block and never modify the file** (**E16**): orphans, inert flags and the
   empty-document note.
 - **The draft is not in the document** (**E3**). The overlay resolves against a local shadow
@@ -215,15 +177,14 @@ failures.
 
 `apps/demo/src/main.ts:2` also imports an `App.svelte`, but that is the demo's own file.
 
-Callees, by import (`App.svelte:19`–`69`): from the package, [`selections`](/api/index/variables/selections/),
+Callees, by import: from the package, [`selections`](/api/index/variables/selections/),
 [`reshape`](/api/index/functions/reshape/), [`activeRules`](/api/index/functions/activerules/),
-[`ruleOverride`](/api/index/functions/ruleoverride/), [`naturalHeight`](/api/render/functions/naturalheight/),
-[`naturalRatio`](/api/render/functions/naturalratio/), `Tileset.svelte`; from the editor,
-`assets.ts` (`editorProvider`, `replaceAll`), `derive.ts` (`bleed`), `download.ts` (`exportZip`), `export.ts`
-(`drawsNothing`), `document.ts` (sixteen transitions and `ENGINE_VERSION`), `draft.svelte.ts`
-(`toShadowOperation`), `drafting.svelte.ts`, `fields.ts` (four parsers, `RULE_FIELDS`,
-`RULE_PARSERS`), `ids.ts` (`nextOperationId`), `orphans.ts`, `reseed.ts`, `session.svelte.ts`,
-and the nine `lib/` components in the tree above.
+[`ruleOverride`](/api/index/functions/ruleoverride/), [`naturalRatio`](/api/render/functions/naturalratio/),
+`Tileset.svelte`; from the editor, `assets.ts` (`editorProvider`, `replaceAll`), `document.ts`
+(the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `ids.ts`
+(`nextOperationId`), `orphans.ts`, `session.svelte.ts`, the four `lib/sections/` components,
+`Section`, `TileLibrary`, `OperationStack`, `OperationDraft`, `PreviewFrame`, `SelectionOverlay`,
+`PaintLayer` and `ui/Button`.
 
 ### Tests
 
@@ -235,17 +196,17 @@ validates.
 
 ### Gotchas & rejected alternatives
 
-- **A full-height shell, not a scrolling document.** The page does not scroll; the sidebar and
-  the preview column each scroll their own contents. `main` is a flex column rather than grid
-  rows because the dialog and the orphan banner are conditional, and a fixed row template would
-  put the flexible track under the wrong child.
+- **A full-height shell, not a scrolling document.** `main` is a grid,
+  `var(--sidebar-w) minmax(0, 1fr)` at `100dvh`. The sidebar's sections and the preview column
+  each scroll their own contents. The two notices sit in the preview column, not above both
+  columns, so the grid needs no conditional rows.
 - **`min-width: 0` on both columns.** Without it the preview frame's explicit pixel width (up to
   1440px) would grow the grid track and squeeze the sidebar.
-- **Destructive control is a number field, not the drag handle.** The comment: a page edge that
-  can be dragged reads as a viewport, and a viewport does not destroy work. So the harmless
-  control is the drag handle and the destructive one is the numeric field.
-- **Export is pinned, import is not.** Export "ends the session" and should not need scrolling
-  to; import starts one, so it is an ordinary `Section` at the bottom.
+- **Destructive control is a number field, not the drag handle.** A page edge that can be dragged
+  reads as a viewport, and a viewport does not destroy work.
+- **Footer controls are temporary.** The footer's contents are Stage 2's design. Until then they
+  are the old Seed and Import panels, the header's undo and the download button, built from
+  primitives.
 - **The shadow config replaces, then appends.** An edit-draft's id is already in the stack, so
   appending would put two Operations with one id in it, and `selection()` would find the
   unedited one first. Replacing by id covers both cases.
@@ -254,8 +215,6 @@ validates.
 
 ### Review notes
 
-- `App.svelte:910` says "what Step 11 will export". The export exists (the download footer at
-  line 790). The comment is stale.
 - `failures` is append-only and never cleared, and the list is keyed by the string itself
   (`{#each failures as failure (failure)}`, line 900). The package calls `onAssetError` from
   inside a derivation (`Tileset.svelte:199`–`204`), so if the same asset fails again on a later
@@ -264,8 +223,8 @@ validates.
   string already in the list, and the package now reports on a microtask, not from inside the
   derivation. Since then the renderer also reports a failure once per resolution
   (`DrawableCache`) rather than on every reseed, and New document clears `failures`.
-- The seed field (line 698) commits on every `input` without `NumericInput`'s draft-text model.
-  The empty case is safe, because `setDefaultSeed` (`document.ts:325`) trims and refuses `""`.
+- The seed field (now in `SidebarFooter`) commits on every `input` without `NumericInput`'s draft-text model.
+  The empty case is safe, because `setDefaultSeed` (`document.ts`) trims and refuses `""`.
   But every keystroke that changes the seed is its own undo entry, so undoing a typed seed
   takes one undo per character. The same holds for the tile rename in `TileLibrary`. The source
   does not say whether that is intended.

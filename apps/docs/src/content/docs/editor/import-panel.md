@@ -5,17 +5,19 @@ sidebar:
   order: 43
 ---
 
-**Written from:** `apps/editor/src/lib/ImportPanel.svelte`, and the call site in `App.svelte`. The
+**Written from:** `apps/editor/src/lib/ImportPanel.svelte`, and the call site in
+`lib/sections/SidebarFooter.svelte`. The
 pure half it calls is [import.ts](/editor/import/).
 
 ## Overview
 
-The import panel is the last panel in the sidebar, labelled "Import" and drawn as destructive
-because it replaces the whole document. It is a drop zone with a "Choose file…" button. The
-author drops in the `tileset.zip` the editor exported earlier, or the folder that zip unpacks to.
+Import is the Import button in the sidebar footer. It opens a file picker for the `tileset.zip`
+the editor exported earlier. The author can also drop that zip, or the folder it unpacks to, on
+the footer.
 
 The panel reads the archive, upgrades an older tileset file to the current format, and checks
-it. If anything is wrong it lists the problems and changes nothing. The document on screen stays
+it. If anything is wrong it changes nothing and lists the problems in a popup once the attempt
+ends. The report never takes space in the footer. The document on screen stays
 as it was. If the file was written by a newer build, it says so and tells the author to update
 the editor. If the file is good, the panel re-attaches the pictures, opens the document and lists
 anything worth knowing, such as an upgrade that happened or a picture the archive did not carry.
@@ -37,7 +39,12 @@ exactly where they were. It calls [`migrate`](/api/index/functions/migrate/) and
 
 ### Public surface
 
-No props, no events, no bindings. It reads and writes module state directly:
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `target` | `HTMLElement \| null` | `null` | The element that takes drops (the footer). Listeners are attached in an `$effect`. |
+| `over` | `boolean` (bindable) | `false` | Whether a drag is over `target`, for the caller to style. |
+
+It reads and writes module state directly:
 [`session`](/editor/session/), [`drafting`](/editor/drafting/) and the asset store in
 [assets.ts](/editor/assets/).
 
@@ -49,7 +56,7 @@ No props, no events, no bindings. It reads and writes module state directly:
 | --- | --- |
 | Drop with any directory entry | `fromFolder(entries)` |
 | Drop of files only | `fromZip(files[0])`; other files are ignored |
-| "Choose file…" (`accept=".zip,application/zip"`) | `fromZip(file)`, then the input is cleared so the same file can be chosen again |
+| Import button (`accept=".zip,application/zip"`) | `fromZip(file)`, then the input is cleared so the same file can be chosen again |
 
 - `fromZip` uses `unzipSync` from `fflate` and drops directory entries (paths ending `/`).
 - `fromFolder`: if exactly one directory was dropped, its **contents** are the root, so the
@@ -71,17 +78,21 @@ No props, no events, no bindings. It reads and writes module state directly:
 7. Set `advisories`: one per migration step ("Upgraded from schemaVersion N — …"), one per
    `missing` path, one per failed attach.
 
-`run()` resets all four outputs, sets `busy`, and catches any throw (a bad zip, a missing
-`tileset.json`) into `failure`.
+`run()` resets all four outputs, sets `busy` (the button reads "Importing…"), and catches any
+throw (a bad zip, a missing `tileset.json`) into `failure`. When it ends with anything to report,
+it opens the [`Popup`](/editor/ui-popup/). Closing the popup calls `reset()`.
 
 #### What it shows
 
+All of it is in the popup, titled "Import refused", or "Imported, with notes" when there are
+advisories.
+
 | State | Shown |
 | --- | --- |
-| `failure` | one red line |
-| `newer` | "written by a newer build … Update the editor, not the file." |
-| `errors` | "Not opened. Nothing in the current document has changed." and the first 12 errors as `path [CODE] message`, then "…and N more" |
-| `advisories` | a list with a "clear" button |
+| `failure` | "Not opened. Nothing in the current document has changed." and the message |
+| `newer` | "written by a newer build (schemaVersion N). Update the editor, not the file." |
+| `errors` | "Not opened. …" and the first 12 errors as `path CODE message`, then "…and N more" |
+| `advisories` | a list |
 
 ### Invariants
 
@@ -102,12 +113,11 @@ No props, no events, no bindings. It reads and writes module state directly:
 
 | Caller | Use |
 | --- | --- |
-| `App.svelte:58` | import |
-| `App.svelte:756` | `<ImportPanel />` inside `<Section title="Import" open={false} destructive>` |
+| `lib/sections/SidebarFooter.svelte` | `<ImportPanel target={root} bind:over />` in the actions row |
 
 Callees: [`migrate`](/api/index/functions/migrate/), [`validate`](/api/index/functions/validate/)
-(`ImportPanel.svelte:35`); `unzipSync` (`fflate`, line 36); `replaceAll` (`assets.ts`, line 37);
-`readArchive`, `nameOf`, `mimeOf` (`import.ts`, line 39); `session.open`, `drafting.discard`.
+; `unzipSync` (`fflate`); `replaceAll` (`assets.ts`); `readArchive`, `nameOf`, `mimeOf`
+(`import.ts`); `session.open`, `drafting.discard`; `ui/Button`, `ui/Popup`.
 
 ### Tests
 
@@ -120,18 +130,18 @@ not tested.
 
 ### Gotchas & rejected alternatives
 
-- **Same gesture as the tile library.** A drop zone plus a hidden picker, on purpose: the two
+- **Reports only after an attempt, in a popup** (Pol, 2026-11-04). They never take footer space.
+- **Same gesture as the tile library.** A drop target plus a hidden picker, on purpose: the two
   surfaces that take files from the author should take them the same way.
 - **A refused file costs nothing.** Every early `return` in `open()` is before `replaceAll` and
   `session.open`.
 
 ### Review notes
 
-- The prose under the panel says the import is "undoable, like everything else (E6)". Undo does
-  restore the previous document, but `replaceAll` has already cleared the asset store and revoked
-  the old object URLs, so the restored document's pictures are gone. `session.svelte.ts` documents
-  this gap in its `open()` comment; the panel's own text does not, so an author is not told.
-  (doc gap)
+- Undo after an import restores the previous document, but `replaceAll` has already cleared the
+  asset store and revoked the old object URLs, so the restored document's pictures are gone.
+  `session.svelte.ts` documents this gap in its `open()` comment; nothing on screen tells the
+  author. (The footer's comment calls import undoable; that is true of the document only.)
 - The header comment's opening says the editor "takes the exported `.zip` or the unzipped folder".
   The picker only accepts `.zip`; a folder can only be dropped. Not wrong, but the button does not
   offer the folder path.

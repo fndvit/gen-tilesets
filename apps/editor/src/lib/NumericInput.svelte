@@ -117,6 +117,8 @@
     border-radius: var(--radius);
     background: transparent;
     color: var(--color-ink);
+    /* One em, not `normal`: the digits keep their full height and sit just above the rule. */
+    line-height: 1;
     text-align: right;
     appearance: textfield;
   }

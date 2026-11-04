@@ -1,0 +1,50 @@
+---
+title: ui/Button.svelte
+description: A text button for an action (Undo, Import, Download, Close), in the chip look Toggle already uses.
+sidebar:
+  order: 74
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Button.svelte`.
+
+## Overview
+
+`Button` is the editor's text button: Undo, Import, New, Download in the sidebar footer, Change it
+and Cancel in the confirmation, Close in a popup. It looks like a `Toggle` chip (a thin border,
+small uppercase text, inverting on hover), so an action and a choice read as the same family. The
+difference is that a chip stays filled when it is chosen, and a button never does.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports. The last row is drawn in `.theme-inverted`, as in the sidebar footer.
+
+<UiPrimitivesStory show="button" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `label` | `string` | required | The visible text, uppercased by `.t-xs`. |
+| `onclick` | `(event: MouseEvent) => void` | required | |
+| `disabled` | `boolean` | `false` | `--color-inactive` border and text, `cursor: default`. |
+| `wide` | `boolean` | `false` | Stretches to its container (`width: 100%`). |
+
+### Inputs → outputs
+
+- `--rule` border, `--space-2` padding, `--color-paper` fill, `--color-ink` text. Hover swaps the
+  two. It reads only semantic tokens, so inside `.theme-inverted` it is a white-bordered button on
+  black with no style of its own.
+
+### Callers / callees
+
+Callers: `lib/sections/SidebarFooter.svelte` (Undo, New, Download), `lib/ImportPanel.svelte`
+(Import), `lib/ui/Popup.svelte` (Close), `App.svelte` (the confirmation's Change it and Cancel).
+Callees: none.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).

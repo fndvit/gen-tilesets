@@ -17,20 +17,6 @@
   --aqua-50: #e4f6f5; /* sidebar surface */
   --magenta: #ff00c3; /* seed / non-deterministic */
 
-  /* ── Semantic colour ───────────────────────────────────────────────── */
-  --color-ink: var(--black); /* text, rules, filled chips */
-  --color-paper: var(--white); /* panels, unfilled chips */
-  --color-surface: var(--aqua-50); /* sidebar background */
-  --color-bar: var(--black); /* section, group and operation bars */
-  --color-on-bar: var(--white); /* text and icons on a bar */
-  --color-inactive: var(--grey-200); /* selected glyph, console strip, disabled */
-  --color-rule: var(--black);
-  --color-grid: var(--grey-100);
-  --color-seed: var(--magenta);
-  /* Placeholders until the Stage 2 warnings group decides them. */
-  --color-danger: var(--black);
-  --color-warn: var(--black);
-
   /* ── Type ──────────────────────────────────────────────────────────── */
   /* The design is set in Neue Haas Grotesk Display Pro; Helvetica stands in
      until a web licence is settled. Swapping it is this one line. */
@@ -82,7 +68,6 @@
   --hint-w: 260px; /* widest a field hint bubble grows */
   /* ── Border ────────────────────────────────────────────────────────── */
   --rule-w: 1px;
-  --rule: var(--rule-w) solid var(--color-rule);
   --radius: 0;
   --radius-xs: 1px; /* glyph cells only */
 
@@ -94,4 +79,41 @@
   --dur-fast: 120ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --marquee-speed: 40px; /* per second */
+}
+
+/*
+  Semantic colour, in two themes.
+
+  `.theme-default` is the page. `.theme-inverted` swaps ink and paper and the bar
+  colours, for a black block whose primitives should render inverted with no
+  style of their own (the sidebar footer). `.theme-default` also restores the
+  page inside an inverted block, for a popup opened from it.
+
+  `--rule` is declared with the colours, because a custom property resolves
+  where it is declared: one written only on `:root` would keep `:root`'s ink.
+*/
+:root,
+.theme-default {
+  --color-ink: var(--black); /* text, rules, filled chips */
+  --color-paper: var(--white); /* panels, unfilled chips */
+  --color-surface: var(--aqua-50); /* sidebar background */
+  --color-bar: var(--black); /* section, group and operation bars */
+  --color-on-bar: var(--white); /* text and icons on a bar */
+  --color-inactive: var(--grey-200); /* selected glyph, console strip, disabled */
+  --color-rule: var(--black);
+  --color-grid: var(--grey-100);
+  --color-seed: var(--magenta);
+  /* Placeholders until the Stage 2 warnings group decides them. */
+  --color-danger: var(--black);
+  --color-warn: var(--black);
+  --rule: var(--rule-w) solid var(--color-rule);
+}
+
+.theme-inverted {
+  --color-ink: var(--white);
+  --color-paper: var(--black);
+  --color-rule: var(--white);
+  --color-bar: var(--white);
+  --color-on-bar: var(--black);
+  --rule: var(--rule-w) solid var(--color-rule);
 }

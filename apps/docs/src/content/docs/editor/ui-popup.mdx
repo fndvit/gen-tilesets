@@ -1,0 +1,54 @@
+---
+title: ui/Popup.svelte
+description: A closable modal popup for a report the author has to read after an action, such as a refused import or a failed export.
+sidebar:
+  order: 75
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Popup.svelte`.
+
+## Overview
+
+`Popup` shows a report that follows something the author just did: an import that was refused
+or opened with notes, a download that failed or exported an empty document. It opens over the
+page, takes no space in the layout, and closes with its Close button or Esc. Pol decided on
+2026-11-04 that such reports never take space in the sidebar footer.
+
+It is the first piece of the Stage 2 notification work, which will extend it.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
+
+<UiPrimitivesStory show="popup" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `title` | `string` | required | The bar's heading, and the dialog's accessible name. |
+| `open` | `boolean` (bindable) | `false` | Shows it with `showModal()`, hides it with `close()`. |
+| `onClose` | `() => void` | none | Called once however it closes: Esc, the button, or `open = false`. |
+| `children` | `Snippet` | required | The report. |
+
+### Inputs → outputs
+
+- A native `<dialog>` opened with `showModal()`, so focus moves in, Esc closes it, and the page
+  behind is inert. The dialog's `close` event sets `open = false` and calls `onClose`.
+- A black title bar in `.t-section` (the section bar), a scrolling paper body, and a Close
+  `Button`, all inside a `--rule` frame. At most 520px wide and the viewport's height.
+- It carries `.theme-default`, so a popup opened from inside the inverted footer is still drawn
+  on paper (`tokens.css`).
+
+### Callers / callees
+
+Callers: `lib/ImportPanel.svelte` (import reports), `lib/sections/SidebarFooter.svelte` (export
+reports). Callees: `lib/ui/Button.svelte`.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).
