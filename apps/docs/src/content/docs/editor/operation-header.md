@@ -10,7 +10,7 @@ sidebar:
 
 ## Overview
 
-The Figma *Operation header*, closed and opened. A black bar, 56px tall (40 in Figma, so each icon column holds two 24px targets, WCAG 2.5.8), with four parts from left
+The Figma *Operation header*, closed and opened. A black bar, 56px tall (40 in Figma, so each icon column holds two targets: trash 24px over the 28px re-seed, and the two 24px arrows; WCAG 2.5.8), with four parts from left
 to right:
 
 1. the operation's number in the stack;

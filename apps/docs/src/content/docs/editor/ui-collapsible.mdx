@@ -66,10 +66,10 @@ body have different padding and frames in Figma.
   closed (`svelte/transition` `slide`) over `--dur-fast`, read by
   [`motionDuration`](/editor/ui-motion/), so it is instant under `prefers-reduced-motion`.
 - The chevron sits in a `--target-min` (24px) box and rotates 180° when open, over `--dur-fast`.
-- Both variants are 32px tall (`--bar-h-section`, `--bar-h-group`; Figma 25 and 24), with a
-  `--rule-w` frame in the bar's colour. Hovering the bar inverts it by swapping `--color-bar` and
-  `--color-on-bar` (so the icons and the focus ring follow) with an ink frame; pressing makes it
-  `--color-pressed` (Block F).
+- Both variants are 32px tall (`--bar-h-section`, `--bar-h-group`; Figma 25 and 24). The bar
+  itself never changes on hover (Pol, Block F review): the chevron and the title dim to
+  `--color-inactive`. The title is untrimmed with `--leading-title` (1.2), because a cap-trimmed
+  box with `overflow: hidden` (for the ellipsis) clipped the tops of letters.
 
 ### Invariants
 

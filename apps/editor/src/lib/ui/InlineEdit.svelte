@@ -99,6 +99,8 @@
   /* A 24px target (WCAG 2.2, 2.5.8): the bar's height, not the trimmed text's. */
   .text {
     min-height: var(--target-min);
+    line-height: var(--leading-title);
+    text-box: none;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

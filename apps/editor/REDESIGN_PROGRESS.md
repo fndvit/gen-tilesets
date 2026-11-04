@@ -201,6 +201,16 @@ Block F (2026-11-04; sizes decided by Claude under WCAG 2.2 AA, as Pol asked). T
 - **Leftovers:** `offersReseedOnLoad` and `setReseedOnLoad` removed with their tests (only tests
   called them). `Section.svelte` stays: five sections use it and it owns the content padding.
 
+Block F review (Pol, 2026-11-04): "The feedback is good, but take it off the section headers
+and other headers like tile asset groups." Done:
+- Section and tile group bars no longer invert or darken. Only the chevron and title dim, as
+  before Block F (add bars and step tabs keep the inversion).
+- Section titles looked cut at the top. Cause: the title box was trimmed to cap height and also
+  has `overflow: hidden` for its ellipsis, so anything above the cap line was clipped. Bar titles
+  are now untrimmed with `--leading-title` 1.2 (the editable group title too).
+- Re-seed buttons are bigger: a 28px box and an 18px icon (`--icon-seed`; Figma 12). The operation
+  header's left column fits trash 24 + re-seed 28 in its 56px.
+
 Block F visual review against Figma (`Page` 502:849, at 1728):
 - Accessibility overrides Figma (kept): bar heights, chip and button heights, field-row pitch,
   operation header height, the type scale, sidebar width (518 vs 477).

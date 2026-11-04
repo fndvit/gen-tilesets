@@ -40,6 +40,7 @@
   --text-console-size: 12px; /* "Console" is 10 in Figma (Block F, 1.4.4) */
   --text-console-tracking: 0.02em; /* Figma: 2% */
   --leading-hint: 1.3; /* multi-line hint bubbles; every other style is one trimmed line */
+  --leading-title: 1.2; /* bar titles: untrimmed, because they clip for the ellipsis */
 
   /* ── Space (2px base) ──────────────────────────────────────────────── */
   --space-1: 2px;
@@ -62,6 +63,7 @@
   --thumb-sm: 14px;
   --icon: 12px;
   --icon-add: 18px;
+  --icon-seed: 18px; /* the re-seed icon, scaled up from Figma's 12 (Pol, Block F review) */
   --field-w: 106px;
   --field-label-w-compact: 128px; /* the label column in an operation body */
   --slider-thumb-w: 12px; /* 10 in Figma */

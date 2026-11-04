@@ -57,8 +57,16 @@
       color var(--dur-fast) var(--ease);
   }
 
+  /* Re-seed is bigger than the other icon buttons (Pol, Block F review): a `--control-h` box, the icon `--icon-seed` wide. */
   .seed {
+    min-width: var(--control-h);
+    min-height: var(--control-h);
     color: var(--color-seed);
+  }
+
+  .seed :global(.icon) {
+    width: var(--icon-seed);
+    height: auto;
   }
 
   /* The colour is kept: on a seed button it is a meaning, not a state. */

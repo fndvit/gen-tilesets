@@ -26,7 +26,7 @@ The visual language of the tileset editor. It was extracted from the Figma file
 | Status | `--color-danger` `--color-warn` | Placeholders until Stage 2 (warnings) |
 | Font | `--font-ui` (Helvetica, standing in for Neue Haas Grotesk Display) · `--font-mono` (Roboto Mono, self-hosted via `@fontsource`) | |
 | Space | `--space-1…6` = 2 / 4 / 6 / 8 / 10 / 12 px | 2px base |
-| Size | `--target-min` 24 · `--control-h` 28 · `--bar-h-section` 32 · `--bar-h-group` 32 · `--bar-h-add` 32 · `--op-header-h` 56 · `--thumb` 32 · `--thumb-sm` 14 · `--icon` 12 · `--icon-add` 18 · `--field-w` 106 · `--slider-thumb-*` 12×24 · `--glyph-w/h` 75×60 (75 = narrowest cell) · `--glyph-cell` 10 · `--glyph-gap` 1 · `--glyph-slot` 43 · `--chip-gap` 9 · `--console-pad-y` 3 · `--badge` 16 · `--handle-w` 9 · `--asset-gap` 10 · `--share-w` 46 · `--sidebar-w` clamp(400, 30vw, 560) | Block F sizes; see Accessibility |
+| Size | `--target-min` 24 · `--icon-seed` 18 (re-seed, in a `--control-h` box) · `--control-h` 28 · `--bar-h-section` 32 · `--bar-h-group` 32 · `--bar-h-add` 32 · `--op-header-h` 56 · `--thumb` 32 · `--thumb-sm` 14 · `--icon` 12 · `--icon-add` 18 · `--field-w` 106 · `--slider-thumb-*` 12×24 · `--glyph-w/h` 75×60 (75 = narrowest cell) · `--glyph-cell` 10 · `--glyph-gap` 1 · `--glyph-slot` 43 · `--chip-gap` 9 · `--console-pad-y` 3 · `--badge` 16 · `--handle-w` 9 · `--asset-gap` 10 · `--share-w` 46 · `--sidebar-w` clamp(400, 30vw, 560) | Block F sizes; see Accessibility |
 | Border | `--rule` (1px in `--color-rule`, declared with each theme) · `--radius` 0 · `--radius-xs` 1px (glyph cells only) · `--radius-round` 50% (delete badge only) | |
 | Focus | `--focus-w` 2 · `--focus-offset` 1 | |
 | Motion | `--dur-fast` 120ms · `--ease` · `--marquee-speed` 40px/s | Respects `prefers-reduced-motion` |
@@ -115,9 +115,10 @@ iconography. Until they are designed, their grids show label-only cells.
 
 | State | Rule |
 |---|---|
-| Hover, on a black bar that acts | **Invert**: the bar turns paper with ink content and a 1px ink frame (section and group bars, add bars, square "+", step tabs). A bar swaps `--color-bar` / `--color-on-bar`, so its icons and focus ring follow |
+| Hover, on a black bar that acts | **Invert**: the bar turns paper with ink content and a 1px ink frame (add bars, square "+", step tabs) |
+| Hover, on a header bar | **No inversion** (Pol, Block F review). Section and tile group bars stay black; the chevron and title dim to `--color-inactive`, an editable title underlines, the trash shows its frame |
 | Hover, on a paper chip or button | Invert (ink fill, paper text) |
-| Pressed (`:active`) | Bars, chips, buttons, the delete badge: `--color-pressed` fill with `--color-on-pressed` text. Glyph cells and palette segments: the frame thickens to `--focus-w`, drawn inside. Icon buttons: their hover frame thickens. Sliders and palette segments: `grabbing` |
+| Pressed (`:active`) | Add bars, tabs, chips, buttons, the delete badge: `--color-pressed` fill with `--color-on-pressed` text. Glyph cells and palette segments: the frame thickens to `--focus-w`, drawn inside. Icon buttons: their hover frame thickens. Sliders and palette segments: `grabbing` |
 | Hover, on an icon button | A 1px frame in the icon's own colour round its 24px box, so a seed button keeps its magenta |
 | Hover, on an editable title | Underline (it would vanish if dimmed on the inverted bar) |
 | Already chosen | A selected chip or glyph and the active tab do not change on hover and have `cursor: default`: choosing them again does nothing |
@@ -142,7 +143,8 @@ is in brackets.
 | Decision | WCAG | Notes |
 |---|---|---|
 | Every pointer target at least `--target-min` (24px) square: icon buttons, the chevron, the editable title, underline fields (padding above the digits), slider thumbs (12×24 [10×20]), the delete badge's hit area | 2.5.8 Target size (minimum) | Chips and buttons go further, to `--control-h` 28px [≈17], because Pol found them too small. The preview's 9px width handles pass by the spacing exception (nothing else to hit within 24px) and have arrow keys |
-| Bars 32px [25 / 24 / 28], operation header 56px [40] | 2.5.8 | Room for 24px targets inside the bar's padding |
+| Bars 32px [25 / 24 / 28], operation header 56px [40] | 2.5.8 | Room for 24px targets inside the bar's padding. Re-seed is larger still: a 28px box with an 18px icon [12] (Pol) |
+| Bar titles are untrimmed with `--leading-title` 1.2 | 1.4.12 Text spacing | A cap-trimmed box with `overflow: hidden` (for the ellipsis) clipped the tops of letters (Pol) |
 | Type: section 20 [24], label 16 [20], body 14, chips and tabs 12 [10], console 12 [10] | 1.4.4 Resize text, 1.4.12 | No content text below 12px; steps 20/16/14/12 stay distinct by size, case and weight. Pol found some text too big and some too small |
 | Sidebar `clamp(400px, 30vw, 560px)` [477 at 1728] | 1.4.10 Reflow | The glyph grid reflows (`auto-fill`); below 40rem the page stacks into one column, so nothing scrolls sideways at 320px |
 | Text contrast: ink on paper, aqua and `--color-inactive` ≥ 15:1; paper on ink 21:1; `--color-muted` 7:1; `--color-on-pressed` on `--color-pressed` 8.5:1 | 1.4.3 Contrast (minimum) | `--color-inactive` (1.3:1 on paper) only marks disabled controls, which are exempt, never information |

@@ -21,8 +21,9 @@
   than Figma's 25 and 24, so the chevron and the trash are 24px targets
   (WCAG 2.2, 2.5.8; Block F).
 
-  The whole bar acts, so hovering it inverts it (paper, ink content and frame)
-  and pressing darkens it, as every black bar that acts does. The body slides
+  Header bars do not invert on hover (Pol, Block F review): the chevron and the
+  title dim, the trash shows its frame, and the title has a real line height
+  rather than a cap-trimmed box, which clipped the tops of letters. The body slides
   open and closed over `--dur-fast`, and appears at once under reduced motion. The body is
   rendered bare; its padding and frame belong to the caller (Section, TileGroup),
   because the two Figma bodies differ.
@@ -156,40 +157,19 @@
     font: inherit;
   }
 
-  /*
-    Border-box, so `min-height` is the bar height with its padding and frame
-    inside. The frame is the bar's own colour at rest and ink on hover, so the
-    inverted bar keeps its edge on the aqua surface.
-  */
+  /* Border-box, so `min-height` is the bar height with its padding inside. */
   .bar {
     box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: var(--space-4);
-    padding: var(--space-1);
-    border: var(--rule-w) solid var(--color-bar);
+    padding: var(--space-2);
     background: var(--color-bar);
     color: var(--color-on-bar);
-    transition:
-      background-color var(--dur-fast) var(--ease),
-      border-color var(--dur-fast) var(--ease),
-      color var(--dur-fast) var(--ease);
   }
 
-  /*
-    Hover inverts by swapping the bar's two colours, so everything on it
-    (icons, thumbnails' frame, the focus ring via `.on-bar`) follows.
-  */
-  .bar:hover {
-    --color-bar: var(--color-paper);
-    --color-on-bar: var(--color-ink);
-    border-color: var(--color-ink);
-  }
-
-  .bar:active {
-    --color-bar: var(--color-pressed);
-    --color-on-bar: var(--color-on-pressed);
-    border-color: var(--color-pressed);
+  .group .bar {
+    border: var(--rule-w) solid var(--color-bar);
   }
 
   .section .bar {
@@ -234,6 +214,13 @@
     font: inherit;
     text-align: left;
     cursor: pointer;
+    transition: color var(--dur-fast) var(--ease);
+  }
+
+  /* The header's hover: its content dims. The bar itself never changes. */
+  .toggle:hover,
+  .chev-button:hover {
+    color: var(--color-inactive);
   }
 
   .toggle {
@@ -255,6 +242,16 @@
     width: var(--target-min);
     height: var(--target-min);
     transition: transform var(--dur-fast) var(--ease);
+  }
+
+  /*
+    Untrimmed, with a real line height: `overflow: hidden` (for the ellipsis)
+    on a box trimmed to cap height cut off whatever rises above it.
+  */
+  .title,
+  .note {
+    line-height: var(--leading-title);
+    text-box: none;
   }
 
   .title {

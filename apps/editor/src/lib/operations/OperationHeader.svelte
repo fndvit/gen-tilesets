@@ -121,6 +121,11 @@
     padding: var(--space-2);
   }
 
+  /* Trash (24) over the larger re-seed (28) fills the 56px header with 2px to spare top and bottom. */
+  .icons:not(.arrows) {
+    padding-block: var(--space-1);
+  }
+
   .middle {
     display: flex;
     flex: 1 1 0;
