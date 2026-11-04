@@ -29,13 +29,14 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 | --- | --- | --- | --- |
 | `label` | `string` | required | `aria-label` and `title`. |
 | `onclick` | `(event: MouseEvent) => void` | required | |
-| `variant` | `"bar" \| "square"` | `"bar"` | `bar`: 100% × `--bar-h-add` (28px). `square`: `--thumb` × `--thumb` (32px). |
+| `variant` | `"bar" \| "square"` | `"bar"` | `bar`: 100% × `--bar-h-add` (32px; 28 in Figma). `square`: `--thumb` × `--thumb` (32px). |
 | `disabled` | `boolean` | `false` | |
 
 ### Inputs → outputs
 
-- A `--color-bar` button holding the 18px `plus` icon, centred, in `--color-on-bar`. Hover dims
-  the plus to `--color-inactive`.
+- A `--color-bar` button holding the 18px `plus` icon, centred, in `--color-on-bar`, with a 1px
+  frame in the bar colour. Hover inverts it (paper fill, ink plus and frame, ink focus ring);
+  pressing makes it `--color-pressed` (Block F).
 - It is wrapped in `.on-bar`, so the editor's focus ring is drawn in paper.
 
 ### Callers / callees

@@ -287,8 +287,10 @@
     border-right: 0;
   }
 
+  /* Pressed: grabbing, and the frame thickens inside, as a pressed glyph's does. */
   .segment:active {
     cursor: grabbing;
+    box-shadow: inset 0 0 0 var(--focus-w) var(--color-ink);
   }
 
   /* An empty entry clears cells, so it reads as paper, not as a tile. */
@@ -325,7 +327,9 @@
   }
 
   .select {
+    box-sizing: border-box;
     width: var(--field-w);
+    min-height: var(--target-min);
     padding: 0;
     border: 0;
     border-bottom: var(--rule);

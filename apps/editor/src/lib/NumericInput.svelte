@@ -111,7 +111,8 @@
 <style>
   input {
     width: var(--field-w);
-    padding: 0 var(--space-2);
+    /* Room above the digits makes the field a 24px target (WCAG 2.2, 2.5.8) with the text still on the rule. */
+    padding: calc(var(--target-min) - 1em - var(--rule-w)) var(--space-2) 0;
     border: 0;
     border-bottom: var(--rule);
     border-radius: var(--radius);

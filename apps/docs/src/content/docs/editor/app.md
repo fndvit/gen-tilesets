@@ -53,7 +53,8 @@ Neither file exports anything. `App.svelte` takes no props. `main.ts` has a side
 Which component renders which, in source order. Conditional children are marked.
 
 - `main.ts` mounts `App` into `#app`
-  - `App.svelte` (`main`: the page grid)
+  - `App.svelte` (`main`: the page grid, two columns; one stacked column below `40rem` for
+    reflow, where only the page scrolls)
     - `aside` (sidebar, 1px ink frame, `--color-surface`)
       - `.scrollable`, holding a [`ScrollArea`](/editor/ui-scroll-area/) (overlay scroll handle)
         - [`GridSection`](/editor/grid-section/) "Grid & Size"
@@ -65,7 +66,7 @@ Which component renders which, in source order. Conditional children are marked.
             [`OperationBody`](/editor/operation-body/) under the open one (*if* a draft is open)
       - [`SidebarFooter`](/editor/sidebar-footer/) (`.fixed`)
         - [`ImportPanel`](/editor/import-panel/), [`Popup`](/editor/ui-popup/)s for reports
-    - `section.preview`
+    - `section.preview`, holding a [`ScrollArea`](/editor/ui-scroll-area/) and `.preview-body`
       - `.notices` (sticky, *if* either is showing): the confirmation (*if* `pending !== null`),
         "Orphaned by a resize" (*if* `orphaned.length > 0`)
       - [`PreviewFrame`](/editor/preview-frame/)

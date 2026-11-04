@@ -231,6 +231,7 @@
     --hint-bottom: calc(100% + var(--space-2));
 
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-6);
     padding: var(--space-6) calc(var(--space-3) + var(--space-2));
     background: var(--color-paper);
@@ -247,19 +248,24 @@
 
   .fields {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
   }
 
+  /* The field gives way before the row grows past a narrow sidebar (WCAG 1.4.10). */
   .seed {
     display: flex;
     align-items: flex-end;
     gap: var(--space-4);
+    min-width: 0;
   }
 
   /* The numeric field's underline, in the case-keeping body face: a seed is case-sensitive. */
   input {
     width: calc(var(--field-w) * 1.5);
-    padding: 0 var(--space-2);
+    min-width: 0;
+    /* Room above the digits makes the field a 24px target (WCAG 2.2, 2.5.8) with the text still on the rule. */
+    padding: calc(var(--target-min) - 1em - var(--rule-w)) var(--space-2) 0;
     border: 0;
     border-bottom: var(--rule);
     border-radius: var(--radius);
@@ -276,8 +282,10 @@
     margin-bottom: calc(var(--rule-w) - var(--focus-w));
   }
 
+  /* Wraps in a narrow sidebar rather than scrolling sideways (WCAG 1.4.10). */
   .actions {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--chip-gap);
   }

@@ -42,7 +42,9 @@ only one variant left it is greyed out, because a group cannot be empty.
 - Badge: a `--badge` circle (`--radius-round`) in `--color-bar` with the `close` icon, offset 4px
   out from the thumbnail's top-right. `opacity: 0` and `pointer-events: none` at rest, and shown
   on `.asset:hover` or `.asset:focus-within`. It stays focusable while hidden, so Tab reaches
-  it and its own focus shows it. Disabled: `--color-inactive`.
+  it and its own focus shows it. Disabled: `--color-inactive`. Its `::before` is a `--target-min`
+  (24px) hit area around the 16px circle (WCAG 2.5.8). Hover inverts it (paper with an ink ring
+  and cross); pressing makes it `--color-pressed`.
 - [`Slider`](/editor/ui-slider/): min 0, max 2, step 0.01, `value={asset.weight}`.
 - Share: `.t-label`, `--share-w` wide, right-aligned.
 

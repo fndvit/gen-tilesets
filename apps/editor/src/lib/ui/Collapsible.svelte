@@ -16,8 +16,14 @@
   not edited with it (a duplicate name's ` (t3)`), and `hint` explains the
   title on hover (`ui/Hint`).
 
-  `variant` picks the Figma size: `section` is the 25px sidebar section bar in
-  `.t-section`, `group` the 24px tile group bar in `.t-label`. The body is
+  `variant` picks the size: `section` is the sidebar section bar in
+  `.t-section`, `group` the tile group bar in `.t-label`. Both are 32px, taller
+  than Figma's 25 and 24, so the chevron and the trash are 24px targets
+  (WCAG 2.2, 2.5.8; Block F).
+
+  The whole bar acts, so hovering it inverts it (paper, ink content and frame)
+  and pressing darkens it, as every black bar that acts does. The body slides
+  open and closed over `--dur-fast`, and appears at once under reduced motion. The body is
   rendered bare; its padding and frame belong to the caller (Section, TileGroup),
   because the two Figma bodies differ.
 
@@ -27,9 +33,11 @@
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { slide } from "svelte/transition";
   import Hint from "./Hint.svelte";
   import Icon from "./Icon.svelte";
   import InlineEdit from "./InlineEdit.svelte";
+  import { motionDuration } from "./motion.js";
 
   interface Props {
     title: string;
@@ -66,12 +74,18 @@
   const bodyId = $props.id();
   const textClass = $derived(variant === "section" ? "t-section" : "t-label");
 
+  let root: HTMLElement | undefined = $state();
+
   function toggle(): void {
     open = !open;
   }
+
+  function fold(node: HTMLElement) {
+    return slide(node, { duration: root ? motionDuration(root) : 0 });
+  }
 </script>
 
-<div class="collapsible {variant}">
+<div class="collapsible {variant}" bind:this={root}>
   <!--
     The heading wraps the controls, not the other way round: the heading stays a
     heading for the outline, and the button carries the disclosure semantics.
@@ -130,7 +144,7 @@
   </svelte:element>
 
   {#if open}
-    <div id={bodyId}>
+    <div id={bodyId} transition:fold>
       {@render children()}
     </div>
   {/if}
@@ -142,15 +156,40 @@
     font: inherit;
   }
 
-  /* Border-box, so `min-height` is the Figma bar height with its padding inside. */
+  /*
+    Border-box, so `min-height` is the bar height with its padding and frame
+    inside. The frame is the bar's own colour at rest and ink on hover, so the
+    inverted bar keeps its edge on the aqua surface.
+  */
   .bar {
     box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: var(--space-4);
-    padding: var(--space-2);
+    padding: var(--space-1);
+    border: var(--rule-w) solid var(--color-bar);
     background: var(--color-bar);
     color: var(--color-on-bar);
+    transition:
+      background-color var(--dur-fast) var(--ease),
+      border-color var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
+  }
+
+  /*
+    Hover inverts by swapping the bar's two colours, so everything on it
+    (icons, thumbnails' frame, the focus ring via `.on-bar`) follows.
+  */
+  .bar:hover {
+    --color-bar: var(--color-paper);
+    --color-on-bar: var(--color-ink);
+    border-color: var(--color-ink);
+  }
+
+  .bar:active {
+    --color-bar: var(--color-pressed);
+    --color-on-bar: var(--color-on-pressed);
+    border-color: var(--color-pressed);
   }
 
   .section .bar {
@@ -159,7 +198,6 @@
 
   .group .bar {
     min-height: var(--bar-h-group);
-    border: var(--rule-w) solid var(--color-bar);
   }
 
   /* The right end, clear of `ScrollArea`'s overlay handle. */
@@ -196,7 +234,6 @@
     font: inherit;
     text-align: left;
     cursor: pointer;
-    transition: color var(--dur-fast) var(--ease);
   }
 
   .toggle {
@@ -209,9 +246,15 @@
     flex: none;
   }
 
-  .toggle:hover,
-  .chev-button:hover {
-    color: var(--color-inactive);
+  /* The chevron gets the 24px target box; the icon stays 12×6. */
+  .chev {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--target-min);
+    height: var(--target-min);
+    transition: transform var(--dur-fast) var(--ease);
   }
 
   .title {
@@ -236,11 +279,6 @@
     align-items: center;
     gap: var(--space-1);
     margin-left: auto;
-  }
-
-  .chev {
-    display: flex;
-    transition: transform var(--dur-fast) var(--ease);
   }
 
   .chev.open {

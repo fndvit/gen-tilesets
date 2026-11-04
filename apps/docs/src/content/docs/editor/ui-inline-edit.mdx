@@ -37,8 +37,9 @@ prints the current value.
 
 ### Inputs → outputs
 
-- At rest: a `<button>` showing `value`, named `{label}: {value}`. Hover dims it to
-  `--color-inactive`, like the rest of a bar.
+- At rest: a `<button>` showing `value`, named `{label}: {value}`, at least `--target-min` (24px)
+  tall. Hover underlines it ("click to type here"); a dimmed colour would vanish on the bar's
+  inverted hover (Block F).
 - Click: the draft is set to `value`, an `<input>` replaces the button, and it is focused with all
   text selected. It is sized to its content (`field-sizing: content`, with `size` as the fallback)
   and has a `--focus-w` underline in `currentColor`, which is also its focus cue (no ring).

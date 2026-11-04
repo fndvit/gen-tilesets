@@ -1,6 +1,8 @@
 <!--
   A step's options as a grid of `OperationGlyph` cells: the Figma *Operation
-  Glyphs Container*, `--glyph-cols` cells per row, 4px apart.
+  Glyphs Container*, cells at least `--glyph-w` wide, 4px apart. It fits as
+  many per row as the width allows (5 in a 400px sidebar, fewer when narrow),
+  so the grid reflows instead of overflowing (WCAG 1.4.10; Block F).
 
   It is a radio group. Tab enters once, on the chosen cell; arrows move the
   choice (Up/Down by a row) and commit it through `onChange`, as `Toggle` does.
@@ -33,11 +35,18 @@
 
   const selected = $derived(items.findIndex((item) => item.value === value));
 
-  // Read the column count from the token so Up/Down match what is drawn.
+  // Count the drawn columns so Up/Down move by a row as it is laid out.
   $effect(() => {
-    if (!grid) return;
-    const n = parseInt(getComputedStyle(grid).getPropertyValue("--glyph-cols"), 10);
-    if (n > 0) cols = n;
+    const el = grid;
+    if (!el) return;
+    const measure = () => {
+      const n = getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length;
+      if (n > 0) cols = n;
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
   });
 
   function onKeydown(event: KeyboardEvent, i: number): void {
@@ -69,7 +78,7 @@
 <style>
   .grid {
     display: grid;
-    grid-template-columns: repeat(var(--glyph-cols), minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(var(--glyph-w), 100%), 1fr));
     gap: var(--space-2);
     align-items: start;
   }

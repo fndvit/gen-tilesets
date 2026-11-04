@@ -37,11 +37,12 @@ Generic over `T extends string`.
 
 ### Inputs → outputs
 
-- `role="radiogroup"`, a CSS grid of `repeat(var(--glyph-cols), minmax(0, 1fr))` with
-  `--space-2` gaps.
+- `role="radiogroup"`, a CSS grid of `repeat(auto-fill, minmax(min(var(--glyph-w), 100%), 1fr))`
+  with `--space-2` gaps: as many cells per row as fit (5 in a wide sidebar, fewer when narrow), so
+  it reflows instead of overflowing (WCAG 1.4.10; Block F replaced the fixed `--glyph-cols`).
 - The tab stop is the chosen cell, or the first one if none is chosen.
-- Arrows, Home and End: `rovingIndex(key, i, n, cols)`, where `cols` is read from
-  `--glyph-cols`. The new item is committed and focused. A disabled target is skipped (the key
+- Arrows, Home and End: `rovingIndex(key, i, n, cols)`, where `cols` is the number of drawn
+  columns (`gridTemplateColumns`), re-measured by a `ResizeObserver`. The new item is committed and focused. A disabled target is skipped (the key
   does nothing).
 
 ### Callers / callees

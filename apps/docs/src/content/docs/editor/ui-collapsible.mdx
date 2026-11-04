@@ -62,8 +62,14 @@ body have different padding and frames in Figma.
   overlay handle.
 - With `onRename`, the `InlineEdit` and the `note` sit in a `Hint` wrapper, whose id goes to the
   `InlineEdit`'s `aria-describedby`. Without it, the note follows the title inside the button.
-- The body is `<div id>` (from `$props.id()`) and is rendered only while open.
-- The chevron rotates 180° when open, over `--dur-fast`.
+- The body is `<div id>` (from `$props.id()`) and is rendered only while open. It slides open and
+  closed (`svelte/transition` `slide`) over `--dur-fast`, read by
+  [`motionDuration`](/editor/ui-motion/), so it is instant under `prefers-reduced-motion`.
+- The chevron sits in a `--target-min` (24px) box and rotates 180° when open, over `--dur-fast`.
+- Both variants are 32px tall (`--bar-h-section`, `--bar-h-group`; Figma 25 and 24), with a
+  `--rule-w` frame in the bar's colour. Hovering the bar inverts it by swapping `--color-bar` and
+  `--color-on-bar` (so the icons and the focus ring follow) with an ink frame; pressing makes it
+  `--color-pressed` (Block F).
 
 ### Invariants
 

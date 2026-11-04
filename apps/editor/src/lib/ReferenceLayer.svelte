@@ -157,7 +157,7 @@
   }
 
   .grab:focus-visible {
-    outline: 2px solid #4299e1;
-    outline-offset: -2px;
+    outline: var(--focus-w) solid var(--color-selection);
+    outline-offset: calc(-1 * var(--focus-w));
   }
 </style>

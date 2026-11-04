@@ -5,8 +5,9 @@
 
 ## Current position
 
-**Stage 1, Block E (Operations) is done and approved (2026-11-04).** Next: Block F (sweep +
-review), planned below and to be approved by Pol before it starts.
+**Stage 1, Block F (sweep + review) is implemented and tested (2026-11-04), awaiting Pol's
+review.** When it is approved, Stage 1 is closed and Stage 2 starts with the backlog below, one
+design group at a time.
 
 ## Stage 1 blocks
 
@@ -19,7 +20,7 @@ Each block is implemented, then reviewed with Pol, then tested, before the next 
 | C. Layout + Grid & Size | Page grid, sidebar split into scrollable and fixed parts, header removed, `Section` rebuilt on Collapsible, Grid & Size section; sections extracted to `lib/sections/`; `Button`, `Popup` | Done, approved |
 | D. Tiles | TileLibrary rebuilt as TileGroup / TileAsset, weight slider, N files → 1 group, add variant via picker | Done, approved |
 | E. Operations | OperationHeader, step tabs open the draft, selection glyph grid, label-only grids, ParamFields restyle, token restyle of PaletteBar / NumericMapping; BlendControl replaced by a glyph grid | Done, approved |
-| F. Sweep + review | Hardcoded colours replaced by tokens, docs pages, visual review against Figma | |
+| F. Sweep + review | Accessibility sizing, hover / press feedback, animated folding, preview `ScrollArea`, colour sweep, leftovers, Figma review, docs | Done, awaiting review |
 
 ## Decisions
 
@@ -169,9 +170,59 @@ intuitive enough." Taken on now:
   button (named Expand/Collapse), and the empty bar after the title still toggles on click.
 Left for later: the operations stack design as a whole (Stage 2 backlog, item 7).
 
+Block F (2026-11-04; sizes decided by Claude under WCAG 2.2 AA, as Pol asked). The reasons are in
+`DESIGN_SYSTEM.md` → Accessibility.
+- **Sizes:** new tokens `--target-min` 24 and `--control-h` 28. Chips and Buttons 28px tall,
+  icon buttons a 24px box (icon at native size), bars 32 (Figma 25 / 24 / 28), operation header
+  56 (40), slider thumb 12×24 (10×20), delete badge 16 with a 24px `::before` hit area, underline
+  fields 24 (padding above the digits), the editable group title 24.
+- **Type:** section 20 (24), label 16 (20), body 14, xs 12 (10), console 12 (10).
+- **Sidebar** `clamp(400px, 30vw, 560px)`. The glyph grid fits as many cells as the width allows
+  (`auto-fill`, 4 at 400px, 5 from about 440px), and the arrow keys follow the drawn column count.
+  `--glyph-cols` is gone.
+- **Reflow:** below 40rem the page stacks (sidebar, then preview) and only then scrolls. Found and
+  fixed on the way: the aside's and the footer's grids used the implicit `auto` column, so the
+  footer's buttons pushed the page 41px wide at 320px. The footer's action row now wraps.
+- **Feedback rules** (one per kind, in the primitives): black bars that act invert on hover
+  (paper, ink content, ink frame) and go `--color-pressed` (#4d4d4d) when pressed. Chips and
+  Buttons invert on hover and go pressed. Icon buttons get a 1px frame in their own colour, so
+  re-seed stays magenta. Glyphs and palette segments: the frame thickens inside when pressed.
+  The editable title underlines on hover. Already-chosen chips, glyphs and the active tab do not
+  change and show `cursor: default`. Sliders `grab` / `grabbing`.
+- `.theme-inverted` sets `--color-inactive` to `--grey-700`: a disabled icon in the footer (Fresh
+  load) looked enabled in light grey.
+- **Folding** slides over `--dur-fast` (`ui/motion.ts` reads the token, 0 under reduced motion).
+- The **preview column** scrolls in `ScrollArea` (`.preview-body` holds the padding).
+- **Colour sweep:** the preview chrome (`PreviewFrame`, `ReferenceControls`, `PaintLayer`,
+  `ReferenceLayer`, `SelectionOverlay`) reads tokens only. New: `--color-muted`,
+  `--color-selection`, `--color-erase`, `--color-frame`, `--handle-w`. The old grey-blue buttons
+  became the chip look at 24px, the green "match" state the chosen (ink) look. Only the white
+  backdrop stays a named constant, because it is part of the picture.
+- **Leftovers:** `offersReseedOnLoad` and `setReseedOnLoad` removed with their tests (only tests
+  called them). `Section.svelte` stays: five sections use it and it owns the content padding.
+
+Block F visual review against Figma (`Page` 502:849, at 1728):
+- Accessibility overrides Figma (kept): bar heights, chip and button heights, field-row pitch,
+  operation header height, the type scale, sidebar width (518 vs 477).
+- Already decided earlier (kept): chevrons on the left, Breakpoints / Derived / Design width,
+  the footer, label-only Attribute / Source / Blend glyphs.
+- Stage 2 (unchanged): the whole preview (size readout, preset bar, corner handles, grid,
+  breakpoint buttons), the warnings.
+- Nothing left to fix in Stage 1.
+
 ## Known issues / notes
 
-- **Field rows are about 29px apart, not Figma's 22.** Figma's rows are 14px tall because its
+- **Block F testing** (headless Chrome): a target probe finds no enabled control under 24×24 in
+  the sidebar. The preview's 9px width handles are the exception, allowed by 2.5.8's spacing rule
+  (nothing else within 24px) and usable with arrow keys. A hover probe finds a change on every
+  enabled control except the already-chosen ones (on purpose) and sliders (their change is on a
+  pseudo-element the probe cannot read; checked by eye). No sideways scroll at 1728, 1024, 600 or
+  320. Folding animates, and is instant with reduced motion emulated. The Block E flows
+  (24 checks) pass. Typecheck, 655 + 314 tests, docs coverage (107 files) and the docs build pass.
+- A zero-weight palette segment is 4px wide, under the 24px target. It is selectable with the
+  keyboard and by its neighbours' Earlier / Later; revisit in Stage 2 item 7.
+
+- **Field rows are about 33px apart, not Figma's 22** (29 before Block F's 24px fields). Figma's rows are 14px tall because its
   fields are empty. A field showing a value needs room for its digits; the input uses
   `line-height: 1` (was `normal`, 33px pitch). Forcing a 14px input pushes the digits through the
   underline. Accepted by Pol in the Block C review.
@@ -243,7 +294,7 @@ design are not done here (Stage 2, items 1–2).
 8. **Docs and checks**: changed files' pages, `DESIGN_SYSTEM.md`, coverage, typecheck, tests,
    docs build, and a browser run of the earlier block checks plus the hover probe.
 
-## Tweaks for Block F (Pol, after the Block C review, 2026-11-04)
+## Tweaks for Block F (Pol, after the Block C review, 2026-11-04) — done in Block F
 
 - **Overall sizing.** Some text is too small and some too big. Controls are too small: the
   boolean chips (`Toggle`), the re-seed `IconButton`s, and similar. Revisit the type and size

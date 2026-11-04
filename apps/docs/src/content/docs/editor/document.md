@@ -56,7 +56,8 @@ touch no derivation.
 `setDefaultSeed(text)` trims and refuses an empty result. `rerollSeed()` writes a fresh
 `memorableSeed()` ([seed.ts](/editor/seed/)). `rerollOperation(id)` and `rerollAssets()` increment
 a salt with `nextSalt` ([reseed.ts](/editor/reseed/)), which wraps at 2³².
-`setReseedOnLoad(id, on)` and `setReseedAssetsOnLoad(on)` write the flags unconditionally.
+`setReseedAssetsOnLoad(on)` writes the asset flag unconditionally. The per-Operation flag has no
+transition of its own: it is committed with the rest of the Operation by `replaceOperation`.
 
 #### Tile library
 
@@ -89,7 +90,6 @@ returns no errors.
 | `rerollSeed()` | `→ Transition` | never |
 | `rerollOperation(id)` | `→ Transition` | never (an unknown id is a no-op map) |
 | `rerollAssets()` | `→ Transition` | never |
-| `setReseedOnLoad(id, on)` | `→ Transition` | never |
 | `setReseedAssetsOnLoad(on)` | `→ Transition` | never |
 | `TileReference` | `{ operationId, entry }` | n/a |
 | `tileReferences(file, tileId)` | `→ TileReference[]` | n/a |
@@ -178,9 +178,9 @@ index is an argument: the subject is named by id, but a destination has no id.
   elsewhere.
 - **The seed is trimmed** because the engine hashes the string, and `"sunset "` and `"sunset"`
   would be two different pictures.
-- **`setReseedOnLoad` writes whatever it is asked.** Hiding the control over a non-stochastic
-  Source is the view's job (today `OperationBody`'s `stochastic` check). Refusing here would be the silent clearing the
-  source forbids.
+- **The `reseedOnLoad` flag is written whatever the Source.** Hiding the control over a
+  non-stochastic Source is the view's job (`OperationBody`'s `stochastic` check). Refusing would
+  be the silent clearing the source forbids.
 
 ### Callers / callees
 
@@ -197,8 +197,8 @@ index is an argument: the subject is named by id, but a destination has no id.
 | `lib/sections/OperationsSection.svelte:92`, `:110`, `:112`, `:113` | `rerollOperation`, `removeOperation`, `moveOperation` |
 | `lib/operations/OperationBody.svelte:227` | `replaceOperation` or `addOperation` on commit |
 
-`setReseedOnLoad` has no UI caller since Block E. The flag is now a toggle on the draft, committed
-with the rest of the Operation by `replaceOperation`; only `reseed.test.ts` calls the transition.
+`setReseedOnLoad` was removed in Block F: since Block E the flag is a toggle on the draft,
+committed with the rest of the Operation by `replaceOperation`, and only a test called it.
 
 Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseReferenceWidth`,
 `parseYOffset`, `parseWeight`, `RULE_PARSERS` (`fields.ts`); `nextSalt` (`reseed.ts`);
@@ -232,8 +232,7 @@ Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseRefe
   while a rule resizes, and allowed once none does; `setCellSize` is refused when it would break
   a rule's bleed.
 - **`reseed.test.ts`.** `rerollOperation` moves one salt only, `rerollAssets` moves no Operation,
-  and neither touches the seed or layout. `setReseedOnLoad` writes the flag even over a
-  non-stochastic Source.
+  and neither touches the seed or layout.
 - **`history.test.ts`** uses the layout transitions to exercise undo.
 
 ### Gotchas & rejected alternatives
@@ -259,7 +258,7 @@ Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseRefe
   stale. (stale comment)
 - Several transitions build a new object even when nothing changes: `setRows` to the current
   value, `setDefaultSeed` with the same trimmed text, `setHorizontalAlignment` to the current
-  alignment, `rerollOperation`/`setReseedOnLoad` with an unknown id, and `renameTile` to the
+  alignment, `rerollOperation` with an unknown id, and `renameTile` to the
   same name. `session.apply` compares by reference, so each pushes an undo entry that undoes to
   an identical file. Two consequences show in the UI. `App.svelte:679` applies `setDefaultSeed`
   on every `oninput`, so typing a trailing space pushes a no-op entry. `App.svelte:480` lets the

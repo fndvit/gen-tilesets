@@ -42,16 +42,21 @@
     width: 100%;
   }
 
+  /* The frame is the bar's colour at rest and ink on hover, so the inverted bar keeps its edge. */
   .add {
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
-    border: 0;
+    border: var(--rule-w) solid var(--color-bar);
     background: var(--color-bar);
     color: var(--color-on-bar);
     cursor: pointer;
-    transition: color var(--dur-fast) var(--ease);
+    transition:
+      background-color var(--dur-fast) var(--ease),
+      border-color var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
   }
 
   .bar {
@@ -64,8 +69,22 @@
     height: var(--thumb);
   }
 
+  /* Hover inverts the bar; pressing darkens it. */
   .add:hover:not(:disabled) {
-    color: var(--color-inactive);
+    border-color: var(--color-ink);
+    background: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  .add:active:not(:disabled) {
+    border-color: var(--color-pressed);
+    background: var(--color-pressed);
+    color: var(--color-on-pressed);
+  }
+
+  /* On the paper bar the ring has to be ink, not the bar's paper. */
+  .add:hover:focus-visible {
+    outline-color: var(--color-ink);
   }
 
   .add:disabled {

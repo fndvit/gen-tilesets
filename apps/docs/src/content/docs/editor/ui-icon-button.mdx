@@ -12,8 +12,9 @@ import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
 ## Overview
 
 `IconButton` is the small button made of nothing but an icon: delete an operation, re-seed it,
-move it up or down. It has no background or frame of its own, so it looks like the icon sitting
-on whatever bar or surface holds it. Hovering dims it. The re-seed button is magenta, the one
+move it up or down. It has no fill of its own, so it looks like the icon sitting on
+whatever bar or surface holds it. The icon sits in a 24px box, the smallest pointer target WCAG 2.2
+allows. Hovering draws a thin frame around it in the icon's own colour. The re-seed button is magenta, the one
 colour the design reserves for anything random.
 
 ## Try it
@@ -43,8 +44,9 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 ### Inputs → outputs
 
 - `color: inherit`, so on a bar it is `--color-on-bar`.
-- Hover: `--color-inactive`, except for `seed`, which keeps its colour. Figma has no seed hover
-  yet.
+- At least `--target-min` × `--target-min` (24px, WCAG 2.5.8); the icon keeps its native size.
+- Hover: a `--rule-w` frame in `currentColor`, so a seed button keeps its magenta. Pressed: the
+  frame thickens to `--focus-w` (Block F).
 
 ### Callers / callees
 

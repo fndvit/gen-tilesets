@@ -67,8 +67,11 @@
     gap: var(--chip-gap);
   }
 
+  /* `--control-h` tall: above the 24px target floor (WCAG 2.2, 2.5.8). */
   .chip {
-    padding: var(--space-2);
+    box-sizing: border-box;
+    min-height: var(--control-h);
+    padding: 0 var(--space-4);
     border: var(--rule);
     background: var(--color-paper);
     color: var(--color-ink);
@@ -82,6 +85,16 @@
   .chip[aria-checked="true"] {
     background: var(--color-ink);
     color: var(--color-paper);
+  }
+
+  /* Choosing it again does nothing, and the pointer says so. */
+  .chip[aria-checked="true"] {
+    cursor: default;
+  }
+
+  .chip:active:not(:disabled):not([aria-checked="true"]) {
+    background: var(--color-pressed);
+    color: var(--color-on-pressed);
   }
 
   .chip:disabled {

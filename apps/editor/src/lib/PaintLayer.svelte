@@ -210,32 +210,31 @@
     the gesture decides on pointer-down and keeps that mode (`DECISIONS.md` D25).
   */
   .hover {
-    border: 1px dashed rgba(43, 108, 176, 0.8);
-    background: rgba(49, 130, 206, 0.1);
+    border: var(--rule-w) dashed color-mix(in srgb, var(--color-selection) 80%, transparent);
+    background: color-mix(in srgb, var(--color-selection) 10%, transparent);
   }
 
   .hover.erasing {
-    border-color: rgba(197, 48, 48, 0.75);
-    background: rgba(197, 48, 48, 0.08);
+    border-color: color-mix(in srgb, var(--color-erase) 75%, transparent);
+    background: color-mix(in srgb, var(--color-erase) 8%, transparent);
   }
 
   .readout {
     position: absolute;
     left: 0;
     top: 100%;
-    margin-top: 0.3rem;
-    font-size: 0.7rem;
-    color: #5a6b80;
+    margin-top: var(--space-2);
+    font-size: var(--text-xs-size);
+    color: var(--color-muted);
     white-space: nowrap;
   }
 
   .readout em {
     font-style: normal;
-    color: #a0aec0;
   }
 
   code {
-    font-family: ui-monospace, monospace;
-    color: #2b6cb0;
+    font-family: var(--font-mono);
+    color: var(--color-ink);
   }
 </style>

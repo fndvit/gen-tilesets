@@ -3,7 +3,8 @@
 
   Left to right: the index cell, a column with delete and re-seed, the console
   strip with the summary above the step tabs, and a column with the reorder
-  arrows. 40px tall. Opened = one tab is active (paper); the body below it is
+  arrows. 56px tall (40 in Figma), so each column holds two 24px targets
+  (WCAG 2.2, 2.5.8; Block F). Opened = one tab is active (paper); the body below it is
   the caller's.
 
   The index is the stack position, shown because later operations blend onto
@@ -117,7 +118,6 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: var(--space-5);
     padding: var(--space-2);
   }
 
@@ -128,7 +128,7 @@
     min-width: 0;
   }
 
-  /* The tab row takes what the strip leaves of the 40px. */
+  /* The tab row takes what the strip leaves of the header. */
   .middle :global(.tabs) {
     flex: 1;
   }

@@ -293,166 +293,170 @@
   </aside>
 
   <section class="preview" aria-label="Preview">
-    {#if pending !== null || orphaned.length > 0}
-      <!-- Pinned over the top of the preview until Stage 2's warnings design. -->
-      <div class="notices">
-        {#if pending !== null}
-          {@const p = pending}
-          <!--
-            **E12** — explicit confirmation, naming the Operations that will be
-            affected. It is a *held transition*: nothing has touched the file,
-            so cancelling costs nothing and confirming is one
-            `TilesetFile -> TilesetFile`. `nothing is migrated` is §9.4: undo is
-            the repair.
-          -->
-          <!-- A div, not a section: a section carries an implicit `region` role
-               and cannot take an interactive one. -->
-          <div class="notice" role="alertdialog" aria-labelledby="confirm-title">
-            <h2 class="t-label" id="confirm-title">{p.label}</h2>
-            <p class="t-body">
-              This changes the column count, and
-              {risked.length === 1 ? "this operation is" : "these operations are"} tied to specific
-              cells. Nothing is moved for you; undo puts it back.
-            </p>
-            <ul class="t-console">
-              {#each risked as op (op.id)}
-                <li>{op.id} · {op.selection.type}</li>
-              {/each}
-            </ul>
-            <div class="actions">
-              <Button label="Change it" onclick={confirmPending} />
-              <Button label="Cancel" onclick={() => (pending = null)} />
-            </div>
+    <ScrollArea>
+      <div class="preview-body">
+        {#if pending !== null || orphaned.length > 0}
+          <!-- Pinned over the top of the preview until Stage 2's warnings design. -->
+          <div class="notices">
+            {#if pending !== null}
+              {@const p = pending}
+              <!--
+                **E12** — explicit confirmation, naming the Operations that will be
+                affected. It is a *held transition*: nothing has touched the file,
+                so cancelling costs nothing and confirming is one
+                `TilesetFile -> TilesetFile`. `nothing is migrated` is §9.4: undo is
+                the repair.
+              -->
+              <!-- A div, not a section: a section carries an implicit `region` role
+                   and cannot take an interactive one. -->
+              <div class="notice" role="alertdialog" aria-labelledby="confirm-title">
+                <h2 class="t-label" id="confirm-title">{p.label}</h2>
+                <p class="t-body">
+                  This changes the column count, and
+                  {risked.length === 1 ? "this operation is" : "these operations are"} tied to specific
+                  cells. Nothing is moved for you; undo puts it back.
+                </p>
+                <ul class="t-console">
+                  {#each risked as op (op.id)}
+                    <li>{op.id} · {op.selection.type}</li>
+                  {/each}
+                </ul>
+                <div class="actions">
+                  <Button label="Change it" onclick={confirmPending} />
+                  <Button label="Cancel" onclick={() => (pending = null)} />
+                </div>
+              </div>
+            {/if}
+
+            {#if orphaned.length > 0}
+              <!--
+                §9.4's step 2, carried as a §12.2 advisory until the author touches
+                the Operation. **E16** — never blocks, never modifies the file,
+                never an error.
+
+                `04` §4.4's distinction survives in the *wording* and not in the
+                repair: a `rect` can plausibly be re-dragged, a hand-painted
+                `cellList` cannot.
+              -->
+              <div class="notice">
+                <h2 class="t-label">Orphaned by a resize</h2>
+                <ul class="t-console">
+                  {#each orphaned as orphan (orphan.operationId)}
+                    <li>
+                      {orphan.operationId} · {orphan.selectionType}:
+                      {#if orphan.authored !== undefined}
+                        {orphan.authored - orphan.reachable} of {orphan.authored}
+                        painted {orphan.authored - orphan.reachable === 1 ? "cell is" : "cells are"}
+                        outside the grid and cannot be reached or unpainted.
+                      {:else if orphan.empty}
+                        lies wholly outside the grid and selects nothing. Re-drag it, or undo.
+                      {:else}
+                        reaches fewer cells than it did.
+                      {/if}
+                    </li>
+                  {/each}
+                </ul>
+              </div>
+            {/if}
           </div>
         {/if}
 
-        {#if orphaned.length > 0}
-          <!--
-            §9.4's step 2, carried as a §12.2 advisory until the author touches
-            the Operation. **E16** — never blocks, never modifies the file,
-            never an error.
-
-            `04` §4.4's distinction survives in the *wording* and not in the
-            repair: a `rect` can plausibly be re-dragged, a hand-painted
-            `cellList` cannot.
-          -->
-          <div class="notice">
-            <h2 class="t-label">Orphaned by a resize</h2>
-            <ul class="t-console">
-              {#each orphaned as orphan (orphan.operationId)}
-                <li>
-                  {orphan.operationId} · {orphan.selectionType}:
-                  {#if orphan.authored !== undefined}
-                    {orphan.authored - orphan.reachable} of {orphan.authored}
-                    painted {orphan.authored - orphan.reachable === 1 ? "cell is" : "cells are"}
-                    outside the grid and cannot be reached or unpainted.
-                  {:else if orphan.empty}
-                    lies wholly outside the grid and selects nothing. Re-drag it, or undo.
-                  {:else}
-                    reaches fewer cells than it did.
-                  {/if}
-                </li>
-              {/each}
-            </ul>
-          </div>
-        {/if}
-      </div>
-    {/if}
-
-    <!--
-      The host owns the render box's width through ordinary CSS. There is no
-      width prop: `07` §5.3 makes every quantity a fixed fraction of Wpx, so
-      the component expresses placement in relative units and Wpx is whatever
-      width the CSS gives it (`08` §4).
-
-      `PreviewFrame` is that CSS and nothing more — **E11**: it sets `Wpx` and
-      writes no field.
-    -->
-    <PreviewFrame
-      ratio={(Wpx) => {
-        const f = shapedAt(Wpx);
-        return naturalRatio(f.layout, f.config.rows);
-      }}
-      {rules}
-      painting={painting !== null}
-    >
-      {#snippet children(Wpx: number)}
-        {@const here = shapedAt(Wpx)}
         <!--
-          **S2** — one component, drawing the complete stack. The brush layer
-          is drawn *over* this output and never in place of it, and the picture
-          underneath is the same one a production page gets.
+          The host owns the render box's width through ordinary CSS. There is no
+          width prop: `07` §5.3 makes every quantity a fixed fraction of Wpx, so
+          the component expresses placement in relative units and Wpx is whatever
+          width the CSS gives it (`08` §4).
+
+          `PreviewFrame` is that CSS and nothing more — **E11**: it sets `Wpx` and
+          writes no field.
         -->
-        <Tileset
-          {file}
-          options={{ loadSalt, provider: editorProvider, onAssetError }}
-          bind:box={renderBox}
-        />
+        <PreviewFrame
+          ratio={(Wpx) => {
+            const f = shapedAt(Wpx);
+            return naturalRatio(f.layout, f.config.rows);
+          }}
+          {rules}
+          painting={painting !== null}
+        >
+          {#snippet children(Wpx: number)}
+            {@const here = shapedAt(Wpx)}
+            <!--
+              **S2** — one component, drawing the complete stack. The brush layer
+              is drawn *over* this output and never in place of it, and the picture
+              underneath is the same one a production page gets.
+            -->
+            <Tileset
+              {file}
+              options={{ loadSalt, provider: editorProvider, onAssetError }}
+              bind:box={renderBox}
+            />
 
-        {#if shadow !== null}
-          {@const s = shadow}
-          <!--
-            **E7** — the one overlay, over the Operation being edited. **E8** —
-            its cell set comes from the package (`09` §6.2) and the editor
-            implements no Selection's test.
-          -->
-          <SelectionOverlay
-            g={{ layout: here.layout, rows: here.config.rows, columns: here.config.columns, Wpx }}
-            config={{ ...s.config, rows: here.config.rows, columns: here.config.columns }}
-            operationId={s.operationId}
-            seed={config.defaultSeed}
-            {loadSalt}
-          />
+            {#if shadow !== null}
+              {@const s = shadow}
+              <!--
+                **E7** — the one overlay, over the Operation being edited. **E8** —
+                its cell set comes from the package (`09` §6.2) and the editor
+                implements no Selection's test.
+              -->
+              <SelectionOverlay
+                g={{ layout: here.layout, rows: here.config.rows, columns: here.config.columns, Wpx }}
+                config={{ ...s.config, rows: here.config.rows, columns: here.config.columns }}
+                operationId={s.operationId}
+                seed={config.defaultSeed}
+                {loadSalt}
+              />
+            {/if}
+
+            {#if painting !== null && renderBox !== null}
+              {@const brush = painting}
+              <!--
+                §7.3 — the `cellList` brush, and the only control `09` cannot
+                generate from a `ParamSchema` (**E9**'s one exception, named by
+                `05` §5.1 rather than arrived at).
+              -->
+              <PaintLayer
+                g={{ layout: here.layout, rows: here.config.rows, columns: here.config.columns, Wpx }}
+                box={renderBox}
+                cells={brush.cells}
+                param={brush.name}
+                onChange={(cells) => paintCells(brush.name, cells)}
+              />
+            {/if}
+          {/snippet}
+        </PreviewFrame>
+        <p class="note">
+          A new document is legal and draws nothing — every cell is
+          <code>tileId: null</code> (<code>02</code>&nbsp;§8.1, <strong>G4</strong>). The box
+          still reserves the right space, because its aspect ratio is a constant of
+          <code>Layout</code> and <code>rows</code> with <code>Wpx</code> cancelled out
+          (<code>07</code>&nbsp;§5.3, <strong>S8</strong>).
+        </p>
+        <p class="note">
+          Dragging either edge changes <code>Wpx</code>, hence <code>s</code>, and nothing
+          else — <code>07</code>&nbsp;§9.1's second row. <code>columns</code> does not move,
+          no confirmation appears, and <strong>R12</strong> forbids regeneration, so every
+          cell keeps its <code>TileState</code> and moves to a new rect. The design width
+          beside it is the destructive one.
+        </p>
+
+        {#if failures.length > 0}
+          <ul class="failures">
+            {#each failures as failure (failure)}
+              <li>{failure}</li>
+            {/each}
+          </ul>
         {/if}
 
-        {#if painting !== null && renderBox !== null}
-          {@const brush = painting}
+        <details class="debug">
+          <summary>The file</summary>
           <!--
-            §7.3 — the `cellList` brush, and the only control `09` cannot
-            generate from a `ParamSchema` (**E9**'s one exception, named by
-            `05` §5.1 rather than arrived at).
+            **E3** — the editor's state *is* this. There is no second document model,
+            so what is shown here is what previews above and what Step 11 will export.
           -->
-          <PaintLayer
-            g={{ layout: here.layout, rows: here.config.rows, columns: here.config.columns, Wpx }}
-            box={renderBox}
-            cells={brush.cells}
-            param={brush.name}
-            onChange={(cells) => paintCells(brush.name, cells)}
-          />
-        {/if}
-      {/snippet}
-    </PreviewFrame>
-    <p class="note">
-      A new document is legal and draws nothing — every cell is
-      <code>tileId: null</code> (<code>02</code>&nbsp;§8.1, <strong>G4</strong>). The box
-      still reserves the right space, because its aspect ratio is a constant of
-      <code>Layout</code> and <code>rows</code> with <code>Wpx</code> cancelled out
-      (<code>07</code>&nbsp;§5.3, <strong>S8</strong>).
-    </p>
-    <p class="note">
-      Dragging either edge changes <code>Wpx</code>, hence <code>s</code>, and nothing
-      else — <code>07</code>&nbsp;§9.1's second row. <code>columns</code> does not move,
-      no confirmation appears, and <strong>R12</strong> forbids regeneration, so every
-      cell keeps its <code>TileState</code> and moves to a new rect. The design width
-      beside it is the destructive one.
-    </p>
-
-    {#if failures.length > 0}
-      <ul class="failures">
-        {#each failures as failure (failure)}
-          <li>{failure}</li>
-        {/each}
-      </ul>
-    {/if}
-
-    <details class="debug">
-      <summary>The file</summary>
-      <!--
-        **E3** — the editor's state *is* this. There is no second document model,
-        so what is shown here is what previews above and what Step 11 will export.
-      -->
-      <pre>{JSON.stringify(file, null, 2)}</pre>
-    </details>
+          <pre>{JSON.stringify(file, null, 2)}</pre>
+        </details>
+      </div>
+    </ScrollArea>
   </section>
 </main>
 
@@ -480,10 +484,29 @@
     min-height: 0;
   }
 
+  /*
+    Reflow (WCAG 1.4.10). Below 40rem, which is a 1280px window at 200% zoom
+    or a 320px-wide one, two columns no longer fit. The columns then stack: the
+    sidebar fills the screen and scrolls on its own as before, the preview
+    follows it, and only here does the page scroll.
+  */
+  @media (max-width: 40rem) {
+    main {
+      grid-template-columns: minmax(0, 1fr);
+      height: auto;
+    }
+
+    aside,
+    .preview {
+      height: 100dvh;
+    }
+  }
+
   /* The Figma *Sidebar*: a 1px ink frame, the scrolling sections over the fixed footer. */
   aside {
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     border: var(--rule);
     background: var(--color-surface);
   }
@@ -497,10 +520,10 @@
     The preview column scrolls on its own, with the frame at the top of it. The
     notes, the failure list and the file dump sit below and scroll under it, so
     reading any of them is the only thing that can move the picture, and the
-    sidebar never can. Its own UI is Stage 2's.
+    sidebar never can. It scrolls in a `ScrollArea` like the sidebar, so a
+    scrollbar never takes width from the frame. Its own UI is Stage 2's.
   */
-  .preview {
-    overflow-y: auto;
+  .preview-body {
     padding: var(--space-6);
   }
 

@@ -383,28 +383,6 @@ export function rerollAssets(): Transition {
   });
 }
 
-/**
- * The per-Operation `reseedOnLoad` flag — §8.4.
- *
- * The transition is total and sets whatever it is asked to. **Whether the
- * control is offered** is `offersReseedOnLoad`'s question and belongs to the
- * view: §8.4 hides it where the Source is not stochastic, and explicitly
- * requires an imported file carrying the flag anyway to be "left alone and
- * reported as an advisory — not silently cleared". A transition that refused the
- * write would be that silent clearing wearing a different hat.
- */
-export function setReseedOnLoad(operationId: string, on: boolean): Transition {
-  return (file) => ({
-    ...file,
-    config: {
-      ...file.config,
-      operations: file.config.operations.map((op) =>
-        op.id === operationId ? { ...op, reseedOnLoad: on } : op,
-      ),
-    },
-  });
-}
-
 /** `reseedOnLoad`'s config-level counterpart, for assets — §8.4, `04` §8. */
 export function setReseedAssetsOnLoad(on: boolean): Transition {
   return (file) => ({ ...file, config: { ...file.config, reseedAssetsOnLoad: on } });

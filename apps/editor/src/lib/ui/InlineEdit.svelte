@@ -96,16 +96,20 @@
     text-align: left;
   }
 
+  /* A 24px target (WCAG 2.2, 2.5.8): the bar's height, not the trimmed text's. */
   .text {
+    min-height: var(--target-min);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: text;
-    transition: color var(--dur-fast) var(--ease);
   }
 
+  /* An underline says "click to type here"; it reads on a bar at rest and inverted. */
   .text:hover {
-    color: var(--color-inactive);
+    text-decoration: underline;
+    text-decoration-thickness: var(--rule-w);
+    text-underline-offset: var(--space-1);
   }
 
   /*

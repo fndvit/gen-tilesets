@@ -44,7 +44,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
   padding whose child is `--glyph-slot` (43px) square.
 - With neither, the cell is label-only and centred in `--glyph-h`.
 - Selected and hover: `--color-inactive` fill and an ink frame (Figma node 2034:658). The frame
-  is always present (transparent when idle), so the layout never shifts.
+  is always present (transparent when idle), so the layout never shifts. Pressing thickens the
+  frame to `--focus-w`, drawn inside. The selected cell has `cursor: default`.
 
 ### Invariants
 

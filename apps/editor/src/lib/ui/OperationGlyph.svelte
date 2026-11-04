@@ -119,6 +119,15 @@
     background: var(--color-inactive);
   }
 
+  /* Pressed: the frame thickens. A stroke drawn inside, so nothing moves. */
+  .glyph[aria-checked="true"] {
+    cursor: default;
+  }
+
+  .glyph:active:not(:disabled):not([aria-checked="true"]) {
+    box-shadow: inset 0 0 0 var(--focus-w) var(--color-rule);
+  }
+
   .glyph:disabled {
     color: var(--color-inactive);
     cursor: default;

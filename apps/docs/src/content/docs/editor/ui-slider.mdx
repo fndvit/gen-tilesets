@@ -43,7 +43,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
   `sliderStep(step, true)` (×10), clamped to `min`–`max` and rounded to the step's decimals. It
   then calls `onInput` and `onCommit`.
 - Track: `--rule-w` of `--color-ink`. Thumb: `--slider-thumb-w` × `--slider-thumb-h`, square,
-  ink, centred on the track. WebKit and Firefox pseudo-elements are both styled.
+  ink, centred on the track: 12×24 (Figma 10×20), so the thumb is a 24px target. WebKit and
+  Firefox pseudo-elements are both styled. `cursor: grab`, `grabbing` while pressed.
 
 ### Invariants
 

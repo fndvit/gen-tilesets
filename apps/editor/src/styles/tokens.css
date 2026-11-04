@@ -15,8 +15,12 @@
   --grey-200: #e2e2e2; /* Figma variable "Inactive" */
   --grey-100: #f2f2f2; /* preview grid rule */
   --grey-500: #808080; /* scroll handle: reads on black bars and on paper */
+  --grey-600: #595959; /* secondary text: 7:1 on paper */
+  --grey-700: #4d4d4d; /* pressed: paper text on it is 8.5:1 */
   --aqua-50: #e4f6f5; /* sidebar surface */
   --magenta: #ff00c3; /* seed / non-deterministic */
+  --blue-500: #3182ce; /* preview overlays: selected and painted cells */
+  --red-600: #c53030; /* preview overlays: a stroke that erases */
 
   /* ── Type ──────────────────────────────────────────────────────────── */
   /* The design is set in Neue Haas Grotesk Display Pro; Helvetica stands in
@@ -29,11 +33,11 @@
   --weight-medium: 500;
 
   /* Figma text styles: size / weight / case / tracking. */
-  --text-section-size: 24px; /* "Section Header" */
-  --text-label-size: 20px; /* "UI small UC" */
+  --text-section-size: 20px; /* "Section Header" is 24 in Figma (Block F) */
+  --text-label-size: 16px; /* "UI small UC" is 20 in Figma (Block F) */
   --text-body-size: 14px; /* "UI regular" */
-  --text-xs-size: 10px; /* "UI XS Bold" */
-  --text-console-size: 10px; /* "Console" */
+  --text-xs-size: 12px; /* "UI XS Bold" is 10 in Figma (Block F, 1.4.4) */
+  --text-console-size: 12px; /* "Console" is 10 in Figma (Block F, 1.4.4) */
   --text-console-tracking: 0.02em; /* Figma: 2% */
   --leading-hint: 1.3; /* multi-line hint bubbles; every other style is one trimmed line */
 
@@ -46,31 +50,34 @@
   --space-6: 12px;
 
   /* ── Size ──────────────────────────────────────────────────────────── */
-  --sidebar-w: clamp(360px, 28vw, 520px); /* 477 at a 1728 viewport */
-  --bar-h-section: 25px;
-  --bar-h-group: 24px;
-  --bar-h-add: 28px;
-  --op-header-h: 40px;
+  --sidebar-w: clamp(400px, 30vw, 560px); /* 518 at a 1728 viewport */
+  /* Pointer targets (WCAG 2.2, 2.5.8): nothing that acts is smaller than this. */
+  --target-min: 24px;
+  --control-h: 28px; /* chips and buttons */
+  --bar-h-section: 32px; /* 25 in Figma: room for a 24px target and 4px padding */
+  --bar-h-group: 32px; /* 24 in Figma */
+  --bar-h-add: 32px; /* 28 in Figma */
+  --op-header-h: 56px; /* 40 in Figma: two 24px targets stacked, 4px padding */
   --thumb: 32px;
   --thumb-sm: 14px;
   --icon: 12px;
   --icon-add: 18px;
   --field-w: 106px;
   --field-label-w-compact: 128px; /* the label column in an operation body */
-  --slider-thumb-w: 10px;
+  --slider-thumb-w: 12px; /* 10 in Figma */
   --scrollbar-w: 6px; /* ScrollArea's overlay handle */
   --scrollbar-inset: 2px;
-  --slider-thumb-h: 20px;
-  --glyph-w: 75px;
+  --slider-thumb-h: 24px; /* 20 in Figma: the 2.5.8 target height */
+  --glyph-w: 75px; /* narrowest glyph cell; a grid fits as many as the width allows */
   --glyph-h: 60px;
   --glyph-cell: 10px;
   --glyph-gap: 1px;
   --glyph-slot: 43px; /* artwork square inside a glyph cell */
-  --glyph-cols: 5; /* cells per row in a glyph grid */
   --chip-gap: 9px; /* between choice chips; off the 2px scale in Figma */
   --console-pad-y: 3px; /* console strip; off the 2px scale in Figma */
   --hint-w: 260px; /* widest a field hint bubble grows */
-  --badge: 14px; /* a tile asset's delete badge; not in Figma (Block D) */
+  --badge: 16px;
+  --handle-w: 9px; /* the preview frame's width handles; `PreviewFrame`'s HANDLE matches */ /* a tile asset's delete badge; not in Figma (Block D) */
   --asset-gap: 10px; /* between tile asset rows: Figma's 32px rows at a 42px pitch */
   --share-w: 46px; /* a tile asset's % label */
   /* ── Border ────────────────────────────────────────────────────────── */
@@ -114,6 +121,12 @@
   --color-rule: var(--black);
   --color-grid: var(--grey-100);
   --color-scrollbar: var(--grey-500);
+  --color-pressed: var(--grey-700); /* a bar, chip or button while pressed */
+  --color-on-pressed: var(--white); /* its text, in both themes (8.5:1) */
+  --color-muted: var(--grey-600); /* secondary text in the preview chrome, never for controls */
+  --color-selection: var(--blue-500); /* cells an operation selects or a stroke adds */
+  --color-erase: var(--red-600); /* cells a stroke removes */
+  --color-frame: var(--grey-500); /* the preview frame's dashed edge and its handles (3.9:1) */
   --color-seed: var(--magenta);
   /* Placeholders until the Stage 2 warnings group decides them. */
   --color-danger: var(--black);
@@ -127,5 +140,7 @@
   --color-rule: var(--white);
   --color-bar: var(--white);
   --color-on-bar: var(--black);
+  /* Light grey on black reads as enabled; disabled has to dim towards the ground. */
+  --color-inactive: var(--grey-700);
   --rule: var(--rule-w) solid var(--color-rule);
 }

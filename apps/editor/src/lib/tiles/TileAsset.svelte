@@ -128,7 +128,30 @@
     cursor: pointer;
     opacity: 0;
     pointer-events: none;
-    transition: opacity var(--dur-fast) var(--ease);
+    transition:
+      opacity var(--dur-fast) var(--ease),
+      background-color var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
+  }
+
+  /* The pointer target is `--target-min` square around the smaller circle (WCAG 2.2, 2.5.8). */
+  .badge::before {
+    content: "";
+    position: absolute;
+    inset: calc((var(--badge) - var(--target-min)) / 2);
+  }
+
+  /* Hover inverts the circle; a ring drawn inside keeps its edge on the thumbnail. */
+  .badge:hover:not(:disabled) {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    box-shadow: inset 0 0 0 var(--rule-w) var(--color-ink);
+  }
+
+  .badge:active:not(:disabled) {
+    background: var(--color-pressed);
+    color: var(--color-on-pressed);
+    box-shadow: none;
   }
 
   /* The ring around a circle: the outline follows the radius. */

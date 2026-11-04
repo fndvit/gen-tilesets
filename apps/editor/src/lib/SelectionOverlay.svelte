@@ -170,17 +170,17 @@
   .cell {
     position: absolute;
     box-sizing: border-box;
-    background: rgba(49, 130, 206, 0.18);
-    border: 1px solid rgba(49, 130, 206, 0.45);
+    background: color-mix(in srgb, var(--color-selection) 18%, transparent);
+    border: var(--rule-w) solid color-mix(in srgb, var(--color-selection) 45%, transparent);
   }
 
   .readout {
     position: absolute;
     right: 0;
     top: 100%;
-    margin-top: 0.3rem;
-    font-size: 0.7rem;
-    color: #5a6b80;
+    margin-top: var(--space-2);
+    font-size: var(--text-xs-size);
+    color: var(--color-muted);
     white-space: nowrap;
   }
 </style>

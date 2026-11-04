@@ -1,8 +1,11 @@
 <!--
   A bare button holding one icon: delete, re-seed, move up / down.
 
-  It has no box of its own, so it takes the colour of whatever it sits on (white
-  on a bar, ink on paper). `label` is required because the icon is the only
+  It has no fill of its own, so it takes the colour of whatever it sits on (white
+  on a bar, ink on paper). The icon keeps its Figma size inside a
+  `--target-min` box, the WCAG 2.2 target floor (2.5.8).
+  Hover draws a 1px frame in the icon's own colour, so a seed button keeps its
+  magenta while it still answers the pointer. `label` is required because the icon is the only
   thing a sighted user sees; a screen reader needs the words.
 
   `tone="seed"` paints it in `--color-seed`. The design system gives that colour
@@ -37,27 +40,34 @@
 
 <style>
   .icon-button {
+    box-sizing: border-box;
     display: inline-flex;
+    flex: none;
     align-items: center;
     justify-content: center;
+    min-width: var(--target-min);
+    min-height: var(--target-min);
     padding: 0;
-    border: 0;
+    border: var(--rule-w) solid transparent;
     background: none;
     color: inherit;
     cursor: pointer;
-    transition: color var(--dur-fast) var(--ease);
+    transition:
+      border-color var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
   }
 
   .seed {
     color: var(--color-seed);
   }
 
-  /*
-    Hover on a bar dims to inactive. A seed button keeps its colour on hover,
-    because the colour is a meaning, not a state. Figma has no seed hover yet.
-  */
-  .icon-button:not(.seed):hover:not(:disabled) {
-    color: var(--color-inactive);
+  /* The colour is kept: on a seed button it is a meaning, not a state. */
+  .icon-button:hover:not(:disabled) {
+    border-color: currentColor;
+  }
+
+  .icon-button:active:not(:disabled) {
+    border-width: var(--focus-w);
   }
 
   .icon-button:disabled {

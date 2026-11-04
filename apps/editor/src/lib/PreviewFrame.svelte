@@ -119,7 +119,7 @@
   const HANDLE = 9;
 
   /** The default backdrop, and the value the reset returns to. See `background`. */
-  const WHITE = "#ffffff";
+  const WHITE = "#ffffff"; // part of the picture, not chrome, so not a token
 
   /** How much room the editor's own column has. Not a limit on `Wpx` — see `zoom`. */
   let available = $state(0);
@@ -490,33 +490,49 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 0.6rem;
-    font-size: 0.8rem;
-    color: #4a5568;
+    gap: var(--space-6);
+    margin-bottom: var(--space-5);
+    font-size: var(--text-body-size);
+    color: var(--color-ink);
   }
 
   .readout em {
     font-style: normal;
-    font-size: 0.72rem;
-    color: #a0aec0;
-    margin-left: 0.4rem;
+    font-size: var(--text-xs-size);
+    color: var(--color-muted);
+    margin-left: var(--space-3);
   }
 
   .presets {
     display: flex;
-    gap: 0.25rem;
+    gap: var(--space-2);
   }
 
+  /* The chip look (`ui/Toggle`), at the 24px target floor. Stage 2 redesigns this bar. */
   .presets button {
-    background: #f7fafc;
-    border: 1px solid #cbd5e0;
-    color: #4a5568;
-    border-radius: 4px;
-    padding: 0.2rem 0.45rem;
+    box-sizing: border-box;
+    min-height: var(--target-min);
+    background: var(--color-paper);
+    border: var(--rule);
+    color: var(--color-ink);
+    border-radius: var(--radius);
+    padding: 0 var(--space-3);
     font: inherit;
-    font-size: 0.72rem;
+    font-size: var(--text-xs-size);
     cursor: pointer;
+    transition:
+      background-color var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
+  }
+
+  .presets button:hover {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  .presets button:active {
+    background: var(--color-pressed);
+    color: var(--color-on-pressed);
   }
 
   .breakpoints button {
@@ -524,42 +540,47 @@
   }
 
   .presets button.on {
-    background: #cbd5e0;
-    color: #1a202c;
+    background: var(--color-ink);
+    color: var(--color-paper);
   }
 
   .divider {
-    width: 1px;
+    width: var(--rule-w);
     align-self: stretch;
-    background: #e2e8f0;
-    margin: 0 0.15rem;
+    background: var(--color-rule);
+    margin: 0 var(--space-1);
   }
 
   /* Sized to sit level with the preset buttons beside it. */
   .bg {
-    width: 1.7rem;
-    height: 1.45rem;
+    box-sizing: border-box;
+    width: var(--target-min);
+    height: var(--target-min);
     padding: 0;
-    border: 1px solid #cbd5e0;
-    border-radius: 4px;
+    border: var(--rule);
+    border-radius: var(--radius);
     background: none;
     cursor: pointer;
+  }
+
+  .bg:hover {
+    border-width: var(--focus-w);
   }
 
   /* Without these the swatch floats inside a wide inset border in Chrome and
      Safari, and the control stops reading as the colour it holds. */
   .bg::-webkit-color-swatch-wrapper {
-    padding: 1px;
+    padding: var(--rule-w);
   }
 
   .bg::-webkit-color-swatch {
     border: 0;
-    border-radius: 2px;
+    border-radius: var(--radius);
   }
 
   .bg::-moz-color-swatch {
     border: 0;
-    border-radius: 2px;
+    border-radius: var(--radius);
   }
 
   .reset-bg {
@@ -613,7 +634,7 @@
       is the author's to change for the session. The editor still chooses no
       backdrop; it only stops pretending white is the absence of one.
     */
-    outline: 1px dashed #cbd5e0;
+    outline: var(--rule-w) dashed var(--color-frame);
     /* Scaled about the top centre, so the frame stays centred and the top edge
        stays put as the zoom changes. */
     transform-origin: top center;
@@ -642,26 +663,26 @@
       the wide presets it becomes hard to hit — which is how the handles appeared
       to vanish before the zoom existed at all.
     */
-    width: calc(9px / var(--zoom, 1));
+    width: calc(var(--handle-w) / var(--zoom, 1));
     padding: 0;
     border: 0;
     border-radius: 0;
     cursor: ew-resize;
-    background: #cbd5e0;
+    background: var(--color-frame);
     touch-action: none;
   }
 
   .handle:hover,
   .handle:focus-visible {
-    background: #a0aec0;
+    background: var(--color-ink);
     outline: none;
   }
 
   .handle.left {
-    left: calc(-9px / var(--zoom, 1));
+    left: calc(-1 * var(--handle-w) / var(--zoom, 1));
   }
 
   .handle.right {
-    right: calc(-9px / var(--zoom, 1));
+    right: calc(-1 * var(--handle-w) / var(--zoom, 1));
   }
 </style>

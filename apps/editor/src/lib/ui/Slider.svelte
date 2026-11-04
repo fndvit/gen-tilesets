@@ -91,7 +91,11 @@
     height: var(--slider-thumb-h);
     margin: 0;
     background: transparent;
-    cursor: pointer;
+    cursor: grab;
+  }
+
+  .slider:active:not(:disabled) {
+    cursor: grabbing;
   }
 
   .slider:disabled {

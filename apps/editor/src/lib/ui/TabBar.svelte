@@ -84,16 +84,33 @@
     overflow: hidden;
     white-space: nowrap;
     cursor: pointer;
-    transition: color var(--dur-fast) var(--ease);
+    transition:
+      background-color var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
   }
 
+  /* Hover inverts a tab, as on every black bar that acts; pressing darkens it. */
   .tab:hover:not(.active) {
-    color: var(--color-inactive);
+    background: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  .tab:active:not(.active) {
+    background: var(--color-pressed);
+    color: var(--color-on-pressed);
+  }
+
+  .tab:hover:focus-visible {
+    outline-color: var(--color-ink);
   }
 
   .open .tab {
     border-right: var(--rule);
     border-bottom: var(--rule);
+  }
+
+  .tab.active {
+    cursor: default;
   }
 
   .open .tab.active {

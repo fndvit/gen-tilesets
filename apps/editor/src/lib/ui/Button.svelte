@@ -22,8 +22,11 @@
 <button type="button" class="button t-xs" class:wide {disabled} {onclick}>{label}</button>
 
 <style>
+  /* `--control-h` tall: above the 24px target floor (WCAG 2.2, 2.5.8). */
   .button {
-    padding: var(--space-2);
+    box-sizing: border-box;
+    min-height: var(--control-h);
+    padding: 0 var(--space-4);
     border: var(--rule);
     background: var(--color-paper);
     color: var(--color-ink);
@@ -41,6 +44,11 @@
   .button:hover:not(:disabled) {
     background: var(--color-ink);
     color: var(--color-paper);
+  }
+
+  .button:active:not(:disabled) {
+    background: var(--color-pressed);
+    color: var(--color-on-pressed);
   }
 
   .button:disabled {

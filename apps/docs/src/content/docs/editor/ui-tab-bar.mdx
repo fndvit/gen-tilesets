@@ -40,6 +40,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 - Left, Right, Home and End move focus only (`rovingIndex`). Up and Down are left to the page.
 - Closed: black tabs, `.t-xs` in `--color-on-bar`. Open: every tab gets a right and bottom
   `--rule`, and the active one is paper with ink text and no bottom rule.
+- Hover inverts a tab that is not active (paper, ink text); pressing makes it `--color-pressed`.
+  The active tab has `cursor: default`.
 
 ### Invariants
 

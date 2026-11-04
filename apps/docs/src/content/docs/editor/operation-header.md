@@ -1,6 +1,6 @@
 ---
 title: operations/OperationHeader.svelte
-description: One operation's 40px bar. Its number, trash and re-seed, a scrolling summary over the four step tabs, and up/down arrows.
+description: One operation's 56px bar. Its number, trash and re-seed, a scrolling summary over the four step tabs, and up/down arrows.
 sidebar:
   order: 46
 ---
@@ -10,7 +10,7 @@ sidebar:
 
 ## Overview
 
-The Figma *Operation header*, closed and opened. A black bar, 40px tall, with four parts from left
+The Figma *Operation header*, closed and opened. A black bar, 56px tall (40 in Figma, so each icon column holds two 24px targets, WCAG 2.5.8), with four parts from left
 to right:
 
 1. the operation's number in the stack;

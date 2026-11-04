@@ -149,10 +149,10 @@
   .reference {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    margin-bottom: 0.6rem;
-    font-size: 0.75rem;
-    color: #4a5568;
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+    font-size: var(--text-xs-size);
+    color: var(--color-ink);
     flex-wrap: wrap;
   }
 
@@ -162,25 +162,37 @@
     display: none;
   }
 
+  /* The chip look (`ui/Toggle`), at the 24px target floor. Stage 2 removes this bar. */
   .reference button {
-    background: #f7fafc;
-    border: 1px solid #cbd5e0;
-    color: #4a5568;
-    border-radius: 4px;
-    padding: 0.2rem 0.45rem;
+    box-sizing: border-box;
+    min-height: var(--target-min);
+    background: var(--color-paper);
+    border: var(--rule);
+    color: var(--color-ink);
+    border-radius: var(--radius);
+    padding: 0 var(--space-3);
     font: inherit;
-    font-size: 0.72rem;
     cursor: pointer;
+    transition:
+      background-color var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
+  }
+
+  .reference button:hover:not(:disabled),
+  .match.on {
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  .reference button:active:not(:disabled) {
+    background: var(--color-pressed);
+    color: var(--color-on-pressed);
   }
 
   .reference button:disabled {
+    border-color: var(--color-inactive);
+    color: var(--color-inactive);
     cursor: default;
-  }
-
-  .match.on {
-    background: #c6f6d5;
-    border-color: #9ae6b4;
-    color: #22543d;
   }
 
   .name {
@@ -191,34 +203,35 @@
   }
 
   .size {
-    font-family: ui-monospace, monospace;
-    color: #5a6b80;
+    font-family: var(--font-mono);
+    color: var(--color-muted);
   }
 
   em {
     font-style: normal;
-    font-size: 0.7rem;
-    color: #a0aec0;
+    color: var(--color-muted);
   }
 
   .offset input {
-    width: 4.5rem;
-    background: #f7fafc;
-    border: 1px solid #cbd5e0;
-    border-radius: 4px;
-    padding: 0.15rem 0.3rem;
+    box-sizing: border-box;
+    width: var(--field-w);
+    min-height: var(--target-min);
+    background: var(--color-paper);
+    border: var(--rule);
+    border-radius: var(--radius);
+    padding: 0 var(--space-2);
     font: inherit;
-    font-size: 0.72rem;
   }
 
   .opacity input {
-    width: 5rem;
+    width: var(--field-w);
     vertical-align: middle;
+    accent-color: var(--color-ink);
   }
 
   .failure {
-    margin: 0 0 0.6rem;
-    font-size: 0.75rem;
-    color: #c53030;
+    margin: 0 0 var(--space-5);
+    font-size: var(--text-xs-size);
+    color: var(--color-danger);
   }
 </style>
