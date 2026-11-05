@@ -5,8 +5,8 @@
 
 ## Current position
 
-**Stage 1 is complete (closed by Pol, 2026-11-05).** Next: Stage 2, starting with the backlog
-below, one design group at a time, each discussed before implementing.
+**Stage 2 · Preview: P1, P2 and P3's grid implemented, reviewed and committed.** Stage 1 is
+complete (closed by Pol, 2026-11-05). **Next session: start from "Next session plan" below** (P3's handles, then P4).
 
 ## Stage 1 blocks
 
@@ -251,6 +251,127 @@ Block F visual review against Figma (`Page` 502:849, at 1728):
   breakpoint buttons), the warnings.
 - Nothing left to fix in Stage 1.
 
+## Stage 2 · Preview (backlog items 2 and 5)
+
+Figma `Preview` 502:956. Plan approved by Pol, 2026-11-05.
+
+| Block | Scope | Status |
+|---|---|---|
+| P1. Removals | Reference image (2 components, `reference.ts`, its test, 3 docs pages), the `painting` prop, the two preview notes, "The file" debug view | Done, waiting for review |
+| P2. Top and bottom bars | `lib/preview/`: top bar (readout, sizes 360 / 768 / 1024 / 1440 + Fill, colour swatch, Grid chip disabled), breakpoint bar, `activeBound` helper | Done, waiting for review |
+| P3. Grid and handles | Full-viewport grid and the Grid toggle (done early, P2 review); Figma's handles (P3b) | Grid done, reviewed; handles next session |
+| P4. Sweep | Figma review, docs, `DESIGN_SYSTEM.md`, checks | |
+
+Decisions (Pol, 2026-11-05):
+- The black breakpoint is the **range the width is in**: the smallest bound ≥ the width (860 →
+  1024); none above the largest. Clicking one sets that width.
+- **Fill** stays, as a fifth chip after 1440. Presets 360 / 768 / 1024 / 1440 (was 375).
+- The background colour fills the **whole preview column**, with the grid over it.
+- A **Grid** chip hides and shows the grid (Pol; not in Figma). On by default, preview-only.
+- The notes and "The file" view are removed (closes backlog item 5). Asset failures and the
+  sticky notices stay until item 3.
+
+P1 (2026-11-05): `assets.ts` `measure` stays (the asset pipeline uses it). The preview notes'
+point that a resize writes nothing will go in the readout's hint in P2. Typecheck, 307 editor
+tests (9 reference tests removed), docs coverage (104 files) and the docs build pass. Browser
+(1728): no reference controls, notes or debug view; handles drag and take arrows; no sideways
+scroll; only the favicon 404.
+
+P2 (2026-11-05):
+- **Structure.** The width, backdrop and grid state moved out of `PreviewFrame` into
+  `lib/preview/view.svelte.ts` (runes only), with the arithmetic in `width.ts` (tested). This lets
+  the bars sit outside the scroll area: `section.preview` is top bar / `.canvas` (scrolls) /
+  breakpoint bar. `PreviewFrame` moved to `lib/preview/`; its `rules` prop is gone.
+- **Top bar:** "Current preview size:" `.t-body` + the width in 12 Medium, lower case. Its hint:
+  "Shown at N% to fit the column." (zoomed), "Holding: rule 1." (with rules), "Resizing the
+  preview changes nothing in the file." Then Grid (disabled until P3), the presets + Fill, the
+  swatch. Presets hang from the bar's top edge and the swatch fills its height, as in Figma.
+- **`WidthChoices`** (new, `lib/preview/`): `aria-pressed` buttons rather than a radio group,
+  because a dragged width matches none. 14 Light as in Figma (not the chips' 12 uppercase).
+- **Swatch:** 80px, 2px ink frame, painted the colour, a transparent native input over it. The old
+  ⟲ became a × `IconButton`, later removed (Pol: "take this cross out"). There is no reset.
+- **Backdrop** paints `.canvas` (the picture area). The bars stay paper, so their text keeps its
+  contrast on any colour. The frame no longer paints its own background.
+- The asset failure list moved above the picture (until item 3), since the bottom bar now ends
+  the column.
+- Fixed on the way: at 320px the top bar overflowed by 160px; the bar and both button rows wrap.
+- Testing (Chrome): presets and Fill set the width and show as chosen; with rules at 300 / 600,
+  360 → 600 black, clicking 300 → 300 black and no preset chosen, 768 → none black; the hint
+  shows the zoom (81% at 1440) and "Holding: base"; the colour fills the picture area and × resets
+  it; hover inverts, the chosen one has `cursor: default`, focus rings ink (paper on ink); no
+  control under 24px apart from the 9px handles (P3); no sideways scroll at 1728, 1024, 600, 320;
+  only the favicon 404. Typecheck, 322 editor tests (15 new in `width.test.ts`), docs coverage
+  (109 files) and the docs build pass.
+
+P2 review (Pol, 2026-11-05): "The tileset should always be centered on the preview. When the rows
+grow, it should be recentered again. If there are too many rows to be seen, then it can overflow"
+and "the grid button is not active, no grid is showing". Done:
+- **Vertical centring.** `ScrollArea` gained `fill` (content a flex column at least the area's
+  height); `.preview-body` is a flex column and `.stage` (`flex: 1 0 auto`, `justify-content:
+  center`) centres the frame in what is left under the notices. Taller than the area, the frame
+  starts at the top and scrolls; it never overflows upward.
+- **Grid** (from P3): `lib/preview/PreviewGrid.svelte`, an SVG pattern inside the frame at the
+  cell pitch from the package's `scaleFactor` / `originX` / `originY`, reaching 4000px past the
+  frame, clipped by `.preview-body` (`overflow: clip`). The frame's track no longer clips.
+  **Colour from Figma's file:** black at 10%, 2 on / 2 off (`--black-10`, replacing
+  `--grey-100`), so it also reads on a coloured backdrop. The Grid toggle is enabled.
+- Testing (Chrome): frame centre = area centre at 5 and 8 rows; 30 rows starts 12px below the top
+  and scrolls; grid lines within 0.01px of the All overlay's cell edges; toggle removes and
+  restores the grid (`aria-pressed`); the P2 probe still passes (no sideways scroll at 1728,
+  1024, 600, 320; only the favicon 404). Typecheck, 322 tests, docs coverage (110) and build pass.
+
+Then (Pol, same day): "take this cross out" — the background reset × is removed. White is picked
+like any other colour.
+
+## Next session plan (written 2026-11-05)
+
+Read this file and `DESIGN_SYSTEM.md` first. Branch `editor-redesign`; P1–P3's grid are
+committed ("Stage 2 preview: removals, top and breakpoint bars, grid, centring"). Two blocks, each stopped for Pol's review:
+
+### P3b. Width handles (Figma `Handle` 2063:804 / 2063:805)
+
+Figma geometry, per handle (6px wide, centred **on** the render box's left / right edge, not in
+the gutter beside it; 579px tall for a 541px box, so it reaches 19px past the top and bottom):
+- a 6×6 ink square at each end (outside the box, 13–19px past the edge);
+- a 2px solid ink line, 16px long, from each square to the box's top / bottom edge;
+- a 1px ink dotted line along the box's height (about 1 on, 2 off).
+No frame outline in Figma: the handles mark the sides, nothing marks top and bottom.
+
+Work, in `lib/preview/PreviewFrame.svelte` (handles stay native `<button>`s, same drag and arrow
+logic, counter-scaled by `1 / zoom`):
+1. Draw the handle as inline SVG or pseudo-elements in tokens (`--color-ink`; new size tokens
+   such as `--handle-square` 6, `--handle-cap` 16, `--handle-reach` 19). Download nothing: it is
+   simple geometry, and its parts must stretch with the box height (the Figma export is one
+   fixed 579px picture).
+2. **Hit area:** at least `--target-min` (24px) wide, all of it *outside* the box edge, so it
+   never takes pointer events from the Handpick brush (`PaintLayer`) over the edge cells. The
+   visible line sits on the edge. Re-derive `HANDLE` (`width.ts`) and `--handle-w` from that
+   (probably 24, not 9) and keep them equal; `roomFor` subtracts it twice.
+3. The handle's top and bottom reach 19px past the box, so the `.viewport` must reserve that
+   room (or the `.stage` padding must), or the squares are clipped / overlap the notices.
+4. Feedback (Block F rules): hover and focus thicken the dotted line to solid or 2px; pressed =
+   `--color-pressed`; `cursor: ew-resize`; the focus ring around the hit area.
+5. Remove the dashed `.frame` outline (`--color-frame`), and `--color-frame` with it if
+   nothing else uses it (`grep`). **Ask Pol** if top and bottom still need marking once the
+   grid shows the cells.
+6. Docs: `editor/preview-frame.md` (handles, gutter, review notes), `DESIGN_SYSTEM.md` tokens.
+Verify in Chrome: drag both handles and arrow keys (±20 / ±200 with Shift) at Fill, 360 and
+1440 (zoomed); the target probe finds no control under 24×24 now (the 9px exception goes); a
+Handpick stroke on the first and last column still paints; no sideways scroll at 1728, 1024,
+600, 320; screenshot against Figma `Preview` 502:956.
+
+### P4. Sweep and close the preview group
+
+1. Visual review at 1728 against `Preview` 502:956 (`get_screenshot`): top bar, grid, handles,
+   breakpoint bar. List mismatches: fix now, or put them in the backlog. Accessibility overrides
+   already decided stay (record any new ones).
+2. Hover probe on every preview control, keyboard pass (Tab order: top bar → handles →
+   breakpoint bar), 200% zoom.
+3. Docs: every changed file's page, coverage, docs build; `DESIGN_SYSTEM.md`; this file (P rows
+   to "Done", backlog items 2 and 5 marked done); the memory file `editor-redesign.md`.
+4. Typecheck and tests. Then Pol closes the group and picks the next Stage 2 group (suggested:
+   item 3, warnings, since the sticky notices and the failure list are waiting on it).
+
 ## Known issues / notes
 
 - **Block F testing** (headless Chrome): a target probe finds no enabled control under 24×24 in
@@ -353,11 +474,11 @@ design are not done here (Stage 2, items 1–2).
 ## Stage 2 backlog (one design group each, discussed before implementing)
 
 1. Sidebar footer: seed and re-seed, an export menu (image export does not exist yet), import, undo.
-2. Preview: top UI (sizes, colour, current size), minimal corner handles, a full-viewport grid
+2. *(In progress, Stage 2 · Preview above.)* Preview: top UI (sizes, colour, current size), minimal corner handles, a full-viewport grid
    tied to the tileset grid, breakpoint buttons, removal of the reference image.
 3. Warnings as dismissible pop-ups (one reusable notification component).
 4. Destructive params confirm **on blur**, and only when the value really changed. Redesigned dialog.
-5. Remove the "The file" debug view.
+5. *(Done in P1.)* Remove the "The file" debug view.
 6. Glyphs for Attribute, Source and Blend.
 7. Operations stack design (Pol, Block E review): it should be obvious which action comes next.
    Block E added a Next button only; the stack, header and body need a design pass in Figma.

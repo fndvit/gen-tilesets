@@ -26,7 +26,11 @@
   import { drafting } from "./drafting.svelte.js";
   import { atRisk, needsConfirmation, orphans } from "./orphans.js";
   import PaintLayer from "./lib/PaintLayer.svelte";
-  import PreviewFrame from "./lib/PreviewFrame.svelte";
+  import BreakpointBar from "./lib/preview/BreakpointBar.svelte";
+  import PreviewFrame from "./lib/preview/PreviewFrame.svelte";
+  import PreviewGrid from "./lib/preview/PreviewGrid.svelte";
+  import PreviewTopBar from "./lib/preview/PreviewTopBar.svelte";
+  import { preview } from "./lib/preview/view.svelte.js";
   import BreakpointsSection from "./lib/sections/BreakpointsSection.svelte";
   import DerivedSection from "./lib/sections/DerivedSection.svelte";
   import GridSection from "./lib/sections/GridSection.svelte";
@@ -295,7 +299,10 @@
   </aside>
 
   <section class="preview" aria-label="Preview">
-    <ScrollArea>
+    <PreviewTopBar {rules} />
+    <!-- The backdrop is the whole picture area's, between the bars (Pol, Stage 2). -->
+    <div class="canvas" style="background: {preview.background};">
+    <ScrollArea fill>
       <div class="preview-body">
         {#if pending !== null || orphaned.length > 0}
           <!-- Pinned over the top of the preview until Stage 2's warnings design. -->
@@ -363,6 +370,15 @@
           </div>
         {/if}
 
+        {#if failures.length > 0}
+          <!-- Above the picture until Stage 2's warnings design. -->
+          <ul class="failures">
+            {#each failures as failure (failure)}
+              <li>{failure}</li>
+            {/each}
+          </ul>
+        {/if}
+
         <!--
           The host owns the render box's width through ordinary CSS. There is no
           width prop: `07` §5.3 makes every quantity a fixed fraction of Wpx, so
@@ -372,16 +388,22 @@
           `PreviewFrame` is that CSS and nothing more — **E11**: it sets `Wpx` and
           writes no field.
         -->
+        <!-- Centred in the visible height, so a change of rows recentres it; taller, it scrolls. -->
+        <div class="stage">
         <PreviewFrame
           ratio={(Wpx) => {
             const f = shapedAt(Wpx);
             return naturalRatio(f.layout, f.config.rows);
           }}
-          {rules}
-          painting={painting !== null}
         >
           {#snippet children(Wpx: number)}
             {@const here = shapedAt(Wpx)}
+            {#if preview.showGrid}
+              <PreviewGrid
+                g={{ layout: here.layout, rows: here.config.rows, columns: here.config.columns, Wpx }}
+                zoom={preview.zoom}
+              />
+            {/if}
             <!--
               **S2** — one component, drawing the complete stack. The brush layer
               is drawn *over* this output and never in place of it, and the picture
@@ -426,39 +448,11 @@
             {/if}
           {/snippet}
         </PreviewFrame>
-        <p class="note">
-          A new document is legal and draws nothing — every cell is
-          <code>tileId: null</code> (<code>02</code>&nbsp;§8.1, <strong>G4</strong>). The box
-          still reserves the right space, because its aspect ratio is a constant of
-          <code>Layout</code> and <code>rows</code> with <code>Wpx</code> cancelled out
-          (<code>07</code>&nbsp;§5.3, <strong>S8</strong>).
-        </p>
-        <p class="note">
-          Dragging either edge changes <code>Wpx</code>, hence <code>s</code>, and nothing
-          else — <code>07</code>&nbsp;§9.1's second row. <code>columns</code> does not move,
-          no confirmation appears, and <strong>R12</strong> forbids regeneration, so every
-          cell keeps its <code>TileState</code> and moves to a new rect. The design width
-          beside it is the destructive one.
-        </p>
-
-        {#if failures.length > 0}
-          <ul class="failures">
-            {#each failures as failure (failure)}
-              <li>{failure}</li>
-            {/each}
-          </ul>
-        {/if}
-
-        <details class="debug">
-          <summary>The file</summary>
-          <!--
-            **E3** — the editor's state *is* this. There is no second document model,
-            so what is shown here is what previews above and what Step 11 will export.
-          -->
-          <pre>{JSON.stringify(file, null, 2)}</pre>
-        </details>
+        </div>
       </div>
     </ScrollArea>
+    </div>
+    <BreakpointBar {rules} />
   </section>
 
 </main>
@@ -530,14 +524,43 @@
   }
 
   /*
-    The preview column scrolls on its own, with the frame at the top of it. The
-    notes, the failure list and the file dump sit below and scroll under it, so
-    reading any of them is the only thing that can move the picture, and the
-    sidebar never can. It scrolls in a `ScrollArea` like the sidebar, so a
-    scrollbar never takes width from the frame. Its own UI is Stage 2's.
+    The preview column: the top bar, the picture area, the breakpoint bar. The
+    bars stay put and only the picture area scrolls, in a `ScrollArea` like the
+    sidebar, so a scrollbar never takes width from the frame and the sidebar
+    never moves.
+  */
+  .preview {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .canvas {
+    min-height: 0;
+  }
+
+  /*
+    A flex column at least as tall as the picture area (`ScrollArea fill`).
+    It clips the grid, which reaches far past the frame, at its own edges:
+    `clip` rather than `hidden`, so it is not a second scroll container and
+    the clipped part adds no scroll length.
   */
   .preview-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     padding: var(--space-6);
+    overflow: clip;
+  }
+
+  /* Takes the height left under the notices and centres the frame in it. Its
+     minimum is the frame's own height, so a tall tileset overflows downwards
+     and scrolls, never upwards out of reach. */
+  .stage {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
   .notices {
@@ -577,26 +600,8 @@
     gap: var(--chip-gap);
   }
 
-  .note {
-    max-width: 62ch;
-    margin: var(--space-6) 0 0;
-    font-size: var(--text-body-size);
-  }
-
   .failures {
-    margin-top: var(--space-6);
+    margin: 0 0 var(--space-6);
     color: var(--color-danger);
-  }
-
-  .debug {
-    margin-top: var(--space-6);
-  }
-
-  .debug pre {
-    overflow-x: auto;
-    padding: var(--space-6);
-    border: var(--rule);
-    font-family: var(--font-mono);
-    font-size: var(--text-console-size);
   }
 </style>

@@ -20,13 +20,13 @@ The visual language of the tileset editor. It was extracted from the Figma file
 
 | Group | Tokens | Notes |
 |---|---|---|
-| Colour, primitive | `--black` `--white` `--grey-100` `--grey-200` `--grey-500` `--grey-600` `--grey-700` `--aqua-50` `--aqua-200` `--magenta` `--blue-500` `--red-600` | Only `tokens.css` reads these |
+| Colour, primitive | `--black` `--white` `--black-10` `--grey-200` `--grey-500` `--grey-600` `--grey-700` `--aqua-50` `--aqua-200` `--magenta` `--blue-500` `--red-600` | Only `tokens.css` reads these |
 | Colour, semantic | `--color-ink` `--color-paper` `--color-surface` `--color-section` `--color-bar` `--color-on-bar` `--color-inactive` `--color-rule` `--color-grid` `--color-seed` `--color-scrollbar` `--color-pressed` `--color-on-pressed` | Components read these. Declared on `:root, .theme-default`; `.theme-inverted` swaps ink/paper and bar/on-bar, and sets `--color-inactive` to `--grey-700` so disabled dims on black (see Layout) |
 | Colour, preview chrome | `--color-muted` (secondary text, 7:1) · `--color-selection` (selected / painted cells) · `--color-erase` (a stroke that removes) · `--color-frame` (the frame's dashed edge and width handles) | Overlays mix them with `color-mix(… transparent)`. Colours that belong to the picture (the white backdrop) stay named constants |
 | Status | `--color-danger` `--color-warn` | Placeholders until Stage 2 (warnings) |
 | Font | `--font-ui` (Helvetica, standing in for Neue Haas Grotesk Display) · `--font-mono` (Roboto Mono, self-hosted via `@fontsource`) | |
 | Space | `--space-1…6` = 2 / 4 / 6 / 8 / 10 / 12 px | 2px base |
-| Size | `--target-min` 24 · `--icon-seed` 18 (re-seed, in a `--control-h` box) · `--control-h` 28 · `--bar-h-section` 32 · `--bar-h-group` 32 · `--bar-h-add` 32 · `--op-header-h` 56 · `--thumb` 32 · `--thumb-sm` 14 · `--icon` 12 · `--icon-add` 18 · `--field-w` 106 · `--slider-thumb-*` 12×24 · `--glyph-w/h` 75×60 (75 = narrowest cell) · `--glyph-cell` 10 · `--glyph-gap` 1 · `--glyph-slot` 43 · `--chip-gap` 9 · `--console-pad-y` 3 · `--badge` 16 · `--handle-w` 9 · `--asset-gap` 10 · `--share-w` 46 · `--sidebar-w` clamp(400, 30vw, 560) | Block F sizes; see Accessibility |
+| Size | `--target-min` 24 · `--icon-seed` 18 (re-seed, in a `--control-h` box) · `--control-h` 28 · `--bar-h-section` 32 · `--bar-h-group` 32 · `--bar-h-add` 32 · `--op-header-h` 56 · `--thumb` 32 · `--thumb-sm` 14 · `--icon` 12 · `--icon-add` 18 · `--field-w` 106 · `--slider-thumb-*` 12×24 · `--glyph-w/h` 75×60 (75 = narrowest cell) · `--glyph-cell` 10 · `--glyph-gap` 1 · `--glyph-slot` 43 · `--chip-gap` 9 · `--console-pad-y` 3 · `--badge` 16 · `--handle-w` 9 · preview bars: `--preview-bar-h` 56, `--width-chip-w/h` 60×44, `--breakpoint-w/h` 92×64, `--swatch-w` 80, `--swatch-rule-w` 2 · `--asset-gap` 10 · `--share-w` 46 · `--sidebar-w` clamp(400, 30vw, 560) | Block F sizes; see Accessibility |
 | Border | `--rule` (1px in `--color-rule`, declared with each theme) · `--radius` 0 · `--radius-xs` 1px (glyph cells only) · `--radius-round` 50% (delete badge only) | |
 | Focus | `--focus-w` 2 · `--focus-offset` 1 | |
 | Motion | `--dur-fast` 120ms · `--ease` · `--marquee-speed` 40px/s | Respects `prefers-reduced-motion` |
@@ -68,6 +68,9 @@ Figma does (`text-box: trim-both cap alphabetic`, with `line-height: 1` as the f
 - **Reflow:** below `40rem` of viewport width (a 320px window, or 1280px at 200% zoom) the two
   columns stack: the sidebar fills the screen and scrolls on its own, the preview follows, and
   only then does the page scroll.
+- **Preview column** (Stage 2): a top bar, the picture area, a breakpoint bar. The bars are paper
+  and stay put; only the picture area scrolls (`ScrollArea`). The background colour fills the
+  picture area, never the bars, so their text keeps its contrast whatever colour is chosen.
 - **Every grid in the sidebar** names its column (`minmax(0, 1fr)`), the aside and the footer
   included.
 
@@ -90,6 +93,8 @@ Figma does (`text-box: trim-both cap alphabetic`, with `line-height: 1` as the f
 | **Tab row** | Equal-width black tabs in `.t-xs`. Active = paper with ink text | Operation steps |
 | **Glyph grid** | As many cells per row as fit at `--glyph-w` or wider (`auto-fill`), 4px apart: a `.t-console` label above a `--glyph-slot` artwork slot (any iconography; see below). Selected and hover = `--color-inactive` fill with a 1px border | Operation step options |
 | **Operation body** | Paper, `--rule` frame without a top border, 6px padding, 12px between blocks: the step's question in `.t-label` (14 Regular, sentence case, like the field labels), a glyph grid, then the **options block**: a small black bar in `.t-xs` naming the chosen option ("TILE", "NOISE") over a 1px-framed block with its fields 8px apart. No block for an option with no fields (Blend never has one). Ends in a right-aligned row of `Button`s: Discard, then **Next: <step>** while a step is unanswered (it goes to the first unanswered step after this one), then Save (Add for a new one). A disabled Save has a hint naming the unanswered steps. **Fields are compact** inside it: the body sets `--label-size: var(--text-body-size)`, `--label-case: none`, `--field-label-w: var(--field-label-w-compact)` (128px) and `--field-justify: flex-start`, so labels are 14px sentence case in a column and each control sits right after its label | Operations section, under the open header |
+| **Width choices** | A framed row of `.t-body` (14 Light) buttons, `aria-pressed`, no gap. Presets 60×44 with no rule between them; breakpoints 92×64 with 1px rules between. The matching one is ink; others invert on hover and go pressed; the focus ring sits inside the cell | Preview top bar (sizes, Fill), breakpoint bar |
+| **Colour swatch** | An 80px square as tall as the top bar, framed in 2px ink and painted the colour; a transparent native colour input covers it. No reset button (Pol, P2 review) | Preview top bar |
 | **Question popup** | A `Popup` whose `actions` replace Close with the choices (Keep editing, Discard) | Switching away from an open operation with unsaved changes |
 
 ### Operation glyphs

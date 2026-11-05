@@ -13,7 +13,7 @@
   --black: #000000;
   --white: #ffffff;
   --grey-200: #e2e2e2; /* Figma variable "Inactive" */
-  --grey-100: #f2f2f2; /* preview grid rule */
+  --black-10: rgb(0 0 0 / 0.1); /* the preview grid: Figma's black at 10%, so it reads on any backdrop */
   --grey-500: #808080; /* scroll handle: reads on black bars and on paper */
   --grey-600: #595959; /* secondary text: 7:1 on paper */
   --grey-700: #4d4d4d; /* pressed: paper text on it is 8.5:1 */
@@ -80,8 +80,16 @@
   --console-pad-y: 3px; /* console strip; off the 2px scale in Figma */
   --footer-pad-bottom: 36px; /* black space under the sidebar footer (Pol, Block F review) */
   --hint-w: 260px; /* widest a field hint bubble grows */
-  --badge: 16px;
-  --handle-w: 9px; /* the preview frame's width handles; `PreviewFrame`'s HANDLE matches */ /* a tile asset's delete badge; not in Figma (Block D) */
+  --badge: 16px; /* a tile asset's delete badge; not in Figma (Block D) */
+  --handle-w: 9px; /* the preview frame's width handles; `width.ts`'s HANDLE matches */
+  /* The preview's bars (Figma *UI top* and *UI Bottom*), Stage 2. */
+  --preview-bar-h: 56px; /* the top bar; 57 in Figma */
+  --width-chip-w: 60px; /* a size preset */
+  --width-chip-h: 44px; /* 43 in Figma */
+  --breakpoint-w: 92px; /* 91.2 in Figma */
+  --breakpoint-h: 64px; /* 65 in Figma */
+  --swatch-w: 80px; /* the background colour picker, as tall as the bar */
+  --swatch-rule-w: 2px;
   --asset-gap: 10px; /* between tile asset rows: Figma's 32px rows at a 42px pitch */
   --share-w: 46px; /* a tile asset's % label */
   /* ── Border ────────────────────────────────────────────────────────── */
@@ -125,7 +133,7 @@
   --color-on-bar: var(--white); /* text and icons on a bar */
   --color-inactive: var(--grey-200); /* selected glyph, console strip, disabled */
   --color-rule: var(--black);
-  --color-grid: var(--grey-100);
+  --color-grid: var(--black-10); /* dashed 2 on, 2 off (Figma) */
   --color-scrollbar: var(--grey-500);
   --color-pressed: var(--grey-700); /* a bar, chip or button while pressed */
   --color-on-pressed: var(--white); /* its text, in both themes (8.5:1) */

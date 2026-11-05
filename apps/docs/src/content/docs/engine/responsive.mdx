@@ -10,7 +10,7 @@ import ResponsiveStory from "../../../stories/ResponsiveStory.svelte";
 
 **Written from:** `packages/tileset/src/responsive.ts`, `responsive.test.ts`, and the call sites in
 `render/Tileset.svelte`, `render/breakpoints.ts`, `validate.ts`, `apps/editor/src/App.svelte`,
-`apps/editor/src/lib/PreviewFrame.svelte` and `apps/demo/src/Responsive.svelte`.
+`apps/editor/src/lib/preview/width.ts` and `apps/demo/src/Responsive.svelte`.
 
 ## Overview
 
@@ -83,7 +83,7 @@ at 400px, 15 columns with the base's rows at 700px, and the base above 900px.
 | --- | --- |
 | `activeKey` | `render/Tileset.svelte:292` (from the measured width); `apps/demo/src/Responsive.svelte:105` |
 | `ruleOverride` | `render/Tileset.svelte:302`, `render/breakpoints.ts:102`, `validate.ts:870`, `apps/editor/src/App.svelte:88` |
-| `activeRules` | `render/breakpoints.ts:119`, `:195`; `validate.ts:869`; `apps/editor/src/App.svelte:88`; `apps/editor/src/lib/PreviewFrame.svelte:187` |
+| `activeRules` | `render/breakpoints.ts:119`, `:195`; `validate.ts:869`; `apps/editor/src/App.svelte:88`; `apps/editor/src/lib/preview/width.ts:106` |
 | `bandWidths` | `render/breakpoints.ts:185`, `validate.ts:868` |
 | `rulesReshapeErrors` | `render/Tileset.svelte:266`, under `DEV` for host rules |
 | `matches` | Only inside `responsive.ts` (and its test). |

@@ -67,17 +67,19 @@ Which component renders which, in source order. Conditional children are marked.
               [`OperationBody`](/editor/operation-body/) under the open one (*if* a draft is open)
       - [`SidebarFooter`](/editor/sidebar-footer/) (`.fixed`)
         - [`ImportPanel`](/editor/import-panel/), [`Popup`](/editor/ui-popup/)s for reports
-    - `section.preview`, holding a [`ScrollArea`](/editor/ui-scroll-area/) and `.preview-body`
+    - `section.preview`: [`PreviewTopBar`](/editor/preview-bars/), then `.canvas` (the backdrop)
+      holding a [`ScrollArea`](/editor/ui-scroll-area/) (`fill`) and `.preview-body` (clips the grid), then
+      [`BreakpointBar`](/editor/preview-bars/)
       - `.notices` (sticky, *if* either is showing): the confirmation (*if* `pending !== null`),
         "Orphaned by a resize" (*if* `orphaned.length > 0`)
-      - [`PreviewFrame`](/editor/preview-frame/)
-        - [`ReferenceControls`](/editor/reference-controls/)
-        - [`ReferenceLayer`](/editor/reference-layer/) (*if* a reference image is loaded)
+      - the asset failure list
+      - `.stage` (centres the frame in the visible height), holding
+        [`PreviewFrame`](/editor/preview-frame/)
         - `children(Wpx)` snippet:
+          - [`PreviewGrid`](/editor/preview-grid/) (*if* `preview.showGrid`)
           - `<Tileset>` from `@vit-foundation/gen-tilesets/Tileset.svelte`
           - [`SelectionOverlay`](/editor/selection-overlay/) (*if* `shadow !== null`)
           - [`PaintLayer`](/editor/paint-layer/) (*if* the draft has a `cellList` param and `renderBox` is bound)
-      - notes, asset failure list, "The file" `<details>` with the JSON
 
 ### Inputs → outputs
 

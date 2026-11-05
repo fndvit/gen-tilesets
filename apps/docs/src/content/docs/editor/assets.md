@@ -7,8 +7,7 @@ sidebar:
 
 **Written from:** `apps/editor/src/assets.ts`, `assets.test.ts`, `library.test.ts` (the
 attach-path block), and the
-call sites in `lib/sections/TilesSection.svelte`, `lib/tiles/TileGroup.svelte`, `lib/tiles/TileAsset.svelte`, `lib/ImportPanel.svelte`, `App.svelte`, `download.ts` and
-`reference.ts`.
+call sites in `lib/sections/TilesSection.svelte`, `lib/tiles/TileGroup.svelte`, `lib/tiles/TileAsset.svelte`, `lib/ImportPanel.svelte`, `App.svelte` and `download.ts`.
 
 ## Overview
 
@@ -125,7 +124,6 @@ Engine types: [`AssetProvider`](/api/render/type-aliases/assetprovider/),
 | `App.svelte:144` | `replaceAll([])` in `newTileset`, after `session.reset()`, to reclaim every picture. |
 | `App.svelte:846` | `editorProvider` passed as `options.provider` to `<Tileset>`. |
 | `download.ts:43` | `stored` to read original bytes for export. |
-| `reference.ts:56` | `measure`, reused for the reference image. |
 
 Callees: `assetKey`, `parseAssetKey` and `requireNaturalSize` from `@vit-foundation/gen-tilesets/render`, `URL.createObjectURL` /
 `revokeObjectURL`, `Image`.

@@ -129,9 +129,9 @@ was fixed in the editor redesign. The other kinds were spot-checked, not all re-
 | [NumericMapping.svelte](/editor/numeric-mapping/) | The `steps` input has no draft-text model, unlike the two range ends | inconsistency |
 | [NumericMapping.svelte](/editor/numeric-mapping/) | Slider step is `/200` here but `/100` in affordance.ts; neither comment mentions the other | inconsistency |
 | `BlendControl.svelte` (file removed in Block E) | The single-option sentence always talks about palettes, though the branch applies to any target with one accepted Blend (not reachable today) | inconsistency |
-| [PreviewFrame.svelte](/editor/preview-frame/) | `clearReference` resets `yOffset` but not `opacity` or `inFront` | inconsistency |
+| PreviewFrame.svelte | `clearReference` resets `yOffset` but not `opacity` or `inFront` | inconsistency. Resolved: the reference image was removed in the editor redesign |
 | [PreviewFrame.svelte](/editor/preview-frame/) | `9px` is a CSS literal in three rules as well as `HANDLE = 9` in the script | inconsistency |
-| [ReferenceControls.svelte](/editor/reference-controls/) | The y input has no draft-text model, so an emptied box is not reverted on blur | inconsistency |
+| ReferenceControls.svelte (removed) | The y input has no draft-text model, so an emptied box is not reverted on blur | inconsistency. Resolved: the reference image was removed in the editor redesign |
 | [SelectionOverlay.svelte](/editor/selection-overlay/) | `styleOf`, `vScale` and their 45-line comment are duplicated verbatim in PaintLayer.svelte | inconsistency |
 | [paint.ts](/editor/paint/) | `strandedCells` is exported and tested but never called; App uses `orphans()` instead | dead code |
 | [assets.ts](/editor/assets/) | `measure`, `attach`, `release`, `replaceAll` and `editorProvider` are untested, including `replaceAll`'s URL-revocation ordering | missing test |
@@ -157,5 +157,5 @@ was fixed in the editor redesign. The other kinds were spot-checked, not all re-
 | `OperationDraft.svelte` (file removed in Block E) | Comment says "five Targets… four attributes plus tileId"; there are 8 Targets | stale comment |
 | `OperationDraft.svelte` (file removed in Block E) | The `draft` prop comment refers to "Step 8's overlay" | stale comment |
 | [PreviewFrame.svelte](/editor/preview-frame/) | l.321 says "Step 7's brush will need it"; the brush exists | stale comment |
-| [ReferenceLayer.svelte](/editor/reference-layer/) | Header says "nothing else names a z-index", but the grab surface has 2 and PreviewFrame's handles 4 | stale comment |
+| ReferenceLayer.svelte (removed) | Header says "nothing else names a z-index", but the grab surface has 2 and PreviewFrame's handles 4 | stale comment. Resolved: the reference image was removed in the editor redesign |
 | [SelectionOverlay.svelte](/editor/selection-overlay/) | The header's E7 statement says geometry "comes from `cellBox`"; the code uses `cellPlacementPercent` | stale comment |

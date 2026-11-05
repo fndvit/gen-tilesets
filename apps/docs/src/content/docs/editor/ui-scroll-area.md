@@ -22,6 +22,7 @@ the area, while it scrolls and while it is dragged, then fades out.
 | Prop | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `children` | `Snippet` | required | The scrolling content. |
+| `fill` | `boolean` | `false` | Makes the content a flex column at least as tall as the area, so a child with `flex: 1` can centre itself in the visible height and still scroll once taller. The preview column uses it. |
 
 ### Inputs → outputs
 

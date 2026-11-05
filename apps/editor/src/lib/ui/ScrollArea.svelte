@@ -20,9 +20,15 @@
 
   interface Props {
     children: Snippet;
+    /**
+     * Make the content at least as tall as the area, as a flex column, so a
+     * child with `flex: 1` can centre itself in the visible height and still
+     * scroll once it is taller (the preview column).
+     */
+    fill?: boolean;
   }
 
-  let { children }: Props = $props();
+  let { children, fill = false }: Props = $props();
 
   /** Never shorter than this, so a long sidebar keeps a handle worth grabbing. */
   const MIN_THUMB = 24;
@@ -92,7 +98,7 @@
 
 <div class="area" class:active={scrolling || dragging} class:dragging>
   <div class="viewport" bind:this={viewport} onscroll={onScroll}>
-    <div bind:this={content}>
+    <div bind:this={content} class:fill>
       {@render children()}
     </div>
   </div>
@@ -122,6 +128,12 @@
     height: 100%;
     overflow-y: auto;
     scrollbar-width: none;
+  }
+
+  .fill {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
   }
 
   .viewport::-webkit-scrollbar {

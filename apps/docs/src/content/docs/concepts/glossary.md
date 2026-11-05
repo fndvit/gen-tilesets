@@ -86,5 +86,4 @@ cell state), a kind of tile is a **Tile** (not a tile type), and one of a tile's
 | **History** | Whole previous values for undo. A refusal pushes nothing. | [history.ts](/editor/history/) |
 | **Draft** | An Operation being built, held outside the file until it is complete. | [draft.svelte.ts](/editor/draft/), [drafting.svelte.ts](/editor/drafting/) |
 | **Orphan** | A coordinate-bound Operation that no longer reaches what it was authored to after a resize. It is reported as an advisory and never repaired. | [orphans.ts](/editor/orphans/) |
-| **Reference image** | A picture of the destination page, drawn under the preview at the box's width. | [reference.ts](/editor/reference/) |
 | **E2** | One pinned package both previews and stamps `engineVersion`. | [Versioning](/concepts/versioning/) |
