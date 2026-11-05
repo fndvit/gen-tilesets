@@ -151,7 +151,7 @@
              --zoom: {zoom};"
     >
     <!--
-      Two handles, one per edge, centred on it. They are siblings of the render
+      Two handles, one per edge, just outside it. They are siblings of the render
       box, not inside it: `08` **S9** gives the component's own element no
       padding and no border so that `Wpx` is unambiguously its width.
     -->
@@ -276,17 +276,17 @@
   }
 
   /*
-    The hit area is centred on the box edge, so the line is in its middle, and
-    it reaches past the squares, so the ends are as easy to grab as the line
-    (Pol, P3b review). Its inner half lies over the box and takes those pixels
-    from the Handpick brush; the outer half is the gutter `HANDLE` reserves.
+    The hit area lies wholly outside the box edge, so it never covers a cell
+    the Handpick brush paints (Pol, P4), and it reaches past the squares, so
+    the ends are as easy to grab as the line (Pol, P3b review). It is the
+    gutter `HANDLE` reserves.
   */
   .handle.left {
-    left: calc(-1 * var(--handle-w) / 2 / var(--zoom, 1));
+    left: calc(-1 * var(--handle-w) / var(--zoom, 1));
   }
 
   .handle.right {
-    right: calc(-1 * var(--handle-w) / 2 / var(--zoom, 1));
+    right: calc(-1 * var(--handle-w) / var(--zoom, 1));
   }
 
   .handle:focus-visible {
@@ -308,13 +308,14 @@
   /*
     Figma's *Handle*, drawn rather than downloaded so it stretches with the box:
     a square at each end, a solid cap from each square to the box edge, and a
-    dotted line along the edge. Centred in the hit area, so on the edge.
+    dotted line along the edge. Centred on the edge, the hit area's inner side;
+    it draws over the box but takes no pointer.
   */
   .mark {
     position: absolute;
     top: calc(var(--hit) - var(--reach));
     bottom: calc(var(--hit) - var(--reach));
-    left: calc(50% - var(--sq) / 2);
+    left: calc(100% - var(--sq) / 2);
     width: var(--sq);
     pointer-events: none;
     background:
@@ -331,4 +332,7 @@
         left 50% top var(--reach) / var(--line) calc(100% - 2 * var(--reach)) no-repeat;
   }
 
+  .handle.right .mark {
+    left: calc(-1 * var(--sq) / 2);
+  }
 </style>

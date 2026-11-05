@@ -42,7 +42,7 @@ the Svelte plugin (see `vitest.config.ts`), so a module holding `$state` cannot 
 | --- | --- |
 | `MIN_WIDTH` | `160`: the handles cannot cross. No width is illegal (`07` §5.3). |
 | `PRESETS` | `360, 768, 1024, 1440` (Figma's size bar). Not "breakpoints": that word is the file's. |
-| `HANDLE` | `16`, the gutter each handle needs beside the frame: half of `--handle-w`, since the hit area is centred on the edge. |
+| `HANDLE` | `24`, the gutter each handle needs beside the frame: all of `--handle-w`, since the hit area lies wholly outside the edge. |
 | `WHITE` | `#ffffff`, the default backdrop. |
 | `roomFor(available)` | `max(floor(available) − 2 × HANDLE, MIN_WIDTH)`. Floored so a preset draws the same picture run to run. |
 | `widthFor(requested, room)` | `room` for Fill, else `max(requested, MIN_WIDTH)`. **Not clamped to the column**: the zoom fits it instead. |

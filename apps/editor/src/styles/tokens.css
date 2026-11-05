@@ -82,7 +82,7 @@
   --hint-w: 260px; /* widest a field hint bubble grows */
   --badge: 16px; /* a tile asset's delete badge; not in Figma (Block D) */
   /* The preview's width handles (Figma *Handle*, Stage 2 P3b). */
-  --handle-w: 32px; /* hit area, centred on the box edge; `width.ts`'s HANDLE is half */
+  --handle-w: 24px; /* hit area, wholly outside the box edge; `width.ts`'s HANDLE matches */
   --handle-square: 6px; /* the square at each end */
   --handle-cap: 16px; /* the solid line from the box edge into the square */
   --handle-cap-w: 2px;

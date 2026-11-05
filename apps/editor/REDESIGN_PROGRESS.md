@@ -5,8 +5,8 @@
 
 ## Current position
 
-**Stage 2 · Preview: P1–P3 done, reviewed and committed (P3b with its review round).** Stage 1
-is complete (closed by Pol, 2026-11-05). **Next session: P4, in "Next session plan" below.**
+**Stage 2 · Preview: P1–P4 done and committed; waiting for Pol to close the group.** Stage 1
+is complete (closed by Pol, 2026-11-05). **Next session: see "Next session plan" below.**
 
 ## Stage 1 blocks
 
@@ -257,10 +257,10 @@ Figma `Preview` 502:956. Plan approved by Pol, 2026-11-05.
 
 | Block | Scope | Status |
 |---|---|---|
-| P1. Removals | Reference image (2 components, `reference.ts`, its test, 3 docs pages), the `painting` prop, the two preview notes, "The file" debug view | Done, waiting for review |
-| P2. Top and bottom bars | `lib/preview/`: top bar (readout, sizes 360 / 768 / 1024 / 1440 + Fill, colour swatch, Grid chip disabled), breakpoint bar, `activeBound` helper | Done, waiting for review |
+| P1. Removals | Reference image (2 components, `reference.ts`, its test, 3 docs pages), the `painting` prop, the two preview notes, "The file" debug view | Done, reviewed |
+| P2. Top and bottom bars | `lib/preview/`: top bar (readout, sizes 360 / 768 / 1024 / 1440 + Fill, colour swatch, Grid chip disabled), breakpoint bar, `activeBound` helper | Done, reviewed |
 | P3. Grid and handles | Full-viewport grid and the Grid toggle (done early, P2 review); Figma's handles (P3b) | Done, reviewed (P3b review round included) |
-| P4. Sweep | Figma review, docs, `DESIGN_SYSTEM.md`, checks | |
+| P4. Sweep | Figma review, docs, `DESIGN_SYSTEM.md`, checks | Done, waiting for Pol to close the group |
 
 Decisions (Pol, 2026-11-05):
 - The black breakpoint is the **range the width is in**: the smallest bound ≥ the width (860 →
@@ -370,45 +370,44 @@ P3b (2026-11-05), Figma `Handle` 2063:804 / 2063:805:
   at 1728, 1024, 600, 320; no console errors. Matches Figma `Preview` 502:956 by eye. Typecheck,
   322 tests, docs coverage and docs build pass.
 
-## Next session plan (P4, written 2026-11-05 after P3b)
+P4 (2026-11-05):
+- **Figma review at 1728** against `Preview` 502:956: the handles and the grid match. One mismatch,
+  fixed: the presets box touches the swatch in Figma, but the editor had an 8px gap. `.sizes` in
+  `PreviewTopBar` now groups them, so they also wrap together. Known differences, left on purpose:
+  breakpoints in the top bar at 60×44, the Grid chip, Fill, no swatch reset.
+- **Open points (Pol):**
+  - Handle hit areas are now **wholly outside the edge**, 24px wide (`--handle-w` 24,
+    `--handle-hit-reach` 28, `HANDLE = 24`), so the Handpick brush reaches every pixel inside `Wpx`.
+    The mark stays centred on the edge (`.mark` at the hit area's inner side). The hit area still
+    covers the bleed, the outer cells reaching about 4px past the box, which lies outside the page.
+    This partly reverses the P3b review's "centred"; Pol chose it knowing the trade-off. The
+    squares are still inside the hit area vertically; horizontally their inner half lies over
+    the box, outside the hit area.
+  - Gutter mode's grid outside the handles: leave it (it is the bleed).
+  - The top bar on two rows (114px) at 1024 and 600: accepted.
+- **Probes** (headless Chrome, readme demo): every preview control changes on hover except Grid and
+  Fill while chosen (on purpose). Tab order: breakpoint 500 → Grid → 360 → 768 → 1024 → 1440 →
+  Fill → swatch → left handle → right handle. The readout is not a tab stop: hints are
+  hover-only across the system (backlog item 9). 200% zoom (864 CSS px): no sideways scroll,
+  nothing clipped. No enabled control under 24×24 and no sideways scroll at 1728, 1024, 600, 320.
+  No console errors.
 
-Read this file and `DESIGN_SYSTEM.md` first. Branch `editor-redesign`; P1–P3b are committed. One
-block, P4, then stop for Pol to close the preview group.
+## Next session plan (written 2026-11-05 after P4)
 
-### P4. Sweep and close the preview group
-
-What the preview is now: **one top bar** (readout + Breakpoints at the left; Grid, presets + Fill,
-swatch at the right; no bottom bar, Pol), the picture area with the grid, and the Figma handles
-(32px hit area centred on the edge).
-
-1. **Visual review at 1728** against Figma `Preview` 502:956 (`create_session`, then
-   `get_screenshot`, download with curl). Compare top bar, grid, handles. Known, decided
-   differences, not to fix: breakpoints in the top bar at 60×44 (Figma: a bottom bar, 92×64);
-   Grid chip (not in Figma); no swatch reset. List any other mismatch: fix now if small, or put it
-   in the backlog.
-2. **Open points to put to Pol** (one question each, with a screenshot):
-   - The handle's inner 16px covers the edge cells for the Handpick brush. Acceptable, or shrink
-     the inner half?
-   - Gutter mode: the grid lines sit outside the handles because the outer cells bleed. Leave it,
-     draw the grid stronger inside the box, or show the Derived "Bleed" in the preview?
-   - At 1024 and 600 the top bar wraps to two rows (114px). Acceptable?
-3. **Probes** (headless Chrome, see "How to test" below): hover change on every preview control;
-   keyboard pass, Tab order readout hint → breakpoints → Grid → presets → swatch → left handle →
-   right handle; 200% zoom (no sideways scroll, nothing clipped); target probe (nothing under
-   24×24); no sideways scroll at 1728, 1024, 600, 320; no console errors.
-4. **Docs**: every changed file's page, docs coverage and build; `DESIGN_SYSTEM.md`; this file (P4
-   row "Done", backlog items 2 and 5 marked done); memory `editor-redesign.md`.
-5. Typecheck and tests. Commit. Then Pol closes the group and picks the next Stage 2 group
-   (suggested: item 3, warnings, since the sticky notices and the asset failure list wait on it).
+Pol closes the preview group, then picks the next Stage 2 group from the backlog. Suggested:
+item 3, warnings, since the sticky notices and the asset failure list wait on it. Discuss the
+design with Pol before implementing, and split it into analysed / implemented / reviewed / tested
+blocks.
 
 **How to test (found in P3b):** the editor dev server usually already runs on port 5199
 (`lsof -iTCP:5199`); reuse it. Playwright is `node_modules/.pnpm/playwright-core@1.56.1`, and the
 browser that exists is
 `~/Library/Caches/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell`
 (pass it as `executablePath`). For a real picture, zip `apps/demo/public/readme` (`tileset.json` +
-`tiles/`) into the scratchpad and load it with the footer's Import; the tileset draws to
-`canvas[data-tileset-canvas]`, so hash its pixels to see a change. Sidebar sections start folded
-(open "Breakpoints" before "Add breakpoint").
+`tiles/`) into the scratchpad and load it with `setInputFiles('input[type=file][accept*=zip]')`;
+the tileset draws to `canvas[data-tileset-canvas]`, so hash its pixels to see a change. Sidebar
+sections start folded (open "Breakpoints" before "Add breakpoint"). A destructive edit (for
+example the Gutter radio) asks for "Change it" first.
 
 ## Known issues / notes
 
@@ -511,7 +510,7 @@ design are not done here (Stage 2, items 1–2).
 ## Stage 2 backlog (one design group each, discussed before implementing)
 
 1. Sidebar footer: seed and re-seed, an export menu (image export does not exist yet), import, undo.
-2. *(In progress, Stage 2 · Preview above.)* Preview: top UI (sizes, colour, current size), minimal corner handles, a full-viewport grid
+2. *(Done, Stage 2 · Preview P1–P4.)* Preview: top UI (sizes, colour, current size), minimal corner handles, a full-viewport grid
    tied to the tileset grid, breakpoint buttons, removal of the reference image.
 3. Warnings as dismissible pop-ups (one reusable notification component).
 4. Destructive params confirm **on blur**, and only when the value really changed. Redesigned dialog.
@@ -522,3 +521,7 @@ design are not done here (Stage 2, items 1–2).
    The palette widget is hard to grasp (Pol, Block F review round 2) and belongs here.
 8. Space between field labels and their values across the sidebar (Pol, Block F review round 2:
    "will come back to it").
+9. Hints for keyboard users (found in P4): `ui/Hint` opens only on hover, so a hint on something
+   that is not focusable (the preview readout, tile thumbnails) never shows without a mouse. A
+   screen reader still reads it through `aria-describedby`. Decide system-wide (show on
+   focus-within, or make the anchors focusable).

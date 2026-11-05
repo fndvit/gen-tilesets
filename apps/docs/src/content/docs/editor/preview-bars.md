@@ -47,11 +47,14 @@ All of it is preview state ([view.svelte.ts](/editor/preview-width/)) and writes
 - **Chosen preset:** the one equal to `preview.requested`; Fill when it is `null`.
 - **Black breakpoint:** `activeBound(boundsOf(rules), preview.width)`.
 - **Swatch:** a native `<input type="color">` covering a framed square painted in the colour,
-  transparent itself.
+  transparent itself. It touches the presets, as in Figma (`.sizes` groups them, Stage 2 P4), so
+  the two wrap together.
+- **Hints are hover-only**, like every `ui/Hint`: the readout's hint is its `aria-describedby`, and
+  the readout is not a tab stop.
 - **Grid toggle:** an `aria-pressed` button bound to `preview.showGrid` (ink while the grid shows);
   it shows and hides [PreviewGrid](/editor/preview-grid/).
 - **Reflow:** the bar, its two halves and the button rows wrap on a narrow column, so nothing scrolls
-  sideways at 320px.
+  sideways at 320px. At 1024 and 600 the bar takes two rows (114px); Pol accepted it in P4.
 
 ### Callers
 

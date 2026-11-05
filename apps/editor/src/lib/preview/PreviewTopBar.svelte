@@ -83,16 +83,19 @@
       Grid
     </button>
 
-    <WidthChoices
-      {choices}
-      {chosen}
-      onChoose={(value) => (preview.requested = value)}
-      label="Preview size"
-    />
+    <!-- The presets touch the swatch, as in Figma, and wrap with it. -->
+    <div class="sizes">
+      <WidthChoices
+        {choices}
+        {chosen}
+        onChoose={(value) => (preview.requested = value)}
+        label="Preview size"
+      />
 
-    <label class="swatch" style="--swatch: {preview.background};">
-      <input type="color" bind:value={preview.background} aria-label="Preview background colour" />
-    </label>
+      <label class="swatch" style="--swatch: {preview.background};">
+        <input type="color" bind:value={preview.background} aria-label="Preview background colour" />
+      </label>
+    </div>
   </div>
 </div>
 
@@ -153,6 +156,12 @@
     flex-wrap: wrap;
     align-items: flex-start;
     gap: var(--space-4);
+    align-self: stretch;
+  }
+
+  .sizes {
+    display: flex;
+    align-items: flex-start;
     align-self: stretch;
   }
 

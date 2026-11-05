@@ -66,12 +66,13 @@ bars. This component writes `preview.available` (its track's width) and `preview
 
 | Part | Size (screen px, each divided by `zoom` inside the frame) |
 | --- | --- |
-| Hit area (the `<button>`) | `--handle-w` 32 wide, **centred on** the box edge; reaches `--handle-hit-reach` 32 past top and bottom, so the squares sit inside it with 13px to spare |
+| Hit area (the `<button>`) | `--handle-w` 24 wide, **wholly outside** the box edge; reaches `--handle-hit-reach` 28 past top and bottom, so the squares sit inside it with 9px to spare |
 | Square, at each end | `--handle-square` 6, centred on the edge, 13–19 past the box |
 | Cap, square to box edge | `--handle-cap` 16 long, `--handle-cap-w` 2 wide |
 | Line along the edge | `--handle-dot` 1 wide, dotted 1 on / `--handle-dot-gap` 2 off |
 
-- The drawing is a `.mark` span with `pointer-events: none`, centred in the hit area and painted
+- The drawing is a `.mark` span with `pointer-events: none`, centred on the box edge (the hit area's
+  inner side, so half the square and the line draw over the box) and painted
   with `linear-gradient`s in `--color-ink`, so it stretches with the box height.
 - **Hover and focus:** the dotted line turns solid, 2px. **Pressed:** `--color-pressed`.
   `cursor: ew-resize`. The focus ring goes round the 24px hit area.
@@ -112,11 +113,12 @@ No test file for the component.
 
 ### Gotchas & rejected alternatives
 
-- **Hit areas are centred on the edge and include the squares** (Pol, P3b review: the first
-  version sat wholly outside the box, which read as off-centre and left half of each square out).
-  The cost: the inner 16px of each hit area lies over the box and takes those pixels from the
-  Handpick brush, which has to start a stroke on an edge cell further in. Everything is
-  counter-scaled by `1 / zoom` so the handle is the same size on screen at every preset.
+- **Hit areas lie wholly outside the edge and include the squares** (Pol, P4). P3b centred them
+  on the edge, and their inner 16px took the edge cells from the Handpick brush. Now the brush
+  reaches every pixel inside `Wpx`; a hit area covers only the bleed (outer cells reaching past
+  the box), which lies outside the page anyway. The mark stays centred on the edge, so it does not
+  read as off-centre. Everything is counter-scaled by `1 / zoom` so the handle is the same size on
+  screen at every preset.
 - **Drawn, not downloaded.** Figma's export is one fixed 579px picture; the handle must stretch with
   the box.
 - **`room` is floored** to a whole pixel, so the same file at the same preset draws the same
@@ -128,5 +130,5 @@ No test file for the component.
 
 - `onPointerMove`'s comment (line 119) says "Step 7's brush will need it". The brush exists
   (`PaintLayer.svelte`, via `metricsOf`/`toRenderSpace`). (stale comment)
-- The handle width is `--handle-w` in CSS and `HANDLE = 16` (half of it) in `width.ts`; changing one does not
+- The handle width is `--handle-w` in CSS and `HANDLE = 24` (the same) in `width.ts`; changing one does not
   change the other. (inconsistency, minor)
