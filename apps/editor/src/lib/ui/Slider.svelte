@@ -1,6 +1,6 @@
 <!--
-  The tile asset weight slider from Figma: a 1px ink track and a 10×20 ink
-  block thumb.
+  A compact slider: a 2px track in the control-edge grey and a small ink
+  block thumb, in a 24px-tall input that is the pointer target.
 
   It is a restyled native `<input type="range">`, so focus, arrow keys, Page
   Up/Down, Home/End and screen reader support come from the browser. On top of
@@ -82,13 +82,14 @@
 
 <style>
   .slider {
-    --track-h: var(--rule-w);
-    --thumb-offset: calc((var(--track-h) - var(--slider-thumb-h)) / 2);
+    --track: var(--color-rule);
+    --thumb-offset: calc((var(--slider-track-h) - var(--slider-thumb-h)) / 2);
     appearance: none;
     display: block;
     width: 100%;
     min-width: 0;
-    height: var(--slider-thumb-h);
+    /* The input is the 24px target; the thumb drawn inside it is smaller. */
+    height: var(--target-min);
     margin: 0;
     background: transparent;
     cursor: grab;
@@ -99,17 +100,24 @@
   }
 
   .slider:disabled {
+    --track: var(--color-disabled);
     cursor: default;
   }
 
-  /* Hover thickens the track, as it thickens an underline field. */
+  /* Hover darkens the track to the label role, as a field's edge darkens. */
   .slider:hover:not(:disabled) {
-    --track-h: var(--focus-w);
+    --track: var(--color-rule-hover);
+  }
+
+  .slider:focus-visible {
+    outline-offset: 0;
+    border-radius: var(--radius);
   }
 
   .slider::-webkit-slider-runnable-track {
-    height: var(--track-h);
-    background: var(--color-ink);
+    height: var(--slider-track-h);
+    border-radius: var(--slider-track-h);
+    background: var(--track);
   }
 
   .slider::-webkit-slider-thumb {
@@ -118,28 +126,34 @@
     height: var(--slider-thumb-h);
     margin-top: var(--thumb-offset);
     border: 0;
-    border-radius: var(--radius);
+    border-radius: var(--radius-xs);
     background: var(--color-ink);
+    transition: transform var(--dur-fast) var(--ease);
+  }
+
+  .slider:active:not(:disabled)::-webkit-slider-thumb {
+    transform: scaleX(1.5);
   }
 
   .slider::-moz-range-track {
-    height: var(--track-h);
-    background: var(--color-ink);
+    height: var(--slider-track-h);
+    border-radius: var(--slider-track-h);
+    background: var(--track);
   }
 
   .slider::-moz-range-thumb {
     width: var(--slider-thumb-w);
     height: var(--slider-thumb-h);
     border: 0;
-    border-radius: var(--radius);
+    border-radius: var(--radius-xs);
     background: var(--color-ink);
   }
 
   .slider:disabled::-webkit-slider-thumb {
-    background: var(--color-inactive);
+    background: var(--color-disabled);
   }
 
   .slider:disabled::-moz-range-thumb {
-    background: var(--color-inactive);
+    background: var(--color-disabled);
   }
 </style>

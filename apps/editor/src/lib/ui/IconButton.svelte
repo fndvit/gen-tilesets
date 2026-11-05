@@ -1,11 +1,11 @@
 <!--
   A bare button holding one icon: delete, re-seed, move up / down.
 
-  It has no fill of its own, so it takes the colour of whatever it sits on (white
-  on a bar, ink on paper). The icon keeps its Figma size inside a
-  `--target-min` box, the WCAG 2.2 target floor (2.5.8).
-  Hover draws a 1px frame in the icon's own colour, so a seed button keeps its
-  magenta while it still answers the pointer. `label` is required because the icon is the only
+  It has no fill of its own and takes the colour of the text around it (the
+  label role in a header row). The icon sits in a `--target-min` box, the
+  WCAG 2.2 target floor (2.5.8). Hover puts a grey square behind it and
+  pressing darkens it, so a seed button keeps its magenta while it still
+  answers the pointer. `label` is required because the icon is the only
   thing a sighted user sees; a screen reader needs the words.
 
   `tone="seed"` paints it in `--color-seed`. The design system gives that colour
@@ -48,16 +48,17 @@
     min-width: var(--target-min);
     min-height: var(--target-min);
     padding: 0;
-    border: var(--rule-w) solid transparent;
+    border: 0;
+    border-radius: var(--radius);
     background: none;
     color: inherit;
     cursor: pointer;
     transition:
-      border-color var(--dur-fast) var(--ease),
+      background-color var(--dur-fast) var(--ease),
       color var(--dur-fast) var(--ease);
   }
 
-  /* Re-seed is bigger than the other icon buttons (Pol, Block F review): a `--control-h` box, the icon `--icon-seed` wide. */
+  /* Re-seed is a step larger (Pol, Block F review): a `--control-h` box. */
   .seed {
     min-width: var(--control-h);
     min-height: var(--control-h);
@@ -69,17 +70,22 @@
     height: auto;
   }
 
-  /* The colour is kept: on a seed button it is a meaning, not a state. */
+  /* A grey square behind it, and the icon goes to full ink. A seed icon keeps its magenta: the colour is a meaning. */
   .icon-button:hover:not(:disabled) {
-    border-color: currentColor;
+    background: var(--color-hover);
+    color: var(--color-ink);
+  }
+
+  .seed:hover:not(:disabled) {
+    color: var(--color-seed);
   }
 
   .icon-button:active:not(:disabled) {
-    border-width: var(--focus-w);
+    background: var(--color-pressed);
   }
 
   .icon-button:disabled {
-    color: var(--color-inactive);
+    color: var(--color-disabled);
     cursor: default;
   }
 </style>

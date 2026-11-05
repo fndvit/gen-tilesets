@@ -318,7 +318,7 @@
               <!-- A div, not a section: a section carries an implicit `region` role
                    and cannot take an interactive one. -->
               <div class="notice" role="alertdialog" aria-labelledby="confirm-title">
-                <h2 class="t-label" id="confirm-title">{p.label}</h2>
+                <h2 class="t-section" id="confirm-title">{p.label}</h2>
                 <p class="t-body">
                   This changes the column count, and
                   {risked.length === 1 ? "this operation is" : "these operations are"} tied to specific
@@ -330,8 +330,8 @@
                   {/each}
                 </ul>
                 <div class="actions">
-                  <Button label="Change it" onclick={confirmPending} />
                   <Button label="Cancel" onclick={() => (pending = null)} />
+                  <Button label="Change it" variant="primary" onclick={confirmPending} />
                 </div>
               </div>
             {/if}
@@ -347,7 +347,7 @@
                 `cellList` cannot.
               -->
               <div class="notice">
-                <h2 class="t-label">Orphaned by a resize</h2>
+                <h2 class="t-section">Orphaned by a resize</h2>
                 <ul class="t-console">
                   {#each orphaned as orphan (orphan.operationId)}
                     <li>
@@ -497,12 +497,12 @@
     }
   }
 
-  /* The Figma *Sidebar*: a 1px ink frame, the scrolling sections over the fixed footer. */
+  /* The inspector: white, a divider on its right, the scrolling sections over the fixed footer. */
   aside {
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
     grid-template-columns: minmax(0, 1fr);
-    border: var(--rule);
+    border-right: var(--divider);
     background: var(--color-surface);
   }
 
@@ -511,10 +511,7 @@
     min-height: 0;
   }
 
-  /*
-    Sections touch; the darker ground shows only under the last one, so where
-    it ends is visible above the footer (Pol, Block F review).
-  */
+  /* Sections stack, each closed by its own divider. */
   .sections {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -570,17 +567,26 @@
     margin-bottom: var(--space-6);
   }
 
+  /* A floating panel over the picture, as a popup is, but in place. */
   .notice {
     display: grid;
     gap: var(--space-4);
-    padding: calc(var(--space-3) + var(--space-2));
-    border: var(--rule);
+    max-width: 560px;
+    padding: var(--space-6) var(--space-8);
+    border-radius: var(--radius);
     background: var(--color-paper);
+    box-shadow: var(--shadow-float);
     color: var(--color-warn);
   }
 
   .notice h2 {
     margin: 0;
+  }
+
+  .notice p {
+    margin: 0;
+    line-height: var(--leading-hint);
+    text-box: none;
   }
 
   .notice ul {
@@ -601,5 +607,6 @@
   .failures {
     margin: 0 0 var(--space-6);
     color: var(--color-danger);
+    font-size: var(--text-body-size);
   }
 </style>

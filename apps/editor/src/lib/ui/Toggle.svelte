@@ -1,6 +1,6 @@
 <!--
-  A set of chips where exactly one is chosen: the Figma *Boolean input*
-  (Alignment: Column / Gutter), and any short enum.
+  A segmented control where exactly one segment is chosen: Alignment (Column /
+  Gutter), Assets on load, and any short enum.
 
   It is a radio group, so Tab enters it once, on the chosen chip, and the arrow
   keys move the choice. Every move commits through `onChange`; there is no
@@ -67,50 +67,72 @@
 </div>
 
 <style>
+  /*
+    A segmented control: one 28px box with a 3:1 edge, its segments sharing
+    the width. The chosen segment is black, the one place black means
+    "selected" in a field.
+  */
   .toggle {
+    box-sizing: border-box;
     display: flex;
-    align-items: center;
-    gap: var(--chip-gap);
+    flex: 1;
+    min-width: 0;
+    height: var(--control-h);
+    border: var(--rule);
+    border-radius: var(--radius);
+    background: var(--color-field);
+    overflow: hidden;
   }
 
-  /* `--control-h` tall: above the 24px target floor (WCAG 2.2, 2.5.8). */
   .chip {
-    box-sizing: border-box;
-    min-height: var(--control-h);
+    flex: 1 1 0;
+    min-width: 0;
     padding: 0 var(--space-4);
-    border: var(--rule);
-    background: var(--color-paper);
-    color: var(--color-ink);
+    border: 0;
+    background: transparent;
+    color: var(--color-label);
+    white-space: nowrap;
     cursor: pointer;
     transition:
       background-color var(--dur-fast) var(--ease),
       color var(--dur-fast) var(--ease);
   }
 
-  .chip:hover:not(:disabled),
-  .chip[aria-checked="true"] {
-    background: var(--color-ink);
-    color: var(--color-paper);
+  .chip + .chip {
+    border-left: var(--rule);
   }
 
-  /* Choosing it again does nothing, and the pointer says so. */
-  .chip[aria-checked="true"] {
-    cursor: default;
+  .chip:hover:not(:disabled):not([aria-checked="true"]) {
+    background: var(--color-hover);
+    color: var(--color-ink);
   }
 
   .chip:active:not(:disabled):not([aria-checked="true"]) {
     background: var(--color-pressed);
-    color: var(--color-on-pressed);
+  }
+
+  .chip[aria-checked="true"] {
+    background: var(--color-selected);
+    color: var(--color-on-selected);
+    cursor: default;
+  }
+
+  /* Inside the box, so the edge and the neighbours cannot cover the ring. */
+  .chip:focus-visible {
+    outline-offset: calc(-1 * var(--focus-w) - var(--focus-offset));
+  }
+
+  .chip[aria-checked="true"]:focus-visible {
+    outline-color: var(--color-on-selected);
   }
 
   .chip:disabled {
-    border-color: var(--color-inactive);
-    color: var(--color-inactive);
+    color: var(--color-disabled);
     cursor: default;
   }
 
   .chip[aria-checked="true"]:disabled {
-    background: var(--color-inactive);
+    background: var(--color-disabled);
     color: var(--color-paper);
   }
 </style>

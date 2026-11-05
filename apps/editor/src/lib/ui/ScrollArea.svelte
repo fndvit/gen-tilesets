@@ -10,9 +10,9 @@
   the handle.
 
   The handle shows while the pointer is over the area, while it scrolls, and
-  while it is dragged, then fades out. It is mid grey at partial opacity, so it
-  reads on the black bars and on paper alike, and darker when hovered or
-  dragged.
+  while it is dragged, then fades out. It is translucent black, so it reads on
+  the white panels and on any preview backdrop alike, and darker when hovered
+  or dragged.
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";

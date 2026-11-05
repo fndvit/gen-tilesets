@@ -9,9 +9,9 @@
 
   It is a radio, and is meant to live in `GlyphGrid`, which owns the keyboard.
 
-  States: selected and hover look the same, a `--color-inactive` fill with a
-  1px ink frame (Figma node 2034:658). Hover does not invert as chips do,
-  because inverting would sink the ink artwork into an ink fill.
+  States: hover is a grey fill with a darker edge; chosen is a 2px ink frame
+  on the field fill. Neither inverts, because an ink fill would sink the ink
+  artwork.
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
@@ -69,18 +69,21 @@
 
 <style>
   .glyph {
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--space-2);
     min-width: 0;
-    padding: var(--space-1) var(--glyph-gap);
-    /* Always framed, transparent when idle, so selecting never shifts the layout. */
-    border: var(--rule-w) solid transparent;
-    border-radius: var(--radius-xs);
+    padding: var(--space-2) var(--space-1) var(--space-1);
+    border: var(--divider);
+    border-radius: var(--radius);
     background: var(--color-paper);
-    color: var(--color-ink);
+    color: var(--color-label);
     cursor: pointer;
+    transition:
+      background-color var(--dur-fast) var(--ease),
+      border-color var(--dur-fast) var(--ease);
   }
 
   .label-only {
@@ -104,7 +107,6 @@
 
   .slot {
     display: flex;
-    padding: var(--space-1);
   }
 
   .slot > :global(*) {
@@ -113,23 +115,32 @@
     height: var(--glyph-slot);
   }
 
-  .glyph:hover:not(:disabled),
-  .glyph[aria-checked="true"] {
-    border-color: var(--color-ink);
-    background: var(--color-inactive);
+  /* Hover: a grey fill and a darker edge, never inverted (ink artwork would sink into ink). */
+  .glyph:hover:not(:disabled):not([aria-checked="true"]) {
+    border-color: var(--color-rule-hover);
+    background: var(--color-hover);
+    color: var(--color-ink);
   }
 
-  /* Pressed: the frame thickens. A stroke drawn inside, so nothing moves. */
+  /* Chosen: a 2px ink frame drawn inside, the field fill, and the label in the value role. */
   .glyph[aria-checked="true"] {
+    border-color: var(--color-ink);
+    background: var(--color-field);
+    box-shadow: inset 0 0 0 var(--rule-w) var(--color-ink);
+    color: var(--color-ink);
     cursor: default;
   }
 
   .glyph:active:not(:disabled):not([aria-checked="true"]) {
-    box-shadow: inset 0 0 0 var(--focus-w) var(--color-rule);
+    background: var(--color-pressed);
   }
 
   .glyph:disabled {
-    color: var(--color-inactive);
+    color: var(--color-disabled);
     cursor: default;
+  }
+
+  .glyph:disabled .slot {
+    opacity: 0.35;
   }
 </style>

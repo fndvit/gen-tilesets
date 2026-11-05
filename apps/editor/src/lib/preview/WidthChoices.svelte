@@ -1,15 +1,15 @@
 <!--
-  A framed row of width buttons, both in the top bar: the size presets and the
-  file's breakpoints (Figma *Preview sizes*, *Breakpoints*). One size for both,
-  since the breakpoints moved up from their own bar (Pol, Stage 2).
+  A segmented row of width buttons, both in the top bar: the size presets and
+  the file's breakpoints. The same 28px segmented box as the sidebar's
+  choices, with the widths in mono so the digits line up.
 
   Each button is an action, "show the preview at this width", so they are
   `aria-pressed` buttons rather than a radio group: a dragged width matches
   none of them, and a radio group with nothing chosen is not one. The one that
-  matches is drawn in ink and does nothing when pressed again.
+  matches is black and does nothing when pressed again.
 
-  `divided` draws a rule between the cells (the breakpoints); the presets have
-  none, as in Figma.
+  `divided` is kept for callers; every segment now has a rule between it and
+  the next.
 -->
 <script lang="ts" generics="T">
   interface Choice {
@@ -35,7 +35,7 @@
     {@const on = choice.value === chosen}
     <button
       type="button"
-      class="choice t-body"
+      class="choice t-console"
       aria-pressed={on}
       onclick={() => {
         if (!on) onChoose(choice.value);
@@ -48,47 +48,50 @@
 
 <style>
   .choices {
+    box-sizing: border-box;
     display: flex;
     flex-wrap: wrap;
     border: var(--rule);
+    border-radius: var(--radius);
+    background: var(--color-field);
+    overflow: hidden;
   }
 
   .choice {
     box-sizing: border-box;
     min-width: var(--width-chip-w);
-    height: var(--width-chip-h);
+    height: calc(var(--width-chip-h) - 2 * var(--rule-w));
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0 var(--space-2);
+    padding: 0 var(--space-4);
     border: 0;
-    background: var(--color-paper);
-    color: var(--color-ink);
+    background: transparent;
+    color: var(--color-label);
     cursor: pointer;
     transition:
       background-color var(--dur-fast) var(--ease),
       color var(--dur-fast) var(--ease);
   }
 
-  .divided .choice + .choice {
+  .choice + .choice {
     border-left: var(--rule);
   }
 
-  /* Block F's chip rule: invert on hover, grey while pressed. */
-  .choice:hover,
-  .choice[aria-pressed="true"] {
-    background: var(--color-ink);
-    color: var(--color-paper);
-  }
-
-  /* Pressing the chosen one again does nothing, and the pointer says so. */
-  .choice[aria-pressed="true"] {
-    cursor: default;
+  .choice:hover:not([aria-pressed="true"]) {
+    background: var(--color-hover);
+    color: var(--color-ink);
   }
 
   .choice:active:not([aria-pressed="true"]) {
     background: var(--color-pressed);
-    color: var(--color-on-pressed);
+  }
+
+  /* Pressing the chosen one again does nothing, and the pointer says so. */
+  .choice[aria-pressed="true"] {
+    background: var(--color-selected);
+    color: var(--color-on-selected);
+    cursor: default;
   }
 
   /* The focus ring sits inside, so a neighbour cannot cover it. */
@@ -96,9 +99,7 @@
     outline-offset: calc(-1 * var(--focus-w) - var(--focus-offset));
   }
 
-  /* On an ink cell the ring is paper, or it would vanish. */
-  .choice:hover:focus-visible,
   .choice[aria-pressed="true"]:focus-visible {
-    outline-color: var(--color-paper);
+    outline-color: var(--color-on-selected);
   }
 </style>

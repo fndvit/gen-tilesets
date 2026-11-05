@@ -59,10 +59,18 @@
 {/if}
 
 <style>
-  /* One column that never grows past the body (the implicit `auto` column would). */
+  /*
+    Typed numbers two to a row, like Grid & Size; a labelled row (a segmented
+    choice, a slider) takes the whole width. `minmax(0, 1fr)`: never grows
+    past the body.
+  */
   .params {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-4);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .params > :global(:not(.field)) {
+    grid-column: 1 / -1;
   }
 </style>

@@ -1,7 +1,8 @@
 <!--
-  The Figma *Tile Group*: one Tile. A group bar (trash, the title, editable on
-  click, then up to four thumbnails, open or closed, and the chevron) over a paper
-  body holding its variants and a square "+" to add more.
+  One Tile, as a nested row: the triangle, the title (editable on click), up
+  to four thumbnails, and delete at the right end. Open, its variants are
+  listed one indent in, then a dashed "+ Add variants" row with Reset weights
+  beside it.
 
   **The variants are listed by id, with no drag affordance** (**D3**, `09`
   §10.1). `03` §4.2 sorted assets precisely so that dragging a list entry could
@@ -71,7 +72,7 @@
   const total = $derived(assets.reduce((n, a) => n + a.weight, 0));
   const percentOf = (weight: number) => (total > 0 ? Math.round((weight / total) * 100) : 0);
 
-  /** The bar's thumbnails (Figma group B), kept while open too (Pol, Block F review). */
+  /** The row's thumbnails, kept while open too (Pol, Block F review). */
   const thumbs = $derived(assets.slice(0, 4).map((a) => stored(tile.id, a.id)?.url ?? null));
 
   function onDrop(event: DragEvent): void {
@@ -125,7 +126,7 @@
         />
       {/each}
       <div class="add">
-        <AddBar label="Add variants to {tile.name}" variant="square" onclick={onAdd} />
+        <AddBar label="Add variants to {tile.name}" text="Add variants" onclick={onAdd} />
         <Button label="Reset weights" disabled={equal} onclick={onResetWeights} />
       </div>
     </div>
@@ -144,6 +145,7 @@
 
 <style>
   .group {
+    border-radius: var(--radius);
     outline: var(--focus-w) solid transparent;
     outline-offset: var(--focus-offset);
     transition: outline-color var(--dur-fast) var(--ease);
@@ -154,21 +156,19 @@
     outline-color: var(--color-ink);
   }
 
-  /* Figma: 5px from the frame's outer edge, so 4px inside its 1px border. */
+  /* One indent in, under the title. No frame: the indent is the grouping. */
   .body {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--asset-gap);
-    padding: var(--space-2);
-    border: var(--rule);
-    border-top: 0;
-    background: var(--color-paper);
+    padding: 0 0 var(--space-4) var(--indent);
   }
 
-  /* The square "+" on the left, Reset weights at the far right (not in Figma). */
   .add {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: var(--chip-gap);
+    margin-top: var(--space-2);
   }
 
   .mini {
@@ -176,10 +176,11 @@
     box-sizing: border-box;
     width: var(--thumb-sm);
     height: var(--thumb-sm);
+    border-radius: var(--radius-xs);
     object-fit: cover;
   }
 
   span.mini {
-    border: var(--rule-w) solid var(--color-on-bar);
+    border: var(--rule);
   }
 </style>

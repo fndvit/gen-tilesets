@@ -1,6 +1,6 @@
 <!--
-  An explanation that appears on hover: a small ink bubble with paper text under
-  whatever it wraps (a field label, a tile thumbnail, a tile group title).
+  An explanation that appears on hover: a small ink bubble with paper 12px
+  text under whatever it wraps (a field label, a tile thumbnail, a title).
 
   **Explanations never sit in the layout.** The bubble is `display: none` until
   the pointer is over the wrapped content, so a hidden hint takes no room and
@@ -55,8 +55,10 @@
     z-index: 2;
     width: max-content;
     max-width: var(--hint-w);
-    padding: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius);
     background: var(--color-ink);
+    font-size: var(--text-label-size);
     color: var(--color-paper);
     line-height: var(--leading-hint);
     text-box: none;

@@ -25,7 +25,7 @@
 -->
 <script lang="ts">
   import { format, type ParseResult } from "../fields.js";
-  import FieldRow from "./ui/FieldRow.svelte";
+  import Hint from "./ui/Hint.svelte";
 
   interface Props {
     label: string;
@@ -38,11 +38,14 @@
     /** Explanation shown on hovering the label (`FieldRow`'s `hint`). */
     hint?: string;
     step?: string;
+    /** A unit after the value ("px"). Display only. */
+    unit?: string;
   }
 
-  let { label, value, parse, onCommit, hint, step = "any" }: Props = $props();
+  let { label, value, parse, onCommit, hint, step = "any", unit }: Props = $props();
 
   const inputId = $props.id();
+  const hintId = $derived(hint ? `${inputId}-hint` : undefined);
 
   /**
    * **The in-flight text of E5, and nothing else.**
@@ -89,53 +92,98 @@
 </script>
 
 <!--
-  The row is `ui/FieldRow`; this component adds only the underline field, the
-  Figma *Numeric input*: `.t-label` text, right-aligned, on a 1px ink rule.
+  The Inspector field: one 28px box holding the label as a prefix, the value
+  and an optional unit ("Cell size  25 px"). The label is a real `<label>`, so
+  clicking anywhere on the box's text puts the caret in the value. Its hint
+  opens from the label, and the input is described by it. The box fills its
+  grid cell; the caller decides the columns.
 -->
-<FieldRow {label} for={inputId} {...hint ? { hint } : {}}>
-  {#snippet children(describedBy)}
-    <input
-      id={inputId}
-      class="t-label"
-      aria-describedby={describedBy}
-      type="number"
-      {step}
-      value={text}
-      oninput={onInput}
-      onblur={onBlur}
-      spellcheck="false"
-    />
-  {/snippet}
-</FieldRow>
+<div class="field">
+  <Hint text={hint} id={hintId}>
+    {#snippet children()}
+      <label class="name t-label" for={inputId}>{label}</label>
+    {/snippet}
+  </Hint>
+  <input
+    id={inputId}
+    class="t-console"
+    aria-describedby={hintId}
+    type="number"
+    {step}
+    value={text}
+    oninput={onInput}
+    onblur={onBlur}
+    spellcheck="false"
+  />
+  {#if unit}<span class="unit t-label" aria-hidden="true">{unit}</span>{/if}
+</div>
 
 <style>
-  input {
-    width: var(--field-w);
-    /* Room above the digits makes the field a 24px target (WCAG 2.2, 2.5.8) with the text still on the rule. */
-    padding: calc(var(--target-min) - 1em - var(--rule-w)) var(--space-2) 0;
-    border: 0;
-    border-bottom: var(--rule);
+  /*
+    Fill, a 3:1 edge (the edge is what says "you can type here"), and the label
+    inside in the 600 role so the value in 900 is what the eye lands on.
+  */
+  .field {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    height: var(--control-h);
+    padding: 0 var(--space-3) 0 var(--space-4);
+    border: var(--rule);
     border-radius: var(--radius);
+    background: var(--color-field);
+    color: var(--color-ink);
+    cursor: text;
+    transition:
+      background-color var(--dur-fast) var(--ease),
+      border-color var(--dur-fast) var(--ease);
+  }
+
+  .field:hover {
+    border-color: var(--color-rule-hover);
+    background: var(--color-paper);
+  }
+
+  /* Focus: the edge turns ink and doubles, drawn inside so nothing moves. */
+  .field:focus-within {
+    background: var(--color-paper);
+    border-color: var(--color-ink);
+    box-shadow: inset 0 0 0 var(--rule-w) var(--color-ink);
+  }
+
+  .name {
+    flex: none;
+    color: var(--color-label);
+    white-space: nowrap;
+    cursor: inherit;
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
     background: transparent;
     color: var(--color-ink);
-    /* One em, not `normal`: the digits keep their full height and sit just above the rule. */
     line-height: 1;
     text-align: right;
     appearance: textfield;
   }
 
-  /*
-    Hover and focus thicken the underline instead of drawing the global ring: a
-    box around an underline field reads as a different control.
-  */
-  input:hover,
+  /* The box draws the focus; a second ring inside it would be noise. */
   input:focus-visible {
     outline: none;
-    border-bottom-width: var(--focus-w);
-    margin-bottom: calc(var(--rule-w) - var(--focus-w));
   }
 
-  /* No spinners: the field is a typed value, as in Figma. */
+  .unit {
+    flex: none;
+    color: var(--color-placeholder);
+  }
+
+  /* No spinners: the field is a typed value. */
   input::-webkit-inner-spin-button,
   input::-webkit-outer-spin-button {
     appearance: none;

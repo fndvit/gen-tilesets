@@ -1,32 +1,26 @@
 <!--
-  A black bar that shows and hides what follows it: the Figma *Section Header*
-  and *Tile Group Header*.
+  A header row that shows and hides what follows it: a sidebar section, or a
+  nested group (a breakpoint rule, a tile group).
 
-  The fold chevron first, then the title, then an optional `extras` snippet (a
-  tile group's thumbnails) at the right. The chevron points down when
-  closed and up when open. It is on the left so `ScrollArea`'s overlay handle,
-  which sits over the right edge, never covers it (Pol, Block E review).
+  Inspector anatomy: a disclosure triangle, the title, then whatever the row
+  carries at its right: a read-only `summary` of the collapsed contents, the
+  `extras` (a tile group's thumbnails), and the `actions` (add, delete,
+  reorder), which live in the header instead of in bars of their own. The
+  triangle points right when closed and down when open. Actions sit at the
+  right end with a margin that keeps them clear of `ScrollArea`'s handle.
 
-  For a tile group the bar also edits: `onRename` makes the title an
-  `InlineEdit` (click to rename), and `actions` puts controls such as the trash
-  `IconButton` at the right end, with a wider right margin that keeps it clear
-  of the scroll handle. Those sit outside the disclosure button. The chevron is
-  then a button of its own, and the empty space after the title toggles too,
-  so clicking anywhere but the title or an action still opens and closes it. `note` is text shown after the title but
-  not edited with it (a duplicate name's ` (t3)`), and `hint` explains the
-  title on hover (`ui/Hint`).
+  For a tile group the row also edits: `onRename` makes the title an
+  `InlineEdit` (click to rename). Actions sit outside the disclosure button.
+  The triangle is then a button of its own, and the empty space after the
+  title toggles too, so clicking anywhere but the title or an action still
+  opens and closes it. `note` is text shown after the title but not edited
+  with it (a duplicate name's ` (t3)`), and `hint` explains the title on hover
+  (`ui/Hint`).
 
-  `variant` picks the size: `section` is the sidebar section bar in
-  `.t-section`, `group` the tile group bar in `.t-label`. Both are 32px, taller
-  than Figma's 25 and 24, so the chevron and the trash are 24px targets
-  (WCAG 2.2, 2.5.8; Block F).
-
-  Header bars do not invert on hover (Pol, Block F review): the chevron and the
-  title dim, the trash shows its frame, and the title has a real line height
-  rather than a cap-trimmed box, which clipped the tops of letters. The body slides
-  open and closed over `--dur-fast`, and appears at once under reduced motion. The body is
-  rendered bare; its padding and frame belong to the caller (Section, TileGroup),
-  because the two Figma bodies differ.
+  `variant` picks the level: `section` is a 32px row in 13 semibold, sticky at
+  the top of the sidebar while its body scrolls under it; `group` a 28px row
+  in 13 medium, one indent in. Neither has a fill: hover tints the row, and
+  the body is rendered bare, its indent and spacing the caller's.
 
   **Open state is transient.** It is bindable so a caller can open a group it
   just created, but it is never written to the file (`09` §12, **E4**), the same
@@ -53,9 +47,11 @@
     /** Explanation shown on hovering the title. */
     hint?: string | undefined;
     /** Controls before the title (the trash button). Outside the disclosure button. */
-    actions?: Snippet;
-    /** Decorative content beside the chevron. It sits inside the button, so nothing in it may be interactive. */
+    actions?: Snippet | undefined;
+    /** Decorative content at the row's right. It sits inside the button, so nothing in it may be interactive. */
     extras?: Snippet | undefined;
+    /** A read-only line of what is inside, shown while closed. */
+    summary?: string | undefined;
     children: Snippet;
   }
 
@@ -69,11 +65,12 @@
     hint,
     actions,
     extras,
+    summary,
     children,
   }: Props = $props();
 
   const bodyId = $props.id();
-  const textClass = $derived(variant === "section" ? "t-section" : "t-label");
+  const textClass = $derived(variant === "section" ? "t-section" : "t-body");
 
   let root: HTMLElement | undefined = $state();
 
@@ -91,7 +88,7 @@
     The heading wraps the controls, not the other way round: the heading stays a
     heading for the outline, and the button carries the disclosure semantics.
   -->
-  <svelte:element this={`h${level}`} class="heading on-bar">
+  <svelte:element this={`h${level}`} class="heading">
     <div class="bar">
       {#if onRename}
         <button
@@ -126,6 +123,7 @@
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span class="fill" onclick={toggle}>
           {#if extras}<span class="extras">{@render extras()}</span>{/if}
+          {#if summary && !open}<span class="summary t-label">{summary}</span>{/if}
         </span>
       {:else}
         <button
@@ -138,6 +136,7 @@
           <span class="chev" class:open><Icon name="fold" /></span>
           <span class="title {textClass}">{title}{#if note}&nbsp;{note}{/if}</span>
           {#if extras}<span class="extras">{@render extras()}</span>{/if}
+          {#if summary && !open}<span class="summary t-label">{summary}</span>{/if}
         </button>
       {/if}
       {#if actions}<span class="actions">{@render actions()}</span>{/if}
@@ -157,39 +156,83 @@
     font: inherit;
   }
 
-  /* Border-box, so `min-height` is the bar height with its padding inside. */
+  /* Border-box, so `min-height` is the row height with its padding inside. */
   .bar {
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    gap: var(--space-4);
-    padding: var(--space-2);
-    background: var(--color-bar);
-    color: var(--color-on-bar);
+    gap: var(--space-2);
+    color: var(--color-ink);
+    transition: background-color var(--dur-fast) var(--ease);
   }
 
-  .group .bar {
-    border: var(--rule-w) solid var(--color-bar);
+  /*
+    A section's row: sticky, so the title of the section being read stays in
+    view while its body scrolls. Its paper hides what passes under it.
+  */
+  .section > .heading {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--color-surface);
   }
 
-  /* A 1px separator under every section bar, inside its 32px (Pol, Block F review). */
-  .section .bar {
+  /* The triangle hangs in the gutter, so the title lines up with the fields below. */
+  .section > .heading .bar {
     min-height: var(--bar-h-section);
-    border-bottom: var(--rule-w) solid var(--color-separator);
+    padding-right: var(--space-4);
+  }
+
+  .section > .heading .toggle {
+    gap: 0;
+  }
+
+  .section > .heading .chev {
+    width: var(--pad-x);
+  }
+
+  /* The title starts one indent in, where the group's body does. */
+  .group .bar,
+  .group .toggle {
+    gap: 0;
+  }
+
+  .group .named {
+    margin-right: var(--space-2);
   }
 
   .group .bar {
     min-height: var(--bar-h-group);
+    padding-right: var(--space-1);
+    border-radius: var(--radius);
+  }
+
+  /* Hover tints the row, but only over the part that toggles or renames. */
+  .bar:has(.toggle:hover, .chev-button:hover, .fill:hover) {
+    background: var(--color-hover);
+  }
+
+  .bar:has(.toggle:active, .chev-button:active, .fill:active) {
+    background: var(--color-pressed);
+  }
+
+  .section > .heading .title {
+    font-weight: var(--weight-semibold);
+  }
+
+  .group .title,
+  .group :global(.text) {
+    font-weight: var(--weight-medium);
   }
 
   /* The right end, clear of `ScrollArea`'s overlay handle. */
   .actions {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    gap: var(--space-1);
     flex: none;
     margin-left: auto;
-    margin-right: var(--space-4);
+    color: var(--color-label);
   }
 
   .named {
@@ -202,27 +245,22 @@
   .note {
     flex: none;
     white-space: nowrap;
+    color: var(--color-label);
   }
 
   .toggle,
   .chev-button {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    gap: var(--space-1);
     padding: 0;
     border: 0;
+    border-radius: var(--radius);
     background: none;
     color: inherit;
     font: inherit;
     text-align: left;
     cursor: pointer;
-    transition: color var(--dur-fast) var(--ease);
-  }
-
-  /* The header's hover: its content dims. The bar itself never changes. */
-  .toggle:hover,
-  .chev-button:hover {
-    color: var(--color-inactive);
   }
 
   .toggle {
@@ -231,19 +269,35 @@
     align-self: stretch;
   }
 
+  .toggle:focus-visible,
+  .chev-button:focus-visible {
+    outline-offset: calc(-1 * var(--focus-w));
+  }
+
   .chev-button {
     flex: none;
   }
 
-  /* The chevron gets the 24px target box; the icon stays 12×6. */
+  /* The triangle sits in a 24px column, the indent every nested level uses. */
   .chev {
     display: flex;
     flex: none;
     align-items: center;
     justify-content: center;
-    width: var(--target-min);
+    width: var(--indent);
     height: var(--target-min);
-    transition: transform var(--dur-fast) var(--ease);
+    color: var(--color-label);
+    transition:
+      transform var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
+  }
+
+  .chev.open {
+    transform: rotate(90deg);
+  }
+
+  .bar:hover .chev {
+    color: var(--color-ink);
   }
 
   /*
@@ -251,7 +305,8 @@
     on a box trimmed to cap height cut off whatever rises above it.
   */
   .title,
-  .note {
+  .note,
+  .summary {
     line-height: var(--leading-title);
     text-box: none;
   }
@@ -262,7 +317,19 @@
     white-space: nowrap;
   }
 
-  /* After the title: the empty bar (it toggles) with the extras at its right. */
+  /* What a closed section holds, in the label role, pushed to the right. */
+  .summary {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    padding-left: var(--space-4);
+    overflow: hidden;
+    color: var(--color-label);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* After the title: the empty row (it toggles) with the extras at its right. */
   .fill {
     display: flex;
     flex: 1;
@@ -278,9 +345,6 @@
     align-items: center;
     gap: var(--space-1);
     margin-left: auto;
-  }
-
-  .chev.open {
-    transform: rotate(180deg);
+    padding-left: var(--space-4);
   }
 </style>

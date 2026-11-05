@@ -166,7 +166,7 @@
 <div class="palette">
   <Hint text={paletteHint}>
     {#snippet children()}
-      <span class="t-label">Palette</span>
+      <span class="name t-label">Palette</span>
     {/snippet}
   </Hint>
 
@@ -258,15 +258,23 @@
   .palette {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-4);
+    gap: var(--space-2);
     color: var(--color-ink);
   }
 
+  .name {
+    color: var(--color-label);
+  }
+
+  /* A segmented strip, like the tabs: segment widths are the weights. */
   .bar {
+    box-sizing: border-box;
     display: flex;
-    height: var(--thumb);
+    height: var(--control-h);
     border: var(--rule);
-    background: var(--color-paper);
+    border-radius: var(--radius);
+    background: var(--color-field);
+    overflow: hidden;
     touch-action: none;
   }
 
@@ -275,36 +283,45 @@
     min-width: 0;
     padding: 0 var(--space-2);
     border: 0;
-    border-right: var(--rule-w) solid var(--color-paper);
-    background: var(--color-ink);
-    color: var(--color-paper);
+    border-right: var(--rule);
+    background: var(--color-field);
+    color: var(--color-ink);
     overflow: hidden;
     white-space: nowrap;
     cursor: grab;
+    transition: background-color var(--dur-fast) var(--ease);
   }
 
   .segment:last-child {
     border-right: 0;
   }
 
-  /* Pressed: grabbing, and the frame thickens inside, as a pressed glyph's does. */
   .segment:active {
     cursor: grabbing;
-    box-shadow: inset 0 0 0 var(--focus-w) var(--color-ink);
   }
 
   /* An empty entry clears cells, so it reads as paper, not as a tile. */
   .segment.null {
     background: var(--color-paper);
-    color: var(--color-ink);
-    border-right-color: var(--color-ink);
+    color: var(--color-label);
   }
 
-  /* Selected and hover = the glyph look: inactive fill, ink text. */
-  .segment:hover,
+  .segment:hover:not(.on) {
+    background: var(--color-hover);
+  }
+
+  /* The entry being edited below: black, as a chosen segment is. */
   .segment.on {
-    background: var(--color-inactive);
-    color: var(--color-ink);
+    background: var(--color-selected);
+    color: var(--color-on-selected);
+  }
+
+  .segment:focus-visible {
+    outline-offset: calc(-1 * var(--focus-w));
+  }
+
+  .segment.on:focus-visible {
+    outline-color: var(--color-on-selected);
   }
 
   /* A zero-weight entry is legal and must stay visible (§7.6). */
@@ -317,38 +334,37 @@
   .thresholds {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-4);
+    gap: var(--space-1) var(--space-4);
     margin: 0;
+    color: var(--color-label);
   }
 
-  /* Inactive grey is unreadable on paper, so the selected share is underlined instead. */
   .thresholds .on {
+    color: var(--color-ink);
     text-decoration: underline;
+    text-underline-offset: var(--space-1);
   }
 
   .select {
     box-sizing: border-box;
-    width: var(--field-w);
-    min-height: var(--target-min);
-    padding: 0;
-    border: 0;
-    border-bottom: var(--rule);
+    width: 100%;
+    height: var(--control-h);
+    padding: 0 var(--space-3);
+    border: var(--rule);
     border-radius: var(--radius);
-    background: transparent;
+    background: var(--color-field);
     color: var(--color-ink);
     cursor: pointer;
   }
 
-  /* As the numeric fields: hover and focus thicken the underline. */
-  .select:hover,
-  .select:focus-visible {
-    outline: none;
-    border-bottom-width: var(--focus-w);
-    margin-bottom: calc(var(--rule-w) - var(--focus-w));
+  .select:hover {
+    border-color: var(--color-rule-hover);
+    background: var(--color-paper);
   }
 
   .actions {
     display: flex;
+    flex-wrap: wrap;
     gap: var(--chip-gap);
   }
 </style>

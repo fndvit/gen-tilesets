@@ -107,22 +107,24 @@
     cursor: text;
   }
 
-  /* An underline says "click to type here"; it reads on a bar at rest and inverted. */
+  /* A dotted underline says "click to type here" without looking like a link. */
   .text:hover {
-    text-decoration: underline;
+    text-decoration: underline dotted;
     text-decoration-thickness: var(--rule-w);
     text-underline-offset: var(--space-1);
   }
 
-  /*
-    The underline says "you are typing here", as the numeric fields do, and it
-    is the focus cue too: no ring around an underline field.
-  */
+  /* While typing it becomes a field like every other: paper, an ink edge. */
   .field {
     field-sizing: content;
+    box-sizing: border-box;
     max-width: 100%;
-    border-bottom: var(--focus-w) solid currentColor;
-    margin-bottom: calc(-1 * var(--focus-w));
+    height: var(--target-min);
+    padding: 0 var(--space-2);
+    border: var(--rule-w) solid var(--color-ink);
+    border-radius: var(--radius-xs);
+    background: var(--color-paper);
+    box-shadow: inset 0 0 0 var(--rule-w) var(--color-ink);
     outline: none;
   }
 </style>

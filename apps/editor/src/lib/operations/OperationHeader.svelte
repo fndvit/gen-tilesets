@@ -1,14 +1,12 @@
 <!--
-  One operation's bar — the Figma *Operation header* (Closed and Opened).
+  One operation's row in the stack.
 
-  Left to right: the index cell, a column with delete and re-seed, the summary
-  above the step tabs, and a column with the reorder arrows. The summary is one
-  console cell per step, each the width of the tab under it, so what a step
-  answered sits over that step (Pol, Block F review). A cell that overflows ends
-  in an ellipsis and scrolls while hovered (`Marquee scroll="hover"`). The
-  cells are hidden from screen readers; each tab's name carries its answer. 56px tall (40 in Figma), so each column holds two 24px targets
-  (WCAG 2.2, 2.5.8; Block F). Opened = one tab is active (paper); the body below it is
-  the caller's.
+  Left to right: the index, the four step tabs (each tab shows its step and,
+  under it in mono, what that step answered, so a closed operation reads as a
+  sentence across the strip), then a 2×2 block of icons: re-seed and delete
+  over the reorder arrows. A long answer ends in an ellipsis and scrolls while
+  hovered; each tab's accessible name carries the whole answer. Opened = one
+  tab is black; the body below it is the caller's.
 
   The index is the stack position, shown because later operations blend onto
   earlier ones (`02` §9). It is not the operation's identity: randomness hangs
@@ -24,7 +22,6 @@
 <script lang="ts">
   import { STEPS, type Step } from "../../draft.svelte.js";
   import IconButton from "../ui/IconButton.svelte";
-  import Marquee from "../ui/Marquee.svelte";
   import TabBar from "../ui/TabBar.svelte";
 
   interface Props {
@@ -60,29 +57,13 @@
     panelId,
   }: Props = $props();
 
-  const tabs = $derived(STEPS.map((id) => ({ id, label: id, detail: cells[id] })));
+  const tabs = $derived(STEPS.map((id) => ({ id, label: id.charAt(0).toUpperCase() + id.slice(1), detail: cells[id] })));
 </script>
 
-<div class="header on-bar">
-  <span class="index t-section" aria-label="Operation {index}">{index}</span>
-
-  <div class="icons">
-    <IconButton icon="trash" label="Delete operation {index}" onclick={onDelete} />
-    <IconButton
-      icon="reseed"
-      tone="seed"
-      label="Re-seed operation {index}"
-      disabled={onReseed === undefined}
-      onclick={() => onReseed?.()}
-    />
-  </div>
+<div class="header" class:open={active !== null}>
+  <span class="index t-console" aria-label="Operation {index}">{index}</span>
 
   <div class="middle">
-    <div class="cells" aria-hidden="true">
-      {#each STEPS as step (step)}
-        <span class="cell"><Marquee text={cells[step]} scroll="hover" /></span>
-      {/each}
-    </div>
     <TabBar
       {tabs}
       {active}
@@ -92,7 +73,15 @@
     />
   </div>
 
-  <div class="icons arrows">
+  <div class="icons">
+    <IconButton
+      icon="reseed"
+      tone="seed"
+      label="Re-seed operation {index}"
+      disabled={onReseed === undefined}
+      onclick={() => onReseed?.()}
+    />
+    <IconButton icon="trash" label="Delete operation {index}" onclick={onDelete} />
     <IconButton
       icon="up"
       label="Move operation {index} earlier"
@@ -111,52 +100,44 @@
 <style>
   .header {
     display: flex;
+    align-items: stretch;
+    gap: var(--space-2);
     min-height: var(--op-header-h);
-    background: var(--color-bar);
-    color: var(--color-on-bar);
   }
 
+  /* The stack position in the gutter a nested row's triangle would use. */
   .index {
     display: flex;
+    flex: none;
     align-items: center;
-    padding: var(--space-1) var(--space-2);
-  }
-
-  .icons {
-    display: flex;
-    flex-direction: column;
     justify-content: center;
-    padding: var(--space-2);
+    width: var(--target-min);
+    color: var(--color-label);
   }
 
-  /* Trash (24) over the larger re-seed (28) fills the 56px header with 2px to spare top and bottom. */
-  .icons:not(.arrows) {
-    padding-block: var(--space-1);
+  .open .index {
+    color: var(--color-ink);
   }
 
+  /* A size container, so the tabs can go two by two when the row is narrow. */
   .middle {
     display: flex;
     flex: 1 1 0;
-    flex-direction: column;
     min-width: 0;
+    container-type: inline-size;
   }
 
-  /* As the tabs: four equal columns. Neighbours overlap by a rule, so dividers stay 1px. */
-  .cells {
-    display: flex;
-  }
-
-  .cell {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-
-  .cell + .cell {
-    margin-left: calc(-1 * var(--rule-w));
-  }
-
-  /* The tab row takes what the strip leaves of the header. */
   .middle :global(.tabs) {
     flex: 1;
+  }
+
+  /* Re-seed and delete over the arrows, in the label role. */
+  .icons {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    align-content: center;
+    align-items: center;
+    justify-items: center;
+    color: var(--color-label);
   }
 </style>

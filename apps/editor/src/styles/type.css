@@ -6,15 +6,17 @@
   reduced-motion rule. Text styles are classes rather than element rules so a
   <button>, a <label> and an <h2> can all wear "label" without fighting a
   cascade.
+
+  Inspector type: sentence case throughout, two sizes (13 / 12), and weight
+  and colour rather than size or capitals to tell a title from a label. The
+  classes set size and weight only; colour is the component's, from the role
+  map in `tokens.css`, because the same 12px can be a label (600) or a value
+  (900).
 */
 
 @import "@fontsource/roboto-mono/500.css";
 
-/*
-  Figma trims every text box to cap height ("text-box-trim: both, cap /
-  alphabetic"), which is what makes 4px of padding look like 4px around an
-  uppercase word. Browsers without `text-box` fall back to line-height 1.
-*/
+/* Trimmed to cap height, so a 28px box centres its text optically. */
 .t-section,
 .t-label,
 .t-body,
@@ -25,42 +27,36 @@
   text-box: trim-both cap alphabetic;
 }
 
-/* "Section Header" — 24 Medium, uppercase. */
+/* Section and group titles: 13 semibold. */
 .t-section {
   font-family: var(--font-ui);
   font-size: var(--text-section-size);
-  font-weight: var(--weight-medium);
-  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
 }
 
-/*
-  "UI small UC" — 20 Roman, uppercase. Field labels, group titles, weights.
-  A container can set `--label-size` and `--label-case` to make every field
-  inside it compact (an operation body does).
-*/
+/* Field labels: 12 regular. A container can set `--label-size` to change it. */
 .t-label {
   font-family: var(--font-ui);
   font-size: var(--label-size, var(--text-label-size));
   font-weight: var(--weight-regular);
-  text-transform: var(--label-case, uppercase);
+  text-transform: var(--label-case, none);
 }
 
-/* "UI regular" — 14 Light. Questions and running text. */
+/* Values, questions, running text: 13 regular. */
 .t-body {
   font-family: var(--font-ui);
   font-size: var(--text-body-size);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
 }
 
-/* "UI XS Bold" — 10 Medium, uppercase. Chips, tabs, small buttons. */
+/* Buttons, segments, tabs: 12 medium, sentence case. */
 .t-xs {
   font-family: var(--font-ui);
   font-size: var(--text-xs-size);
   font-weight: var(--weight-medium);
-  text-transform: uppercase;
 }
 
-/* "Console" — Roboto Mono 10 Medium. Summaries and glyph labels. */
+/* Numbers and ids: Roboto Mono 12, so digits line up down a column. */
 .t-console {
   font-family: var(--font-mono);
   font-size: var(--text-console-size);

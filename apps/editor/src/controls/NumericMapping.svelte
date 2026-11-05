@@ -113,8 +113,8 @@
 <div class="mapping">
   <Hint text={hint}>
     {#snippet children()}
-      <!-- "Range": the framed block's bar above already names the attribute. -->
-      <span class="t-label">Range</span>
+      <!-- "Range": the options header above already names the attribute. -->
+      <span class="name t-label">Range</span>
     {/snippet}
   </Hint>
 
@@ -191,20 +191,27 @@
 </div>
 
 <style>
-  /* One column that never grows past the body (the implicit `auto` column would). */
+  /* Fields two to a row; the track, the label and the Steps row take a whole row. */
   .mapping {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-4);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
     color: var(--color-ink);
   }
 
+  .mapping > :global(*:not(.field)) {
+    grid-column: 1 / -1;
+  }
+
+  .name {
+    color: var(--color-label);
+  }
+
   /* One track, two thumbs. The inputs are stacked and made transparent so the
-     span below shows through; only the thumbs take pointer events. The thumbs
-     are `Slider`'s ink blocks. */
+     span below shows through; only the thumbs take pointer events. */
   .track {
     position: relative;
-    height: var(--slider-thumb-h);
+    height: var(--target-min);
   }
 
   .track::before {
@@ -213,13 +220,14 @@
     left: 0;
     right: 0;
     top: 50%;
-    height: var(--rule-w);
-    background: var(--color-ink);
+    height: var(--slider-track-h);
+    transform: translateY(-50%);
+    border-radius: var(--slider-track-h);
+    background: var(--color-rule);
   }
 
-  /* Hover thickens the track, as on `Slider`. */
   .track:hover::before {
-    height: var(--focus-w);
+    background: var(--color-rule-hover);
   }
 
   .span {
@@ -227,6 +235,7 @@
     top: 50%;
     height: var(--space-2);
     transform: translateY(-50%);
+    border-radius: var(--space-1);
     background: var(--color-ink);
   }
 
@@ -242,24 +251,36 @@
     pointer-events: none;
   }
 
+  /*
+    Drawn as `Slider`'s small block, but a transparent border clipped out of
+    the paint makes each thumb a 24px square target (WCAG 2.2, 2.5.8).
+  */
   .handle::-webkit-slider-thumb {
     appearance: none;
     pointer-events: auto;
-    width: var(--slider-thumb-w);
-    height: var(--slider-thumb-h);
-    border: 0;
+    box-sizing: border-box;
+    width: var(--target-min);
+    height: var(--target-min);
+    border: solid transparent;
+    border-width: calc((var(--target-min) - var(--slider-thumb-h)) / 2)
+      calc((var(--target-min) - var(--slider-thumb-w)) / 2);
     border-radius: var(--radius);
     background: var(--color-ink);
+    background-clip: content-box;
     cursor: ew-resize;
   }
 
   .handle::-moz-range-thumb {
     pointer-events: auto;
-    width: var(--slider-thumb-w);
-    height: var(--slider-thumb-h);
-    border: 0;
+    box-sizing: border-box;
+    width: var(--target-min);
+    height: var(--target-min);
+    border: solid transparent;
+    border-width: calc((var(--target-min) - var(--slider-thumb-h)) / 2)
+      calc((var(--target-min) - var(--slider-thumb-w)) / 2);
     border-radius: var(--radius);
     background: var(--color-ink);
+    background-clip: content-box;
     cursor: ew-resize;
   }
 
@@ -268,12 +289,12 @@
   }
 
   .handle:focus-visible::-webkit-slider-thumb {
-    outline: var(--focus-w) solid var(--color-ink);
-    outline-offset: var(--focus-offset);
+    border-color: var(--color-paper);
+    box-shadow: 0 0 0 var(--focus-w) var(--color-ink);
   }
 
   .handle:focus-visible::-moz-range-thumb {
-    outline: var(--focus-w) solid var(--color-ink);
-    outline-offset: var(--focus-offset);
+    border-color: var(--color-paper);
+    box-shadow: 0 0 0 var(--focus-w) var(--color-ink);
   }
 </style>

@@ -6,11 +6,10 @@
   the page behind is inert while it is open. It appears only because of
   something the author just did, and it never takes space in the layout.
 
-  Anatomy: a black title bar (the section bar look) with a Close button, over a
-  paper body with a 1px ink frame. The body is the caller's.
-
-  It carries `.theme-default`, so one opened from inside the inverted footer
-  is still drawn on paper.
+  Anatomy: a header row (a section's title over a divider), the body, then the
+  buttons at the bottom right, on a floating paper panel. It is the one place
+  a shadow is used: it is the one thing that sits above the page. The body is
+  the caller's.
 
   `open` is bindable. Closing by Esc, by the button or by the caller all end in
   `onClose`, once.
@@ -50,7 +49,7 @@
 </script>
 
 <dialog bind:this={dialog} class="popup theme-default" aria-labelledby={titleId} onclose={closed}>
-  <div class="bar on-bar">
+  <div class="bar">
     <h2 class="t-section" id={titleId}>{title}</h2>
   </div>
   <div class="body">
@@ -67,12 +66,13 @@
 
 <style>
   .popup {
-    width: min(520px, calc(100vw - 2 * var(--space-6)));
+    width: min(480px, calc(100vw - 2 * var(--space-6)));
     max-height: calc(100dvh - 2 * var(--space-6));
     padding: 0;
-    border: var(--rule);
+    border: 0;
     border-radius: var(--radius);
     background: var(--color-paper);
+    box-shadow: var(--shadow-float);
     color: var(--color-ink);
   }
 
@@ -82,17 +82,17 @@
   }
 
   .popup::backdrop {
-    background: color-mix(in srgb, var(--color-ink) 20%, transparent);
+    background: rgb(0 0 0 / 0.2);
   }
 
+  /* The header row of a section: 13 semibold over a divider. */
   .bar {
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    min-height: var(--bar-h-section);
-    padding: var(--space-2);
-    background: var(--color-bar);
-    color: var(--color-on-bar);
+    min-height: var(--preview-bar-h);
+    padding: 0 var(--space-8);
+    border-bottom: var(--divider);
   }
 
   h2 {
@@ -101,13 +101,20 @@
 
   .body {
     overflow-y: auto;
-    padding: calc(var(--space-3) + var(--space-2));
+    padding: var(--space-6) var(--space-8);
+    line-height: var(--leading-hint);
+  }
+
+  .body :global(.t-body),
+  .body :global(.t-console) {
+    line-height: var(--leading-hint);
+    text-box: none;
   }
 
   .actions {
     display: flex;
     justify-content: flex-end;
     gap: var(--chip-gap);
-    padding: 0 calc(var(--space-3) + var(--space-2)) calc(var(--space-3) + var(--space-2));
+    padding: 0 var(--space-8) var(--space-6);
   }
 </style>

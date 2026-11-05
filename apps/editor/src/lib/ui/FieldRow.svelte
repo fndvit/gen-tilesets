@@ -1,24 +1,21 @@
 <!--
-  A label on the left and a control on the right: the row shape every Figma
-  input shares (Numeric input, Boolean input, operation params).
+  A label column and a control: the row every non-text input shares (a
+  segmented choice, a slider with its readout, a count). A typed number does
+  not use it: `NumericInput` carries its label inside its own box.
 
   Two ways to name the control:
   - `for` set: the label is a `<label for>`, for a single native input.
   - `for` unset: the row is a `role="group"` named by the label, for a set of
-    controls such as `Toggle`'s chips.
+    controls such as `Toggle`'s segments.
 
-  `align="end"` (default) sits the control on the label's baseline, as an
-  underline field does in Figma. `align="center"` centres it, for chips.
+  The label sits in a fixed `--field-label-w` column in the 600 role, and the
+  control fills the rest, so every row in the sidebar starts its control at the
+  same x. `align` is kept for callers; every row now centres on its 28px line.
 
-  A container can set `--field-label-w` and `--field-justify: flex-start` to put
-  every label in a column of that width with the control right after it,
-  instead of at the far end of the row (an operation body does).
-
-  **Explanations never sit in the row.** A `hint` appears in a small ink
-  bubble under the label as soon as the pointer is over the label, and screen
-  readers get the same text as the control's description. The children snippet
-  receives the bubble's id to put in the control's `aria-describedby`; a group
-  row wires it itself. The bubble is `ui/Hint`'s.
+  **Explanations never sit in the row.** A `hint` appears in a bubble under the
+  label as soon as the pointer is over it, and screen readers get the same text
+  as the control's description. The children snippet receives the bubble's id
+  to put in the control's `aria-describedby`; a group row wires it itself.
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
@@ -43,7 +40,7 @@
 
 <div
   class="row"
-  class:center={align === "center"}
+  data-align={align}
   role={htmlFor ? undefined : "group"}
   aria-labelledby={htmlFor ? undefined : labelId}
   aria-describedby={htmlFor ? undefined : hintId}
@@ -66,26 +63,24 @@
 
 <style>
   .row {
-    display: flex;
-    align-items: flex-end;
-    justify-content: var(--field-justify, space-between);
+    display: grid;
+    grid-template-columns: var(--field-label-w) minmax(0, 1fr);
+    align-items: center;
     gap: var(--space-4);
+    min-height: var(--control-h);
     color: var(--color-ink);
   }
 
-  .center {
-    align-items: center;
-  }
-
   .name {
-    flex: 0 0 var(--field-label-w, auto);
+    display: flex;
     min-width: 0;
+    color: var(--color-label);
   }
 
-  /* Shrinks rather than pushing the row wider than the sidebar. */
+  /* Fills its column, and shrinks rather than pushing the row wider than the sidebar. */
   .control {
     display: flex;
-    flex: 0 1 auto;
+    align-items: center;
     min-width: 0;
   }
 </style>

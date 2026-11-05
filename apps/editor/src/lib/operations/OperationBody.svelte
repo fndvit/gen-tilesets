@@ -4,12 +4,11 @@
 
   Four steps, in the order the author walks them: **Selection → attribute →
   Source → Blend**, with the mapping folded into the attribute step per §7.4.
-  Each is a question, in the field labels' style, a glyph grid of the options,
-  then the chosen option's fields
-  in a framed block under a small black bar naming the choice, so it is plain
-  that the fields belong to that choice and where they end (Pol, Block F
-  review). An option with no fields gets no block. Blocks are 12px apart, rows
-  inside a block 8px.
+  Each is a question, a glyph grid of the options, then the chosen option's
+  fields under a small header naming the choice (13 semibold over a divider,
+  the same micro-structure as a section), so it is plain that the fields
+  belong to that choice. An option with no fields gets no block. The body sits
+  one indent in, under the tabs, with no frame.
 
   | Step      | Options from                                  |
   | --------- | --------------------------------------------- |
@@ -255,7 +254,7 @@
 <div class="body" role="tabpanel" {id}>
   <Hint text={draft.step === "selection" ? selectionHint : undefined}>
     {#snippet children()}
-      <p class="question t-label">{QUESTIONS[draft.step]}</p>
+      <p class="question t-body">{QUESTIONS[draft.step]}</p>
     {/snippet}
   </Hint>
 
@@ -350,7 +349,7 @@
     {/if}
   {:else if draft.target === null}
     <!-- A Blend belongs to a Target: `04` §7.2 gives each its own accepted set. -->
-    <p class="t-body">Choose an attribute first.</p>
+    <p class="note t-label">Choose an attribute first.</p>
   {:else}
     <GlyphGrid
       items={blendItems}
@@ -367,16 +366,21 @@
     {/if}
     <Hint text={unanswered.length > 0 ? `Still open: ${unanswered.join(", ")}.` : undefined}>
       {#snippet children()}
-        <Button label={editing ? "Save" : "Add"} disabled={unanswered.length > 0} onclick={commit} />
+        <Button
+          label={editing ? "Save" : "Add"}
+          variant="primary"
+          disabled={unanswered.length > 0}
+          onclick={commit}
+        />
       {/snippet}
     </Hint>
   </div>
 </div>
 
-<!-- The chosen option's fields: a black bar naming the choice over a framed block. -->
+<!-- The chosen option's fields, under a header naming the choice. -->
 {#snippet options(choice: string, fields: Snippet)}
   <section class="options" aria-label="{labelFor(choice)} settings">
-    <p class="options-bar t-xs on-bar">{labelFor(choice)}</p>
+    <p class="options-bar t-section">{labelFor(choice)}</p>
     <div class="options-body">
       {@render fields()}
     </div>
@@ -384,47 +388,57 @@
 {/snippet}
 
 <style>
+  /* Under the tabs: one indent plus the index column, so it lines up with them. */
   .body {
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
-    padding: var(--space-3);
-    border: var(--rule);
-    border-top: 0;
-    background: var(--color-paper);
+    padding: var(--space-4) 0 var(--space-6) calc(var(--target-min) + var(--space-2));
     color: var(--color-ink);
-    /* Compact fields: smaller sentence-case labels in a column, each control right after its label. */
-    --label-size: var(--text-body-size);
-    --label-case: none;
-    --field-label-w: var(--field-label-w-compact);
-    --field-justify: flex-start;
   }
 
-  /* The question wears the field labels' style (14 Regular, sentence case), not `.t-body`'s Light. */
   .question {
     margin: 0;
+    font-weight: var(--weight-medium);
+  }
+
+  .note {
+    margin: 0;
+    color: var(--color-placeholder);
+  }
+
+  .options {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
   }
 
   .options-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
     margin: 0;
-    padding: var(--space-2);
-    background: var(--color-bar);
-    color: var(--color-on-bar);
+  }
+
+  /* The divider runs on from the title to the edge. */
+  .options-bar::after {
+    content: "";
+    flex: 1;
+    border-top: var(--divider);
   }
 
   .options-body {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-4);
-    padding: var(--space-3);
-    border: var(--rule);
-    border-top: 0;
+    gap: var(--space-2);
   }
 
   .actions {
     display: flex;
     justify-content: flex-end;
     gap: var(--chip-gap);
+    padding-top: var(--space-4);
+    border-top: var(--divider);
     /* Save's hint opens upward and right-aligned, so it stays inside the sidebar. */
     --hint-top: auto;
     --hint-bottom: calc(100% + var(--space-2));

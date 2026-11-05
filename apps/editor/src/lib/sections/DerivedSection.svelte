@@ -1,6 +1,7 @@
 <!--
   What the file implies but the author does not type. Not in Figma; read-only
-  rows in the field-row shape, the value in `.t-console` on the right.
+  label/value pairs in two columns, the label in the 600 role and the value
+  in mono 900. No box: a box would say "editable".
 
   `columns` is **displayed, never edited** (§9.1). The author needs to know it,
   because a `rect` is authored in column indices, and editing it would break
@@ -64,10 +65,15 @@
   ]);
 </script>
 
-<Section title="Derived" open={false}>
+<Section
+  title="Derived"
+  open={false}
+  summary="{config.columns} columns · {config.columns * layout.cellSize} × {config.rows * layout.cellSize} px"
+>
   <dl>
     {#each rows as [term, value] (term)}
-      <div class="row">
+      <!-- A value with a parenthesis needs the whole width. -->
+      <div class="row" class:wide={value.length > 12}>
         <dt class="t-label">{term}</dt>
         <dd class="t-console">{value}</dd>
       </div>
@@ -78,20 +84,36 @@
 <style>
   dl {
     display: grid;
-    gap: var(--space-4);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-6);
     margin: 0;
-    color: var(--color-ink);
   }
 
+  /* Each pair on a 24px line with a hairline under it, so the eye can run across. */
   .row {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: var(--space-4);
+    min-height: var(--target-min);
+    border-bottom: var(--divider);
+  }
+
+  .wide {
+    grid-column: 1 / -1;
+  }
+
+  dt {
+    color: var(--color-label);
+    white-space: nowrap;
   }
 
   dd {
     margin: 0;
+    overflow: hidden;
+    color: var(--color-ink);
     text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 </style>

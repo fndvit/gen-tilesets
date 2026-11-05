@@ -2,7 +2,8 @@
   The Figma *Tiles* section: the tile library (`09-editor.md` §10), where
   pictures enter the editor.
 
-  One `TileGroup` per Tile, 4px apart, then the "+" bar that adds a group.
+  One `TileGroup` per Tile, as nested rows; the "+" that adds a group is in
+  the section's header.
   **N files make one group** (redesign Block D, replacing `DECISIONS.md`
   D13's one-Tile-per-file): the files become its variants `a1…aN`, and it is
   named after the first file that attached. Dropping files on the section,
@@ -41,7 +42,7 @@
   import { session } from "../../session.svelte.js";
   import Section from "../Section.svelte";
   import TileGroup from "../tiles/TileGroup.svelte";
-  import AddBar from "../ui/AddBar.svelte";
+  import IconButton from "../ui/IconButton.svelte";
   import Popup from "../ui/Popup.svelte";
 
   const tiles = $derived(session.file.config.tiles);
@@ -179,7 +180,21 @@
   }
 </script>
 
-<Section title="Tiles">
+<Section
+  title="Tiles"
+  summary="{tiles.length} {tiles.length === 1 ? 'group' : 'groups'} · {tiles.reduce((n, t) => n + t.assets.length, 0)} variants"
+>
+  {#snippet actions(reveal)}
+    <IconButton
+      icon="plus"
+      label="Add tile group"
+      onclick={() => {
+        reveal();
+        pick(null);
+      }}
+    />
+  {/snippet}
+
   <div
     class="library"
     class:armed
@@ -209,7 +224,9 @@
         onFiles={(files) => void addVariants(tile, files)}
       />
     {/each}
-    <AddBar label="Add tile group" onclick={() => pick(null)} />
+    {#if tiles.length === 0}
+      <p class="empty t-label">No tile groups. Drop images here, or add a group with +.</p>
+    {/if}
   </div>
 
   <input
@@ -233,7 +250,9 @@
 <style>
   .library {
     display: grid;
-    gap: var(--space-2);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+    border-radius: var(--radius);
     outline: var(--focus-w) solid transparent;
     outline-offset: var(--focus-offset);
     transition: outline-color var(--dur-fast) var(--ease);
@@ -242,6 +261,13 @@
   /* Image files dragged over the section, outside any group. */
   .library.armed {
     outline-color: var(--color-ink);
+  }
+
+  .empty {
+    margin: var(--space-2) 0;
+    color: var(--color-placeholder);
+    line-height: var(--leading-hint);
+    text-box: none;
   }
 
   .picker {

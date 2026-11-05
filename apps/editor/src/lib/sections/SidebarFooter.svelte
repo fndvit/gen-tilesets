@@ -1,15 +1,17 @@
 <!--
-  The sidebar's fixed footer, the Figma *Fixed* block: black, below the
-  scrolling sections, never scrolled or collapsed.
+  The sidebar's fixed footer: a compact toolbar below the scrolling sections,
+  never scrolled or collapsed, divided from them by a rule.
 
   **Temporary.** Figma has the block but not its contents, which are Stage 2's
   footer design. Until then it holds the session controls that used to be the
   Seed and Import sections, the header's undo and the download button, built
   from primitives only.
 
-  It is drawn in **`.theme-inverted`** (`tokens.css`): ink becomes white, paper
-  black, and the bar colours swap. Every primitive inside (field
-  rows, chips, buttons, hints) then renders inverted with no style of its own.
+  Two bands. The seed band: the seed as a boxed field with its magenta
+  re-seed beside it, the two other non-deterministic actions as labelled
+  magenta icons, and the load setting as a segmented control. Then, under a
+  divider, the file actions: Undo, Import and New as secondary buttons, and
+  Download as the one primary (black) button, pushed to the right.
 
   Reports never take space here. An export failure, or the advisory that the
   document draws nothing, appears in a `ui/Popup` after the download, like the
@@ -29,6 +31,7 @@
   import ImportPanel from "../ImportPanel.svelte";
   import Button from "../ui/Button.svelte";
   import FieldRow from "../ui/FieldRow.svelte";
+  import Hint from "../ui/Hint.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import Popup from "../ui/Popup.svelte";
   import Toggle from "../ui/Toggle.svelte";
@@ -100,8 +103,8 @@
   }
 </script>
 
-<div class="fixed theme-inverted" class:over bind:this={root}>
-  <div class="fields">
+<div class="fixed" class:over bind:this={root}>
+  <div class="seeds">
     <!--
       `09` §8.2, the seed field. **The author never sees a hash** (`02` §6.6):
       they type a string, and that is the whole interface. **There is no
@@ -110,37 +113,64 @@
       a visitor with no host seed sees. An empty field is in-flight input and
       does not reach the file (**E5**).
     -->
-    <FieldRow label="Seed" for={seedId} hint="Every operation's picture follows from it.">
-      {#snippet children(describedBy)}
-        <span class="seed">
-          <input
-            id={seedId}
-            class="t-body"
-            aria-describedby={describedBy}
-            type="text"
-            spellcheck="false"
-            value={config.defaultSeed}
-            oninput={(e) => session.apply(setDefaultSeed(e.currentTarget.value))}
-          />
-          <IconButton icon="reseed" tone="seed" label="New seed" onclick={() => session.apply(rerollSeed())} />
-        </span>
-      {/snippet}
-    </FieldRow>
+    <div class="seed-row">
+      <div class="seed">
+        <Hint text="Every operation's picture follows from it." id="{seedId}-hint">
+          {#snippet children()}
+            <label class="name t-label" for={seedId}>Seed</label>
+          {/snippet}
+        </Hint>
+        <input
+          id={seedId}
+          class="t-console"
+          aria-describedby="{seedId}-hint"
+          type="text"
+          spellcheck="false"
+          value={config.defaultSeed}
+          oninput={(e) => session.apply(setDefaultSeed(e.currentTarget.value))}
+        />
+      </div>
+      <IconButton icon="reseed" tone="seed" label="New seed" onclick={() => session.apply(rerollSeed())} />
+    </div>
 
-    <!--
-      §8.4, the asset reroll. `02` §6.4: it rerolls which variant each cell
-      shows **without disturbing any Operation**, because the asset channel is
-      separate. Every `tileId` stays where it is.
-    -->
-    <FieldRow
-      label="Assets"
-      align="center"
-      hint="Rerolls which variant each cell shows. No operation moves."
-    >
-      {#snippet children()}
+    <div class="pair">
+      <!--
+        §8.4, the asset reroll. `02` §6.4: it rerolls which variant each cell
+        shows **without disturbing any Operation**, because the asset channel is
+        separate. Every `tileId` stays where it is.
+      -->
+      <span class="action">
+        <Hint text="Rerolls which variant each cell shows. No operation moves.">
+          {#snippet children()}
+            <span class="name t-label">Assets</span>
+          {/snippet}
+        </Hint>
         <IconButton icon="reseed" tone="seed" label="Reroll assets" onclick={() => session.apply(rerollAssets())} />
-      {/snippet}
-    </FieldRow>
+      </span>
+
+      <!--
+        §8.5, the load preview. It **writes no field** (§8.1's fourth row): the
+        value is held in App and reaches `<Tileset>` through its `options`.
+        **Disabled where nothing is flagged**: `04` §8.3 makes such a config
+        identical on every load regardless of `loadSalt`, and "an enabled button
+        that provably changes nothing is `05` §6.1's complaint arriving one level
+        out". **R12**: one value per session, moved only by this button.
+      -->
+      <span class="action">
+        <Hint text={freshLoadHint}>
+          {#snippet children()}
+            <span class="name t-label">Fresh load</span>
+          {/snippet}
+        </Hint>
+        <IconButton
+          icon="reseed"
+          tone="seed"
+          label="Preview a fresh load"
+          disabled={!varies}
+          onclick={() => (loadSalt = drawLoadSalt())}
+        />
+      </span>
+    </div>
 
     <FieldRow
       label="Assets on load"
@@ -156,26 +186,6 @@
           ]}
           value={config.reseedAssetsOnLoad === true}
           onChange={(on) => session.apply(setReseedAssetsOnLoad(on))}
-        />
-      {/snippet}
-    </FieldRow>
-
-    <!--
-      §8.5, the load preview. It **writes no field** (§8.1's fourth row): the
-      value is held in App and reaches `<Tileset>` through its `options`.
-      **Disabled where nothing is flagged**: `04` §8.3 makes such a config
-      identical on every load regardless of `loadSalt`, and "an enabled button
-      that provably changes nothing is `05` §6.1's complaint arriving one level
-      out". **R12**: one value per session, moved only by this button.
-    -->
-    <FieldRow label="Fresh load" align="center" hint={freshLoadHint}>
-      {#snippet children()}
-        <IconButton
-          icon="reseed"
-          tone="seed"
-          label="Preview a fresh load"
-          disabled={!varies}
-          onclick={() => (loadSalt = drawLoadSalt())}
         />
       {/snippet}
     </FieldRow>
@@ -197,6 +207,7 @@
     <span class="download">
       <Button
         label={exporting ? "Building…" : "Download tileset.zip"}
+        variant="primary"
         disabled={exporting}
         wide
         onclick={runExport}
@@ -232,9 +243,8 @@
 
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-6);
-    padding: var(--space-6) calc(var(--space-3) + var(--space-2)) var(--footer-pad-bottom);
-    background: var(--color-paper);
+    border-top: var(--divider);
+    background: var(--color-surface);
     color: var(--color-ink);
     transition: outline-color var(--dur-fast) var(--ease);
     outline: var(--focus-w) solid transparent;
@@ -246,40 +256,88 @@
     outline-color: var(--color-ink);
   }
 
-  .fields {
+  .seeds {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-4);
+    gap: var(--space-2);
+    padding: var(--space-4) var(--pad-x);
   }
 
-  /* The field gives way before the row grows past a narrow sidebar (WCAG 1.4.10). */
-  .seed {
+  .seed-row {
     display: flex;
-    align-items: flex-end;
-    gap: var(--space-4);
-    min-width: 0;
+    align-items: center;
+    gap: var(--space-2);
   }
 
-  /* The numeric field's underline, in the case-keeping body face: a seed is case-sensitive. */
-  input {
-    width: calc(var(--field-w) * 1.5);
+  /* The boxed field of `NumericInput`, holding text: a seed is case-sensitive. */
+  .seed {
+    box-sizing: border-box;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: var(--space-4);
     min-width: 0;
-    /* Room above the digits makes the field a 24px target (WCAG 2.2, 2.5.8) with the text still on the rule. */
-    padding: calc(var(--target-min) - 1em - var(--rule-w)) var(--space-2) 0;
-    border: 0;
-    border-bottom: var(--rule);
+    height: var(--control-h);
+    padding: 0 var(--space-3) 0 var(--space-4);
+    border: var(--rule);
     border-radius: var(--radius);
+    background: var(--color-field);
+    cursor: text;
+    transition:
+      background-color var(--dur-fast) var(--ease),
+      border-color var(--dur-fast) var(--ease);
+  }
+
+  .seed:hover {
+    border-color: var(--color-rule-hover);
+    background: var(--color-paper);
+  }
+
+  .seed:focus-within {
+    background: var(--color-paper);
+    border-color: var(--color-ink);
+    box-shadow: inset 0 0 0 var(--rule-w) var(--color-ink);
+  }
+
+  .name {
+    flex: none;
+    color: var(--color-label);
+    white-space: nowrap;
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
     background: transparent;
     color: var(--color-ink);
-    line-height: 1;
     text-align: right;
   }
 
-  input:hover,
   input:focus-visible {
     outline: none;
-    border-bottom-width: var(--focus-w);
-    margin-bottom: calc(var(--rule-w) - var(--focus-w));
+  }
+
+  /* Two labelled re-seed actions, side by side. */
+  .pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .pair .action:first-child {
+    padding-right: var(--space-6);
+    border-right: var(--divider);
   }
 
   /* Wraps in a narrow sidebar rather than scrolling sideways (WCAG 1.4.10). */
@@ -288,11 +346,14 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--chip-gap);
+    padding: var(--space-4) var(--pad-x) var(--footer-pad-bottom);
+    border-top: var(--divider);
   }
 
   .download {
     flex: 1;
     display: flex;
+    min-width: max-content;
   }
 
   p {
