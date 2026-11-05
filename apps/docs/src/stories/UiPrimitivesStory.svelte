@@ -23,7 +23,7 @@
   import OperationGlyph from "../../../editor/src/lib/ui/OperationGlyph.svelte";
   import Popup from "../../../editor/src/lib/ui/Popup.svelte";
   import Slider from "../../../editor/src/lib/ui/Slider.svelte";
-  import TabBar from "../../../editor/src/lib/ui/TabBar.svelte";
+  import Menu from "../../../editor/src/lib/ui/Menu.svelte";
   import Toggle from "../../../editor/src/lib/ui/Toggle.svelte";
   import { ICONS, type IconName } from "../../../editor/src/lib/ui/icons.js";
   import all from "../../../editor/src/assets/glyphs/selection/all.svg?url";
@@ -45,7 +45,7 @@
     | "toggle"
     | "slider"
     | "marquee"
-    | "tab-bar"
+    | "menu"
     | "operation-glyph"
     | "glyph-grid"
     | "hint";
@@ -63,13 +63,6 @@
   let weight = $state(1);
   let live = $state(1);
   let summary = $state("Checkerbox * opacity [0.5 - 1] * random source * set");
-  const steps = [
-    { id: "selection", label: "Selection" },
-    { id: "attribute", label: "Attribute" },
-    { id: "source", label: "Source" },
-    { id: "blend", label: "Blend" },
-  ];
-  let step = $state<string | null>(null);
   let glyph = $state<string>("everyNth");
   const selection = [
     { value: "all", label: "All", src: all },
@@ -97,8 +90,6 @@
         return `value: ${groupName}`;
       case "toggle":
         return `value: ${alignment}`;
-      case "tab-bar":
-        return `selected: ${step ?? "none"}`;
       case "glyph-grid":
         return `selection: ${glyph}, attribute: ${attribute}`;
       default:
@@ -120,7 +111,7 @@
   {:else if show === "icon-button"}
     <div class="bar on-bar">
       <IconButton icon="trash" label="Delete operation" onclick={() => (log = "delete")} />
-      <IconButton icon="reseed" label="Re-seed" tone="seed" onclick={() => (log = "reseed")} />
+      <IconButton icon="reseed" label="Re-seed" strong onclick={() => (log = "reseed")} />
       <IconButton icon="up" label="Move up" onclick={() => (log = "up")} />
       <IconButton icon="down" label="Move down" disabled onclick={() => (log = "down")} />
     </div>
@@ -226,10 +217,16 @@
       <Marquee text={summary} scroll="hover" />
       <label class="t-console">Text <input bind:value={summary} /></label>
     </div>
-  {:else if show === "tab-bar"}
-    <div class="stack">
-      <div class="tabs-box"><TabBar label="Steps" tabs={steps} active={null} onSelect={(id) => (step = id)} /></div>
-      <div class="tabs-box"><TabBar label="Steps" tabs={steps} active={step ?? "selection"} onSelect={(id) => (step = id)} /></div>
+  {:else if show === "menu"}
+    <div class="row">
+      <Menu
+        label="More actions for operation 2"
+        items={[
+          { label: "Move earlier", icon: "up", onSelect: () => (log = "move earlier") },
+          { label: "Move later", icon: "down", disabled: true, onSelect: () => (log = "move later") },
+          { label: "Delete", icon: "trash", onSelect: () => (log = "delete") },
+        ]}
+      />
     </div>
   {:else if show === "operation-glyph"}
     <div class="row paper" role="radiogroup" aria-label="Examples">
@@ -341,9 +338,6 @@
     text-align: right;
   }
 
-  .tabs-box {
-    height: var(--bar-h-group);
-  }
 
   pre {
     margin: var(--space-6) 0 0;

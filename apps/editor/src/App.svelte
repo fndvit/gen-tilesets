@@ -284,6 +284,7 @@
     -->
     <SidebarTopBar onNew={newTileset} />
 
+    <div class="sidebar-body">
     <div class="scrollable">
       <ScrollArea>
         <div class="sections">
@@ -299,6 +300,7 @@
     </div>
 
     <SidebarFooter bind:loadSalt />
+    </div>
   </aside>
 
   <section class="preview" aria-label="Preview">
@@ -475,7 +477,21 @@
   main {
     display: grid;
     grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     height: 100dvh;
+  }
+
+  /*
+    The two top bars share the first row (subgrid), so they are always the same
+    height and their hairline is one line across the window, even when the
+    preview's bar wraps in a narrow column.
+  */
+  aside,
+  .preview {
+    grid-row: 1 / -1;
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   main > * {
@@ -492,11 +508,14 @@
   @media (max-width: 40rem) {
     main {
       grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
       height: auto;
     }
 
     aside,
     .preview {
+      grid-row: auto;
+      grid-template-rows: auto minmax(0, 1fr);
       height: 100dvh;
     }
   }
@@ -506,10 +525,14 @@
     footer. No frame: the ground's value against the preview's white is the edge.
   */
   aside {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-columns: minmax(0, 1fr);
     background: var(--color-ground);
+  }
+
+  .sidebar-body {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
   }
 
   /* `ScrollArea` scrolls; its handle sits on the content, so the sidebar never narrows. */
@@ -534,12 +557,6 @@
     sidebar, so a scrollbar never takes width from the frame and the sidebar
     never moves.
   */
-  .preview {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .canvas {
     min-height: 0;
   }

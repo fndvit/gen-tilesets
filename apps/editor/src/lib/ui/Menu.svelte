@@ -25,6 +25,7 @@
 </script>
 
 <script lang="ts">
+  import { tick } from "svelte";
   import Icon from "./Icon.svelte";
   import IconButton from "./IconButton.svelte";
 
@@ -62,9 +63,16 @@
     if (refocus) trigger?.focus();
   }
 
-  function run(item: MenuItem): void {
-    close(true);
+  /**
+   * Focus goes back to the button after the action has landed: a move
+   * reinserts the row, which drops focus, so it is restored once the DOM has
+   * settled. After a delete the button is gone and there is nothing to return to.
+   */
+  async function run(item: MenuItem): Promise<void> {
+    close(false);
     item.onSelect();
+    await tick();
+    if (trigger?.isConnected) trigger.focus();
   }
 
   function onkeydown(event: KeyboardEvent): void {
