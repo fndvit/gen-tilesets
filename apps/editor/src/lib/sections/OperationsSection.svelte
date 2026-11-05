@@ -5,8 +5,7 @@
   the stack order (`06` §7) and is never canonicalized. Each operation is an
   `OperationHeader`; clicking a step tab opens that operation's draft at that
   step, with the `OperationBody` under its header. A new operation is a header
-  with the next index at the end of the stack, until it is added. The "+"
-  that starts one is in the section's header.
+  with the next index, between the stack and the add bar, until it is added.
 
   One draft at most is open (`drafting`). Opening another — a tab on another
   operation, or the add bar — while the open one has unsaved changes asks
@@ -28,7 +27,7 @@
   import OperationBody from "../operations/OperationBody.svelte";
   import OperationHeader from "../operations/OperationHeader.svelte";
   import { draftParts, partsOf, summaryCells } from "../operations/labels.js";
-  import IconButton from "../ui/IconButton.svelte";
+  import AddBar from "../ui/AddBar.svelte";
   import Button from "../ui/Button.svelte";
   import Popup from "../ui/Popup.svelte";
 
@@ -100,19 +99,10 @@
 
 <Section
   title="Operations"
-  summary="{operations.length} {operations.length === 1 ? 'operation' : 'operations'}"
+  summary={operations.length === 0
+    ? "None"
+    : `${operations.length} ${operations.length === 1 ? "operation" : "operations"}`}
 >
-  {#snippet actions(reveal)}
-    <IconButton
-      icon="plus"
-      label="Add operation"
-      onclick={() => {
-        reveal();
-        create();
-      }}
-    />
-  {/snippet}
-
   <div class="stack">
     {#each operations as op, index (op.id)}
       {@const open = draft !== null && editingId === op.id}
@@ -154,9 +144,7 @@
       </div>
     {/if}
 
-    {#if operations.length === 0 && !creating}
-      <p class="empty t-label">No operations: every cell shows its tile group's variants. Add one with +.</p>
-    {/if}
+    <AddBar label="Add operation" onclick={create} />
   </div>
 </Section>
 
@@ -166,6 +154,7 @@
     <Button label="Keep editing" onclick={close} />
     <Button
       label="Discard"
+      variant="primary"
       onclick={() => {
         const action = pending;
         drafting.discard();
@@ -181,13 +170,12 @@
   .stack {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-1);
+    gap: var(--space-3);
   }
 
-  .empty {
-    margin: var(--space-2) 0;
-    color: var(--color-placeholder);
-    line-height: var(--leading-hint);
-    text-box: none;
+  /* Each operation is a grey well in the panel, header and open body together. */
+  .operation {
+    border-radius: var(--radius);
+    background: var(--color-well);
   }
 </style>

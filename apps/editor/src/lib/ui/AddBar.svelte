@@ -1,11 +1,12 @@
 <!--
-  A dashed "+" that adds something inside a list: variants to a tile group.
-  (Adding a rule, a group or an operation is a "+" in the section's header.)
+  The "+" control that adds something: a breakpoint, a tile group, an
+  operation, a variant.
 
-  `bar` spans its container at `--control-h` and can show `text` after the
-  plus; `square` is a `--thumb` square that lines up with the thumbnails. The
-  accessible name is always `label`, which can say more than the visible text
-  ("Add variants to grass").
+  Two shapes. `bar` spans its container at `--add-h` and shows its `label` as
+  text after the plus ("+ Add breakpoint"), so what it adds is read, not
+  guessed. It is a tertiary action: text on the panel, a grey wash under the
+  pointer. `square` is a grey `--thumb` square with the plus alone, lined up
+  with a tile group's thumbnails; its `label` is then its accessible name.
 -->
 <script lang="ts">
   import Icon from "./Icon.svelte";
@@ -15,82 +16,73 @@
     onclick: (event: MouseEvent) => void;
     variant?: "bar" | "square";
     disabled?: boolean;
-    /** Visible words after the plus (bar only). */
-    text?: string;
   }
 
-  let { label, onclick, variant = "bar", disabled = false, text }: Props = $props();
+  let { label, onclick, variant = "bar", disabled = false }: Props = $props();
 </script>
 
-<span class="wrap" class:wide={variant === "bar"}>
-  <button
-    type="button"
-    class="add {variant}"
-    aria-label={label}
-    title={label}
-    {disabled}
-    {onclick}
-  >
+{#if variant === "bar"}
+  <button type="button" class="add bar t-xs" {disabled} {onclick}>
     <Icon name="plus" />
-    {#if text && variant === "bar"}<span class="t-xs">{text}</span>{/if}
+    <span>{label}</span>
   </button>
-</span>
+{:else}
+  <button type="button" class="add square" aria-label={label} title={label} {disabled} {onclick}>
+    <Icon name="plus" />
+  </button>
+{/if}
 
 <style>
-  .wrap {
-    display: inline-flex;
-  }
-
-  .wide {
-    display: flex;
-    flex: 1;
-    min-width: 0;
-  }
-
-  /* A dashed edge: a place where something can go, not a thing that is there. */
   .add {
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: var(--space-3);
-    padding: 0 var(--space-4);
-    border: var(--rule-w) dashed var(--color-rule);
-    border-radius: var(--radius);
-    background: transparent;
-    color: var(--color-label);
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-sm);
+    color: var(--color-ink);
     cursor: pointer;
-    transition:
-      background-color var(--dur-fast) var(--ease),
-      border-color var(--dur-fast) var(--ease),
-      color var(--dur-fast) var(--ease);
+    transition: background-color var(--dur-fast) var(--ease);
   }
 
   .bar {
+    gap: var(--space-4);
     width: 100%;
-    height: var(--control-h);
+    height: var(--add-h);
+    padding: 0 var(--space-5);
+    background: transparent;
+    line-height: normal;
+    text-box: none;
   }
 
   .square {
     justify-content: center;
     width: var(--thumb);
     height: var(--thumb);
-    padding: 0;
+    background: var(--color-secondary);
   }
 
-  .add:hover:not(:disabled) {
-    border-style: solid;
-    border-color: var(--color-rule-hover);
+  .bar:hover:not(:disabled) {
     background: var(--color-hover);
-    color: var(--color-ink);
   }
 
-  .add:active:not(:disabled) {
+  .square:hover:not(:disabled) {
+    background: var(--color-secondary-hover);
+  }
+
+  .bar:active:not(:disabled) {
     background: var(--color-pressed);
   }
 
+  .square:active:not(:disabled) {
+    background: var(--color-secondary-pressed);
+  }
+
+  .add:focus-visible {
+    outline-offset: 0;
+  }
+
   .add:disabled {
-    border-color: var(--color-disabled);
     color: var(--color-disabled);
     cursor: default;
   }

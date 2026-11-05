@@ -1,5 +1,5 @@
 /*
-  The five text styles and the font they need, and nothing else.
+  The text styles and the font they need, and nothing else.
 
   Split out of `base.css` so a page outside the editor (the docs stories) can
   wear the editor's type without also taking its global focus ring and
@@ -7,18 +7,21 @@
   <button>, a <label> and an <h2> can all wear "label" without fighting a
   cascade.
 
-  Inspector type: sentence case throughout, two sizes (13 / 12), and weight
-  and colour rather than size or capitals to tell a title from a label. The
-  classes set size and weight only; colour is the component's, from the role
-  map in `tokens.css`, because the same 12px can be a label (600) or a value
-  (900).
+  Everything is sentence case. The steps between styles are size, weight and
+  colour: a label is small and muted, the value beside it is ink, a header is
+  the one semibold line in its panel.
 */
 
 @import "@fontsource/roboto-mono/500.css";
 
-/* Trimmed to cap height, so a 28px box centres its text optically. */
+/*
+  Single-line styles trim to cap height, so padding around a word measures
+  from the letters. Browsers without `text-box` fall back to line-height 1.
+*/
 .t-section,
+.t-title,
 .t-label,
+.t-value,
 .t-body,
 .t-xs,
 .t-console {
@@ -27,54 +30,57 @@
   text-box: trim-both cap alphabetic;
 }
 
-/* Section and group titles: 13 semibold. */
+/* Section header: the one semibold line in a panel. */
 .t-section {
   font-family: var(--font-ui);
   font-size: var(--text-section-size);
   font-weight: var(--weight-semibold);
 }
 
-/* Field labels: 12 regular. A container can set `--label-size` to change it. */
+/* A nested group's title (a rule, a tile group), one step below a section. */
+.t-title {
+  font-family: var(--font-ui);
+  font-size: var(--text-title-size);
+  font-weight: var(--weight-medium);
+}
+
+/*
+  A field label: small and muted, so the value beside it is what reads first.
+  A container can set `--label-size` (an operation body keeps the default).
+*/
 .t-label {
   font-family: var(--font-ui);
   font-size: var(--label-size, var(--text-label-size));
   font-weight: var(--weight-regular);
-  text-transform: var(--label-case, none);
+  color: var(--color-muted);
 }
 
-/* Values, questions, running text: 13 regular. */
+/* What a field holds. */
+.t-value {
+  font-family: var(--font-ui);
+  font-size: var(--text-value-size);
+  font-weight: var(--weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Running text, questions and hints. */
 .t-body {
   font-family: var(--font-ui);
   font-size: var(--text-body-size);
   font-weight: var(--weight-regular);
 }
 
-/* Buttons, segments, tabs: 12 medium, sentence case. */
+/* Buttons, segments and tabs: medium weight instead of capitals. */
 .t-xs {
   font-family: var(--font-ui);
   font-size: var(--text-xs-size);
   font-weight: var(--weight-medium);
 }
 
-/*
-  Numbers and ids: Roboto Mono 12, so digits line up down a column.
-
-  Never trimmed: mono sits in boxes (fields, tabs, segments) that centre it
-  with flex, and several of those clip (`overflow: hidden`, or an <input>'s
-  own content box), where a cap-trimmed box cut the dots off i and the tops
-  of l. A real line height keeps ascenders and descenders inside.
-*/
+/* Mono: summaries, ids and glyph labels. */
 .t-console {
-  line-height: var(--leading-title);
-  text-box: none;
   font-family: var(--font-mono);
   font-size: var(--text-console-size);
   font-weight: var(--weight-medium);
   letter-spacing: var(--text-console-tracking);
-}
-
-/* An input clips to its content box, so a trimmed one loses its ascenders. */
-input:is(.t-section, .t-label, .t-body, .t-xs, .t-console) {
-  line-height: var(--leading-title);
-  text-box: none;
 }

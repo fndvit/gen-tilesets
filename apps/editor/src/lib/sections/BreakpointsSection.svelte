@@ -1,9 +1,7 @@
 <!--
   The file's `responsive` rules: shape overrides by render-box width, cascading
   in order as CSS does, so a later rule wins. Not in Figma; built from the same
-  primitives as Grid & Size. Each rule is a nested row (triangle, title, a
-  summary while closed, reorder and remove in the row); the "+" that adds one
-  is in the section's header.
+  primitives as Grid & Size.
 
   Drag the preview across a bound, or use its bound buttons, to see one take
   over. The preview is `<Tileset>` on this file (**S2**), so nothing about that
@@ -34,6 +32,7 @@
   import { session } from "../../session.svelte.js";
   import NumericInput from "../NumericInput.svelte";
   import Section from "../Section.svelte";
+  import AddBar from "../ui/AddBar.svelte";
   import Collapsible from "../ui/Collapsible.svelte";
   import IconButton from "../ui/IconButton.svelte";
 
@@ -51,42 +50,29 @@
   /** `minWidth` → "min width": the field's name in words, for its label. */
   const words = (field: RuleField): string => field.replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`);
 
-  /** "max width" → "Max width": a label starts with a capital, the inherit name does not. */
-  const capital = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+  /** "max width" → "Max width": a label in sentence case. */
+  const sentence = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
+  /** A closed rule's header: its fields and values, in one line. */
+  const ruleSummary = (rule: (typeof rules)[number]): string =>
+    RULE_FIELDS.filter((f) => rule[f] !== undefined)
+      .map((f) => `${words(f)} ${rule[f]}`)
+      .join(" · ");
+
+  const summary = $derived(
+    rules.length === 0 ? "None" : `${rules.length} ${rules.length === 1 ? "rule" : "rules"}`,
+  );
 
   const pinned = (field: RuleField): boolean =>
     (field === "rows" || field === "columns") && risked.length > 0;
 </script>
 
-<Section
-  title="Breakpoints"
-  open={rules.length > 0}
-  summary={rules.length === 0 ? "None" : `${rules.length} ${rules.length === 1 ? "rule" : "rules"}`}
->
-  {#snippet actions(reveal)}
-    <IconButton
-      icon="plus"
-      label="Add breakpoint"
-      onclick={() => {
-        session.apply(addRule());
-        reveal();
-      }}
-    />
-  {/snippet}
-
-  {#if rules.length === 0}
-    <p class="empty t-label">No rules: the grid is the same at every width.</p>
-  {/if}
-
+<Section title="Breakpoints" open={rules.length > 0} {summary}>
   <div class="rules">
     {#each rules as rule, i (i)}
-      {@const set = RULE_FIELDS.filter((f) => rule[f] !== undefined)}
-      <Collapsible
-        title="Rule {i + 1}"
-        variant="group"
-        summary={set.map((f) => `${words(f)} ${rule[f]}`).join(" · ")}
-      >
+      <Collapsible title="Rule {i + 1}" variant="group" summary={ruleSummary(rule)}>
         {#snippet actions()}
+          <IconButton icon="trash" label="Remove rule {i + 1}" onclick={() => session.apply(removeRule(i))} />
           <IconButton
             icon="up"
             label="Move rule {i + 1} earlier (a later rule wins)"
@@ -99,20 +85,21 @@
             disabled={i === rules.length - 1}
             onclick={() => session.apply(moveRule(i, i + 1))}
           />
-          <IconButton icon="trash" label="Remove rule {i + 1}" onclick={() => session.apply(removeRule(i))} />
         {/snippet}
 
         <div class="body">
-          {#each set as field (field)}
+          {#each RULE_FIELDS.filter((f) => rule[f] !== undefined) as field (field)}
             <div class="field">
-              <NumericInput
-                label={capital(words(field))}
-                value={rule[field]!}
-                parse={RULE_PARSERS[field]}
-                onCommit={(t) => session.apply(setRuleField(i, field, t))}
-              />
+              <div class="input">
+                <NumericInput
+                  label={sentence(words(field))}
+                  value={rule[field]!}
+                  parse={RULE_PARSERS[field]}
+                  onCommit={(t) => session.apply(setRuleField(i, field, t))}
+                />
+              </div>
               <IconButton
-                icon="close"
+                icon="trash"
                 label="Inherit {words(field)} again"
                 onclick={() => session.apply(removeRuleField(i, field))}
               />
@@ -139,6 +126,8 @@
         </div>
       </Collapsible>
     {/each}
+
+    <AddBar label="Add breakpoint" onclick={() => session.apply(addRule())} />
   </div>
 </Section>
 
@@ -146,59 +135,48 @@
   .rules {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-1);
+    gap: var(--space-3);
   }
 
-  .empty {
-    margin: var(--space-2) 0;
-    color: var(--color-placeholder);
-    line-height: var(--leading-hint);
-    text-box: none;
-  }
-
-  /*
-    A rule's fields, one indent in, under its title: two per row, each a boxed
-    field with its "inherit again" cross beside it.
-  */
+  /* Inside the rule's well: the fields line up with the title above them. */
   .body {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-2);
-    padding: var(--space-1) 0 var(--space-4) var(--indent);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-2) var(--space-5) var(--space-5);
   }
 
   .field {
     display: flex;
     align-items: center;
-    gap: var(--space-1);
-    min-width: 0;
-    color: var(--color-label);
+    gap: var(--space-2);
+    color: var(--color-ink);
   }
 
-  .field > :global(.field) {
+  .input {
     flex: 1;
+    min-width: 0;
   }
 
-  /* Looks like the add-variants row: a dashed place where a field can go. */
+  /* A secondary button that opens a menu. */
   .add-field {
-    box-sizing: border-box;
-    height: var(--control-h);
+    justify-self: start;
+    min-height: var(--control-h);
     padding: 0 var(--space-4);
-    border: var(--rule-w) dashed var(--color-rule);
-    border-radius: var(--radius);
-    background: var(--color-paper);
-    color: var(--color-label);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--color-secondary);
+    color: var(--color-ink);
     font-family: var(--font-ui);
     cursor: pointer;
-    transition:
-      background-color var(--dur-fast) var(--ease),
-      border-color var(--dur-fast) var(--ease);
+    transition: background-color var(--dur-fast) var(--ease);
   }
 
   .add-field:hover {
-    border-style: solid;
-    border-color: var(--color-rule-hover);
-    background: var(--color-hover);
-    color: var(--color-ink);
+    background: var(--color-secondary-hover);
+  }
+
+  .add-field:active {
+    background: var(--color-secondary-pressed);
   }
 </style>

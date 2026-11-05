@@ -1,8 +1,7 @@
 <!--
-  One Tile, as a nested row: the triangle, the title (editable on click), up
-  to four thumbnails, and delete at the right end. Open, its variants are
-  listed one indent in, then a dashed "+ Add variants" row with Reset weights
-  beside it.
+  One Tile, as a grey well inside the Tiles panel: a header (the title,
+  editable on click, up to four thumbnails, the trash and the chevron) over
+  its variants, a square "+" to add more and Reset weights.
 
   **The variants are listed by id, with no drag affordance** (**D3**, `09`
   §10.1). `03` §4.2 sorted assets precisely so that dragging a list entry could
@@ -72,7 +71,7 @@
   const total = $derived(assets.reduce((n, a) => n + a.weight, 0));
   const percentOf = (weight: number) => (total > 0 ? Math.round((weight / total) * 100) : 0);
 
-  /** The row's thumbnails, kept while open too (Pol, Block F review). */
+  /** The bar's thumbnails (Figma group B), kept while open too (Pol, Block F review). */
   const thumbs = $derived(assets.slice(0, 4).map((a) => stored(tile.id, a.id)?.url ?? null));
 
   function onDrop(event: DragEvent): void {
@@ -126,8 +125,8 @@
         />
       {/each}
       <div class="add">
-        <AddBar label="Add variants to {tile.name}" text="Add variants" onclick={onAdd} />
-        <Button label="Reset weights" disabled={equal} onclick={onResetWeights} />
+        <AddBar label="Add variants to {tile.name}" variant="square" onclick={onAdd} />
+        <Button label="Reset weights" variant="tertiary" disabled={equal} onclick={onResetWeights} />
       </div>
     </div>
   </Collapsible>
@@ -156,19 +155,19 @@
     outline-color: var(--color-ink);
   }
 
-  /* One indent in, under the title. No frame: the indent is the grouping. */
+  /* Inside the well: the thumbnails line up with the title above them. */
   .body {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--asset-gap);
-    padding: 0 0 var(--space-4) var(--indent);
+    padding: var(--space-2) var(--space-4) var(--space-4) var(--space-5);
   }
 
+  /* The square "+" on the left, Reset weights at the far right. */
   .add {
     display: flex;
     align-items: center;
-    gap: var(--chip-gap);
-    margin-top: var(--space-2);
+    justify-content: space-between;
   }
 
   .mini {
@@ -181,6 +180,6 @@
   }
 
   span.mini {
-    border: var(--rule);
+    background: var(--color-field);
   }
 </style>

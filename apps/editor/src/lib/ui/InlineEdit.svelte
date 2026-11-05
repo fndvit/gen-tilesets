@@ -107,24 +107,25 @@
     cursor: text;
   }
 
-  /* A dotted underline says "click to type here" without looking like a link. */
+  /* An underline says "click to type here". */
   .text:hover {
-    text-decoration: underline dotted;
+    text-decoration: underline;
     text-decoration-thickness: var(--rule-w);
     text-underline-offset: var(--space-1);
   }
 
-  /* While typing it becomes a field like every other: paper, an ink edge. */
+  /* While typing it is a field like the others: filled, with the ink ring. */
   .field {
     field-sizing: content;
-    box-sizing: border-box;
     max-width: 100%;
-    height: var(--target-min);
+    min-height: var(--target-min);
     padding: 0 var(--space-2);
-    border: var(--rule-w) solid var(--color-ink);
-    border-radius: var(--radius-xs);
-    background: var(--color-paper);
-    box-shadow: inset 0 0 0 var(--rule-w) var(--color-ink);
-    outline: none;
+    margin-left: calc(-1 * var(--space-2));
+    border-radius: var(--radius-sm);
+    background: var(--color-panel);
+    outline: var(--focus-w) solid var(--color-ink);
+    outline-offset: 0;
+    line-height: var(--leading-title);
+    text-box: none;
   }
 </style>

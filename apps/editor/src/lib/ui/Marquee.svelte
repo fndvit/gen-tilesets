@@ -1,6 +1,6 @@
 <!--
-  One line of `.t-console` that scrolls when it does not fit: an operation
-  tab's answer. A `<span>`, so it can sit inside a button.
+  One line of `.t-console` in the muted colour, with no frame: an operation's
+  summary, read as a caption over its step tabs.
 
   Text that fits stays still. Text that overflows scrolls right to left in a
   seamless loop, at the constant speed `--marquee-speed`, and pauses under the
@@ -44,7 +44,7 @@
   const duration = $derived(overflows ? marqueeDuration(copyWidth, speed) : 0);
 </script>
 
-<span
+<div
   class="strip t-console {scroll}"
   class:clip={overflows}
   bind:this={strip}
@@ -55,23 +55,20 @@
     <span class="copy" bind:offsetWidth={copyWidth}>{text}</span>
     {#if duration > 0}<span class="copy" aria-hidden="true">{text}</span>{/if}
   </span>
-</span>
+</div>
 
 <style>
   /*
     `contain: inline-size`: the text never sets the strip's width, so a long
-    summary scrolls inside the strip instead of widening its container. No
-    frame or fill of its own: it takes the colour of what it sits in, and
-    `--marquee-bg` paints the ellipsis to match.
+    summary scrolls inside the strip instead of widening its container.
   */
   .strip {
     position: relative;
     display: flex;
-    flex: 1;
-    min-width: 0;
     overflow: hidden;
     contain: inline-size;
-    color: inherit;
+    padding-block: var(--console-pad-y);
+    color: var(--color-muted);
     white-space: nowrap;
   }
 
@@ -80,9 +77,20 @@
     flex: none;
   }
 
+  /* Text that fits can be centred by the caller (an operation's captions, over centred tabs). */
+  .strip:not(.clip) {
+    justify-content: var(--marquee-align, flex-start);
+  }
+
+  .strip:not(.clip) .copy {
+    padding-inline: var(--space-2);
+  }
+
   .copy {
     flex: none;
-    padding-inline: 0 var(--space-6);
+    padding-inline: var(--space-2) var(--space-6);
+    line-height: var(--leading-title);
+    text-box: none;
   }
 
   .always .run,
@@ -102,8 +110,8 @@
     right: 0;
     display: flex;
     align-items: center;
-    padding-inline: var(--space-1) 0;
-    background: var(--marquee-bg, var(--color-paper));
+    padding-inline: var(--space-1) var(--space-2);
+    background: var(--marquee-ground, var(--color-panel));
   }
 
   @media (prefers-reduced-motion: no-preference) {

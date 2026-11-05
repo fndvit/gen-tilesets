@@ -42,7 +42,7 @@
           hint="Paint on the preview. Drag to continue a stroke; start on a painted cell to erase."
         >
           {#snippet children()}
-            <span class="t-label">{Array.isArray(values[name]) ? (values[name] as unknown[]).length : 0}</span>
+            <span class="t-value">{Array.isArray(values[name]) ? (values[name] as unknown[]).length : 0}</span>
           {/snippet}
         </FieldRow>
       {:else}
@@ -59,18 +59,10 @@
 {/if}
 
 <style>
-  /*
-    Typed numbers two to a row, like Grid & Size; a labelled row (a segmented
-    choice, a slider) takes the whole width. `minmax(0, 1fr)`: never grows
-    past the body.
-  */
+  /* One column that never grows past the body (the implicit `auto` column would). */
   .params {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-2);
-  }
-
-  .params > :global(:not(.field)) {
-    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
   }
 </style>

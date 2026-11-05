@@ -14,13 +14,12 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-ui);
-  font-size: var(--text-body-size);
 }
 
 /*
-  One focus ring for the whole editor: 2px ink, 1px out. Every surface is
-  light, so one colour serves everywhere; a black (selected or primary)
-  control sets a paper ring inside itself.
+  One focus ring for the whole editor: ink, 2px, clear of the control. Every
+  surface is light, so ink reads everywhere; on an ink control (a primary
+  button, a selected segment) the offset keeps the ring on the surface behind.
 */
 :focus-visible {
   outline: var(--focus-w) solid var(--color-ink);

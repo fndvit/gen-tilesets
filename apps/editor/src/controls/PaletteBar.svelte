@@ -166,7 +166,7 @@
 <div class="palette">
   <Hint text={paletteHint}>
     {#snippet children()}
-      <span class="name t-label">Palette</span>
+      <span class="t-label">Palette</span>
     {/snippet}
   </Hint>
 
@@ -258,70 +258,63 @@
   .palette {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-2);
+    gap: var(--space-3);
     color: var(--color-ink);
   }
 
-  .name {
-    color: var(--color-label);
-  }
-
-  /* A segmented strip, like the tabs: segment widths are the weights. */
+  /* The segments sit on a track like a segmented control's, and are their weights wide. */
   .bar {
-    box-sizing: border-box;
     display: flex;
-    height: var(--control-h);
-    border: var(--rule);
-    border-radius: var(--radius);
+    gap: var(--space-1);
+    height: var(--thumb);
+    padding: var(--space-1);
+    border-radius: var(--radius-sm);
     background: var(--color-field);
-    overflow: hidden;
     touch-action: none;
   }
 
+  /* An entry is a grey block; the one being edited is ink, the selected state. */
   .segment {
     flex-basis: 0;
     min-width: 0;
     padding: 0 var(--space-2);
     border: 0;
-    border-right: var(--rule);
-    background: var(--color-field);
+    border-radius: calc(var(--radius-sm) - var(--space-1));
+    background: var(--color-secondary-hover);
     color: var(--color-ink);
     overflow: hidden;
     white-space: nowrap;
+    line-height: normal;
+    text-box: none;
     cursor: grab;
-    transition: background-color var(--dur-fast) var(--ease);
+    transition:
+      background-color var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
   }
 
-  .segment:last-child {
-    border-right: 0;
-  }
-
-  .segment:active {
-    cursor: grabbing;
-  }
-
-  /* An empty entry clears cells, so it reads as paper, not as a tile. */
+  /* An empty entry clears cells, so it reads as the panel showing through. */
   .segment.null {
-    background: var(--color-paper);
-    color: var(--color-label);
+    background: var(--color-panel);
+    box-shadow: inset 0 0 0 var(--rule-w) var(--color-edge);
   }
 
   .segment:hover:not(.on) {
-    background: var(--color-hover);
+    background: var(--color-secondary-pressed);
   }
 
-  /* The entry being edited below: black, as a chosen segment is. */
   .segment.on {
     background: var(--color-selected);
     color: var(--color-on-selected);
   }
 
-  .segment:focus-visible {
-    outline-offset: calc(-1 * var(--focus-w));
+  /* Pressed: grabbing, and a ring drawn inside, so nothing moves. */
+  .segment:active {
+    cursor: grabbing;
+    box-shadow: inset 0 0 0 var(--focus-w) var(--color-muted);
   }
 
-  .segment.on:focus-visible {
-    outline-color: var(--color-on-selected);
+  .segment:focus-visible {
+    outline-offset: 0;
   }
 
   /* A zero-weight entry is legal and must stay visible (§7.6). */
@@ -334,37 +327,44 @@
   .thresholds {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-1) var(--space-4);
+    gap: var(--space-4);
     margin: 0;
-    color: var(--color-label);
+    color: var(--color-muted);
   }
 
+  /* The edited entry's share is ink and underlined, so it pairs with the ink segment. */
   .thresholds .on {
     color: var(--color-ink);
     text-decoration: underline;
-    text-underline-offset: var(--space-1);
   }
 
+  /* A field like the numeric ones: filled, its bottom edge the boundary. */
   .select {
     box-sizing: border-box;
     width: 100%;
+    min-width: 0;
     height: var(--control-h);
     padding: 0 var(--space-3);
-    border: var(--rule);
-    border-radius: var(--radius);
+    border: 0;
+    border-radius: var(--radius-sm);
     background: var(--color-field);
+    box-shadow: inset 0 calc(-1 * var(--rule-w)) 0 var(--color-edge);
     color: var(--color-ink);
     cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease);
   }
 
   .select:hover {
-    border-color: var(--color-rule-hover);
-    background: var(--color-paper);
+    background: var(--color-field-hover);
+  }
+
+  .select:focus-visible {
+    outline-offset: 0;
   }
 
   .actions {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--chip-gap);
+    gap: var(--space-2);
   }
 </style>

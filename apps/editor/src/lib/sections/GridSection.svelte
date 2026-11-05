@@ -56,20 +56,21 @@
       : "Changes the column count. Every selection here survives a resize, so it applies at once.",
   );
 
+  /** What the header says while the section is closed: the values below, in one line. */
+  const summary = $derived(
+    `${layout.cellSize} px · ${config.rows} rows · ${layout.referenceWidth} wide · ${layout.horizontalAlignment}`,
+  );
+
   const alignments = [
     { value: "column", label: "Column" },
     { value: "gutter", label: "Gutter" },
   ] as const;
 </script>
 
-<Section
-  title="Grid & Size"
-  summary="{layout.cellSize} px cells · {config.rows} rows · {layout.referenceWidth} wide"
->
+<Section title="Grid & size" {summary}>
   <div class="fields">
     <NumericInput
       label="Cell size"
-      unit="px"
       hint="One cell's size, in design px. {consequence}"
       value={layout.cellSize}
       parse={parseCellSize}
@@ -92,7 +93,6 @@
     />
     <NumericInput
       label="Design width"
-      unit="px"
       hint="The page width the design is drawn at, in px. {consequence}"
       value={layout.referenceWidth}
       parse={parseReferenceWidth}
@@ -104,7 +104,6 @@
       parity during derivation, and toggling it can move `columns` by one
       through that alone.
     -->
-    <div class="wide">
     <FieldRow
       label="Alignment"
       align="center"
@@ -120,19 +119,13 @@
         />
       {/snippet}
     </FieldRow>
-    </div>
   </div>
 </Section>
 
 <style>
-  /* Two boxed fields per row; the segmented Alignment takes a whole row. */
   .fields {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-2);
-  }
-
-  .wide {
-    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
   }
 </style>

@@ -1,41 +1,35 @@
 /*
   Design tokens — the only place a raw visual value is written down.
 
-  Exploration direction 3, "Inspector": hierarchy is carried by density and a
-  repeated micro-structure (a 28px boxed field, a 32px header row, a 1px
-  divider), not by fills. The neutral scale is a strict role map, so a grey
-  always means the same thing wherever it appears:
+  Two layers. **Primitives** name a value ("grey-100"); **semantic** tokens name
+  a job ("the ground the sidebar sits on"). Components read semantic tokens
+  only, so re-skinning is an edit here and nowhere else.
 
-    900  values and titles          (what the author typed or chose)
-    600  labels                     (what a value is called)
-    500  placeholders, tertiary     (still ≥ 4.5:1 on the field fill)
-    400  control boundaries         (≥ 3:1, the edge that says "editable")
-    200  dividers                   (structure only, never an affordance)
-    100  field fill                 (the inside of an editable box)
-    hover / pressed                 (fills that answer the pointer)
-    black                           (selected, active, the primary action)
-
-  Two layers. **Primitives** name a value; **semantic** tokens name a job.
-  Components read semantic tokens only. Rationale: `/DESIGN_DIRECTION.md`.
+  Direction 1, "Tonal layers" (`/DESIGN_DIRECTION.md`): hierarchy is carried by
+  how light a surface is, not by lines. The sidebar is a grey ground, an open
+  section is a white panel on it, a nested group is a faint grey well inside
+  the panel, and a field is one step darker than whatever it sits on. Black is
+  kept for the primary action of an area and for what is selected.
 */
 
 :root {
   /* ── Colour primitives ─────────────────────────────────────────────── */
-  --black: #000000;
+  /* A stepped neutral scale. Each step is a layer, so the gaps are deliberate. */
   --white: #ffffff;
-  --ink-900: #161616; /* 18:1 on white, 16:1 on the field fill */
-  --ink-700: #3d3d3d; /* primary hover: white on it is 11:1 */
-  --ink-600: #5c5c5c; /* labels: 6.7:1 on white, 6.1:1 on the field fill */
-  --ink-500: #6b6b6b; /* placeholders: 5.3:1 on white, 4.9:1 on the field fill */
-  --grey-400: #8a8a8a; /* control edges: 3.5:1 on white, 3.1:1 on the field fill */
-  --grey-300: #c4c4c4; /* disabled: deliberately below every contrast floor */
-  --grey-250: #dcdcdc; /* pressed fill on a light control */
-  --grey-200: #e6e6e6; /* dividers */
-  --grey-150: #ececec; /* hover fill */
-  --grey-100: #f4f4f4; /* field fill */
+  --grey-50: #f4f4f4; /* well: a nested group inside a white panel */
+  --grey-100: #ededed; /* ground: sidebar, preview top bar; field and track fill */
+  --grey-200: #e2e2e2; /* secondary button; hover on the ground */
+  --grey-300: #d4d4d4; /* hover on a secondary control; slider track */
+  --grey-400: #c2c2c2; /* pressed on a secondary control */
+  --grey-450: #a3a3a3; /* disabled text and icons: clearly dimmed, never read */
+  --grey-500: #7a7a7a; /* a field's bottom edge: 3.6:1 on the ground, 4.3:1 on white (1.4.11) */
+  --grey-600: #5e5e5e; /* secondary text: 5.5:1 on the ground, 6.5:1 on white */
+  --grey-800: #333333; /* the primary button under the pointer */
+  --black: #111111; /* ink: text, primary, selected */
+  --black-6: rgb(0 0 0 / 0.06); /* hover wash: darkens whatever surface it is on by one step */
+  --black-12: rgb(0 0 0 / 0.12); /* pressed wash */
   --black-10: rgb(0 0 0 / 0.1); /* the preview grid, so it reads on any backdrop */
-  --black-60: rgb(0 0 0 / 0.6); /* the scroll handle, on white panels and coloured backdrops */
-  --magenta: #ff00c3; /* seed / non-deterministic */
+  --magenta: #ff00c3; /* seed / non-deterministic: 3.5:1 on white */
   --blue-500: #3182ce; /* preview overlays: selected and painted cells */
   --red-600: #c53030; /* preview overlays: a stroke that erases */
 
@@ -49,19 +43,17 @@
   --weight-medium: 500;
   --weight-semibold: 600;
 
-  /*
-    Two sizes carry the whole sidebar: 13 for anything read as content
-    (titles, values, questions), 12 for anything that names or annotates it
-    (labels, buttons, mono readouts). 12 is the floor; nothing goes under it.
-  */
-  --text-section-size: 13px; /* section and group titles, semibold */
-  --text-label-size: 12px; /* field labels */
-  --text-body-size: 13px; /* values, questions, running text */
-  --text-xs-size: 12px; /* buttons, segments, tabs */
-  --text-console-size: 12px; /* mono readouts */
-  --text-console-tracking: 0;
-  --leading-hint: 1.35; /* multi-line hints, notices and popups */
-  --leading-title: 1.2; /* header titles: untrimmed, because they clip for the ellipsis */
+  /* Sentence case everywhere: size and weight make the steps, never capitals. */
+  --text-section-size: 15px; /* section headers */
+  --text-title-size: 14px; /* group titles: a rule, a tile group, an operation's index */
+  --text-label-size: 13px; /* field labels, in the muted colour */
+  --text-value-size: 14px; /* what a field holds, in ink */
+  --text-body-size: 13px; /* running text, questions, hints */
+  --text-xs-size: 13px; /* buttons, segments, tabs: medium weight carries them */
+  --text-console-size: 12px; /* mono summaries and glyph labels */
+  --text-console-tracking: 0.01em;
+  --leading-hint: 1.4; /* multi-line text */
+  --leading-title: 1.25; /* single-line titles that clip for an ellipsis */
 
   /* ── Space (2px base) ──────────────────────────────────────────────── */
   --space-1: 2px;
@@ -70,43 +62,36 @@
   --space-4: 8px;
   --space-5: 10px;
   --space-6: 12px;
-  --space-8: 16px;
+  --space-7: 16px;
 
   /* ── Size ──────────────────────────────────────────────────────────── */
-  /* Narrower than before: compact rows need less, and the preview gets it. */
-  --sidebar-w: clamp(360px, 27vw, 440px);
+  --sidebar-w: clamp(400px, 30vw, 560px);
   /* Pointer targets (WCAG 2.2, 2.5.8): nothing that acts is smaller than this. */
   --target-min: 24px;
-  --control-h: 28px; /* every boxed field, segmented control and button */
-  --row-h: 28px; /* a nested list row (tile variant) */
-  --bar-h-section: 32px; /* a section's header row */
-  --bar-h-group: 28px; /* a nested group's header row (rule, tile group) */
-  --op-header-h: 52px; /* an operation row: two-line tabs beside a 2×2 icon block */
-  --indent: 24px; /* one nesting level: the disclosure triangle's column */
-  --pad-x: 16px; /* the sidebar's side gutter; a section's triangle hangs in it */
-  --thumb: 24px; /* a tile variant's thumbnail */
-  --thumb-sm: 14px; /* the thumbnails in a tile group's header */
+  --control-h: 30px; /* fields, segments, buttons */
+  --header-h: 40px; /* a section header */
+  --group-h: 34px; /* a nested group's header (rule, tile group) */
+  --add-h: 32px; /* an "Add …" row */
+  --op-header-h: 60px; /* an operation: two 24px icon targets stacked, with air */
+  --thumb: 32px;
+  --thumb-sm: 16px;
   --icon: 12px;
-  --icon-seed: 16px; /* re-seed reads at a glance, inside a 28px box */
-  --field-label-w: 92px; /* the label column of a labelled row (Alignment) */
-  --field-w: 106px;
-  --field-label-w-compact: 92px; /* the same column inside an operation body */
-  --slider-thumb-w: 8px;
-  --slider-thumb-h: 16px; /* drawn size; the input itself is a 24px target */
-  --slider-track-h: 2px;
+  --icon-seed: 18px; /* the re-seed icon, larger than the rest (Pol, Block F review) */
+  --field-label-w: 38%; /* label column: values start at one tab stop, close to their label */
+  --field-label-w-compact: 116px; /* the label column in an operation body */
+  --slider-thumb: 16px;
+  --slider-track-h: 4px;
   --scrollbar-w: 6px; /* ScrollArea's overlay handle */
   --scrollbar-inset: 2px;
-  --glyph-w: 68px; /* narrowest glyph cell; a grid fits as many as the width allows */
-  --glyph-h: 52px;
+  --glyph-w: 72px; /* narrowest glyph cell; a grid fits as many as the width allows */
+  --glyph-h: 60px;
   --glyph-cell: 10px;
   --glyph-gap: 1px;
-  --glyph-slot: 36px; /* artwork square inside a glyph cell */
-  --chip-gap: 4px; /* between separate buttons in a toolbar */
+  --glyph-slot: 43px; /* artwork square inside a glyph cell */
   --console-pad-y: 3px;
-  --footer-pad-bottom: 12px;
   --hint-w: 260px; /* widest a hint bubble grows */
-  --badge: 16px;
-  /* The preview's width handles (Figma *Handle*, Stage 2 P3b). */
+  --badge: 16px; /* a tile asset's delete badge */
+  /* The preview's width handles (Figma *Handle*). */
   --handle-w: 24px; /* hit area, wholly outside the box edge; `width.ts`'s HANDLE matches */
   --handle-square: 6px;
   --handle-cap: 16px;
@@ -115,75 +100,82 @@
   --handle-hit-reach: calc(var(--handle-reach) + (var(--handle-w) - var(--handle-square)) / 2);
   --handle-dot: 1px;
   --handle-dot-gap: 2px;
-  /* The preview's top bar: a toolbar of the same 28px controls as the sidebar. */
-  --preview-bar-h: 44px;
-  --width-chip-w: 44px; /* a size preset or breakpoint, as one segment */
-  --width-chip-h: 28px;
-  --swatch-w: 28px; /* the background colour: a square the height of a field */
-  --swatch-rule-w: 1px;
-  --asset-gap: 2px; /* between tile variant rows */
-  --share-w: 40px; /* a variant's % */
+  /* The preview top bar. */
+  --preview-bar-h: 52px;
+  --width-chip-w: 48px; /* a size preset or breakpoint segment */
+  --swatch-w: 30px; /* the background colour swatch, a control-high square */
+  --asset-gap: 8px; /* between tile asset rows */
+  --share-w: 40px; /* a tile asset's % */
 
-  /* ── Border ────────────────────────────────────────────────────────── */
+  /* ── Border and radius ─────────────────────────────────────────────── */
   --rule-w: 1px;
-  /* Small and identical everywhere: a tool panel, not cards. */
-  --radius: 3px;
-  --radius-xs: 2px;
-  --radius-round: 50%;
+  --radius-sm: 4px; /* fields, buttons, segments, icon buttons */
+  --radius: 6px; /* panels and wells */
+  --radius-lg: 10px; /* popups */
+  --radius-xs: 2px; /* thumbnails */
+  --radius-round: 50%; /* the delete badge and slider thumbs */
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.14); /* a raised white control on a grey track */
+  --shadow-float: 0 8px 28px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.1); /* popups, notices */
 
   /* ── Focus ─────────────────────────────────────────────────────────── */
   --focus-w: 2px;
-  --focus-offset: 1px;
-
-  /* ── Elevation: only what floats (popups, hints) ───────────────────── */
-  --shadow-float: 0 8px 24px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.08);
+  --focus-offset: 2px;
 
   /* ── Motion ────────────────────────────────────────────────────────── */
   --dur-fast: 120ms;
   --dur-slow: 300ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
-  --marquee-speed: 40px;
-  --scrollbar-opacity: 0.5;
-  --scrollbar-opacity-hover: 0.8;
+  --marquee-speed: 40px; /* per second */
+  --scrollbar-opacity: 0.6;
+  --scrollbar-opacity-hover: 0.9;
 }
 
 /*
-  Semantic colour. One theme: the whole editor is a white panel with ink, so
-  there is no inverted block. `.theme-default` stays as a reset for content
-  rendered somewhere else (a popup, the docs stories).
-
-  `--rule` (a control's edge) and `--divider` (structure) are declared with the
-  colours, because a custom property resolves where it is declared.
+  Semantic colour. `.theme-default` restores the page inside a container that
+  changes it (a popup).
 */
 :root,
 .theme-default {
-  --color-ink: var(--ink-900); /* values, titles: the 900 role */
-  --color-label: var(--ink-600); /* field labels, secondary readouts: the 600 role */
-  --color-placeholder: var(--ink-500); /* units, placeholders, empty states */
-  --color-paper: var(--white); /* panels */
-  --color-surface: var(--white); /* the sidebar */
-  --color-field: var(--grey-100); /* inside an editable box */
-  --color-hover: var(--grey-150); /* a row, button or segment under the pointer */
-  --color-pressed: var(--grey-250); /* the same while pressed */
-  --color-rule: var(--grey-400); /* a control's edge: ≥ 3:1, it is the affordance */
-  --color-rule-hover: var(--ink-600); /* the edge under the pointer */
-  --color-divider: var(--grey-200); /* between sections and list rows */
-  --color-selected: var(--black); /* a chosen segment, the active tab */
-  --color-on-selected: var(--white);
-  --color-primary: var(--black); /* the one primary action per area */
-  --color-primary-hover: var(--ink-700);
-  --color-primary-pressed: var(--ink-600);
+  --color-ink: var(--black); /* text and icons */
+  --color-paper: var(--white);
+  --color-muted: var(--grey-600); /* labels, summaries, secondary text */
+  --color-disabled: var(--grey-450);
+
+  /* Surfaces, darkest to lightest: ground → panel; a well sits back inside a panel. */
+  --color-ground: var(--grey-100);
+  --color-panel: var(--white);
+  --color-well: var(--grey-50);
+  /* A field is one step off its surface. A container on the ground sets it to white. */
+  --color-field: var(--grey-100);
+  --color-field-hover: var(--grey-200);
+  --color-edge: var(--grey-500); /* a field's bottom edge: the boundary that says "type here" */
+
+  /* Buttons. One primary per area, in ink. */
+  --color-primary: var(--black);
+  --color-primary-hover: var(--grey-800);
   --color-on-primary: var(--white);
-  --color-disabled: var(--grey-300); /* disabled text, icons and edges; exempt from contrast */
+  --color-secondary: var(--grey-200);
+  --color-secondary-hover: var(--grey-300);
+  --color-secondary-pressed: var(--grey-400);
+  --color-hover: var(--black-6); /* tertiary, icon and header hover: a wash, so it works on any surface */
+  --color-pressed: var(--black-12);
+
+  /* Selected is ink, like the primary: black means "this one". */
+  --color-selected: var(--black);
+  --color-on-selected: var(--white);
+  --color-track: var(--grey-300); /* slider and mapping tracks */
+
   --color-grid: var(--black-10);
-  --color-scrollbar: var(--black-60);
-  --color-muted: var(--ink-600); /* secondary text in the preview chrome */
+  --color-scrollbar: var(--grey-500);
   --color-selection: var(--blue-500); /* cells an operation selects or a stroke adds */
   --color-erase: var(--red-600); /* cells a stroke removes */
   --color-seed: var(--magenta);
   /* Placeholders until the Stage 2 warnings group decides them. */
-  --color-danger: var(--ink-900);
-  --color-warn: var(--ink-900);
+  --color-danger: var(--black);
+  --color-warn: var(--black);
+
+  /* The preview's handles draw in these. */
+  --color-rule: var(--color-edge);
+  --color-inactive: var(--color-disabled);
   --rule: var(--rule-w) solid var(--color-rule);
-  --divider: var(--rule-w) solid var(--color-divider);
 }

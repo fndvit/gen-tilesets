@@ -1,6 +1,6 @@
 <!--
-  A compact slider: a 2px track in the control-edge grey and a small ink
-  block thumb, in a 24px-tall input that is the pointer target.
+  The weight slider: a soft grey track, filled in ink up to the value, and a
+  round ink thumb. The input itself is 24px tall, the pointer target (2.5.8).
 
   It is a restyled native `<input type="range">`, so focus, arrow keys, Page
   Up/Down, Home/End and screen reader support come from the browser. On top of
@@ -33,6 +33,9 @@
   let { value, min, max, step, label, onInput, onCommit, disabled = false }: Props = $props();
 
   let input: HTMLInputElement | undefined = $state();
+
+  /** How far along the track the value is, for the ink fill behind the thumb. */
+  const fill = $derived(max > min ? Math.min(Math.max((value - min) / (max - min), 0), 1) * 100 : 0);
 
   function read(event: Event): number {
     return Number((event.currentTarget as HTMLInputElement).value);
@@ -75,6 +78,7 @@
   {value}
   {disabled}
   aria-label={label}
+  style:--fill="{fill}%"
   oninput={(event) => onInput?.(read(event))}
   onchange={(event) => void commit(read(event))}
   onkeydown={onKeydown}
@@ -82,13 +86,12 @@
 
 <style>
   .slider {
-    --track: var(--color-rule);
-    --thumb-offset: calc((var(--slider-track-h) - var(--slider-thumb-h)) / 2);
+    --thumb-offset: calc((var(--slider-track-h) - var(--slider-thumb)) / 2);
+    --fill-color: var(--color-ink);
     appearance: none;
     display: block;
     width: 100%;
     min-width: 0;
-    /* The input is the 24px target; the thumb drawn inside it is smaller. */
     height: var(--target-min);
     margin: 0;
     background: transparent;
@@ -100,60 +103,60 @@
   }
 
   .slider:disabled {
-    --track: var(--color-disabled);
+    --fill-color: var(--color-disabled);
     cursor: default;
-  }
-
-  /* Hover darkens the track to the label role, as a field's edge darkens. */
-  .slider:hover:not(:disabled) {
-    --track: var(--color-rule-hover);
   }
 
   .slider:focus-visible {
     outline-offset: 0;
-    border-radius: var(--radius);
+    border-radius: var(--radius-sm);
   }
 
   .slider::-webkit-slider-runnable-track {
     height: var(--slider-track-h);
     border-radius: var(--slider-track-h);
-    background: var(--track);
-  }
-
-  .slider::-webkit-slider-thumb {
-    appearance: none;
-    width: var(--slider-thumb-w);
-    height: var(--slider-thumb-h);
-    margin-top: var(--thumb-offset);
-    border: 0;
-    border-radius: var(--radius-xs);
-    background: var(--color-ink);
-    transition: transform var(--dur-fast) var(--ease);
-  }
-
-  .slider:active:not(:disabled)::-webkit-slider-thumb {
-    transform: scaleX(1.5);
+    background: linear-gradient(to right, var(--fill-color) var(--fill), var(--color-track) var(--fill));
   }
 
   .slider::-moz-range-track {
     height: var(--slider-track-h);
     border-radius: var(--slider-track-h);
-    background: var(--track);
+    background: linear-gradient(to right, var(--fill-color) var(--fill), var(--color-track) var(--fill));
+  }
+
+  .slider::-webkit-slider-thumb {
+    appearance: none;
+    box-sizing: border-box;
+    width: var(--slider-thumb);
+    height: var(--slider-thumb);
+    margin-top: var(--thumb-offset);
+    border: var(--focus-w) solid var(--color-paper);
+    border-radius: var(--radius-round);
+    background: var(--fill-color);
+    box-shadow: var(--shadow-raised);
+    transition: transform var(--dur-fast) var(--ease);
   }
 
   .slider::-moz-range-thumb {
-    width: var(--slider-thumb-w);
-    height: var(--slider-thumb-h);
-    border: 0;
-    border-radius: var(--radius-xs);
-    background: var(--color-ink);
+    box-sizing: border-box;
+    width: var(--slider-thumb);
+    height: var(--slider-thumb);
+    border: var(--focus-w) solid var(--color-paper);
+    border-radius: var(--radius-round);
+    background: var(--fill-color);
+    box-shadow: var(--shadow-raised);
   }
 
-  .slider:disabled::-webkit-slider-thumb {
-    background: var(--color-disabled);
+  /* Hover grows the thumb; pressing shrinks it back a little, so a grab is felt. */
+  .slider:hover:not(:disabled)::-webkit-slider-thumb {
+    transform: scale(1.2);
   }
 
-  .slider:disabled::-moz-range-thumb {
-    background: var(--color-disabled);
+  .slider:active:not(:disabled)::-webkit-slider-thumb {
+    transform: scale(1.05);
+  }
+
+  .slider:hover:not(:disabled)::-moz-range-thumb {
+    transform: scale(1.2);
   }
 </style>

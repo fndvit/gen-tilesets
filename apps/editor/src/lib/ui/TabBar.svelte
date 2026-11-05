@@ -1,17 +1,15 @@
 <!--
-  The strip of equal-width step tabs in an operation row (Selection,
-  Attribute, Source, Blend), each showing its answer under its name.
+  The row of equal-width step tabs under an operation's console strip
+  (Selection, Attribute, Source, Blend).
 
-  With `active = null` (a closed operation) every tab is paper. With a tab
-  active (an open operation), that tab is black, as a chosen segment is. A
-  long answer ends in an ellipsis and scrolls while hovered (`Marquee`); the
-  tab's accessible name carries the whole answer.
+  Drawn as a segmented control: a grey track of equal tabs. With `active = null`
+  (a closed operation) all are text on the track. With a tab active (an open
+  operation), that tab is ink, the selected state everywhere in the editor.
 
   Selecting a tab opens that step, which is a real action, so activation is
   manual: arrows move focus, and Enter, Space or a click selects.
 -->
 <script lang="ts">
-  import Marquee from "./Marquee.svelte";
   import { rovingIndex } from "./keys.js";
 
   interface Tab {
@@ -48,13 +46,13 @@
   }
 </script>
 
-<div class="tabs" class:open={active !== null} role="tablist" aria-label={label}>
+<div class="tabs" role="tablist" aria-label={label}>
   {#each tabs as tab, i (tab.id)}
     <button
       bind:this={buttons[i]}
       type="button"
       role="tab"
-      class="tab"
+      class="tab t-xs"
       class:active={tab.id === active}
       aria-label={tab.detail === undefined ? undefined : `${tab.label}: ${tab.detail}`}
       aria-selected={tab.id === active}
@@ -65,121 +63,58 @@
       onfocus={() => (focused = i)}
       onblur={() => (focused = -1)}
     >
-      <span class="name t-xs">{tab.label}</span>
-      {#if tab.detail !== undefined}
-        <span class="detail" aria-hidden="true"><Marquee text={tab.detail} scroll="hover" /></span>
-      {/if}
+      {tab.label}
     </button>
   {/each}
 </div>
 
 <style>
-  /*
-    A segmented strip: one box with a 3:1 edge, the tabs sharing its width.
-    Each tab shows its step, and below it, in mono, what that step answered,
-    so a closed operation reads as a sentence across the strip.
-  */
   .tabs {
     box-sizing: border-box;
     display: flex;
+    gap: var(--space-1);
     min-height: var(--control-h);
-    border: var(--rule);
-    border-radius: var(--radius);
-    background: var(--color-paper);
-    overflow: hidden;
+    padding: var(--space-1);
+    border-radius: var(--radius-sm);
+    background: var(--color-field);
   }
 
+  /* The step ids are lower case; the tab shows them in sentence case. */
   .tab {
-    --marquee-bg: var(--color-paper);
-    display: flex;
     flex: 1 1 0;
-    flex-direction: column;
-    justify-content: center;
-    gap: var(--space-1);
     min-width: 0;
-    padding: var(--space-1) var(--space-3);
+    padding: 0 var(--space-2);
     border: 0;
-    background: var(--color-paper);
-    color: var(--color-label);
-    text-align: left;
+    border-radius: calc(var(--radius-sm) - var(--space-1));
+    background: transparent;
+    color: var(--color-ink);
     overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: capitalize;
     white-space: nowrap;
+    line-height: normal;
+    text-box: none;
     cursor: pointer;
     transition:
       background-color var(--dur-fast) var(--ease),
       color var(--dur-fast) var(--ease);
   }
 
-  .tab + .tab {
-    border-left: var(--divider);
-  }
-
-  /* Untrimmed: it clips for the ellipsis, and a cap-trimmed box lost the letters' tops. */
-  .name {
-    overflow: hidden;
-    line-height: var(--leading-title);
-    text-box: none;
-    text-overflow: ellipsis;
-  }
-
-  .detail {
-    display: flex;
-    min-width: 0;
-    color: var(--color-ink);
-  }
-
   .tab:hover:not(.active) {
-    --marquee-bg: var(--color-hover);
     background: var(--color-hover);
-    color: var(--color-ink);
   }
 
   .tab:active:not(.active) {
-    --marquee-bg: var(--color-pressed);
     background: var(--color-pressed);
   }
 
-  /* The open step: black, as a chosen segment is. */
+  .tab:focus-visible {
+    outline-offset: 0;
+  }
+
   .tab.active {
-    --marquee-bg: var(--color-selected);
     background: var(--color-selected);
     color: var(--color-on-selected);
     cursor: default;
-  }
-
-  .tab.active .detail {
-    color: var(--color-on-selected);
-  }
-
-  .tab:focus-visible {
-    outline-offset: calc(-1 * var(--focus-w) - var(--focus-offset));
-  }
-
-  .tab.active:focus-visible {
-    outline-color: var(--color-on-selected);
-  }
-
-  /*
-    Too narrow for four readable answers (a phone, or 200% zoom): two by two,
-    so each answer keeps half the width instead of a quarter (WCAG 1.4.10).
-    The caller makes the strip's parent a size container.
-  */
-  @container (max-width: 260px) {
-    .tabs {
-      flex-wrap: wrap;
-    }
-
-    .tab {
-      flex-basis: 50%;
-      box-sizing: border-box;
-    }
-
-    .tab:nth-child(3) {
-      border-left: 0;
-    }
-
-    .tab:nth-child(n + 3) {
-      border-top: var(--divider);
-    }
   }
 </style>

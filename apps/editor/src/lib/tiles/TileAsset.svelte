@@ -1,12 +1,12 @@
 <!--
-  One variant of a tile group, as one compact line: a 24px thumbnail, the
-  weight slider, the variant's share as a % in mono, and a delete cross.
+  The Figma *Tile asset*: one variant of a tile group. A 32px thumbnail, the
+  weight slider and the variant's share as a %.
 
-  **Delete is shown on demand** (Pol, Block D): the cross at the row's end is
-  visible while the row is hovered or has focus, and its column is always
-  reserved so nothing moves. It is focusable while hidden, so Tab reaches it
-  and shows it. With one variant left it stays, disabled, because a Tile with
-  no assets cannot resolve (`03` §4.1).
+  **Delete is a badge on the thumbnail** (Pol, Block D; not in Figma): an ink
+  circle with a white cross at its top-right corner, shown while the row is
+  hovered or has focus. It is focusable while hidden, so Tab reaches it and
+  shows it. With one variant left it stays, disabled, because a Tile with no
+  assets cannot resolve (`03` §4.1).
 
   The thumbnail's hint carries E13's frozen measurement and `07` **R8**'s
   centre-crop note. The asset id is not shown: `a1`, `a2` tell the author
@@ -60,6 +60,15 @@
         {/if}
       {/snippet}
     </Hint>
+    <button
+      type="button"
+      class="badge"
+      aria-label="Delete variant {position}"
+      disabled={!canDelete}
+      onclick={onDelete}
+    >
+      <Icon name="close" />
+    </button>
   </span>
   <Slider
     label="Weight of variant {position}"
@@ -70,34 +79,19 @@
     {onInput}
     {onCommit}
   />
-  <span class="share t-console">{percent}%</span>
-  <button
-    type="button"
-    class="delete"
-    aria-label="Delete variant {position}"
-    disabled={!canDelete}
-    onclick={onDelete}
-  >
-    <Icon name="close" />
-  </button>
+  <span class="share t-value">{percent}%</span>
 </div>
 
 <style>
   .asset {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
-    min-height: var(--row-h);
-    padding-right: var(--space-1);
-    border-radius: var(--radius);
-    transition: background-color var(--dur-fast) var(--ease);
-  }
-
-  .asset:hover {
-    background: var(--color-hover);
+    gap: var(--space-3);
+    min-height: var(--thumb);
   }
 
   .thumb {
+    position: relative;
     flex: none;
     width: var(--thumb);
     height: var(--thumb);
@@ -106,7 +100,6 @@
   img,
   .missing {
     display: block;
-    box-sizing: border-box;
     width: var(--thumb);
     height: var(--thumb);
     border-radius: var(--radius-xs);
@@ -114,52 +107,72 @@
   }
 
   .missing {
-    border: var(--rule-w) dashed var(--color-rule);
+    background: var(--color-field);
+  }
+
+  .badge {
+    position: absolute;
+    top: calc(-1 * var(--space-2));
+    right: calc(-1 * var(--space-2));
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--badge);
+    height: var(--badge);
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-round);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    box-shadow: 0 0 0 var(--rule-w) var(--color-paper);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      opacity var(--dur-fast) var(--ease),
+      background-color var(--dur-fast) var(--ease),
+      transform var(--dur-fast) var(--ease);
+  }
+
+  /* The pointer target is `--target-min` square around the smaller circle (WCAG 2.2, 2.5.8). */
+  .badge::before {
+    content: "";
+    position: absolute;
+    inset: calc((var(--badge) - var(--target-min)) / 2);
+  }
+
+  /* Hover lifts the circle to the primary's hover grey and grows it a little. */
+  .badge:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+    transform: scale(1.15);
+  }
+
+  .badge:active:not(:disabled) {
+    background: var(--color-ink);
+    transform: scale(1);
+  }
+
+  /* The ring around a circle: the outline follows the radius. */
+  .badge:focus-visible {
+    outline: var(--focus-w) solid var(--color-ink);
+    outline-offset: var(--focus-offset);
+  }
+
+  .asset:hover .badge,
+  .asset:focus-within .badge {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .badge:disabled {
+    background: var(--color-disabled);
+    cursor: default;
   }
 
   .share {
     flex: none;
     width: var(--share-w);
-    color: var(--color-ink);
     text-align: right;
-  }
-
-  .delete {
-    display: flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    width: var(--target-min);
-    height: var(--target-min);
-    padding: 0;
-    border: 0;
-    border-radius: var(--radius);
-    background: none;
-    color: var(--color-label);
-    cursor: pointer;
-    opacity: 0;
-    transition:
-      opacity var(--dur-fast) var(--ease),
-      background-color var(--dur-fast) var(--ease);
-  }
-
-  .asset:hover .delete,
-  .asset:focus-within .delete {
-    opacity: 1;
-  }
-
-  .delete:hover:not(:disabled) {
-    background: var(--color-pressed);
-    color: var(--color-ink);
-  }
-
-  .delete:active:not(:disabled) {
-    background: var(--color-rule);
-    color: var(--color-paper);
-  }
-
-  .delete:disabled {
-    color: var(--color-disabled);
-    cursor: default;
   }
 </style>

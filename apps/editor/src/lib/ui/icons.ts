@@ -27,15 +27,15 @@ export interface IconDef {
 }
 
 export const ICONS = {
-  /** Section and group disclosure: a solid triangle pointing right; `Collapsible` turns it down when open. */
-  fold: { w: 6, h: 8, d: "M0 0L6 4L0 8Z", mode: "fill" },
+  /** Section and group disclosure. Points down; `Collapsible` turns it up when open. */
+  fold: { w: 10, h: 5, d: "M0 0L5 5L10 0", mode: "stroke", strokeWidth: 1.5 },
   /** Move an operation up / down. */
   up: { w: 12, h: 6, d: "M6 0L0 6H12Z", mode: "fill" },
   down: { w: 12, h: 6, d: "M6 6L0 0H12Z", mode: "fill" },
-  /** Add: a header's "+" and a group's add-variants button. */
-  plus: { w: 10, h: 10, d: "M5 0V10M10 5H0", mode: "stroke", strokeWidth: 1.5 },
+  /** Add controls: drawn at the text's size, with the weight of its strokes. */
+  plus: { w: 12, h: 12, d: "M6 0V12M12 6H0", mode: "stroke", strokeWidth: 1.5 },
   /** The cross in a tile asset's delete badge. Not in Figma (Pol, Block D). */
-  close: { w: 8, h: 8, d: "M0 0L8 8M8 0L0 8", mode: "stroke", strokeWidth: 1.25 },
+  close: { w: 6, h: 6, d: "M0 0L6 6M6 0L0 6", mode: "stroke", strokeWidth: 1 },
   /** Delete. */
   trash: {
     w: 12,

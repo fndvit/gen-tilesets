@@ -2,8 +2,7 @@
   The Figma *Tiles* section: the tile library (`09-editor.md` §10), where
   pictures enter the editor.
 
-  One `TileGroup` per Tile, as nested rows; the "+" that adds a group is in
-  the section's header.
+  One `TileGroup` per Tile, 4px apart, then the "+" bar that adds a group.
   **N files make one group** (redesign Block D, replacing `DECISIONS.md`
   D13's one-Tile-per-file): the files become its variants `a1…aN`, and it is
   named after the first file that attached. Dropping files on the section,
@@ -42,7 +41,7 @@
   import { session } from "../../session.svelte.js";
   import Section from "../Section.svelte";
   import TileGroup from "../tiles/TileGroup.svelte";
-  import IconButton from "../ui/IconButton.svelte";
+  import AddBar from "../ui/AddBar.svelte";
   import Popup from "../ui/Popup.svelte";
 
   const tiles = $derived(session.file.config.tiles);
@@ -169,6 +168,13 @@
     }
   }
 
+  /** The closed header's line: how many groups and variants. */
+  const summary = $derived.by(() => {
+    const variants = tiles.reduce((n, t) => n + t.assets.length, 0);
+    if (tiles.length === 0) return "None";
+    return `${tiles.length} ${tiles.length === 1 ? "group" : "groups"} · ${variants} ${variants === 1 ? "variant" : "variants"}`;
+  });
+
   /** Only an imported file can hold these: the editor refuses to make one. */
   const isDuplicate = (tile: Tile) => tileNameTaken(session.file, tile.name, tile.id);
 
@@ -180,21 +186,7 @@
   }
 </script>
 
-<Section
-  title="Tiles"
-  summary="{tiles.length} {tiles.length === 1 ? 'group' : 'groups'} · {tiles.reduce((n, t) => n + t.assets.length, 0)} variants"
->
-  {#snippet actions(reveal)}
-    <IconButton
-      icon="plus"
-      label="Add tile group"
-      onclick={() => {
-        reveal();
-        pick(null);
-      }}
-    />
-  {/snippet}
-
+<Section title="Tiles" {summary}>
   <div
     class="library"
     class:armed
@@ -224,9 +216,7 @@
         onFiles={(files) => void addVariants(tile, files)}
       />
     {/each}
-    {#if tiles.length === 0}
-      <p class="empty t-label">No tile groups. Drop images here, or add a group with +.</p>
-    {/if}
+    <AddBar label="Add tile group" onclick={() => pick(null)} />
   </div>
 
   <input
@@ -251,7 +241,7 @@
   .library {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-1);
+    gap: var(--space-3);
     border-radius: var(--radius);
     outline: var(--focus-w) solid transparent;
     outline-offset: var(--focus-offset);
@@ -261,13 +251,6 @@
   /* Image files dragged over the section, outside any group. */
   .library.armed {
     outline-color: var(--color-ink);
-  }
-
-  .empty {
-    margin: var(--space-2) 0;
-    color: var(--color-placeholder);
-    line-height: var(--leading-hint);
-    text-box: none;
   }
 
   .picker {

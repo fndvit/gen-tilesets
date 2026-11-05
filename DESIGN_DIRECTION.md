@@ -1,199 +1,179 @@
-# Design direction 3 — "Inspector"
+# Design direction 1 — Tonal layers
 
-Branch `exploration/design-direction-3`. Run it from `apps/editor` with
-`pnpm exec vite --port 5203 --strictPort`.
+Branch `exploration/design-direction-1`. Run it with
+`cd apps/editor && pnpm exec vite --port 5201 --strictPort`.
 
 ## Design concept
 
-The sidebar is treated as a professional **property inspector**: Figma's right panel, Ableton's
-device view, Blender's properties editor. Those tools show far more controls than this editor in
-the same space and still read calmly, and the reason is not decoration. It is that **every row
-follows the same micro-structure**: a 28px box, a short label, a value, a 1px divider between
-groups, and actions in the header of the thing they act on.
+The old sidebar built hierarchy out of black: black section bars, black group bars, black add
+bars and a black footer, all at the same weight, next to a white preview. Everything was loud, so
+nothing was.
 
-So this direction carries hierarchy by **density and structure**, not by fills (direction 1) or by
-type and rhythm (direction 2):
+Tonal layers carries hierarchy by **how light a surface is**. There are four surfaces, and each
+one means a level:
 
-- One panel, white, no cards and no black slabs. A section is a 32px header row and a body, closed
-  by a 1px divider.
-- Inside a section, values are **boxed fields in a 2-column grid** with the label inside the box
-  ("Cell size 25 px", "Rows 14"). The eye scans a column of values, not a list of rows.
-- Nested things (a breakpoint rule, a tile group, an operation's body) are **indented list rows
-  with a disclosure triangle**, not framed boxes. The indent is the grouping.
-- Actions live **in the header row** of what they act on: the "+" that adds a rule, a tile group
-  or an operation is an icon button beside the section title; reorder and delete sit at the right
-  end of each rule, group and operation row.
-- A strict **ink-role map**: the same grey always means the same job, everywhere.
+| Surface | Value | Meaning |
+|---|---|---|
+| Ground | `#ededed` | The sidebar and the preview top bar: chrome, the table everything sits on |
+| Panel | `#ffffff` | An open section (and the footer, and a popup) |
+| Well | `#f4f4f4` | A nested group inside a panel: a breakpoint rule, a tile group, an operation |
+| Field | one step off its surface | Something you type into or choose from |
 
-The aim is that Grid & Size, Breakpoints and a full tile group fit on one screen, and that adding
-more controls later (Stage 2's warnings, more parameters) costs one more 28px row each, not
-another heavy block.
+A closed section is only its header, lying on the ground. Opening it lifts it into a white panel.
+Inside the panel, a group sits back in a faint well, and inside an operation's well, the chosen
+option's fields come forward again on a white panel. Depth is read the way one reads paper on a
+desk, without a single border.
+
+Black is no longer structure. It is reserved for two meanings: **the primary action of an area**
+(Download, Save/Add, Change it) and **the selected state** (the chosen segment, the active step
+tab, the edited palette entry, the preview's chosen width). If something is black, it is either
+"do this" or "this one". Magenta still means only "non-deterministic".
 
 ## Visual hierarchy
 
-Hierarchy has four levels, and each is told apart by **position and weight**, never by size jumps
-or colour:
+1. **Section** — semibold 15px sentence-case title on its header; open = white panel.
+2. **Group** — medium 14px title in a grey well inside the panel.
+3. **Field** — muted 13px label in a fixed label column, the value in 14px ink in a filled box.
+4. **Caption** — muted 12–13px text (collapsed summaries, operation step captions, option names).
 
-| Level | What | How it reads |
-|---|---|---|
-| 1 | Section (Grid & Size, Tiles…) | 32px row, 13 semibold ink-900, triangle hanging in the 16px gutter, divider below the section. Sticky while its body scrolls. |
-| 2 | Nested group (Rule 1, a tile group, an operation) | 28px row, 13 medium ink-900, one 24px indent in (the triangle's column). Actions at the right in the label grey. |
-| 3 | Fields | 28px boxes, label 12 regular ink-600 inside, value mono 12 ink-900. |
-| 4 | Annotations | Units, summaries, empty states: 12 regular in ink-600/500. |
-
-What draws the eye is decided by the role map, not by layout: **black** appears only where
-something is selected or is the primary action (a chosen segment, the open step tab, Grid on,
-Download, Save). In any one view there are a handful of black shapes, and each means "this one".
-
-A closed section is no longer silent (problem 8): its header shows a one-line summary of what it
-holds, from existing values only ("25 px cells · 14 rows · 720 wide", "1 rule", "29 columns ·
-725 × 350 px", "5 groups · 16 variants", "4 operations"). A closed rule shows its overrides
-("max width 500 · rows 14 · columns 9").
+Weight and colour make the steps; nothing is uppercase. Labels are quieter than values, so the eye
+lands on the numbers first and finds the label beside them when it needs it.
 
 ## Color system
 
-Monochrome, with each step bound to one job. Magenta stays the only accent and means only
-"non-deterministic". The preview overlay blue/red are unchanged.
+All text pairs meet WCAG 2.2 AA (4.5:1); control boundaries that are the only affordance meet 3:1.
 
-| Token (primitive) | Hex | Role (semantic token) | Contrast |
+| Token (primitive) | Hex | Role | Contrast |
 |---|---|---|---|
-| `--ink-900` | `#161616` | values, titles, body text (`--color-ink`) | 18.1:1 on white, 16.5:1 on field fill |
-| `--ink-700` | `#3d3d3d` | primary button hover (`--color-primary-hover`) | white on it 11:1 |
-| `--ink-600` | `#5c5c5c` | labels, secondary readouts, icon buttons, control edge on hover (`--color-label`, `--color-rule-hover`, `--color-primary-pressed`) | 6.7:1 on white, 6.1:1 on field fill |
-| `--ink-500` | `#6b6b6b` | units, placeholders, empty states (`--color-placeholder`) | 5.3:1 on white, 4.9:1 on field fill |
-| `--grey-400` | `#8a8a8a` | control edges: field, segmented, button, slider track (`--color-rule`) | 3.5:1 on white, 3.1:1 on field fill (non-text ≥ 3:1) |
-| `--grey-300` | `#c4c4c4` | disabled text, icons and edges (`--color-disabled`) | 1.7:1 — deliberately below the floor; disabled is exempt and must look off |
-| `--grey-250` | `#dcdcdc` | pressed fill (`--color-pressed`) | — |
-| `--grey-200` | `#e6e6e6` | dividers between sections, rows, tabs (`--color-divider`) | structure only, never the sole affordance |
-| `--grey-150` | `#ececec` | hover fill (`--color-hover`) | — |
-| `--grey-100` | `#f4f4f4` | inside an editable box (`--color-field`) | — |
-| `--white` | `#ffffff` | panels, paper (`--color-paper`, `--color-surface`) | — |
-| `--black` | `#000000` | selected / active / primary (`--color-selected`, `--color-primary`) | white on it 21:1 |
-| `--magenta` | `#ff00c3` | seed only (`--color-seed`): re-seed, reroll, fresh load | 3.5:1 on white (icons only, never text) |
-| `--blue-500` / `--red-600` | `#3182ce` / `#c53030` | preview overlays (selection / erase), unchanged | — |
+| `--white` | `#ffffff` | Panel, popup, footer, text on ink | — |
+| `--grey-50` | `#f4f4f4` | Well (nested group) | — |
+| `--grey-100` | `#ededed` | Ground; field and track fill on a panel | — |
+| `--grey-200` | `#e2e2e2` | Secondary button; field hover | — |
+| `--grey-300` | `#d4d4d4` | Secondary hover; slider track; palette entry | — |
+| `--grey-400` | `#c2c2c2` | Secondary pressed | — |
+| `--grey-450` | `#a3a3a3` | Disabled text and icons | intentionally below 4.5 (disabled is exempt) |
+| `--grey-500` | `#7a7a7a` | A field's 1px bottom edge; scroll handle | 3.6:1 on ground, 4.3:1 on white |
+| `--grey-600` | `#5e5e5e` | Muted text: labels, summaries, chevrons, resting icons | 5.5:1 on ground, 5.9:1 on well, 6.5:1 on white |
+| `--grey-800` | `#333333` | Primary button hover | white on it 12.6:1 |
+| `--black` | `#111111` | Ink: text, primary, selected | 18.9:1 on white, 16:1 on ground |
+| `--black-6` / `--black-12` | 6% / 12% black | Hover and pressed washes for tertiary controls, icons, headers | works on any surface |
+| `--magenta` | `#ff00c3` | Seed / re-seed / reroll only | 3.5:1 on white, 3.2:1 on well (non-text) |
+| `--blue-500`, `--red-600` | | Preview overlays (selection, erase), unchanged | |
 
-The previous aqua surfaces are gone (problem 2): a third palette that carried little meaning.
-There is one theme; the inverted footer theme is no longer needed because the footer is white.
+The aqua tints are gone: the scale is one neutral ramp plus black, white and magenta.
 
 ## Typography
 
-Two sizes and sentence case everywhere (problem 3):
+Helvetica Neue (stand-in for Neue Haas Grotesk) and Roboto Mono, as before. All sentence case.
 
 | Class | Spec | Used for |
 |---|---|---|
-| `.t-section` | 13 / semibold | section titles, the options header in an operation, popup and notice titles |
-| `.t-body` | 13 / regular | values in prose, questions, group titles (with medium weight), popups |
-| `.t-label` | 12 / regular | field labels, summaries, empty states |
-| `.t-xs` | 12 / medium | buttons, segments, tab names |
-| `.t-console` | Roboto Mono 12 / medium | every number and id: field values, %, widths, tab answers |
+| `.t-section` | 15 / 600 | Section headers, popup and notice titles |
+| `.t-title` | 14 / 500 | Group titles (rule, tile group), operation index |
+| `.t-label` | 13 / 400 / muted | Field labels, the readout's label |
+| `.t-value` | 14 / 400 / tabular | Field values, % shares, readouts |
+| `.t-body` | 13 / 400 | Questions, running text, hints, summaries |
+| `.t-xs` | 13 / 500 | Buttons, segments, tabs |
+| `.t-console` | Mono 12 / 500 | Operation captions, glyph labels, ids |
 
-Titles and labels are told apart by **weight and colour** (semibold 900 vs regular 600), not by
-size or capitals, so nothing shouts and the value is always the darkest thing in a row. Numbers
-are in mono so they line up down a column (field values, %, the preset widths), which is what makes
-a dense panel scannable. 12px is the floor; nothing is smaller.
+Light (300) is no longer used: on a grey ground it read as faded.
 
 ## Spacing and density
 
-- 2px base scale (`--space-1…6` = 2–12, plus `--space-8` = 16).
-- **Side gutter 16px**; a section's triangle hangs in the gutter so titles and fields share one
-  left edge.
-- **One indent = 24px**, the disclosure triangle's column: a nested title and its body start at
-  the same x.
-- **28px** is the universal control height (fields, segmented controls, buttons, preset widths,
-  swatch); section rows are 32px; nested rows 28px; tile variant rows 28px with 2px between.
-- Fields sit 4px apart in a 2-column grid; a section closes with 12px before its divider.
-- Sidebar `clamp(360px, 27vw, 440px)`: narrower than before (389px at 1440 vs 432px), because a
-  2-column grid uses the width better, and the preview gets the difference.
-
-Measured at 1440×900 with the readme demo and every section open: the sidebar's scrolling content
-is **1629px tall vs 2196px** before (−26%) in a narrower column, and the fixed footer is **158px vs
-226px**. Grid & Size, Breakpoints and the whole first tile group are visible without scrolling.
+- Sidebar ground has 8px padding; sections are 4px apart; panel content has 12px side padding,
+  so field labels line up with the section title.
+- Controls are 30px tall (above the 24px target floor), field rows 6px apart; section headers 40px,
+  group headers 34px, operation headers 60px.
+- The label column is 38% of the panel (116px in an operation body), and every control fills the
+  rest. Values therefore start at one tab stop, right next to their labels.
+- The footer's two reroll actions share a row, which keeps it about 40px shorter than a row each.
+- At 1440×900 with Breakpoints open, the Tiles header is at ~575px; with Breakpoints closed, the
+  first tile group is on screen without scrolling.
 
 ## Component styling
 
-**Inputs.** `NumericInput` is a 28px box: field fill, 1px `--color-rule` edge (3.5:1, because the
-edge is what says "editable"), radius 3, the label as a prefix inside in ink-600, the value
-right-aligned in mono ink-900, an optional unit in ink-500 ("px"). The label is a real `<label>`,
-so clicking anywhere on the text focuses the value. Hover turns the fill white and the edge ink-600;
-focus makes the edge ink and doubles it (drawn inside, nothing moves). The seed field, the
-palette's tile select and the rule "+ Field" select use the same box.
+**Inputs.** A filled box (`--color-field`, one step darker than the panel), 4px radius, value in
+ink, left-aligned. A 1px bottom edge in `--grey-500` is the boundary that meets 1.4.11; the fill
+alone would be too faint to carry "type here". Hover darkens the fill a step; focus is the 2px ink
+ring drawn tight around the box. The seed field and the palette's tile select use the same box.
 
-**Segmented controls.** `Toggle` (Alignment, Assets on load, Steps, enum params), `WidthChoices`
-(presets, breakpoints), `TabBar` (operation steps) and the palette bar are all the same object: one
-28px box with the control edge, segments separated by 1px, the chosen one black with white text,
-others ink-600 that go grey-150 on hover and grey-250 when pressed.
+**Segmented controls** (Alignment, Assets on load, enum params, Steps, operation step tabs, the
+preview's sizes and breakpoints). A grey track with 2px padding holding equal segments. The
+chosen segment is ink with white text — chosen over a raised white segment because ink-on-grey is
+unmistakable at a glance, and it makes "black = selected" consistent everywhere. Others are text
+on the track, washing darker under the pointer and again when pressed.
 
-**Buttons.** Secondary (default): paper, control edge, 12 medium ink-900; hover grey fill and darker
-edge; pressed darker fill. Primary (`variant="primary"`): black fill, white text; one per area —
-Download in the footer, Save/Add in an operation, "Change it" in the resize notice. Icon buttons
-are 24px (re-seed 28px) with no frame at rest, a grey square on hover and a darker one when
-pressed. "Add inside a list" (add variants, + Field) is a dashed edge: a place where something can
-go.
+**Buttons.** `Button` gains `variant`:
+- *primary* — ink fill, white text; one per area: Download (footer), Save/Add (operation body),
+  Change it (confirmation), Discard (unsaved-changes popup, the action being asked about).
+- *secondary* (default) — grey fill: Undo, Import, New, Next, Close, Keep editing, palette edits.
+- *tertiary* — text only, wash on hover: Discard in an operation body, Reset weights.
 
-**Headers.** `Collapsible` draws both levels: section (32px, sticky, semibold) and group (28px,
-medium). The triangle points right when closed, down when open. Header rows have no fill; hover
-tints only the part that toggles. A closed header shows its `summary` right-aligned in ink-600.
-`Section` takes an `actions` snippet, which receives `reveal()` so "+" on a closed section opens it
-to show what it added.
+**Headers and collapsible sections.** Title left, chevron right (muted, ink on hover). The whole
+header washes a step darker under the pointer and darker again while pressed. A closed section
+shows a muted one-line summary of values it already holds ("25 px · 14 rows · 720 wide · column",
+"1 rule", "29 columns · 725 × 350 px", "5 groups · 18 variants", "4 operations"); a closed rule
+shows its fields ("max width 500 · rows 14 · columns 9"). Header actions (trash, reorder) sit
+before the chevron, muted until hovered.
 
-**Collapsible sections and nested groups.** No frames: a body is just indented content. Rules show
-their fields two to a row with an "inherit again" × beside each. Tile groups list their variants
-as one line each: 24px thumbnail · slider · % in mono · a delete × that appears on row hover or
-focus (its column is always reserved). Operations are rows of index · four two-line step tabs
-(name over the answer in mono) · a 2×2 block of re-seed, delete, up, down; an open operation's
-body sits under its tabs with the question, the glyph grid and the chosen option's fields under a
-13-semibold header with a divider, then Discard / Next / Save (primary) above a divider.
+**Add controls.** "+ Add breakpoint / tile group / operation" are now labelled tertiary rows
+instead of anonymous black bars with a bare "+". The square "+" in a tile group is a grey
+secondary square, the size of a thumbnail.
 
-**Others.** Glyph cells: divider-grey edge, mono label; hover grey fill and darker edge; chosen a
-2px ink frame on field fill (never inverted, so ink artwork stays visible). Slider: 2px track in the
-control grey, 8×16 ink block thumb inside a 24px input (the mapping's two thumbs get a transparent
-border so each is a 24px target). Popups and the pinned preview notices are the only floating
-objects and the only things with a shadow; their header is a section row. Hints are a small ink
-bubble with 12px text. The scroll handle is translucent black so it reads on any backdrop.
-
-**Preview top bar.** The same toolbar vocabulary (problem 7): 44px, white, divider below; "Width"
-label + mono readout, "Breakpoints" + a segmented mono control; at the right the Grid toggle (black
-when on), the presets as one segmented control with Fill, and the colour swatch as a 28px square.
-
-**Footer.** A compact toolbar (problem 6) on white, divided from the sections: the seed as a boxed
-field with its magenta re-seed; "Assets" and "Fresh load" as labelled magenta icons; Assets on
-load as a segmented control; then, under a divider, Undo · Import · New as secondary buttons and
-Download as the one black primary filling the rest of the row.
+**Others.**
+- *Sliders*: 4px grey track filled in ink up to the value, a 16px round ink thumb with a white
+  rim; the thumb grows on hover. The numeric mapping uses the same parts.
+- *Icon buttons*: muted at rest, ink on a wash when hovered; the re-seed icon stays magenta.
+- *Glyph grid*: cells sit on the operation's well; hover washes; selected is a white tile raised
+  with a 2px ink ring (an ink fill would swallow the ink artwork).
+- *Operation*: one grey well holding header and body. The step answers are centred mono captions
+  over the segmented step tabs; the chosen option's fields sit on a white panel under a muted
+  caption naming the option.
+- *Palette bar*: entries are grey blocks on a track; the edited one is ink.
+- *Footer*: a white panel on the ground, not a black slab.
+- *Popups and pinned notices*: white panels with a soft shadow and 10px / 6px radius, no frame and
+  no black title bar.
+- *Preview top bar*: the same grey as the sidebar ground, so sidebar and top bar read as one L of
+  chrome around the white picture area; tracks become white there (one step lighter than the
+  ground, mirroring one step darker on a panel). The colour swatch is a 30px rounded square with
+  an edge so white still shows.
+- *Hints*: the ink bubble, now with a 4px radius and regular weight.
 
 ## Usability improvements
 
-| Problem (plan analysis) | What this direction does |
-|---|---|
-| 1. Black bars flatten hierarchy | No black bars. Levels are told by row height, weight and indent; black is reserved for "selected" and "primary", so it now carries meaning. |
-| 2. Aqua is a third palette | Removed. One white panel, a monochrome role map, magenta only for seed. |
-| 3. Everything shouts | Sentence case, two sizes (13/12). Labels are 12 regular ink-600, values mono ink-900: the value is the loudest thing in a row. |
-| 4. Lines on lines | One kind of line per job: a 3:1 edge only around things you can edit, a light divider only between structural blocks. Nested groups lose their frames (indent instead). Per-field trash icons became a quieter × beside rule fields; variant delete appears on demand. |
-| 5. Long eye travel | Labels are inside the box, next to their value, so label→value is ~100px, not ~400px. Two columns halve the vertical travel. |
-| 6. Footer slab | White compact toolbar, 158px instead of 226px. Download is the one primary; Undo/Import/New are visibly secondary. |
-| 7. Two idioms | The preview top bar uses the same 28px segmented controls, mono numbers and label greys as the sidebar. |
-| 8. Collapsed sections say nothing | Every closed section and rule shows a one-line summary of its existing values in its header. |
+Numbered against the analysis in the plan.
 
-Also: actions moved into header rows mean an add button is always at the top of its list, even
-when the list is long or the section closed; sticky section headers keep the reader oriented in a
-long Tiles list; on a narrow column (phone, 200% zoom) operation tabs go two by two so each answer
-keeps half the width.
+1. **Black bars flatten hierarchy** → levels are now separate surface values (ground, panel,
+   well, field); no two levels share one.
+2. **Aqua is a third palette** → removed; one neutral ramp.
+3. **Everything shouts** → sentence case, muted 13px labels, values in ink: labels recede,
+   values lead, and only section titles are semibold.
+4. **Lines on lines** → no frames anywhere in the sidebar; the only line left is the field's
+   bottom edge, kept for 1.4.11. Per-field trash icons are muted until hovered.
+5. **Long eye travel** → a shared label column with controls starting right after it; values sit
+   ~150px from their label instead of ~400px.
+6. **Footer slab** → a light panel; Download is the single ink button, Undo/Import/New are grey
+   secondaries; the three re-seed icons stay magenta.
+7. **Two idioms** → the top bar uses the same ground, segmented tracks and ink selection as the
+   sidebar.
+8. **Collapsed sections say nothing** → each shows a one-line summary of existing values.
+
+Also: the "+" bars now say what they add; the step tabs and their answers line up as captions
+over a segmented control.
 
 ## Trade-offs
 
-- **Least like the Figma identity.** The black-on-aqua slabs that gave the current editor its
-  character are gone; this looks like a tool, not a branded object. If the identity matters more
-  than density, directions 1 or 2 keep more of it.
-- **Busy if spacing slips.** Density only reads calm because every row repeats one structure; a
-  future control that ignores the 28px box / label-inside rule will stand out immediately.
-- **Small text.** 12/13px is at the floor Pol set. It passes WCAG, but people who found the old
-  16px labels comfortable may find this tight; the tokens make 13/14 a two-line change.
-- **Truncated step answers.** Four tabs share ~280px, so long answers ("Tile [Beige 50%, Blue
-  50%]") end in an ellipsis. They scroll on hover and the tab's accessible name carries the whole
-  answer, but at rest you see less than the old full-width console strip.
-- **Hidden-until-hover delete** on tile variants is kept from Block D; it is focusable and its space
-  is reserved, but it is still discoverable only by hovering or tabbing.
-- **Header "+" is small.** Adding a rule, group or operation is a 24px icon in the header rather
-  than a full-width bar. It is labelled for screen readers and has a hover fill, and empty sections
-  say "add … with +", but it is a smaller target than before.
-- **Black segments are strong.** A chosen segment (Column, Reseed, Fill) is solid black, which is
-  consistent with "black = selected" but heavier than a light pill would be.
+- **Lower contrast between levels.** The well (`#f4f4f4`) against white is deliberately faint;
+  it reads on a calibrated screen but can vanish on a washed-out projector. Grouping still holds
+  there because of spacing and the group headers.
+- **Softer identity.** The Figma file's stark black-bar character is gone; the editor now looks
+  more like a conventional, calm tool and less like a poster.
+- **Wider fields.** Fields fill the row, so short numbers sit in long boxes. That buys a single
+  tab stop for every value and lets the sidebar resize without re-layout, but it is less compact
+  than fixed-width inputs.
+- **The field's bottom edge** is a line in a no-lines direction. It is there because a filled box
+  alone is ~1.2:1 against white, below the 3:1 a boundary needs.
+- **Tile asset delete badge** keeps its 16px visible circle with a 24px hit area via `::before`,
+  as before; a pure bounding-box probe reports it as 16px.
+- **Two inks in the top bar** (Grid on, and the chosen size) are both "selected", which is
+  consistent but makes the bar slightly heavier than the sidebar.

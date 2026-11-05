@@ -318,7 +318,7 @@
               <!-- A div, not a section: a section carries an implicit `region` role
                    and cannot take an interactive one. -->
               <div class="notice" role="alertdialog" aria-labelledby="confirm-title">
-                <h2 class="t-section" id="confirm-title">{p.label}</h2>
+                <h2 class="t-label" id="confirm-title">{p.label}</h2>
                 <p class="t-body">
                   This changes the column count, and
                   {risked.length === 1 ? "this operation is" : "these operations are"} tied to specific
@@ -330,8 +330,8 @@
                   {/each}
                 </ul>
                 <div class="actions">
-                  <Button label="Cancel" onclick={() => (pending = null)} />
                   <Button label="Change it" variant="primary" onclick={confirmPending} />
+                  <Button label="Cancel" onclick={() => (pending = null)} />
                 </div>
               </div>
             {/if}
@@ -347,7 +347,7 @@
                 `cellList` cannot.
               -->
               <div class="notice">
-                <h2 class="t-section">Orphaned by a resize</h2>
+                <h2 class="t-label">Orphaned by a resize</h2>
                 <ul class="t-console">
                   {#each orphaned as orphan (orphan.operationId)}
                     <li>
@@ -497,13 +497,15 @@
     }
   }
 
-  /* The inspector: white, a divider on its right, the scrolling sections over the fixed footer. */
+  /*
+    The sidebar: the grey ground, the scrolling sections over the fixed footer.
+    No frame: the ground's value against the preview's white is the edge.
+  */
   aside {
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
     grid-template-columns: minmax(0, 1fr);
-    border-right: var(--divider);
-    background: var(--color-surface);
+    background: var(--color-ground);
   }
 
   /* `ScrollArea` scrolls; its handle sits on the content, so the sidebar never narrows. */
@@ -511,11 +513,15 @@
     min-height: 0;
   }
 
-  /* Sections stack, each closed by its own divider. */
+  /*
+    Sections float on the ground with a little of it between them, so an open
+    section's white panel has an edge on every side, the last one included.
+  */
   .sections {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    padding-bottom: var(--space-6);
+    gap: var(--space-2);
+    padding: var(--space-4);
   }
 
   /*
@@ -567,20 +573,23 @@
     margin-bottom: var(--space-6);
   }
 
-  /* A floating panel over the picture, as a popup is, but in place. */
+  /* A white panel lifted over the picture, like a popup but pinned. */
   .notice {
     display: grid;
     gap: var(--space-4);
     max-width: 560px;
-    padding: var(--space-6) var(--space-8);
+    padding: var(--space-6) var(--space-7);
     border-radius: var(--radius);
-    background: var(--color-paper);
+    background: var(--color-panel);
     box-shadow: var(--shadow-float);
     color: var(--color-warn);
   }
 
   .notice h2 {
     margin: 0;
+    color: var(--color-ink);
+    font-size: var(--text-section-size);
+    font-weight: var(--weight-semibold);
   }
 
   .notice p {
@@ -601,12 +610,11 @@
 
   .notice .actions {
     display: flex;
-    gap: var(--chip-gap);
+    gap: var(--space-2);
   }
 
   .failures {
     margin: 0 0 var(--space-6);
     color: var(--color-danger);
-    font-size: var(--text-body-size);
   }
 </style>

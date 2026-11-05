@@ -257,7 +257,7 @@
 <style>
   .story {
     padding: var(--space-6);
-    background: var(--color-surface);
+    background: var(--color-ground);
     color: var(--color-ink);
     font-family: var(--font-ui);
   }
@@ -299,8 +299,8 @@
     gap: var(--space-5);
     align-items: center;
     padding: var(--space-2);
-    background: var(--color-bar);
-    color: var(--color-on-bar);
+    background: var(--color-ink);
+    color: var(--color-paper);
   }
 
   .pad {
@@ -334,7 +334,7 @@
   }
 
   .underline {
-    width: var(--field-w);
+    width: 8em;
     border: 0;
     border-bottom: var(--rule);
     background: transparent;

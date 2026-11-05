@@ -1,7 +1,7 @@
 <!--
   What the file implies but the author does not type. Not in Figma; read-only
-  label/value pairs in two columns, the label in the 600 role and the value
-  in mono 900. No box: a box would say "editable".
+  rows in the field-row shape: the muted label in the label column, the value
+  in `.t-console` right after it.
 
   `columns` is **displayed, never edited** (§9.1). The author needs to know it,
   because a `rect` is authored in column indices, and editing it would break
@@ -65,15 +65,10 @@
   ]);
 </script>
 
-<Section
-  title="Derived"
-  open={false}
-  summary="{config.columns} columns · {config.columns * layout.cellSize} × {config.rows * layout.cellSize} px"
->
+<Section title="Derived" open={false} summary="{config.columns} columns · {config.columns * layout.cellSize} × {config.rows * layout.cellSize} px">
   <dl>
     {#each rows as [term, value] (term)}
-      <!-- A value with a parenthesis needs the whole width. -->
-      <div class="row" class:wide={value.length > 12}>
+      <div class="row">
         <dt class="t-label">{term}</dt>
         <dd class="t-console">{value}</dd>
       </div>
@@ -84,36 +79,21 @@
 <style>
   dl {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: var(--space-6);
-    margin: 0;
-  }
-
-  /* Each pair on a 24px line with a hairline under it, so the eye can run across. */
-  .row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
-    min-height: var(--target-min);
-    border-bottom: var(--divider);
+    margin: 0;
+    color: var(--color-ink);
   }
 
-  .wide {
-    grid-column: 1 / -1;
-  }
-
-  dt {
-    color: var(--color-label);
-    white-space: nowrap;
+  .row {
+    display: grid;
+    grid-template-columns: var(--field-label-w) minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--space-4);
   }
 
   dd {
     margin: 0;
-    overflow: hidden;
-    color: var(--color-ink);
-    text-align: right;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    padding-left: var(--space-4);
   }
 </style>

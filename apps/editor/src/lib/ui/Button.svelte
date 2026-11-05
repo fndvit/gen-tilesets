@@ -1,13 +1,14 @@
 <!--
   A text button for an action: Undo, Import, Download, Save, Cancel.
 
-  A 28px box with the fields' 3:1 edge, so an action and a value sit on the
-  same line height. Secondary is the default: paper, hover tints it grey.
-  `primary` is black, and there is one per area (Download, Save): black means
-  "selected" in a field and "the main thing to do" in a row of buttons, and
-  nothing else.
+  Three weights, by fill, never by border:
+  - `primary`: ink with white text. One per area, for the action the area
+    exists for (Download in the footer, Save in an operation body).
+  - `secondary` (default): a grey fill one step darker than the panel.
+  - `tertiary`: text only; a wash appears under the pointer (Discard, Reset).
 
-  `wide` stretches it to its container.
+  Each darkens a step on hover and another while pressed. `wide` stretches it to
+  its container.
 -->
 <script lang="ts">
   interface Props {
@@ -15,29 +16,28 @@
     onclick: (event: MouseEvent) => void;
     disabled?: boolean;
     wide?: boolean;
-    variant?: "secondary" | "primary";
+    variant?: "primary" | "secondary" | "tertiary";
   }
 
   let { label, onclick, disabled = false, wide = false, variant = "secondary" }: Props = $props();
 </script>
 
-<button type="button" class="button t-xs" class:wide class:primary={variant === "primary"} {disabled} {onclick}>{label}</button>
+<button type="button" class="button t-xs {variant}" class:wide {disabled} {onclick}>{label}</button>
 
 <style>
   /* `--control-h` tall: above the 24px target floor (WCAG 2.2, 2.5.8). */
   .button {
     box-sizing: border-box;
     min-height: var(--control-h);
-    padding: 0 var(--space-5);
-    border: var(--rule);
-    border-radius: var(--radius);
-    background: var(--color-paper);
-    color: var(--color-ink);
+    padding: 0 var(--space-6);
+    border: 0;
+    border-radius: var(--radius-sm);
     white-space: nowrap;
+    line-height: normal;
+    text-box: none;
     cursor: pointer;
     transition:
       background-color var(--dur-fast) var(--ease),
-      border-color var(--dur-fast) var(--ease),
       color var(--dur-fast) var(--ease);
   }
 
@@ -45,36 +45,53 @@
     width: 100%;
   }
 
-  .button:hover:not(:disabled) {
-    border-color: var(--color-rule-hover);
-    background: var(--color-hover);
-  }
-
-  .button:active:not(:disabled) {
-    background: var(--color-pressed);
-  }
-
-  /* The one primary action of its area: black, the only filled button. */
   .primary {
-    border-color: var(--color-primary);
     background: var(--color-primary);
     color: var(--color-on-primary);
   }
 
   .primary:hover:not(:disabled) {
-    border-color: var(--color-primary-hover);
     background: var(--color-primary-hover);
   }
 
   .primary:active:not(:disabled) {
-    border-color: var(--color-primary-pressed);
-    background: var(--color-primary-pressed);
+    background: var(--color-ink);
+    box-shadow: inset 0 0 0 var(--focus-w) var(--color-primary-hover);
+  }
+
+  .secondary {
+    background: var(--color-secondary);
+    color: var(--color-ink);
+  }
+
+  .secondary:hover:not(:disabled) {
+    background: var(--color-secondary-hover);
+  }
+
+  .secondary:active:not(:disabled) {
+    background: var(--color-secondary-pressed);
+  }
+
+  .tertiary {
+    padding: 0 var(--space-4);
+    background: transparent;
+    color: var(--color-ink);
+  }
+
+  .tertiary:hover:not(:disabled) {
+    background: var(--color-hover);
+  }
+
+  .tertiary:active:not(:disabled) {
+    background: var(--color-pressed);
   }
 
   .button:disabled {
-    border-color: var(--color-disabled);
-    background: var(--color-paper);
     color: var(--color-disabled);
     cursor: default;
+  }
+
+  .primary:disabled {
+    background: var(--color-secondary);
   }
 </style>

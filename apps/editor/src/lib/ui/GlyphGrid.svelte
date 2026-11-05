@@ -1,7 +1,7 @@
 <!--
   A step's options as a grid of `OperationGlyph` cells: the Figma *Operation
   Glyphs Container*, cells at least `--glyph-w` wide, 4px apart. It fits as
-  many per row as the width allows (4 in the default sidebar, fewer when narrow),
+  many per row as the width allows (5 in a 400px sidebar, fewer when narrow),
   so the grid reflows instead of overflowing (WCAG 1.4.10; Block F).
 
   It is a radio group. Tab enters once, on the chosen cell; arrows move the

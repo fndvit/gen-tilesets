@@ -6,10 +6,9 @@
   the page behind is inert while it is open. It appears only because of
   something the author just did, and it never takes space in the layout.
 
-  Anatomy: a header row (a section's title over a divider), the body, then the
-  buttons at the bottom right, on a floating paper panel. It is the one place
-  a shadow is used: it is the one thing that sits above the page. The body is
-  the caller's.
+  Anatomy: a white panel floating on a shadow, the title in the section
+  header's style, the body, and the actions at the bottom right (Close, as
+  a secondary button). No frame and no bar: the lift does the separating.
 
   `open` is bindable. Closing by Esc, by the button or by the caller all end in
   `onClose`, once.
@@ -70,8 +69,8 @@
     max-height: calc(100dvh - 2 * var(--space-6));
     padding: 0;
     border: 0;
-    border-radius: var(--radius);
-    background: var(--color-paper);
+    border-radius: var(--radius-lg);
+    background: var(--color-panel);
     box-shadow: var(--shadow-float);
     color: var(--color-ink);
   }
@@ -82,17 +81,11 @@
   }
 
   .popup::backdrop {
-    background: rgb(0 0 0 / 0.2);
+    background: color-mix(in srgb, var(--color-ink) 24%, transparent);
   }
 
-  /* The header row of a section: 13 semibold over a divider. */
   .bar {
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    min-height: var(--preview-bar-h);
-    padding: 0 var(--space-8);
-    border-bottom: var(--divider);
+    padding: var(--space-7) var(--space-7) var(--space-4);
   }
 
   h2 {
@@ -101,12 +94,11 @@
 
   .body {
     overflow-y: auto;
-    padding: var(--space-6) var(--space-8);
+    padding: var(--space-4) var(--space-7);
     line-height: var(--leading-hint);
   }
 
-  .body :global(.t-body),
-  .body :global(.t-console) {
+  .body :global(.t-body) {
     line-height: var(--leading-hint);
     text-box: none;
   }
@@ -114,7 +106,7 @@
   .actions {
     display: flex;
     justify-content: flex-end;
-    gap: var(--chip-gap);
-    padding: 0 var(--space-8) var(--space-6);
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-7) var(--space-7);
   }
 </style>
