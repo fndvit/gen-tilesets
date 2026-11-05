@@ -1,15 +1,16 @@
 <!--
-  A bare button holding one icon: delete, re-seed, move up / down.
+  A bare square button holding one icon: delete, re-seed, move, close, more.
 
-  It has no fill of its own. At rest the icon is muted, so a row of trash and
-  arrow icons stays quiet beside the values; under the pointer it turns ink on
-  a grey wash, and the wash deepens while pressed. The icon keeps its Figma
-  size inside a `--target-min` box, the WCAG 2.2 target floor (2.5.8). A seed
-  button keeps its magenta in every state: there the colour is a meaning. `label` is required because the icon is the only
-  thing a sighted user sees; a screen reader needs the words.
+  It has no fill of its own. At rest the icon is muted, so a row of icons stays
+  quiet beside the values; under the pointer it turns ink on a grey wash, and
+  the wash deepens while pressed. The box is `--icon-button` square, above the
+  WCAG 2.2 target floor (2.5.8). `label` is required because the icon is the
+  only thing a sighted user sees; a screen reader needs the words, and the same
+  words show as a tooltip.
 
-  `tone="seed"` paints it in `--color-seed`. The design system gives that colour
-  one meaning, *non-deterministic*, so use it for re-seed and nothing else.
+  `strong` draws the icon in ink at rest, for the one icon action a row leads
+  with (an operation's re-seed). There is no colour tone: the re-seed shape
+  says "draw again" on its own (iteration 2).
 -->
 <script lang="ts">
   import Icon from "./Icon.svelte";
@@ -20,17 +21,33 @@
     label: string;
     onclick: (event: MouseEvent) => void;
     disabled?: boolean;
-    tone?: "default" | "seed";
+    strong?: boolean;
+    /** For a menu trigger. */
+    expanded?: boolean | undefined;
+    haspopup?: "menu" | undefined;
+    element?: HTMLButtonElement | undefined;
   }
 
-  let { icon, label, onclick, disabled = false, tone = "default" }: Props = $props();
+  let {
+    icon,
+    label,
+    onclick,
+    disabled = false,
+    strong = false,
+    expanded,
+    haspopup,
+    element = $bindable(),
+  }: Props = $props();
 </script>
 
 <button
+  bind:this={element}
   type="button"
   class="icon-button"
-  class:seed={tone === "seed"}
+  class:strong
   aria-label={label}
+  aria-expanded={expanded}
+  aria-haspopup={haspopup}
   title={label}
   {disabled}
   {onclick}
@@ -45,8 +62,8 @@
     flex: none;
     align-items: center;
     justify-content: center;
-    min-width: var(--target-min);
-    min-height: var(--target-min);
+    width: var(--icon-button);
+    height: var(--icon-button);
     padding: 0;
     border: 0;
     border-radius: var(--radius-sm);
@@ -58,25 +75,14 @@
       color var(--dur-fast) var(--ease);
   }
 
-  /* Re-seed is bigger than the other icon buttons (Pol, Block F review): a `--control-h` box, the icon `--icon-seed` wide. */
-  .seed {
-    min-width: var(--control-h);
-    min-height: var(--control-h);
-    color: var(--color-seed);
-  }
-
-  .seed :global(.icon) {
-    width: var(--icon-seed);
-    height: auto;
-  }
-
-  .icon-button:hover:not(:disabled) {
-    background: var(--color-hover);
+  .strong {
     color: var(--color-ink);
   }
 
-  .seed:hover:not(:disabled) {
-    color: var(--color-seed);
+  .icon-button:hover:not(:disabled),
+  .icon-button[aria-expanded="true"] {
+    background: var(--color-hover);
+    color: var(--color-ink);
   }
 
   .icon-button:active:not(:disabled) {
@@ -89,7 +95,6 @@
 
   .icon-button:disabled {
     color: var(--color-disabled);
-    opacity: 0.6;
     cursor: default;
   }
 </style>

@@ -11,23 +11,44 @@
   its container.
 -->
 <script lang="ts">
+  import Icon from "./Icon.svelte";
+  import type { IconName } from "./icons.js";
+
   interface Props {
     label: string;
+    /** An icon before the label, for actions people look for by shape (Undo, Import, Export). */
+    icon?: IconName | undefined;
     onclick: (event: MouseEvent) => void;
     disabled?: boolean;
     wide?: boolean;
     variant?: "primary" | "secondary" | "tertiary";
+    /** The id of a hint that explains it. */
+    describedby?: string | undefined;
   }
 
-  let { label, onclick, disabled = false, wide = false, variant = "secondary" }: Props = $props();
+  let {
+    label,
+    icon,
+    onclick,
+    disabled = false,
+    wide = false,
+    variant = "secondary",
+    describedby,
+  }: Props = $props();
 </script>
 
-<button type="button" class="button t-xs {variant}" class:wide {disabled} {onclick}>{label}</button>
+<button type="button" class="button t-xs {variant}" class:wide class:with-icon={icon} aria-describedby={describedby} {disabled} {onclick}>
+  {#if icon}<Icon name={icon} />{/if}{label}
+</button>
 
 <style>
   /* `--control-h` tall: above the 24px target floor (WCAG 2.2, 2.5.8). */
   .button {
     box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
     min-height: var(--control-h);
     padding: 0 var(--space-6);
     border: 0;
@@ -39,6 +60,10 @@
     transition:
       background-color var(--dur-fast) var(--ease),
       color var(--dur-fast) var(--ease);
+  }
+
+  .with-icon {
+    padding-left: var(--space-5);
   }
 
   .wide {

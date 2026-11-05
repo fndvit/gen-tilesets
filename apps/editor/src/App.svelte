@@ -34,6 +34,7 @@
   import DerivedSection from "./lib/sections/DerivedSection.svelte";
   import GridSection from "./lib/sections/GridSection.svelte";
   import SidebarFooter from "./lib/sections/SidebarFooter.svelte";
+  import SidebarTopBar from "./lib/sections/SidebarTopBar.svelte";
   import OperationsSection from "./lib/sections/OperationsSection.svelte";
   import TilesSection from "./lib/sections/TilesSection.svelte";
   import Button from "./lib/ui/Button.svelte";
@@ -274,12 +275,15 @@
 <main>
   <aside>
     <!--
-      The sidebar is two parts. `.scrollable` holds the sections and scrolls;
+      The sidebar is three parts. The top bar (the document's actions) lines up
+      with the preview's top bar. `.scrollable` holds the sections and scrolls;
       the preview beside it does not move, so every control is reachable
       without the picture it changes leaving the screen, which is the whole
       point of **S2**'s single live preview. `.fixed` (the footer) never
       scrolls.
     -->
+    <SidebarTopBar onNew={newTileset} />
+
     <div class="scrollable">
       <ScrollArea>
         <div class="sections">
@@ -294,7 +298,7 @@
       </ScrollArea>
     </div>
 
-    <SidebarFooter bind:loadSalt onNew={newTileset} />
+    <SidebarFooter bind:loadSalt />
   </aside>
 
   <section class="preview" aria-label="Preview">
@@ -498,12 +502,12 @@
   }
 
   /*
-    The sidebar: the grey ground, the scrolling sections over the fixed footer.
-    No frame: the ground's value against the preview's white is the edge.
+    The sidebar: the grey ground; the top bar, the scrolling sections, the fixed
+    footer. No frame: the ground's value against the preview's white is the edge.
   */
   aside {
     display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-columns: minmax(0, 1fr);
     background: var(--color-ground);
   }
@@ -520,7 +524,7 @@
   .sections {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-2);
+    gap: var(--space-3);
     padding: var(--space-4);
   }
 

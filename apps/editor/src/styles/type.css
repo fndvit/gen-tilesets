@@ -7,11 +7,14 @@
   <button>, a <label> and an <h2> can all wear "label" without fighting a
   cascade.
 
-  Everything is sentence case. The steps between styles are size, weight and
-  colour: a label is small and muted, the value beside it is ink, a header is
-  the one semibold line in its panel.
+  Everything is sentence case: no style uppercases. Two voices: Helvetica for
+  words, Roboto Mono for data (what a field holds, summaries, captions). The
+  steps between styles are size, weight and colour: a label is small and
+  muted, the value beside it is ink in mono, a header is the one large line on
+  its card.
 */
 
+@import "@fontsource/roboto-mono/400.css";
 @import "@fontsource/roboto-mono/500.css";
 
 /*
@@ -30,18 +33,18 @@
   text-box: trim-both cap alphabetic;
 }
 
-/* Section header: the one semibold line in a panel. */
+/* Section header: the one large line on a card. */
 .t-section {
   font-family: var(--font-ui);
   font-size: var(--text-section-size);
   font-weight: var(--weight-semibold);
 }
 
-/* A nested group's title (a rule, a tile group), one step below a section. */
+/* A nested group's title (a rule, a tile group, an operation), one step below a section. */
 .t-title {
   font-family: var(--font-ui);
   font-size: var(--text-title-size);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
 }
 
 /*
@@ -55,10 +58,10 @@
   color: var(--color-muted);
 }
 
-/* What a field holds. */
+/* What a field holds: data, so mono. */
 .t-value {
-  font-family: var(--font-ui);
-  font-size: var(--text-value-size);
+  font-family: var(--font-mono);
+  font-size: var(--text-data-size);
   font-weight: var(--weight-regular);
   font-variant-numeric: tabular-nums;
 }
@@ -77,10 +80,10 @@
   font-weight: var(--weight-medium);
 }
 
-/* Mono: summaries, ids and glyph labels. */
+/* Mono: summaries, ids and captions. */
 .t-console {
   font-family: var(--font-mono);
   font-size: var(--text-console-size);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-regular);
   letter-spacing: var(--text-console-tracking);
 }

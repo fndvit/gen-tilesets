@@ -186,7 +186,7 @@
   }
 </script>
 
-<Section title="Tiles" {summary}>
+<Section title="Tiles" {summary} addLabel="Add tile group" onAdd={() => pick(null)}>
   <div
     class="library"
     class:armed

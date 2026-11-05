@@ -67,7 +67,13 @@
     (field === "rows" || field === "columns") && risked.length > 0;
 </script>
 
-<Section title="Breakpoints" open={rules.length > 0} {summary}>
+<Section
+  title="Breakpoints"
+  open={rules.length > 0}
+  {summary}
+  addLabel="Add breakpoint"
+  onAdd={() => session.apply(addRule())}
+>
   <div class="rules">
     {#each rules as rule, i (i)}
       <Collapsible title="Rule {i + 1}" variant="group" summary={ruleSummary(rule)}>

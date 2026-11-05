@@ -3,9 +3,11 @@
 
   The list **is** `config.operations`, in array order, because that order *is*
   the stack order (`06` §7) and is never canonicalized. Each operation is an
-  `OperationHeader`; clicking a step tab opens that operation's draft at that
-  step, with the `OperationBody` under its header. A new operation is a header
-  with the next index, between the stack and the add bar, until it is added.
+  `OperationCard` that reads as what it does; clicking its title or a step
+  chip opens that operation's draft at that step, with the `OperationBody`
+  stepper inside the card. A new operation is a card with the next index,
+  between the stack and the add bar, until it is added. The section header's
+  "+" adds one too, so a long stack never needs a scroll to its end.
 
   One draft at most is open (`drafting`). Opening another — a tab on another
   operation, or the add bar — while the open one has unsaved changes asks
@@ -25,8 +27,8 @@
   import { session } from "../../session.svelte.js";
   import Section from "../Section.svelte";
   import OperationBody from "../operations/OperationBody.svelte";
-  import OperationHeader from "../operations/OperationHeader.svelte";
-  import { draftParts, partsOf, summaryCells } from "../operations/labels.js";
+  import OperationCard from "../operations/OperationCard.svelte";
+  import { draftParts, partsOf } from "../operations/labels.js";
   import AddBar from "../ui/AddBar.svelte";
   import Button from "../ui/Button.svelte";
   import Popup from "../ui/Popup.svelte";
@@ -102,46 +104,50 @@
   summary={operations.length === 0
     ? "None"
     : `${operations.length} ${operations.length === 1 ? "operation" : "operations"}`}
+  addLabel="Add operation"
+  onAdd={create}
 >
   <div class="stack">
     {#each operations as op, index (op.id)}
       {@const open = draft !== null && editingId === op.id}
-      <div class="operation">
-        <OperationHeader
-          index={index + 1}
-          cells={summaryCells(open && draft ? draftParts(draft) : partsOf(op), tiles)}
-          active={open && draft ? draft.step : null}
-          onSelect={(step) => selectStep(op, step)}
-          onDelete={() => session.apply(removeOperation(op.id))}
-          onReseed={() => reseed(op)}
-          onMoveUp={() => session.apply(moveOperation(op.id, index - 1))}
-          onMoveDown={() => session.apply(moveOperation(op.id, index + 1))}
-          canMoveUp={index > 0}
-          canMoveDown={index < operations.length - 1}
-          {...open ? { panelId: bodyId } : {}}
-        />
+      <OperationCard
+        index={index + 1}
+        parts={open && draft ? draftParts(draft) : partsOf(op)}
+        {tiles}
+        {open}
+        onSelect={(step) => selectStep(op, step)}
+        onClose={() => guard(() => drafting.discard())}
+        onDelete={() => session.apply(removeOperation(op.id))}
+        onReseed={() => reseed(op)}
+        onMoveUp={() => session.apply(moveOperation(op.id, index - 1))}
+        onMoveDown={() => session.apply(moveOperation(op.id, index + 1))}
+        canMoveUp={index > 0}
+        canMoveDown={index < operations.length - 1}
+        panelId={open ? bodyId : undefined}
+      >
         {#if open && draft}
           <OperationBody {draft} editing id={bodyId} onClose={() => drafting.discard()} />
         {/if}
-      </div>
+      </OperationCard>
     {/each}
 
     {#if creating && draft}
-      <div class="operation">
-        <OperationHeader
-          index={operations.length + 1}
-          cells={summaryCells(draftParts(draft), tiles)}
-          active={draft.step}
-          onSelect={(step) => (draft.step = step)}
-          onDelete={() => drafting.discard()}
-          onMoveUp={() => {}}
-          onMoveDown={() => {}}
-          canMoveUp={false}
-          canMoveDown={false}
-          panelId={bodyId}
-        />
+      <OperationCard
+        index={operations.length + 1}
+        parts={draftParts(draft)}
+        {tiles}
+        open
+        onSelect={(step) => (draft.step = step)}
+        onClose={() => guard(() => drafting.discard())}
+        onDelete={() => drafting.discard()}
+        onMoveUp={() => {}}
+        onMoveDown={() => {}}
+        canMoveUp={false}
+        canMoveDown={false}
+        panelId={bodyId}
+      >
         <OperationBody {draft} editing={false} id={bodyId} onClose={() => drafting.discard()} />
-      </div>
+      </OperationCard>
     {/if}
 
     <AddBar label="Add operation" onclick={create} />
@@ -171,11 +177,5 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
-  }
-
-  /* Each operation is a grey well in the panel, header and open body together. */
-  .operation {
-    border-radius: var(--radius);
-    background: var(--color-well);
   }
 </style>

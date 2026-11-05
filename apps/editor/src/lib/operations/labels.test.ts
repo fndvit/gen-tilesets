@@ -1,7 +1,15 @@
 import type { Operation, Tile } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { newDraft } from "../../draft.svelte.js";
-import { draftParts, labelFor, partsOf, summarize, summaryCells } from "./labels.js";
+import {
+  draftParts,
+  labelFor,
+  partsOf,
+  summarize,
+  summaryCells,
+  writesOf,
+  writesText,
+} from "./labels.js";
 
 const tiles = [
   { id: "t1", name: "grass", assets: [] },
@@ -91,5 +99,45 @@ describe("summarize", () => {
 
   it("marks unanswered steps in a fresh draft", () => {
     expect(summarize(draftParts(newDraft("op1")), tiles)).toBe("— * — * — * —");
+  });
+});
+
+describe("writesOf", () => {
+  it("names a tile palette's tiles and keeps their ids, clear included", () => {
+    const op: Operation = {
+      id: "op1",
+      selection: { type: "all" },
+      source: { type: "random" },
+      target: "tileId",
+      mapping: { palette: [{ tileId: "t1", weight: 1 }, { tileId: null, weight: 1 }] },
+      blend: "set",
+    } as Operation;
+    const writes = writesOf(partsOf(op), tiles);
+    expect(writes).toEqual({ target: "Tile", detail: "grass, clear", tileIds: ["t1", null] });
+    expect(writesText(writes)).toBe("Tile · grass, clear");
+  });
+
+  it("gives a numeric range, its steps, and a single value when it collapses", () => {
+    const base = {
+      id: "op1",
+      selection: { type: "all" },
+      source: { type: "random" },
+      target: "rotation",
+      blend: "set",
+    };
+    const stepped = { ...base, mapping: { range: [0, 270], steps: 4 } } as Operation;
+    expect(writesOf(partsOf(stepped), tiles)).toEqual({
+      target: "Rotation",
+      detail: "0 – 270 · 4 steps",
+      tileIds: [],
+    });
+    const fixed = { ...base, mapping: { range: [90, 90] } } as Operation;
+    expect(writesOf(partsOf(fixed), tiles)?.detail).toBe("90");
+  });
+
+  it("is null, and reads as unanswered, before a target is chosen", () => {
+    const draft = newDraft("op1");
+    expect(writesOf(draftParts(draft), tiles)).toBeNull();
+    expect(writesText(null)).toBe("—");
   });
 });

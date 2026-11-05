@@ -17,12 +17,12 @@ body {
 }
 
 /*
-  One focus ring for the whole editor: ink, 2px, clear of the control. Every
-  surface is light, so ink reads everywhere; on an ink control (a primary
-  button, a selected segment) the offset keeps the ring on the surface behind.
+  One focus ring for the whole editor: the accent, 2px, clear of the control.
+  Focus is "what you are working on now", the accent's one meaning; the offset
+  keeps the ring on the surface behind an ink control.
 */
 :focus-visible {
-  outline: var(--focus-w) solid var(--color-ink);
+  outline: var(--focus-w) solid var(--color-accent);
   outline-offset: var(--focus-offset);
 }
 

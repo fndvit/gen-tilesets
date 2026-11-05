@@ -31,7 +31,7 @@
   an attach *writes* and leaves what starts one alone, so the two surfaces that
   take files from the author should take them the same way. On screen this is
   only the Import button in the sidebar footer; the caller passes the element
-  that takes drops (`target`, the footer) and styles it from the bindable `over`.
+  that takes drops (`target`, the sidebar's top bar) and styles it from the bindable `over`.
 
   ## Reports appear after an attempt, in a popup
 
@@ -315,7 +315,12 @@
   }
 </script>
 
-<Button label={busy ? "Importing…" : "Import"} disabled={busy} onclick={() => picker?.click()} />
+<Button
+  label={busy ? "Importing…" : "Import"}
+  icon="import"
+  disabled={busy}
+  onclick={() => picker?.click()}
+/>
 <input
   class="picker"
   type="file"

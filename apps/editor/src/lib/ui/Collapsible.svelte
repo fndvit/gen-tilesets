@@ -8,10 +8,13 @@
   when closed and up when open. Everything right of the title sits inside the
   panel's padding, clear of `ScrollArea`'s overlay handle.
 
-  **Surface, not lines, says what level it is.** `variant="section"` is a
-  section: closed, its header sits on the grey sidebar ground; open, the whole
-  section becomes a white panel. `variant="group"` is a nested group: always a
-  faint grey well inside its section's panel. Neither draws a border.
+  **Surface says what level it is.** `variant="section"` is a section: a white
+  card on the grey sidebar ground, open or closed, so a folded section keeps
+  its presence (iteration 2). Its header is `--header-h` tall, the title in the
+  section style over a mono one-line summary of what is inside; open, an ink
+  rule under the header separates it from the body. `variant="group"` is a
+  nested group: a faint grey well inside its section's card, with the summary
+  on the title's line.
 
   For a tile group the header also edits: `onRename` makes the title an
   `InlineEdit` (click to rename), and the chevron is then a button of its own
@@ -52,7 +55,7 @@
     /** One muted line shown after the title while closed: what is inside, from existing values. */
     summary?: string | undefined;
     /** Controls at the right end, before the chevron (trash, reorder). Outside the disclosure button. */
-    actions?: Snippet;
+    actions?: Snippet | undefined;
     /** Decorative content after the title. It sits inside the button, so nothing in it may be interactive. */
     extras?: Snippet | undefined;
     children: Snippet;
@@ -74,6 +77,7 @@
 
   const bodyId = $props.id();
   const textClass = $derived(variant === "section" ? "t-section" : "t-title");
+  const summaryClass = $derived(variant === "section" ? "t-console" : "t-body");
 
   let root: HTMLElement | undefined = $state();
 
@@ -137,8 +141,10 @@
           aria-controls={bodyId}
           onclick={toggle}
         >
-          <span class="title {textClass}">{title}{#if note}&nbsp;{note}{/if}</span>
-          {#if !open && summary}<span class="summary t-body">{summary}</span>{/if}
+          <span class="text">
+            <span class="title {textClass}">{title}{#if note}&nbsp;{note}{/if}</span>
+            {#if !open && summary}<span class="summary {summaryClass}">{summary}</span>{/if}
+          </span>
           {#if extras}<span class="extras">{@render extras()}</span>{/if}
           {#if !actions}<span class="chev" class:open><Icon name="fold" /></span>{/if}
         </button>
@@ -170,9 +176,9 @@
     transition: background-color var(--dur-fast) var(--ease);
   }
 
-  /* An open section is a white panel on the ground; a closed one is only its header. */
-  .section.open {
-    background: var(--color-panel);
+  /* A section is a white card on the ground, open or closed. */
+  .section {
+    background: var(--color-card);
   }
 
   /* A nested group is a well inside its section's panel, open or closed. */
@@ -195,12 +201,17 @@
     transition: background-color var(--dur-fast) var(--ease);
   }
 
-  .section .bar {
+  .section > .heading .bar {
     min-height: var(--header-h);
-    padding: 0 var(--space-4) 0 var(--space-6);
+    padding: 0 var(--space-5) 0 var(--space-7);
   }
 
-  .group .bar {
+  /* Open: an ink rule under the header, the card's one line. */
+  .section.open > .heading .bar {
+    box-shadow: inset 0 calc(-1 * var(--rule-strong)) 0 var(--color-ink);
+  }
+
+  .group > .heading .bar {
     min-height: var(--group-h);
     padding: 0 var(--space-2) 0 var(--space-5);
   }
@@ -217,8 +228,8 @@
     background: var(--color-pressed);
   }
 
-  /* An open section's header is part of its panel: the wash keeps only the top corners round. */
-  .section.open .bar {
+  /* An open section's header is part of its card: the wash keeps only the top corners round. */
+  .section.open > .heading .bar {
     border-radius: var(--radius) var(--radius) 0 0;
   }
 
@@ -272,14 +283,15 @@
     flex: none;
   }
 
-  /* The chevron gets the 24px target box; the icon stays 12×6, muted until hovered. */
+  /* The chevron gets an icon button's square; the icon is muted until the header is hovered. */
   .chev {
     display: flex;
     flex: none;
     align-items: center;
     justify-content: center;
-    width: var(--target-min);
-    height: var(--target-min);
+    width: var(--icon-button);
+    height: var(--icon-button);
+    border-radius: var(--radius-sm);
     margin-left: auto;
     color: var(--color-muted);
     transition:
@@ -294,6 +306,15 @@
 
   .bar:hover .chev {
     color: var(--color-ink);
+  }
+
+  /* A section's chevron sits in a square of its own, so the fold reads as a control. */
+  .section > .heading .chev {
+    background: var(--color-field);
+  }
+
+  .section > .heading .bar:hover .chev {
+    background: var(--color-field-hover);
   }
 
   .chev.open {
@@ -311,6 +332,22 @@
     text-box: none;
   }
 
+  /* Title and summary: stacked in a section, on one line in a group. */
+  .text {
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .section > .heading .text {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-1);
+  }
+
   .title {
     flex: none;
     max-width: 100%;
@@ -319,15 +356,22 @@
     white-space: nowrap;
   }
 
-  /* What a closed section holds, quiet and on one line, right after its title. */
+  /* What a closed group holds, quiet and on one line, after its title. */
   .summary {
     flex: 1 1 0;
     min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     color: var(--color-muted);
     text-align: right;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* A closed section's summary: mono, under its title, as long as the card allows. */
+  .section > .heading .summary {
+    flex: none;
+    text-align: left;
   }
 
   /* After the title: the empty header (it toggles) with the extras at its right. */

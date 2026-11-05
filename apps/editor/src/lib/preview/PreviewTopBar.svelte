@@ -118,6 +118,7 @@
     min-height: var(--preview-bar-h);
     padding: var(--space-3) var(--space-6) var(--space-3) var(--space-7);
     box-sizing: border-box;
+    border-bottom: var(--rule-w) solid var(--color-bar-rule);
     background: var(--color-ground);
     color: var(--color-ink);
   }

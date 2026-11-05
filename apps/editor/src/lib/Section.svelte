@@ -11,8 +11,12 @@
   It sets no gap between rows; each body sets its own (6px between fields and
   between nested groups).
 
-  `summary` is the line a closed section shows after its title, built by the
+  `summary` is the line a closed section shows under its title, built by the
   section from values it already holds ("25 px · 14 rows · 720 wide").
+
+  `onAdd` puts a "+" in the header for a section that holds a list
+  (breakpoints, tiles, operations), so adding never needs a scroll to the end of
+  the list; it opens the section too, so the new item is in view.
 
   **The collapsed state is transient.** `09` §12 lists persisted editor state,
   collapsed panels among them, as `[POSTPONED]`, and **E4** forbids `meta` as
@@ -25,6 +29,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import Collapsible from "./ui/Collapsible.svelte";
+  import IconButton from "./ui/IconButton.svelte";
 
   interface Props {
     title: string;
@@ -32,10 +37,14 @@
     open?: boolean;
     /** A muted line shown while closed, from values the section already holds. */
     summary?: string | undefined;
+    /** Adds an item to the section's list, from a "+" in the header. */
+    onAdd?: (() => void) | undefined;
+    /** The "+" button's name: "Add breakpoint". */
+    addLabel?: string | undefined;
     children: Snippet;
   }
 
-  let { title, open = true, summary, children }: Props = $props();
+  let { title, open = true, summary, onAdd, addLabel, children }: Props = $props();
 
   // `open` seeds the state once. A later change to the prop would reopen a
   // section the author had just closed.
@@ -43,15 +52,26 @@
   let expanded = $state(open);
 </script>
 
-<Collapsible {title} {summary} variant="section" bind:open={expanded}>
+{#snippet add()}
+  <IconButton
+    icon="plus"
+    label={addLabel ?? `Add to ${title}`}
+    onclick={() => {
+      expanded = true;
+      onAdd?.();
+    }}
+  />
+{/snippet}
+
+<Collapsible {title} {summary} variant="section" bind:open={expanded} actions={onAdd ? add : undefined}>
   <div class="content">
     {@render children()}
   </div>
 </Collapsible>
 
 <style>
-  /* The panel's own white is the frame: no rule, just room on every side. */
+  /* Under the header's ink rule: room on every side, the fields lined up with the title. */
   .content {
-    padding: var(--space-1) var(--space-6) var(--space-6);
+    padding: var(--space-6) var(--space-7) var(--space-7);
   }
 </style>
