@@ -44,7 +44,13 @@
 </Collapsible>
 
 <style>
+  /*
+    Lighter than the sidebar ground, closed by a rule, so where an open
+    section ends is visible even for the last one (Pol, Block F review).
+  */
   .content {
     padding: calc(var(--space-3) + var(--space-2));
+    border-bottom: var(--rule-w) solid var(--color-separator);
+    background: var(--color-section);
   }
 </style>

@@ -56,6 +56,9 @@ The root has `.theme-inverted` (`tokens.css`): ink becomes white, paper black, a
 swap. Every primitive inside renders inverted with no style of its own. The drag-over state draws
 a 2px ink (white) outline inside the block.
 
+Padding is 12px above and 10px at the sides, and `--footer-pad-bottom` (36px) below, so a band of
+black sits under the last row (Pol, Block F review).
+
 ### Invariants
 
 - **One action exports the file and its folder together** (**E14**).

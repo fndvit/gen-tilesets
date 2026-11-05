@@ -26,6 +26,11 @@ The bar, chevron and disclosure semantics are [`ui/Collapsible`](/editor/ui-coll
 (`calc(var(--space-3) + var(--space-2))`). It sets no gap between rows, because the bodies differ:
 fields are 8px apart, lists of bars 4px. Each body sets its own.
 
+The open content is on `--color-section` (`--aqua-50`, Figma's sidebar colour), closed by a
+1px bottom border in `--color-separator`, the same colour as the separator under every section bar. The sidebar behind it is the darker `--color-surface` (`--aqua-200`), showing
+under the last section (App's `.sections` bottom padding; sections touch, Pol), so where an open section
+ends is visible (Pol, Block F review).
+
 ### Public surface
 
 | Prop | Type | Default | Meaning |

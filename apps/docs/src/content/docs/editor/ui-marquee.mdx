@@ -1,6 +1,6 @@
 ---
 title: ui/Marquee.svelte
-description: The console strip, which scrolls its text right to left only when it does not fit.
+description: The console strip, which scrolls its text right to left only when it does not fit, on its own or only while hovered.
 sidebar:
   order: 67
 ---
@@ -11,14 +11,17 @@ import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
 
 ## Overview
 
-`Marquee` is the thin grey strip in monospace text that sums up an operation in one line, for
-example `Checkerbox * opacity [0.5 - 1] * random source * set`. When the summary fits, it stays
-still. When it is too long, it scrolls slowly from right to left in a loop, and stops while the
-pointer is over it so it can be read. With reduced motion turned on, it never moves.
+`Marquee` is a thin grey strip of monospace text, such as the answer to one step above an
+operation's step tab (`Opacity [0.5 - 1]`). When the text fits, it stays still. When it is too
+long, it scrolls slowly from right to left in a loop, and stops while the pointer is over it so it
+can be read. With `scroll="hover"` it does the reverse: overflowing text stays still, cut with an
+ellipsis, and scrolls only while the pointer is over it. That is for strips side by side, such as
+an operation header's four, where four running at once would be noise. With reduced motion turned
+on, it never moves.
 
 ## Try it
 
-The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports. Edit the text to watch it switch between still and scrolling.
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports. Edit the text to watch it switch between still and scrolling. The last strip is `scroll="hover"`: it shows an ellipsis until you point at it.
 
 <UiPrimitivesStory show="marquee" client:only="svelte" />
 
@@ -29,6 +32,7 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 | Prop | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `text` | `string` | required | Shown as given; also the `title`. |
+| `scroll` | `"always" \| "hover"` | `"always"` | `always`: overflow loops on its own, pausing on hover. `hover`: an ellipsis at rest, looping only while hovered. |
 
 ### Inputs → outputs
 
@@ -39,8 +43,12 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
   `marqueeDuration(copyWidth, --marquee-speed)` seconds, linearly and forever.
 - The strip has `contain: inline-size`, so the text never sets its width: a long summary scrolls
   inside the strip instead of widening the operation header and the sidebar.
-- Hover pauses the animation. `prefers-reduced-motion: reduce` turns it off, and the overflow is
-  clipped.
+- `scroll` is a class on the strip, and `clip` is added while the text overflows. `always`: the
+  animation runs, and hover pauses it. `hover`: the animation runs only under `:hover`, and a
+  `.hover.clip::after` draws "…" at the right edge on `--color-inactive`, removed while hovered.
+- `prefers-reduced-motion: reduce` turns the animation off in both modes, and the overflow is
+  clipped. A `hover` strip keeps its ellipsis then, since the `::after` is removed only under
+  `no-preference`.
 - Strip: `.t-console`, `--color-inactive`, `--rule` frame, `--console-pad-y` vertical
   padding.
 
@@ -51,8 +59,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 ### Callers / callees
 
-Caller: `lib/operations/OperationHeader.svelte`, for the operation's summary (see
-[OperationHeader](/editor/operation-header/)). Callees: `marqueeDuration` from
+Caller: `lib/operations/OperationHeader.svelte`, one `scroll="hover"` strip per step, above
+that step's tab (see [OperationHeader](/editor/operation-header/)). Callees: `marqueeDuration` from
 `lib/ui/marquee.ts`.
 
 ### Tests

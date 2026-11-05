@@ -1,9 +1,12 @@
 <!--
   One operation's bar — the Figma *Operation header* (Closed and Opened).
 
-  Left to right: the index cell, a column with delete and re-seed, the console
-  strip with the summary above the step tabs, and a column with the reorder
-  arrows. 56px tall (40 in Figma), so each column holds two 24px targets
+  Left to right: the index cell, a column with delete and re-seed, the summary
+  above the step tabs, and a column with the reorder arrows. The summary is one
+  console cell per step, each the width of the tab under it, so what a step
+  answered sits over that step (Pol, Block F review). A cell that overflows ends
+  in an ellipsis and scrolls while hovered (`Marquee scroll="hover"`). The
+  cells are hidden from screen readers; each tab's name carries its answer. 56px tall (40 in Figma), so each column holds two 24px targets
   (WCAG 2.2, 2.5.8; Block F). Opened = one tab is active (paper); the body below it is
   the caller's.
 
@@ -27,7 +30,8 @@
   interface Props {
     /** 1-based stack position. */
     index: number;
-    summary: string;
+    /** Each step's answer, from `summaryCells` in `labels.ts`. */
+    cells: Record<Step, string>;
     /** The step whose body is open below, or `null` when closed. */
     active: Step | null;
     onSelect: (step: Step) => void;
@@ -44,7 +48,7 @@
 
   let {
     index,
-    summary,
+    cells,
     active,
     onSelect,
     onDelete,
@@ -56,7 +60,7 @@
     panelId,
   }: Props = $props();
 
-  const tabs = STEPS.map((id) => ({ id, label: id }));
+  const tabs = $derived(STEPS.map((id) => ({ id, label: id, detail: cells[id] })));
 </script>
 
 <div class="header on-bar">
@@ -74,7 +78,11 @@
   </div>
 
   <div class="middle">
-    <Marquee text={summary} />
+    <div class="cells" aria-hidden="true">
+      {#each STEPS as step (step)}
+        <span class="cell"><Marquee text={cells[step]} scroll="hover" /></span>
+      {/each}
+    </div>
     <TabBar
       {tabs}
       {active}
@@ -131,6 +139,20 @@
     flex: 1 1 0;
     flex-direction: column;
     min-width: 0;
+  }
+
+  /* As the tabs: four equal columns. Neighbours overlap by a rule, so dividers stay 1px. */
+  .cells {
+    display: flex;
+  }
+
+  .cell {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .cell + .cell {
+    margin-left: calc(-1 * var(--rule-w));
   }
 
   /* The tab row takes what the strip leaves of the header. */

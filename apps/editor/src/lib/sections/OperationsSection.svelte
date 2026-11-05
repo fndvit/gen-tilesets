@@ -26,7 +26,7 @@
   import Section from "../Section.svelte";
   import OperationBody from "../operations/OperationBody.svelte";
   import OperationHeader from "../operations/OperationHeader.svelte";
-  import { draftParts, partsOf, summarize } from "../operations/labels.js";
+  import { draftParts, partsOf, summaryCells } from "../operations/labels.js";
   import AddBar from "../ui/AddBar.svelte";
   import Button from "../ui/Button.svelte";
   import Popup from "../ui/Popup.svelte";
@@ -104,7 +104,7 @@
       <div class="operation">
         <OperationHeader
           index={index + 1}
-          summary={summarize(open && draft ? draftParts(draft) : partsOf(op), tiles)}
+          cells={summaryCells(open && draft ? draftParts(draft) : partsOf(op), tiles)}
           active={open && draft ? draft.step : null}
           onSelect={(step) => selectStep(op, step)}
           onDelete={() => session.apply(removeOperation(op.id))}
@@ -125,7 +125,7 @@
       <div class="operation">
         <OperationHeader
           index={operations.length + 1}
-          summary={summarize(draftParts(draft), tiles)}
+          cells={summaryCells(draftParts(draft), tiles)}
           active={draft.step}
           onSelect={(step) => (draft.step = step)}
           onDelete={() => drafting.discard()}

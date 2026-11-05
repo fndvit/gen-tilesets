@@ -1,6 +1,6 @@
 ---
 title: operations/OperationHeader.svelte
-description: One operation's 56px bar. Its number, trash and re-seed, a scrolling summary over the four step tabs, and up/down arrows.
+description: One operation's 56px bar. Its number, trash and re-seed, each step's answer over its step tab, and up/down arrows.
 sidebar:
   order: 46
 ---
@@ -15,9 +15,10 @@ to right:
 
 1. the operation's number in the stack;
 2. a column with a trash icon and a re-seed icon (in the seed colour);
-3. the console strip: a one-line [marquee](/editor/ui-marquee/) summary, such as
-   `Checkered * Opacity [0.5 - 1] * Random * Set`, above a [tab bar](/editor/ui-tab-bar/) with the
-   four steps;
+3. the summary, one console cell per step (`Checkered`, `Opacity [0.5 - 1]`, `Random`, `Set`),
+   each the width of the [tab bar](/editor/ui-tab-bar/) tab under it, so a step's answer sits over
+   that step. A cell that does not fit ends in an ellipsis and scrolls while hovered
+   ([marquee](/editor/ui-marquee/) `scroll="hover"`);
 4. a column with up and down arrows to move the operation earlier or later.
 
 Closed, no tab is active. Opened, the tab of the current step is active (paper), and the body
@@ -30,7 +31,7 @@ below is drawn by the caller.
 | Prop | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `index` | `number` | required | 1-based stack position. Shown, and used in every `aria-label`. |
-| `summary` | `string` | required | The marquee text, from `summarize` in [labels.ts](/editor/operation-labels/). |
+| `cells` | `Record<Step, string>` | required | Each step's answer, from `summaryCells` in [labels.ts](/editor/operation-labels/). |
 | `active` | `Step \| null` | required | The open step, or `null` when closed. |
 | `onSelect` | `(step: Step) => void` | required | A tab was clicked. |
 | `onDelete` | `() => void` | required | Trash. |
@@ -41,13 +42,17 @@ below is drawn by the caller.
 
 ### Inputs → outputs
 
-- Tabs are `STEPS.map((id) => ({ id, label: id }))`: `selection`, `attribute`, `source`, `blend`,
-  in step order.
+- Tabs are `STEPS.map((id) => ({ id, label: id, detail: cells[id] }))`: `selection`,
+  `attribute`, `source`, `blend`, in step order. `detail` puts the step's answer in the tab's
+  accessible name (`selection: Checkered`).
+- The cells are a flex row of four `Marquee scroll="hover"` strips, `flex: 1 1 0`, each overlapping
+  its neighbour by `--rule-w` so dividers stay 1px. The row is `aria-hidden`: a screen reader
+  hears each answer once, from its tab.
 - `IconButton`s: `trash` ("Delete operation N"), `reseed` with `tone="seed"` ("Re-seed operation
   N"), `up` ("Move operation N earlier"), `down` ("Move operation N later").
 - The index cell has `aria-label="Operation N"`. The tab bar is labelled "Steps of operation N".
 - Layout: a flex row at `min-height: var(--op-header-h)` on `--color-bar`. The middle column
-  takes the rest of the width (`min-width: 0`, so the marquee can scroll), and the tab row fills
+  takes the rest of the width (`min-width: 0`, so the cells can scroll), and the tab row fills
   what the strip leaves of the height.
 
 ### Invariants

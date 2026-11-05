@@ -1,6 +1,6 @@
 <!--
   The Figma *Tile Group*: one Tile. A group bar (trash, the title, editable on
-  click, then up to four thumbnails while closed, and the chevron) over a paper
+  click, then up to four thumbnails, open or closed, and the chevron) over a paper
   body holding its variants and a square "+" to add more.
 
   **The variants are listed by id, with no drag affordance** (**D3**, `09`
@@ -71,7 +71,7 @@
   const percentOf = (id: string, weight: number) =>
     total > 0 ? Math.round((weightOf(id, weight) / total) * 100) : 0;
 
-  /** What a closed group shows in its bar (Figma group B). */
+  /** The bar's thumbnails (Figma group B), kept while open too (Pol, Block F review). */
   const thumbs = $derived(assets.slice(0, 4).map((a) => stored(tile.id, a.id)?.url ?? null));
 
   function onDrop(event: DragEvent): void {
@@ -105,7 +105,7 @@
     {note}
     {hint}
     {onRename}
-    extras={open ? undefined : preview}
+    extras={preview}
   >
     {#snippet actions()}
       <IconButton icon="trash" label="Delete tile group {tile.name}" onclick={onDelete} />

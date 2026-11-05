@@ -15,7 +15,7 @@ the call site in `lib/operations/OperationBody.svelte`.
 
 This control appears in the attribute step of an open operation when the author picks a
 number attribute such as Rotation, Scale X or Opacity. It is a track with two handles, under the
-attribute's name. The handles mark the lowest and highest value the operation will write, and
+heading "Range" (the black bar of the block it sits in already names the attribute). The handles mark the lowest and highest value the operation will write, and
 each cell gets a value between them according to its Source. Exact numbers can be typed in the
 "From" and "To" fields underneath.
 
@@ -57,8 +57,10 @@ separate control whose absence means *continuous*; the handles collapse to one u
 
 - `track = trackFor(target, mapping.range)`: a soft track widens to contain the current values;
   a hard one does not. The slider step is `(max − min) / 200`.
-- The label is `labelFor(target)` from [labels.ts](/editor/operation-labels/), wrapped in a
-  [Hint](/editor/ui-hint/). The hint joins two sentences:
+- The visible label is "Range", wrapped in a [Hint](/editor/ui-hint/): the options block's bar in
+  `OperationBody` already names the attribute. `labelFor(target)` from
+  [labels.ts](/editor/operation-labels/) still names the attribute in the aria labels. The hint
+  joins two sentences:
   - "Soft track" or "Domain", then `min to max`, plus ", wrapping" for a wrapping track; or, when
     collapsed, "A fixed value: the Constant source gives every cell the same number, so both ends
     are one.";
@@ -93,8 +95,8 @@ separate control whose absence means *continuous*; the handles collapse to one u
 
 | Caller | Use |
 | --- | --- |
-| `lib/operations/OperationBody.svelte:47` | `import NumericMappingControl from "../../controls/NumericMapping.svelte"` |
-| `lib/operations/OperationBody.svelte:278` | `target={draft.target as AttributeName}`, `mapping={draft.numeric}`, `{collapsed}`, writes `draft.numeric` |
+| `lib/operations/OperationBody.svelte:53` | `import NumericMappingControl from "../../controls/NumericMapping.svelte"` |
+| `lib/operations/OperationBody.svelte:314` | `target={draft.target as AttributeName}`, `mapping={draft.numeric}`, `{collapsed}`, writes `draft.numeric` |
 
 Callees (`NumericMapping.svelte:26`–`31`): `admitsTyped`, `endpointsCoincide`, `MIN_STEPS`,
 `trackFor` from [controls/mapping.ts](/editor/controls-mapping/); `labelFor`

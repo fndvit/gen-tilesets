@@ -223,6 +223,7 @@
     <div class="stack narrow">
       <Marquee text="Short summary" />
       <Marquee text={summary} />
+      <Marquee text={summary} scroll="hover" />
       <label class="t-console">Text <input bind:value={summary} /></label>
     </div>
   {:else if show === "tab-bar"}

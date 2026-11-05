@@ -113,7 +113,7 @@ production it returns the value unchecked.
 | `generate.ts:124` | `evalSource(source, params, x, y, ctx)` per selected cell |
 | `validate.ts:358–368` | `has` / `get(...).params` for `UNKNOWN_TYPE_NAME` and parameter checks |
 | `apps/editor/src/reseed.ts:53` | `isStochastic`: `sources.get(type).stochastic` |
-| `apps/editor/src/lib/operations/OperationBody.svelte:142, 163, 172, 194` | `all()` for the glyph grid, `get(...).params` for controls and defaults, `stochastic` to offer "Reseed on load" |
+| `apps/editor/src/lib/operations/OperationBody.svelte:161, 182, 213, 191` | `all()` for the glyph grid, `get(...).params` for controls and defaults, `stochastic` to offer "Reseed on load" |
 | `index.ts:104` | re-export |
 
 (`render/Tileset.svelte:623` calls `sources.get(key)` on a local `Map` of the same name, not this
@@ -165,4 +165,4 @@ Callees: `Registry`, `sincos` (`angle.ts`), `DEV` (`dev.ts`), `hash` (`hash.ts`)
   test comment is stale (the test itself still holds).
 - `valueNoise`'s `cellsPerFeature` and `octaves`, and `gradient`'s `angle`, have no `default`, so
   they are required in a file. The editor fills them via `defaultFor` when drafting
-  (`OperationBody.svelte:194`), but this is not stated in `sources.ts`.
+  (`OperationBody.svelte:191`), but this is not stated in `sources.ts`.

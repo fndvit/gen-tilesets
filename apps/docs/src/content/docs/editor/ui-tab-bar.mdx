@@ -11,7 +11,7 @@ import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
 
 ## Overview
 
-`TabBar` is the row of four step names under each operation's summary: Selection, Attribute,
+`TabBar` is the row of four step names under each operation's step answers: Selection, Attribute,
 Source and Blend. When the operation is closed, all four are black. When it is open, the current
 step turns white and joins the panel below it. Clicking a step opens the operation at that step.
 
@@ -27,7 +27,7 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 | Prop | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `tabs` | `{ id: string; label: string }[]` | required | Equal-width tabs, in order. |
+| `tabs` | `{ id: string; label: string; detail?: string }[]` | required | Equal-width tabs, in order. `detail` is read after the label in the tab's name. |
 | `active` | `string \| null` | required | `null` gives the closed look. |
 | `onSelect` | `(id: string) => void` | required | Click, Enter or Space. |
 | `label` | `string` | required | `aria-label` of the tablist. |
@@ -37,6 +37,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 - `role="tablist"` of `role="tab"` buttons with `aria-selected`. The single tab stop is the
   focused tab, else the active one, else the first.
+- A tab with `detail` gets `aria-label="{label}: {detail}"` (`selection: Checkered`), for what is
+  shown beside it but hidden from screen readers. Without it, the name is the visible label.
 - Left, Right, Home and End move focus only (`rovingIndex`). Up and Down are left to the page.
 - Closed: black tabs, `.t-xs` in `--color-on-bar`. Open: every tab gets a right and bottom
   `--rule`, and the active one is paper with ink text and no bottom rule.
@@ -50,8 +52,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 ### Callers / callees
 
-Caller: `lib/operations/OperationHeader.svelte`, the four step tabs, with `panelId` set to the
-open body's id (see [OperationHeader](/editor/operation-header/)). Callees: `rovingIndex` from
+Caller: `lib/operations/OperationHeader.svelte`, the four step tabs, each with its answer as
+`detail` and `panelId` set to the open body's id (see [OperationHeader](/editor/operation-header/)). Callees: `rovingIndex` from
 `lib/ui/keys.ts`.
 
 ### Tests
@@ -61,4 +63,4 @@ None for the component. `lib/ui/keys.test.ts` covers the arithmetic.
 ### Gotchas & rejected alternatives
 
 - **Height follows the container** (`height: 100%`, at least `--bar-h-group`). In the closed
-  header, the tabs fill what the console strip leaves of `--op-header-h`.
+  header, the tabs fill what the row of step cells leaves of `--op-header-h`.

@@ -1,6 +1,6 @@
 /**
- * What the operation UI calls the registry's names, and the one-line summary
- * an operation header shows.
+ * What the operation UI calls the registry's names, and the summary an
+ * operation header shows, one cell per step.
  *
  * The registry names (`everyNth`, `cellList`, `scaleX`) stay in the file and in
  * code. The author sees words: Figma names the glyphs "Every Nth", "Handpick",
@@ -10,7 +10,7 @@
  */
 
 import { isTileMapping, type Operation, type Tile } from "@vit-foundation/gen-tilesets";
-import { mappingOf, type Draft } from "../../draft.svelte.js";
+import { mappingOf, STEPS, type Draft, type Step } from "../../draft.svelte.js";
 
 const NAMED: Record<string, string> = {
   cellList: "Handpick",
@@ -40,14 +40,14 @@ export interface SummaryParts {
 export const UNANSWERED = "—";
 
 /**
- * `04` §3's sentence in step order, as Figma writes it:
- * `Checkered * Opacity [0.5 - 1] * Random * Set`.
+ * Each step's answer on its own, for the cell above that step's tab:
+ * `{ selection: "Checkered", attribute: "Opacity [0.5 - 1]", source: "Random", blend: "Set" }`.
  *
  * A palette lists tile **names**, never ids; an empty entry (`tileId: null`)
  * is "clear", as `PaletteBar` names it. `steps` absent means continuous (§7.4), so only a
  * present one is shown.
  */
-export function summarize(parts: SummaryParts, tiles: readonly Tile[]): string {
+export function summaryCells(parts: SummaryParts, tiles: readonly Tile[]): Record<Step, string> {
   const label = (name: string | null): string => (name === null ? UNANSWERED : labelFor(name));
   const attribute =
     parts.target === null
@@ -55,7 +55,21 @@ export function summarize(parts: SummaryParts, tiles: readonly Tile[]): string {
       : parts.mapping === null
         ? labelFor(parts.target)
         : `${labelFor(parts.target)} ${mappingText(parts.mapping, tiles)}`;
-  return [label(parts.selection), attribute, label(parts.source), label(parts.blend)].join(" * ");
+  return {
+    selection: label(parts.selection),
+    attribute,
+    source: label(parts.source),
+    blend: label(parts.blend),
+  };
+}
+
+/**
+ * `04` §3's sentence in step order, as Figma writes it:
+ * `Checkered * Opacity [0.5 - 1] * Random * Set`. The cells of `summaryCells`, joined.
+ */
+export function summarize(parts: SummaryParts, tiles: readonly Tile[]): string {
+  const cells = summaryCells(parts, tiles);
+  return STEPS.map((step) => cells[step]).join(" * ");
 }
 
 function mappingText(mapping: Operation["mapping"], tiles: readonly Tile[]): string {

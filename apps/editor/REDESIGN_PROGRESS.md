@@ -5,9 +5,8 @@
 
 ## Current position
 
-**Stage 1, Block F (sweep + review) is implemented and tested (2026-11-04), awaiting Pol's
-review.** When it is approved, Stage 1 is closed and Stage 2 starts with the backlog below, one
-design group at a time.
+**Stage 1 is complete (closed by Pol, 2026-11-05).** Next: Stage 2, starting with the backlog
+below, one design group at a time, each discussed before implementing.
 
 ## Stage 1 blocks
 
@@ -20,7 +19,7 @@ Each block is implemented, then reviewed with Pol, then tested, before the next 
 | C. Layout + Grid & Size | Page grid, sidebar split into scrollable and fixed parts, header removed, `Section` rebuilt on Collapsible, Grid & Size section; sections extracted to `lib/sections/`; `Button`, `Popup` | Done, approved |
 | D. Tiles | TileLibrary rebuilt as TileGroup / TileAsset, weight slider, N files → 1 group, add variant via picker | Done, approved |
 | E. Operations | OperationHeader, step tabs open the draft, selection glyph grid, label-only grids, ParamFields restyle, token restyle of PaletteBar / NumericMapping; BlendControl replaced by a glyph grid | Done, approved |
-| F. Sweep + review | Accessibility sizing, hover / press feedback, animated folding, preview `ScrollArea`, colour sweep, leftovers, Figma review, docs | Done, awaiting review |
+| F. Sweep + review | Accessibility sizing, hover / press feedback, animated folding, preview `ScrollArea`, colour sweep, leftovers, Figma review, docs | Done, approved (two review rounds) |
 
 ## Decisions
 
@@ -211,6 +210,38 @@ and other headers like tile asset groups." Done:
 - Re-seed buttons are bigger: a 28px box and an 18px icon (`--icon-seed`; Figma 12). The operation
   header's left column fits trash 24 + re-seed 28 in its 56px.
 
+Block F review, round 2 (Pol, 2026-11-05). Done:
+- **Sidebar bottom margin**: 12px under the last section, above the footer.
+- **Sections stand out from the ground**: the sidebar ground is a darker aqua (`--aqua-200`
+  #bfe3e0, `--color-surface`), and an open section's content keeps Figma's `#E4F6F5`
+  (`--color-section`) and ends in a 1px ink rule. A lighter tint than
+  Figma's on the bodies was tried first and was too close to the ground to read.
+- **Tile group thumbnails stay in the bar when the group is open.**
+- **Summary per step**: the header's marquee is now four console cells, one above each tab and
+  as wide, each with that step's answer (`summaryCells` in `labels.ts`). A cell that overflows
+  ends in an ellipsis and scrolls only while hovered (`Marquee scroll="hover"`). Tabs carry
+  their answer in their accessible name ("selection: Checkered"; `TabBar` tab `detail`).
+- **Open operation hierarchy**: the question became the step's name as an uppercase heading,
+  with the question as its hint. The chosen option's fields sit in a framed block under a small
+  black bar naming the choice ("TILE", "NOISE"), so they read as belonging to it and the end is
+  visible. No block when the option has no fields. Gaps: 12px between blocks, 8px inside.
+  The numeric mapping's heading reads "Range", since the bar above names the attribute.
+Then (Pol, same day): no space between sections (the ground shows only under the last one);
+the step name heading is gone and the question is back, now in `.t-label` (14 Regular, sentence
+case, like the field labels) instead of `.t-body` Light; the footer has 36px of black under its
+last row (`--footer-pad-bottom`).
+Then: a 1px separator under every section bar, and the section body's bottom border, both in
+`--color-separator` (default `--aqua-200`). Three temporary colour pickers (Ground, Section,
+Separator) let Pol try the colours live; he kept the defaults, and the pickers were removed.
+Left for later (Pol): the space between labels and values across the sidebar; the palette
+widget's design (Stage 2, item 7). Dimming unchosen glyphs was set aside for the framed block,
+because dimmed labels would fall under 4.5:1.
+- Testing (headless Chrome): three tile groups show thumbnails while open; a Checkered · Tile
+  [clear, sand, water] · Noise · Set operation adds; the four cells line up with the tabs within
+  1px; only the palette cell clips, and it animates on hover; tab names carry the answers; no
+  sideways scroll at 1728, 1024, 600 or 320; no console errors apart from the favicon 404.
+  Typecheck and 316 editor tests pass (two new, for `summaryCells`).
+
 Block F visual review against Figma (`Page` 502:849, at 1728):
 - Accessibility overrides Figma (kept): bar heights, chip and button heights, field-row pitch,
   operation header height, the type scale, sidebar width (518 vs 477).
@@ -330,3 +361,6 @@ design are not done here (Stage 2, items 1–2).
 6. Glyphs for Attribute, Source and Blend.
 7. Operations stack design (Pol, Block E review): it should be obvious which action comes next.
    Block E added a Next button only; the stack, header and body need a design pass in Figma.
+   The palette widget is hard to grasp (Pol, Block F review round 2) and belongs here.
+8. Space between field labels and their values across the sidebar (Pol, Block F review round 2:
+   "will come back to it").

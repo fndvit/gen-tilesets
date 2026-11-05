@@ -1,7 +1,7 @@
 import type { Operation, Tile } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { newDraft } from "../../draft.svelte.js";
-import { draftParts, labelFor, partsOf, summarize } from "./labels.js";
+import { draftParts, labelFor, partsOf, summarize, summaryCells } from "./labels.js";
 
 const tiles = [
   { id: "t1", name: "grass", assets: [] },
@@ -20,6 +20,30 @@ describe("labelFor", () => {
     expect(labelFor("everyNth")).toBe("Every Nth");
     expect(labelFor("scaleX")).toBe("Scale X");
     expect(labelFor("rect")).toBe("Rect");
+  });
+});
+
+describe("summaryCells", () => {
+  it("gives each step its own answer, for the cell above its tab", () => {
+    const op: Operation = {
+      id: "op1",
+      selection: { type: "checkerboard", parity: 0 },
+      source: { type: "random" },
+      target: "opacity",
+      mapping: { range: [0.5, 1] },
+      blend: "set",
+    };
+    expect(summaryCells(partsOf(op), tiles)).toEqual({
+      selection: "Checkered",
+      attribute: "Opacity [0.5 - 1]",
+      source: "Random",
+      blend: "Set",
+    });
+  });
+
+  it("marks every unanswered step of a new draft", () => {
+    const cells = summaryCells(draftParts(newDraft("op9")), tiles);
+    expect(Object.values(cells)).toEqual(["—", "—", "—", "—"]);
   });
 });
 

@@ -1,6 +1,6 @@
 ---
 title: tiles/TileGroup.svelte
-description: One Tile in the Tiles section. A group bar with a chevron, an editable title, trash and closed-state thumbnails, over its variants and a square "+".
+description: One Tile in the Tiles section. A group bar with a chevron, an editable title, trash and thumbnails, over its variants and a square "+".
 sidebar:
   order: 44
 ---
@@ -11,7 +11,7 @@ sidebar:
 ## Overview
 
 The Figma *Tile Group*. A black bar holds the fold chevron, the group's name (click it to
-rename) and, at the right end, a trash icon. While the group is closed, the bar also shows its first four pictures as small
+rename) and, at the right end, a trash icon. Open or closed, the bar also shows its first four pictures as small
 thumbnails. Open, a white framed body lists the variants, one [tile asset](/editor/tile-asset/)
 row each, and ends with a square "+" that adds more and a "Reset weights" button that sets
 every variant back to the same weight (greyed out when they already are). Dropping image files anywhere on the group
@@ -36,7 +36,7 @@ adds them as variants, and the group is outlined while files are dragged over it
 ### Inputs → outputs
 
 - `Collapsible variant="group"` with `actions` (trash), `onRename`, `note`, `hint`, and `extras`
-  (the thumbnails) only while closed. Thumbnails are `--thumb-sm`, from `stored()`. A variant with
+  (the thumbnails), open or closed (Pol, Block F review). Thumbnails are `--thumb-sm`, from `stored()`. A variant with
   no stored bytes shows an empty framed square.
 - Variants are listed in `canonicalAssets(tile)` order.
 - **Live shares.** While a slider is dragged, `live` holds `{ id, weight }`, and every row's %

@@ -233,7 +233,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-6);
-    padding: var(--space-6) calc(var(--space-3) + var(--space-2));
+    padding: var(--space-6) calc(var(--space-3) + var(--space-2)) var(--footer-pad-bottom);
     background: var(--color-paper);
     color: var(--color-ink);
     transition: outline-color var(--dur-fast) var(--ease);

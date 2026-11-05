@@ -16,6 +16,8 @@
   interface Tab {
     id: string;
     label: string;
+    /** Read after the label in the tab's name ("selection: Checkered"), for what is shown beside it. */
+    detail?: string;
   }
 
   interface Props {
@@ -53,6 +55,7 @@
       role="tab"
       class="tab t-xs"
       class:active={tab.id === active}
+      aria-label={tab.detail === undefined ? undefined : `${tab.label}: ${tab.detail}`}
       aria-selected={tab.id === active}
       aria-controls={tab.id === active ? panelId : undefined}
       tabindex={i === stop ? 0 : -1}

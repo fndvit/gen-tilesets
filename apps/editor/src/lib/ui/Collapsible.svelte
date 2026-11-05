@@ -3,7 +3,7 @@
   and *Tile Group Header*.
 
   The fold chevron first, then the title, then an optional `extras` snippet (a
-  closed tile group's thumbnails) at the right. The chevron points down when
+  tile group's thumbnails) at the right. The chevron points down when
   closed and up when open. It is on the left so `ScrollArea`'s overlay handle,
   which sits over the right edge, never covers it (Pol, Block E review).
 
@@ -172,8 +172,10 @@
     border: var(--rule-w) solid var(--color-bar);
   }
 
+  /* A 1px separator under every section bar, inside its 32px (Pol, Block F review). */
   .section .bar {
     min-height: var(--bar-h-section);
+    border-bottom: var(--rule-w) solid var(--color-separator);
   }
 
   .group .bar {

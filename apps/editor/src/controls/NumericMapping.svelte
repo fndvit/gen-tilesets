@@ -113,7 +113,8 @@
 <div class="mapping">
   <Hint text={hint}>
     {#snippet children()}
-      <span class="t-label">{label}</span>
+      <!-- "Range": the framed block's bar above already names the attribute. -->
+      <span class="t-label">Range</span>
     {/snippet}
   </Hint>
 

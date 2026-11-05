@@ -195,7 +195,7 @@ index is an argument: the subject is named by id, but a destination has no id.
 | `App.svelte:346` | `ENGINE_VERSION` shown in the header |
 | `lib/sections/TilesSection.svelte:73`, `:80`, `:102`, `:112`, `:127`, `:133`, `:174` | `addTiles`, `addAssets`, `tileReferences`, `deleteTile`, `deleteAsset`, `setAssetWeight` (weight passed as `String(weight)`), `renameTile`, `resetAssetWeights` |
 | `lib/sections/OperationsSection.svelte:92`, `:110`, `:112`, `:113` | `rerollOperation`, `removeOperation`, `moveOperation` |
-| `lib/operations/OperationBody.svelte:227` | `replaceOperation` or `addOperation` on commit |
+| `lib/operations/OperationBody.svelte:257` | `replaceOperation` or `addOperation` on commit |
 
 `setReseedOnLoad` was removed in Block F: since Block E the flag is a toggle on the draft,
 committed with the rest of the Operation by `replaceOperation`, and only a test called it.

@@ -8,6 +8,11 @@
   `aria-hidden`, so a screen reader reads the text once. Under
   `prefers-reduced-motion` nothing moves and the overflow is clipped.
 
+  `scroll="hover"` keeps overflowing text still, cut with an ellipsis, and
+  scrolls it only while the pointer is over the strip, for strips that sit side
+  by side (an operation header's one per step), where four running at once
+  would be noise.
+
   Text is shown as given. Figma capitalises the summary, but the summary holds
   ids and values (`tileId`, `[0.5 - 1]`) that a blanket text-transform would
   rewrite, so casing is the caller's.
@@ -17,9 +22,11 @@
 
   interface Props {
     text: string;
+    /** `always`: overflow loops on its own. `hover`: an ellipsis at rest, scrolling under the pointer. */
+    scroll?: "always" | "hover";
   }
 
-  let { text }: Props = $props();
+  let { text, scroll = "always" }: Props = $props();
 
   let boxWidth = $state(0);
   let copyWidth = $state(0);
@@ -37,7 +44,13 @@
   const duration = $derived(overflows ? marqueeDuration(copyWidth, speed) : 0);
 </script>
 
-<div class="strip t-console" bind:this={strip} bind:clientWidth={boxWidth} title={text}>
+<div
+  class="strip t-console {scroll}"
+  class:clip={overflows}
+  bind:this={strip}
+  bind:clientWidth={boxWidth}
+  title={text}
+>
   <span class="track" class:run={duration > 0} style:--duration="{duration}s">
     <span class="copy" bind:offsetWidth={copyWidth}>{text}</span>
     {#if duration > 0}<span class="copy" aria-hidden="true">{text}</span>{/if}
@@ -50,6 +63,7 @@
     summary scrolls inside the strip instead of widening its container.
   */
   .strip {
+    position: relative;
     display: flex;
     overflow: hidden;
     contain: inline-size;
@@ -70,12 +84,31 @@
     padding-inline: var(--space-2) var(--space-6);
   }
 
-  .run {
+  .always .run,
+  .hover:hover .run {
     animation: marquee var(--duration) linear infinite;
   }
 
-  .strip:hover .run {
+  .always:hover .run {
     animation-play-state: paused;
+  }
+
+  /* A `hover` strip that overflows ends in an ellipsis over the cut text, until it scrolls. */
+  .hover.clip::after {
+    content: "…";
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    padding-inline: var(--space-1) var(--space-2);
+    background: var(--color-inactive);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hover.clip:hover::after {
+      content: none;
+    }
   }
 
   @keyframes marquee {
@@ -85,7 +118,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .run {
+    .run,
+    .hover:hover .run {
       animation: none;
     }
   }

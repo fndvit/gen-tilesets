@@ -118,7 +118,7 @@ safe because only `set` accepts the `tile` type and `validate()` enforces the pa
 | `validate.ts:642` | `acceptedBlends(target)` for `INVALID_TARGET_BLEND` |
 | `apps/editor/src/draft.svelte.ts:178–179, 205` | `isAccepted` and `TARGETS[target].default` when retargeting; `isAccepted` in the completeness gate |
 | `apps/editor/src/controls/mapping.ts:145` | `TARGETS[target].type === "tile"` |
-| `apps/editor/src/lib/operations/OperationBody.svelte:148, 156` | the keys of `TARGETS` for the attribute grid; `acceptedBlends(draft.target)` for the Blend grid |
+| `apps/editor/src/lib/operations/OperationBody.svelte:167, 175` | the keys of `TARGETS` for the attribute grid; `acceptedBlends(draft.target)` for the Blend grid |
 | `index.ts:93–101` | re-export |
 
 Callees: `Registry` (`registry.ts`); types `BlendName`, `TargetName`, `TargetType` (`types.ts`).

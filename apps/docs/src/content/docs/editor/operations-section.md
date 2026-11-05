@@ -11,8 +11,8 @@ call site in `App.svelte`.
 ## Overview
 
 The Operations section of the sidebar. Each operation in the file is an
-[operation header](/editor/operation-header/): a 40px black bar with its number, a summary of what
-it does, and four step tabs. Clicking a tab opens that operation for editing at that step, with
+[operation header](/editor/operation-header/): a 56px black bar with its number, four step tabs,
+and above each tab what that step is set to. Clicking a tab opens that operation for editing at that step, with
 the [operation body](/editor/operation-body/) right under its header. A black "Add operation" bar
 ends the list. It starts a new operation, shown as one more header (with the next number) and its
 body, between the list and the bar, until it is added.
@@ -35,7 +35,8 @@ No props. It reads `session.file.config.operations` and `.tiles`, and `drafting.
 
 - **The list.** `config.operations` in array order, keyed by `op.id`. That order is the stack
   order and is never sorted. Each row is an `OperationHeader` with `index + 1`, and the header of
-  the open operation shows the draft's summary (`draftParts`) instead of the file's (`partsOf`).
+  the open operation shows the draft's answers (`draftParts`) instead of the file's (`partsOf`),
+  through `summaryCells` into the header's `cells`.
 - **Which one is open.** `editingId` is the draft's id only while `drafting.editing` is true.
   `creating` is an open draft that is not an edit. An edit-draft's body renders under its row; a
   create-draft gets its own header and body after the list.
@@ -77,12 +78,12 @@ No props. It reads `session.file.config.operations` and `.tiles`, and `drafting.
 | Caller | Use |
 | --- | --- |
 | `App.svelte:34` | import |
-| `App.svelte:286` | `<OperationsSection />`, after `TilesSection` |
+| `App.svelte:289` | `<OperationsSection />`, after `TilesSection` |
 
 Callees: `moveOperation`, `removeOperation`, `rerollOperation` (`document.ts`); `draftDiffers`,
 `Step` (`draft.svelte.ts`); `drafting`; `nextOperationId` (`ids.ts`); `session`;
 [Section](/editor/section/); [OperationHeader](/editor/operation-header/),
-[OperationBody](/editor/operation-body/); `draftParts`, `partsOf`, `summarize`
+[OperationBody](/editor/operation-body/); `draftParts`, `partsOf`, `summaryCells`
 ([labels.ts](/editor/operation-labels/)); [AddBar](/editor/ui-add-bar/),
 [Button](/editor/ui-button/), [Popup](/editor/ui-popup/).
 

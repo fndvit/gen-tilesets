@@ -20,8 +20,8 @@ The visual language of the tileset editor. It was extracted from the Figma file
 
 | Group | Tokens | Notes |
 |---|---|---|
-| Colour, primitive | `--black` `--white` `--grey-100` `--grey-200` `--grey-500` `--grey-600` `--grey-700` `--aqua-50` `--magenta` `--blue-500` `--red-600` | Only `tokens.css` reads these |
-| Colour, semantic | `--color-ink` `--color-paper` `--color-surface` `--color-bar` `--color-on-bar` `--color-inactive` `--color-rule` `--color-grid` `--color-seed` `--color-scrollbar` `--color-pressed` `--color-on-pressed` | Components read these. Declared on `:root, .theme-default`; `.theme-inverted` swaps ink/paper and bar/on-bar, and sets `--color-inactive` to `--grey-700` so disabled dims on black (see Layout) |
+| Colour, primitive | `--black` `--white` `--grey-100` `--grey-200` `--grey-500` `--grey-600` `--grey-700` `--aqua-50` `--aqua-200` `--magenta` `--blue-500` `--red-600` | Only `tokens.css` reads these |
+| Colour, semantic | `--color-ink` `--color-paper` `--color-surface` `--color-section` `--color-bar` `--color-on-bar` `--color-inactive` `--color-rule` `--color-grid` `--color-seed` `--color-scrollbar` `--color-pressed` `--color-on-pressed` | Components read these. Declared on `:root, .theme-default`; `.theme-inverted` swaps ink/paper and bar/on-bar, and sets `--color-inactive` to `--grey-700` so disabled dims on black (see Layout) |
 | Colour, preview chrome | `--color-muted` (secondary text, 7:1) · `--color-selection` (selected / painted cells) · `--color-erase` (a stroke that removes) · `--color-frame` (the frame's dashed edge and width handles) | Overlays mix them with `color-mix(… transparent)`. Colours that belong to the picture (the white backdrop) stay named constants |
 | Status | `--color-danger` `--color-warn` | Placeholders until Stage 2 (warnings) |
 | Font | `--font-ui` (Helvetica, standing in for Neue Haas Grotesk Display) · `--font-mono` (Roboto Mono, self-hosted via `@fontsource`) | |
@@ -50,8 +50,12 @@ Figma does (`text-box: trim-both cap alphabetic`, with `line-height: 1` as the f
 
 - **Page:** two columns at full viewport height (`100dvh`), sidebar (`--sidebar-w`) and preview
   (`minmax(0, 1fr)`). No header. The page never scrolls; each column scrolls its own content.
-- **Sidebar:** a 1px ink frame on `--color-surface`, split into `.scrollable` (the sections,
-  stacked with no gap) and `.fixed` (a black footer that never scrolls or collapses).
+- **Sidebar:** a 1px ink frame on `--color-surface` (`--aqua-200`, the ground), split into
+  `.scrollable` (the sections, touching, with 12px under the last) and `.fixed` (a black
+  footer that never scrolls or collapses, with `--footer-pad-bottom` 36px of black under its last
+  row). An open section's content is on `--color-section` (`--aqua-50`, Figma's sidebar colour)
+  and ends in a 1px ink rule, so the darker ground under the last one shows where it ends (Pol,
+  Block F review).
 - **Section:** a bar (`--bar-h-section`, 2px padding and a 1px frame inside it, `border-box`) followed by
   content. Content has 6px padding plus a 4px inner slot (`Section.svelte`); each body sets its
   own row gap.
@@ -81,11 +85,11 @@ Figma does (`text-box: trim-both cap alphabetic`, with `line-height: 1` as the f
 | **Tile group** | Group bar (chevron, title editable on click, up to 4 thumbnails at 14px, then trash at the right end) above a white body with a 1px ink border holding tile asset rows | Tiles section |
 | **Tile asset** | 32px thumbnail · slider (1px track, 12×24 block thumb) · `.t-label` % (46px wide, right-aligned), 6px gap. Rows 10px apart, body padding 4px inside the frame | Group body |
 | **Delete badge** | A `--badge` (16px) ink circle with a white 6px cross and a 24px hit area (`::before`), 4px out from a thumbnail's top-right corner. Shown on row hover or focus-within, focusable while hidden; disabled = `--color-inactive`. The one round shape and the one control hidden at rest (Pol, Block D) | Tile asset |
-| **Operation header** | Black index cell · icon column (delete, re-seed in seed colour) · console strip above the tab row · icon column (up/down). 56px tall, two 24px icon targets per column | Operations section |
-| **Console strip** | `.t-console` on `--color-inactive` with a 1px ink border and 3px vertical padding. Scrolls right to left only when it overflows | Operation summary |
+| **Operation header** | Black index cell · icon column (delete, re-seed in seed colour) · four console cells above the tab row, one per step and as wide as its tab, each showing that step's answer · icon column (up/down). 56px tall, two 24px icon targets per column. Each tab's accessible name carries its answer; the cells are `aria-hidden` | Operations section |
+| **Console strip** | `.t-console` on `--color-inactive` with a 1px ink border and 3px vertical padding. `scroll="always"` loops right to left when it overflows; `scroll="hover"` ends in an ellipsis and loops only under the pointer (the header's per-step cells). Still under reduced motion | Operation summary |
 | **Tab row** | Equal-width black tabs in `.t-xs`. Active = paper with ink text | Operation steps |
 | **Glyph grid** | As many cells per row as fit at `--glyph-w` or wider (`auto-fill`), 4px apart: a `.t-console` label above a `--glyph-slot` artwork slot (any iconography; see below). Selected and hover = `--color-inactive` fill with a 1px border | Operation step options |
-| **Operation body** | Paper, `--rule` frame without a top border, 6px padding, 8px between parts: a `.t-body` question, a glyph grid, then field rows. Ends in a right-aligned row of `Button`s: Discard, then **Next: <step>** while a step is unanswered (it goes to the first unanswered step after this one), then Save (Add for a new one). A disabled Save has a hint naming the unanswered steps. **Fields are compact** inside it: the body sets `--label-size: var(--text-body-size)`, `--label-case: none`, `--field-label-w: var(--field-label-w-compact)` (128px) and `--field-justify: flex-start`, so labels are 14px sentence case in a column and each control sits right after its label | Operations section, under the open header |
+| **Operation body** | Paper, `--rule` frame without a top border, 6px padding, 12px between blocks: the step's question in `.t-label` (14 Regular, sentence case, like the field labels), a glyph grid, then the **options block**: a small black bar in `.t-xs` naming the chosen option ("TILE", "NOISE") over a 1px-framed block with its fields 8px apart. No block for an option with no fields (Blend never has one). Ends in a right-aligned row of `Button`s: Discard, then **Next: <step>** while a step is unanswered (it goes to the first unanswered step after this one), then Save (Add for a new one). A disabled Save has a hint naming the unanswered steps. **Fields are compact** inside it: the body sets `--label-size: var(--text-body-size)`, `--label-case: none`, `--field-label-w: var(--field-label-w-compact)` (128px) and `--field-justify: flex-start`, so labels are 14px sentence case in a column and each control sits right after its label | Operations section, under the open header |
 | **Question popup** | A `Popup` whose `actions` replace Close with the choices (Keep editing, Discard) | Switching away from an open operation with unsaved changes |
 
 ### Operation glyphs

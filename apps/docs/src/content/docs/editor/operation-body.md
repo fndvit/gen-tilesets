@@ -1,6 +1,6 @@
 ---
 title: operations/OperationBody.svelte
-description: The open operation's body under its header. One question per step, a glyph grid of the options, that option's fields, and Discard / Save.
+description: The open operation's body under its header. Each step's question, a glyph grid of the options, the chosen option's fields in a framed block, and Discard / Save.
 sidebar:
   order: 46
 ---
@@ -12,7 +12,8 @@ sidebar:
 ## Overview
 
 The body that opens under an [operation header](/editor/operation-header/) when the author clicks
-one of its step tabs, or adds an operation. It shows the step the active tab names:
+one of its step tabs, or adds an operation. It shows the step the active tab names: the step's
+question, in the field labels' style, then the options:
 
 | Step | Question | Options | Then |
 | --- | --- | --- | --- |
@@ -21,7 +22,10 @@ one of its step tabs, or adds an operation. It shows the step the active tab nam
 | Source | "Where does each cell's number come from?" | the registered Sources, label only | ParamFields, and "Reseed on load" for a stochastic Source |
 | Blend | "How does this combine with what is already there?" | the Blends the Target accepts, label only | nothing |
 
-Each option list is a [glyph grid](/editor/ui-glyph-grid/). The steps can be visited in any
+Each option list is a [glyph grid](/editor/ui-glyph-grid/). The chosen option's fields sit in a
+framed block under a small black bar that names the choice ("TILE", "NOISE"), so it is plain that
+they belong to that choice and where they end. An option with no fields gets no block, so Blend
+never has one. Blocks are 12px apart, and rows inside a block 8px. The steps can be visited in any
 order. Nothing is written to the tileset until the author presses **Add** (a new operation) or
 **Save** (an edit). **Discard** closes the body and drops the draft. While a step is unanswered,
 a **Next: Attribute** (or another step) button goes to the first unanswered step after the
@@ -48,8 +52,18 @@ The root is `role="tabpanel"`.
 
 #### The question
 
-`QUESTIONS[draft.step]`, wrapped in a [Hint](/editor/ui-hint/). On the Selection step the hint
-explains a disabled option (below); on the other steps it has no text.
+A `<p class="question t-label">` with `QUESTIONS[draft.step]`. Inside the body `.t-label` is
+14px Regular in sentence case, so the question matches the field labels rather than `.t-body`'s
+Light (Pol, Block F review). It is wrapped in a [Hint](/editor/ui-hint/) that shows, on the
+Selection step only, why an option is disabled (below).
+
+#### The options block
+
+The `options(choice, fields)` snippet: a `<section aria-label="{labelFor(choice)} settings">`
+holding a `.t-xs` bar on `--color-bar` with `labelFor(choice)`, over a body framed by `--rule`
+without a top border, `--space-3` padding and `--space-4` between rows. Each step renders it only
+when there is something to put in it: `hasFields(schema)` is a non-null schema with at least one
+key. The body's own gap is `--space-6` (12px).
 
 #### Selection
 
@@ -61,14 +75,15 @@ glyph as `src`. A name with no artwork gets a label-only cell after these. A
 then reads "Handpick holds literal cells, and breakpoint N changes rows or columns."
 
 `chooseSelection(name)` sets `selectionType` and replaces `selectionParams` with
-`defaultParams(schema)`.
+`defaultParams(schema)`. The Selection's [ParamFields](/editor/param-fields/) go in the options
+block, shown only when the chosen Selection has parameters.
 
 #### Attribute
 
 One label-only cell per key of `TARGETS`. Choosing one calls `retarget(draft, target)`. Then a
 `"tile"` Target (`isTileTarget`) shows `PaletteBar` with `session.file.config.tiles` and
 `draft.sourceType`; any other shows `NumericMapping` with `collapsed` true when the Source is
-`constant`.
+`constant`. Either goes in the options block, named after the Target ("TILE", "OPACITY").
 
 #### Source
 
@@ -76,7 +91,8 @@ One label-only cell per `sources.all()` registration. `chooseSource(name)` sets 
 resets `sourceParams` to defaults. When the registry marks the Source `stochastic`, a
 [FieldRow](/editor/ui-field-row/) "Reseed on load" holds an Off / On [Toggle](/editor/ui-toggle/)
 bound to `draft.reseedOnLoad`, with the hint "Each page load draws this operation with a new
-seed. Saved with the operation."
+seed. Saved with the operation." The parameters and the toggle share one options block, shown
+when the Source has parameters or is stochastic.
 
 #### Blend
 

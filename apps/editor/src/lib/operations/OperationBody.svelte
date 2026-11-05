@@ -4,7 +4,12 @@
 
   Four steps, in the order the author walks them: **Selection → attribute →
   Source → Blend**, with the mapping folded into the attribute step per §7.4.
-  Each is a question, a glyph grid of the options, then that option's fields.
+  Each is a question, in the field labels' style, a glyph grid of the options,
+  then the chosen option's fields
+  in a framed block under a small black bar naming the choice, so it is plain
+  that the fields belong to that choice and where they end (Pol, Block F
+  review). An option with no fields gets no block. Blocks are 12px apart, rows
+  inside a block 8px.
 
   | Step      | Options from                                  |
   | --------- | --------------------------------------------- |
@@ -28,6 +33,7 @@
   one undo entry (**E6**).
 -->
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import {
     acceptedBlends,
     selections,
@@ -136,6 +142,9 @@
           .join(", ")} holds literal cells, and breakpoint ${resizedBy.join(", ")} changes rows or columns.`
       : undefined,
   );
+
+  const hasFields = (schema: object | null): boolean =>
+    schema !== null && Object.keys(schema).length > 0;
 
   /**
    * `04` §5.2's presets. `vignette` is specified there but is **not registered**
@@ -246,7 +255,7 @@
 <div class="body" role="tabpanel" {id}>
   <Hint text={draft.step === "selection" ? selectionHint : undefined}>
     {#snippet children()}
-      <p class="question t-body">{QUESTIONS[draft.step]}</p>
+      <p class="question t-label">{QUESTIONS[draft.step]}</p>
     {/snippet}
   </Hint>
 
@@ -261,12 +270,16 @@
       onChange={chooseSelection}
       label="Selection"
     />
-    {#if selectionSchema}
-      <ParamFields
-        schema={selectionSchema}
-        values={draft.selectionParams}
-        onChange={(name, value) => (draft.selectionParams[name] = value)}
-      />
+    {#if draft.selectionType !== null && selectionSchema && hasFields(selectionSchema)}
+      {@const schema = selectionSchema}
+      {#snippet fields()}
+        <ParamFields
+          {schema}
+          values={draft.selectionParams}
+          onChange={(name, value) => (draft.selectionParams[name] = value)}
+        />
+      {/snippet}
+      {@render options(draft.selectionType, fields)}
     {/if}
   {:else if draft.step === "attribute"}
     <!--
@@ -281,50 +294,59 @@
       label="Attribute"
     />
     {#if draft.target !== null}
-      {#if isTileTarget(draft.target)}
-        <PaletteBar
-          palette={draft.palette}
-          tiles={session.file.config.tiles}
-          sourceType={draft.sourceType}
-          onChange={(palette) => (draft.palette = palette)}
-        />
-      {:else}
-        <NumericMappingControl
-          target={draft.target as AttributeName}
-          mapping={draft.numeric}
-          {collapsed}
-          onChange={(mapping) => (draft.numeric = mapping)}
-        />
-      {/if}
+      {@const target = draft.target}
+      {#snippet fields()}
+        {#if isTileTarget(target)}
+          <PaletteBar
+            palette={draft.palette}
+            tiles={session.file.config.tiles}
+            sourceType={draft.sourceType}
+            onChange={(palette) => (draft.palette = palette)}
+          />
+        {:else}
+          <NumericMappingControl
+            target={target as AttributeName}
+            mapping={draft.numeric}
+            {collapsed}
+            onChange={(mapping) => (draft.numeric = mapping)}
+          />
+        {/if}
+      {/snippet}
+      {@render options(target, fields)}
     {/if}
   {:else if draft.step === "source"}
     <!-- Every Source emits a value in [0, 1); the mapping gives it units. -->
     <GlyphGrid items={sourceItems} value={draft.sourceType} onChange={chooseSource} label="Source" />
-    {#if sourceSchema}
-      <ParamFields
-        schema={sourceSchema}
-        values={draft.sourceParams}
-        onChange={(name, value) => (draft.sourceParams[name] = value)}
-      />
-    {/if}
-    {#if stochastic}
-      <FieldRow
-        label="Reseed on load"
-        hint="Each page load draws this operation with a new seed. Saved with the operation."
-        align="center"
-      >
-        {#snippet children()}
-          <Toggle
-            options={[
-              { value: false, label: "Off" },
-              { value: true, label: "On" },
-            ]}
-            value={draft.reseedOnLoad}
-            onChange={(on) => (draft.reseedOnLoad = on)}
-            label="Reseed on load"
+    {#if draft.sourceType !== null && (hasFields(sourceSchema) || stochastic)}
+      {#snippet fields()}
+        {#if sourceSchema}
+          <ParamFields
+            schema={sourceSchema}
+            values={draft.sourceParams}
+            onChange={(name, value) => (draft.sourceParams[name] = value)}
           />
-        {/snippet}
-      </FieldRow>
+        {/if}
+        {#if stochastic}
+          <FieldRow
+            label="Reseed on load"
+            hint="Each page load draws this operation with a new seed. Saved with the operation."
+            align="center"
+          >
+            {#snippet children()}
+              <Toggle
+                options={[
+                  { value: false, label: "Off" },
+                  { value: true, label: "On" },
+                ]}
+                value={draft.reseedOnLoad}
+                onChange={(on) => (draft.reseedOnLoad = on)}
+                label="Reseed on load"
+              />
+            {/snippet}
+          </FieldRow>
+        {/if}
+      {/snippet}
+      {@render options(draft.sourceType, fields)}
     {/if}
   {:else if draft.target === null}
     <!-- A Blend belongs to a Target: `04` §7.2 gives each its own accepted set. -->
@@ -351,11 +373,21 @@
   </div>
 </div>
 
+<!-- The chosen option's fields: a black bar naming the choice over a framed block. -->
+{#snippet options(choice: string, fields: Snippet)}
+  <section class="options" aria-label="{labelFor(choice)} settings">
+    <p class="options-bar t-xs on-bar">{labelFor(choice)}</p>
+    <div class="options-body">
+      {@render fields()}
+    </div>
+  </section>
+{/snippet}
+
 <style>
   .body {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: var(--space-6);
     padding: var(--space-3);
     border: var(--rule);
     border-top: 0;
@@ -368,8 +400,25 @@
     --field-justify: flex-start;
   }
 
+  /* The question wears the field labels' style (14 Regular, sentence case), not `.t-body`'s Light. */
   .question {
     margin: 0;
+  }
+
+  .options-bar {
+    margin: 0;
+    padding: var(--space-2);
+    background: var(--color-bar);
+    color: var(--color-on-bar);
+  }
+
+  .options-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+    padding: var(--space-3);
+    border: var(--rule);
+    border-top: 0;
   }
 
   .actions {

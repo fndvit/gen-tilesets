@@ -279,13 +279,15 @@
     -->
     <div class="scrollable">
       <ScrollArea>
-        <GridSection {risked} {destructive} />
-        <BreakpointsSection {risked} />
-        <DerivedSection />
+        <div class="sections">
+          <GridSection {risked} {destructive} />
+          <BreakpointsSection {risked} />
+          <DerivedSection />
 
-        <TilesSection />
+          <TilesSection />
 
-        <OperationsSection />
+          <OperationsSection />
+        </div>
       </ScrollArea>
     </div>
 
@@ -458,6 +460,7 @@
       </div>
     </ScrollArea>
   </section>
+
 </main>
 
 <style>
@@ -514,6 +517,16 @@
   /* `ScrollArea` scrolls; its handle sits on the content, so the sidebar never narrows. */
   .scrollable {
     min-height: 0;
+  }
+
+  /*
+    Sections touch; the darker ground shows only under the last one, so where
+    it ends is visible above the footer (Pol, Block F review).
+  */
+  .sections {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    padding-bottom: var(--space-6);
   }
 
   /*

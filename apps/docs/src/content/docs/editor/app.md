@@ -57,13 +57,14 @@ Which component renders which, in source order. Conditional children are marked.
     reflow, where only the page scrolls)
     - `aside` (sidebar, 1px ink frame, `--color-surface`)
       - `.scrollable`, holding a [`ScrollArea`](/editor/ui-scroll-area/) (overlay scroll handle)
-        - [`GridSection`](/editor/grid-section/) "Grid & Size"
-        - [`BreakpointsSection`](/editor/breakpoints-section/) (open when the file has rules)
-        - [`DerivedSection`](/editor/derived-section/) (closed)
-        - [`TilesSection`](/editor/tiles-section/) "Tiles"
-        - [`OperationsSection`](/editor/operations-section/) "Operations"
-          - an [`OperationHeader`](/editor/operation-header/) per Operation, and
-            [`OperationBody`](/editor/operation-body/) under the open one (*if* a draft is open)
+        - `.sections` (a one-column grid, no gap, 12px bottom padding)
+          - [`GridSection`](/editor/grid-section/) "Grid & Size"
+          - [`BreakpointsSection`](/editor/breakpoints-section/) (open when the file has rules)
+          - [`DerivedSection`](/editor/derived-section/) (closed)
+          - [`TilesSection`](/editor/tiles-section/) "Tiles"
+          - [`OperationsSection`](/editor/operations-section/) "Operations"
+            - an [`OperationHeader`](/editor/operation-header/) per Operation, and
+              [`OperationBody`](/editor/operation-body/) under the open one (*if* a draft is open)
       - [`SidebarFooter`](/editor/sidebar-footer/) (`.fixed`)
         - [`ImportPanel`](/editor/import-panel/), [`Popup`](/editor/ui-popup/)s for reports
     - `section.preview`, holding a [`ScrollArea`](/editor/ui-scroll-area/) and `.preview-body`
@@ -200,6 +201,10 @@ validates.
   `var(--sidebar-w) minmax(0, 1fr)` at `100dvh`. The sidebar's sections and the preview column
   each scroll their own contents. The two notices sit in the preview column, not above both
   columns, so the grid needs no conditional rows.
+- **The last section ends on a darker ground.** `--color-surface` is `--aqua-200`, and each
+  open section body is the lighter `--color-section` (`--aqua-50`, Figma's colour). Sections touch
+  (Pol); the `.sections` bottom padding lets the ground show under the last one,
+  so where a section ends is visible before the footer (Pol, Block F review).
 - **`min-width: 0` on both columns.** Without it the preview frame's explicit pixel width (up to
   1440px) would grow the grid track and squeeze the sidebar.
 - **Destructive control is a number field, not the drag handle.** A page edge that can be dragged

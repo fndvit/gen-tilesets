@@ -17,7 +17,8 @@
   --grey-500: #808080; /* scroll handle: reads on black bars and on paper */
   --grey-600: #595959; /* secondary text: 7:1 on paper */
   --grey-700: #4d4d4d; /* pressed: paper text on it is 8.5:1 */
-  --aqua-50: #e4f6f5; /* sidebar surface */
+  --aqua-50: #e4f6f5; /* section body (Figma's sidebar colour) */
+  --aqua-200: #bfe3e0; /* the ground between and below sections: darker than their bodies */
   --magenta: #ff00c3; /* seed / non-deterministic */
   --blue-500: #3182ce; /* preview overlays: selected and painted cells */
   --red-600: #c53030; /* preview overlays: a stroke that erases */
@@ -77,6 +78,7 @@
   --glyph-slot: 43px; /* artwork square inside a glyph cell */
   --chip-gap: 9px; /* between choice chips; off the 2px scale in Figma */
   --console-pad-y: 3px; /* console strip; off the 2px scale in Figma */
+  --footer-pad-bottom: 36px; /* black space under the sidebar footer (Pol, Block F review) */
   --hint-w: 260px; /* widest a field hint bubble grows */
   --badge: 16px;
   --handle-w: 9px; /* the preview frame's width handles; `PreviewFrame`'s HANDLE matches */ /* a tile asset's delete badge; not in Figma (Block D) */
@@ -116,7 +118,9 @@
 .theme-default {
   --color-ink: var(--black); /* text, rules, filled chips */
   --color-paper: var(--white); /* panels, unfilled chips */
-  --color-surface: var(--aqua-50); /* sidebar background */
+  --color-surface: var(--aqua-200); /* sidebar ground, between and below sections */
+  --color-section: var(--aqua-50); /* a section's open body */
+  --color-separator: var(--aqua-200); /* under section bars and section bodies */
   --color-bar: var(--black); /* section, group and operation bars */
   --color-on-bar: var(--white); /* text and icons on a bar */
   --color-inactive: var(--grey-200); /* selected glyph, console strip, disabled */
