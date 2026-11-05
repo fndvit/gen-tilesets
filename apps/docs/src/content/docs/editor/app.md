@@ -68,8 +68,7 @@ Which component renders which, in source order. Conditional children are marked.
       - [`SidebarFooter`](/editor/sidebar-footer/) (`.fixed`)
         - [`ImportPanel`](/editor/import-panel/), [`Popup`](/editor/ui-popup/)s for reports
     - `section.preview`: [`PreviewTopBar`](/editor/preview-bars/), then `.canvas` (the backdrop)
-      holding a [`ScrollArea`](/editor/ui-scroll-area/) (`fill`) and `.preview-body` (clips the grid), then
-      [`BreakpointBar`](/editor/preview-bars/)
+      holding a [`ScrollArea`](/editor/ui-scroll-area/) (`fill`) and `.preview-body` (clips the grid)
       - `.notices` (sticky, *if* either is showing): the confirmation (*if* `pending !== null`),
         "Orphaned by a resize" (*if* `orphaned.length > 0`)
       - the asset failure list

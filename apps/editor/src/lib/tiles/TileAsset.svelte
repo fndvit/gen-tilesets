@@ -12,9 +12,9 @@
   centre-crop note. The asset id is not shown: `a1`, `a2` tell the author
   nothing (Pol, Block D review). Controls are named by position instead.
 
-  The slider sets the raw `asset.weight` on 0–2. The % is computed by the
-  group, which follows a drag live (`onInput`) so every row's share moves
-  together. The file changes once, on release (`onCommit`).
+  The slider sets the raw `asset.weight` on 0–2. The file follows a drag on
+  every frame (`onInput`), so the tileset and every row's % move with it (Pol,
+  Stage 2); release (`onCommit`) closes the drag as one undo entry.
 -->
 <script lang="ts">
   import type { TileAsset } from "@vit-foundation/gen-tilesets";

@@ -39,7 +39,7 @@
 
 import type { TilesetFile } from "@vit-foundation/gen-tilesets";
 import { newDocument, type Transition } from "./document.js";
-import { applied, historyOf, replaced, undone, type History } from "./history.js";
+import { applied, appliedLive, historyOf, replaced, settled, undone, type History } from "./history.js";
 
 /**
  * The document and everything it has been.
@@ -82,6 +82,20 @@ export const session = {
    */
   apply(transition: Transition): void {
     history = applied(history, transition);
+  },
+
+  /**
+   * Apply one frame of a live gesture named `key` (a weight slider being
+   * dragged): the file, and so the picture, follows the drag, and the drag is
+   * one undo entry (`history.ts` `appliedLive`). Call `settle` on release.
+   */
+  applyLive(key: string, transition: Transition): void {
+    history = appliedLive(history, key, transition);
+  },
+
+  /** End the live gesture: the next drag is a new undo entry. */
+  settle(): void {
+    history = settled(history);
   },
 
   /**

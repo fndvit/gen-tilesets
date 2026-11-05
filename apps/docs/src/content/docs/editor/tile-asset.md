@@ -30,7 +30,7 @@ only one variant left it is greyed out, because a group cannot be empty.
 | `position` | `number` | 1-based place in the group, for the accessible names "Delete variant 2" and "Weight of variant 2". |
 | `percent` | `number` | Its share, 0–100, rounded, computed by the group. |
 | `canDelete` | `boolean` | False when it is the last variant. |
-| `onInput` | `(weight) => void` | Every slider movement. |
+| `onInput` | `(weight) => void` | Every slider movement. The file follows it, so the tileset redraws live. |
 | `onCommit` | `(weight) => void` | Slider release, or a key press. |
 | `onDelete` | `() => void` | The badge. |
 

@@ -5,8 +5,8 @@
 
 ## Current position
 
-**Stage 2 · Preview: P1, P2 and P3's grid implemented, reviewed and committed.** Stage 1 is
-complete (closed by Pol, 2026-11-05). **Next session: start from "Next session plan" below** (P3's handles, then P4).
+**Stage 2 · Preview: P1–P3 done, reviewed and committed (P3b with its review round).** Stage 1
+is complete (closed by Pol, 2026-11-05). **Next session: P4, in "Next session plan" below.**
 
 ## Stage 1 blocks
 
@@ -259,7 +259,7 @@ Figma `Preview` 502:956. Plan approved by Pol, 2026-11-05.
 |---|---|---|
 | P1. Removals | Reference image (2 components, `reference.ts`, its test, 3 docs pages), the `painting` prop, the two preview notes, "The file" debug view | Done, waiting for review |
 | P2. Top and bottom bars | `lib/preview/`: top bar (readout, sizes 360 / 768 / 1024 / 1440 + Fill, colour swatch, Grid chip disabled), breakpoint bar, `activeBound` helper | Done, waiting for review |
-| P3. Grid and handles | Full-viewport grid and the Grid toggle (done early, P2 review); Figma's handles (P3b) | Grid done, reviewed; handles next session |
+| P3. Grid and handles | Full-viewport grid and the Grid toggle (done early, P2 review); Figma's handles (P3b) | Done, reviewed (P3b review round included) |
 | P4. Sweep | Figma review, docs, `DESIGN_SYSTEM.md`, checks | |
 
 Decisions (Pol, 2026-11-05):
@@ -323,60 +323,97 @@ and "the grid button is not active, no grid is showing". Done:
 Then (Pol, same day): "take this cross out" — the background reset × is removed. White is picked
 like any other colour.
 
-## Next session plan (written 2026-11-05)
+P3b (2026-11-05), Figma `Handle` 2063:804 / 2063:805:
+- **Decided (Pol):** top and bottom are **not** marked, as in Figma. The dashed frame outline and
+  `--color-frame` are gone; the handles mark the sides and the grid shows the cells.
+- **Drawing:** a `.mark` span per handle, `pointer-events: none`, centred on the box edge and painted
+  with `linear-gradient`s in `--color-ink`: 6px squares 13–19px past the box, 2px × 16px caps, a 1px
+  line dotted 1 on / 2 off. Drawn rather than downloaded so it stretches with the box. New tokens
+  `--handle-square`, `--handle-cap`, `--handle-cap-w`, `--handle-reach`, `--handle-dot`,
+  `--handle-dot-gap`; every length divided by the zoom.
+- **Hit area:** `--handle-w` 24 (was 9), wholly outside the box edge, reaching 19px past top and
+  bottom; `HANDLE = 24` in `width.ts`. The `.viewport` pads `--handle-reach` above and below so the
+  squares are not clipped.
+- **Feedback:** hover and focus make the line solid 2px; pressed `--color-pressed`; the focus ring
+  wraps the hit area.
+- **Review (Pol):** "The hover area for the handles should be bigger … it should be centered … the
+  ending points are now not part of that hover area". Now `--handle-w` 32, centred on the edge,
+  reaching `--handle-hit-reach` (32) past top and bottom, so the squares are inside it; `HANDLE =
+  16` (the outer half). Cost, accepted: the inner 16px lies over the box, so the Handpick brush
+  cannot start a stroke there. Re-tested: hit area centred on the edge (±0.01px) at Fill, 360 and
+  1440; the squares and 10px above them are hit; dragging by a square works; the focus ring wraps
+  square and line; at 30 rows the hit area sits 12px under the clip; no sideways scroll.
+- Also from the review: clicking the chosen Alignment chip asked to confirm a destructive edit.
+  `Toggle` now calls nothing when the chosen chip is chosen again (like a native radio). The grid
+  standing apart from the handles in Gutter mode is the bleed (outer cells cut by the box), not a
+  misalignment.
+- **One bar (Pol, same review):** "Move the bottom UI of the preview to the top … So there is only
+  the top UI." `BreakpointBar` is removed; `PreviewTopBar` shows the readout and then "Breakpoints"
+  with its buttons at the left, the tools at the right. The breakpoint buttons take the presets'
+  60×44 (not Figma's 92×64) so the bar keeps one height; `--breakpoint-w/h` and `WidthChoices`'
+  `size` prop are gone. Tested: hidden with no rules; with rules 300 / 600, one 56px row at 1728,
+  clicking 300 sets 300 and turns it black; at 1024 and 600 the tools wrap to a second row (114px),
+  at 320 to more; no sideways scroll; no console errors.
+- **Live weights (Pol, same review):** "The asset sliders should refresh the tileset every time
+  their value changes, not only when the user takes the finger off". The file now follows a drag
+  frame by frame (`session.applyLive` / `settle`, rule in `history.ts` `appliedLive` / `settled`,
+  5 new tests), and one drag is still one undo entry. `TileGroup`'s `live` copy is gone: the % is
+  read from the file. Tested: shares move on every frame with the mouse held (60 / 67 / 32 / 7 %),
+  one undo returns to 50 / 50, Shift+Arrow steps 0.1. A refused zero on the last non-zero variant
+  now keeps the last accepted frame (about 0.01) instead of the weight from before the drag.
+  Pol first read the summary as "still waits for release"; re-tested on the imported readme demo
+  (the canvas changes on every held step), and Pol confirmed it is right.
+- First testing (headless Chrome, 1728): hit areas 24px at Fill, 360 and 1440 (zoomed); marks centred on
+  the edges; arrows ±20 / ±200; drags at 360 and zoomed 1440; hit-testing gives the box's own pixels
+  to the box (only the pixel holding a fractional edge may go to the handle); at 30 rows the
+  squares sit 12px under the clip; target probe finds no control under 24×24; no sideways scroll
+  at 1728, 1024, 600, 320; no console errors. Matches Figma `Preview` 502:956 by eye. Typecheck,
+  322 tests, docs coverage and docs build pass.
 
-Read this file and `DESIGN_SYSTEM.md` first. Branch `editor-redesign`; P1–P3's grid are
-committed ("Stage 2 preview: removals, top and breakpoint bars, grid, centring"). Two blocks, each stopped for Pol's review:
+## Next session plan (P4, written 2026-11-05 after P3b)
 
-### P3b. Width handles (Figma `Handle` 2063:804 / 2063:805)
-
-Figma geometry, per handle (6px wide, centred **on** the render box's left / right edge, not in
-the gutter beside it; 579px tall for a 541px box, so it reaches 19px past the top and bottom):
-- a 6×6 ink square at each end (outside the box, 13–19px past the edge);
-- a 2px solid ink line, 16px long, from each square to the box's top / bottom edge;
-- a 1px ink dotted line along the box's height (about 1 on, 2 off).
-No frame outline in Figma: the handles mark the sides, nothing marks top and bottom.
-
-Work, in `lib/preview/PreviewFrame.svelte` (handles stay native `<button>`s, same drag and arrow
-logic, counter-scaled by `1 / zoom`):
-1. Draw the handle as inline SVG or pseudo-elements in tokens (`--color-ink`; new size tokens
-   such as `--handle-square` 6, `--handle-cap` 16, `--handle-reach` 19). Download nothing: it is
-   simple geometry, and its parts must stretch with the box height (the Figma export is one
-   fixed 579px picture).
-2. **Hit area:** at least `--target-min` (24px) wide, all of it *outside* the box edge, so it
-   never takes pointer events from the Handpick brush (`PaintLayer`) over the edge cells. The
-   visible line sits on the edge. Re-derive `HANDLE` (`width.ts`) and `--handle-w` from that
-   (probably 24, not 9) and keep them equal; `roomFor` subtracts it twice.
-3. The handle's top and bottom reach 19px past the box, so the `.viewport` must reserve that
-   room (or the `.stage` padding must), or the squares are clipped / overlap the notices.
-4. Feedback (Block F rules): hover and focus thicken the dotted line to solid or 2px; pressed =
-   `--color-pressed`; `cursor: ew-resize`; the focus ring around the hit area.
-5. Remove the dashed `.frame` outline (`--color-frame`), and `--color-frame` with it if
-   nothing else uses it (`grep`). **Ask Pol** if top and bottom still need marking once the
-   grid shows the cells.
-6. Docs: `editor/preview-frame.md` (handles, gutter, review notes), `DESIGN_SYSTEM.md` tokens.
-Verify in Chrome: drag both handles and arrow keys (±20 / ±200 with Shift) at Fill, 360 and
-1440 (zoomed); the target probe finds no control under 24×24 now (the 9px exception goes); a
-Handpick stroke on the first and last column still paints; no sideways scroll at 1728, 1024,
-600, 320; screenshot against Figma `Preview` 502:956.
+Read this file and `DESIGN_SYSTEM.md` first. Branch `editor-redesign`; P1–P3b are committed. One
+block, P4, then stop for Pol to close the preview group.
 
 ### P4. Sweep and close the preview group
 
-1. Visual review at 1728 against `Preview` 502:956 (`get_screenshot`): top bar, grid, handles,
-   breakpoint bar. List mismatches: fix now, or put them in the backlog. Accessibility overrides
-   already decided stay (record any new ones).
-2. Hover probe on every preview control, keyboard pass (Tab order: top bar → handles →
-   breakpoint bar), 200% zoom.
-3. Docs: every changed file's page, coverage, docs build; `DESIGN_SYSTEM.md`; this file (P rows
-   to "Done", backlog items 2 and 5 marked done); the memory file `editor-redesign.md`.
-4. Typecheck and tests. Then Pol closes the group and picks the next Stage 2 group (suggested:
-   item 3, warnings, since the sticky notices and the failure list are waiting on it).
+What the preview is now: **one top bar** (readout + Breakpoints at the left; Grid, presets + Fill,
+swatch at the right; no bottom bar, Pol), the picture area with the grid, and the Figma handles
+(32px hit area centred on the edge).
+
+1. **Visual review at 1728** against Figma `Preview` 502:956 (`create_session`, then
+   `get_screenshot`, download with curl). Compare top bar, grid, handles. Known, decided
+   differences, not to fix: breakpoints in the top bar at 60×44 (Figma: a bottom bar, 92×64);
+   Grid chip (not in Figma); no swatch reset. List any other mismatch: fix now if small, or put it
+   in the backlog.
+2. **Open points to put to Pol** (one question each, with a screenshot):
+   - The handle's inner 16px covers the edge cells for the Handpick brush. Acceptable, or shrink
+     the inner half?
+   - Gutter mode: the grid lines sit outside the handles because the outer cells bleed. Leave it,
+     draw the grid stronger inside the box, or show the Derived "Bleed" in the preview?
+   - At 1024 and 600 the top bar wraps to two rows (114px). Acceptable?
+3. **Probes** (headless Chrome, see "How to test" below): hover change on every preview control;
+   keyboard pass, Tab order readout hint → breakpoints → Grid → presets → swatch → left handle →
+   right handle; 200% zoom (no sideways scroll, nothing clipped); target probe (nothing under
+   24×24); no sideways scroll at 1728, 1024, 600, 320; no console errors.
+4. **Docs**: every changed file's page, docs coverage and build; `DESIGN_SYSTEM.md`; this file (P4
+   row "Done", backlog items 2 and 5 marked done); memory `editor-redesign.md`.
+5. Typecheck and tests. Commit. Then Pol closes the group and picks the next Stage 2 group
+   (suggested: item 3, warnings, since the sticky notices and the asset failure list wait on it).
+
+**How to test (found in P3b):** the editor dev server usually already runs on port 5199
+(`lsof -iTCP:5199`); reuse it. Playwright is `node_modules/.pnpm/playwright-core@1.56.1`, and the
+browser that exists is
+`~/Library/Caches/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell`
+(pass it as `executablePath`). For a real picture, zip `apps/demo/public/readme` (`tileset.json` +
+`tiles/`) into the scratchpad and load it with the footer's Import; the tileset draws to
+`canvas[data-tileset-canvas]`, so hash its pixels to see a change. Sidebar sections start folded
+(open "Breakpoints" before "Add breakpoint").
 
 ## Known issues / notes
 
 - **Block F testing** (headless Chrome): a target probe finds no enabled control under 24×24 in
-  the sidebar. The preview's 9px width handles are the exception, allowed by 2.5.8's spacing rule
-  (nothing else within 24px) and usable with arrow keys. A hover probe finds a change on every
+  the sidebar. (The preview's 9px width handles were the exception until Stage 2 P3b made them 24px.) A hover probe finds a change on every
   enabled control except the already-chosen ones (on purpose) and sliders (their change is on a
   pseudo-element the probe cannot read; checked by eye). No sideways scroll at 1728, 1024, 600 or
   320. Folding animates, and is instant with reduced motion emulated. The Block E flows

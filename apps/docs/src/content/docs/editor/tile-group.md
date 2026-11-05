@@ -27,7 +27,8 @@ adds them as variants, and the group is outlined while files are dragged over it
 | `note`, `hint` | `string \| undefined` | `(t3)` and its explanation, where an imported file has another Tile of the same name. |
 | `onRename` | `(name) => void` | Trimmed, changed name from `InlineEdit`. |
 | `onDelete` | `() => void` | Trash. |
-| `onWeight` | `(assetId, weight) => void` | A slider was released. |
+| `onWeightInput` | `(assetId, weight) => void` | Every frame of a slider drag. |
+| `onWeight` | `(assetId, weight) => void` | A slider was released, or stepped with a key. |
 | `onDeleteAsset` | `(assetId) => void` | A variant's badge. |
 | `onResetWeights` | `() => void` | "Reset weights". Disabled while every weight is already 1. |
 | `onAdd` | `() => void` | The square "+". The section opens the picker. |
@@ -39,8 +40,9 @@ adds them as variants, and the group is outlined while files are dragged over it
   (the thumbnails), open or closed (Pol, Block F review). Thumbnails are `--thumb-sm`, from `stored()`. A variant with
   no stored bytes shows an empty framed square.
 - Variants are listed in `canonicalAssets(tile)` order.
-- **Live shares.** While a slider is dragged, `live` holds `{ id, weight }`, and every row's %
-  is computed from it, so the whole group's shares move together. `live` is cleared on commit.
+- **Live shares.** Every row's % is computed from the file, which follows a drag frame by frame
+  (`onWeightInput`), so the tileset and the whole group's shares move together (Pol, Stage 2: the
+  picture used to wait for the release).
 - Body: paper, `--rule` frame without a top border, 4px padding (5px from the outer edge, as in
   Figma), `--asset-gap` (10px) between rows.
 - Drop: `dragover` arms the outline (`--focus-w` ink), `drop` calls `onFiles`. Both stop

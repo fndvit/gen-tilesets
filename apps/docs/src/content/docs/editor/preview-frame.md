@@ -9,8 +9,8 @@ sidebar:
 
 ## Overview
 
-The preview frame is the render box in the middle of the right-hand column, between the
-[top and bottom bars](/editor/preview-bars/). The author can drag either edge to try the tileset
+The preview frame is the render box in the middle of the right-hand column, under the
+[top bar](/editor/preview-bars/). The author can drag either edge to try the tileset
 at any page width; the frame stays centred and both edges move together. The bars' presets and
 breakpoint buttons set the same width.
 
@@ -53,13 +53,28 @@ bars. This component writes `preview.available` (its track's width) and `preview
   where `delta` is signed by the handle's direction. Both edges move, so the centre stays put.
 - **Keyboard:** ← / → on a handle change the width by `2 × 10` (`2 × 100` with Shift).
 - The viewport reserves `frameHeight × zoom` px of height, because a transform does not affect
-  layout.
+  layout, plus `--handle-hit-reach` above and below for the handles.
 - **Not clipped.** The track lets the [grid](/editor/preview-grid/) reach past the frame; the
   picture area (`.preview-body`, `overflow: clip`) clips it, and a frame wider than the column.
 - **Centred vertically** by its parent `.stage` in `App.svelte`, a flex column that takes the
   height left in the picture area; a taller frame overflows downward and scrolls.
-- **No background of its own.** The backdrop is the picture area's (`App.svelte`'s `.canvas`), so
-  the picture is judged against one colour everywhere.
+- **No background and no outline of its own.** The backdrop is the picture area's (`App.svelte`'s
+  `.canvas`), so the picture is judged against one colour everywhere. The handles mark the sides
+  and the grid shows the cells; nothing marks top and bottom, as in Figma (Pol, Stage 2 P3b).
+
+#### Handles (Figma *Handle* 2063:804 / 2063:805)
+
+| Part | Size (screen px, each divided by `zoom` inside the frame) |
+| --- | --- |
+| Hit area (the `<button>`) | `--handle-w` 32 wide, **centred on** the box edge; reaches `--handle-hit-reach` 32 past top and bottom, so the squares sit inside it with 13px to spare |
+| Square, at each end | `--handle-square` 6, centred on the edge, 13–19 past the box |
+| Cap, square to box edge | `--handle-cap` 16 long, `--handle-cap-w` 2 wide |
+| Line along the edge | `--handle-dot` 1 wide, dotted 1 on / `--handle-dot-gap` 2 off |
+
+- The drawing is a `.mark` span with `pointer-events: none`, centred in the hit area and painted
+  with `linear-gradient`s in `--color-ink`, so it stretches with the box height.
+- **Hover and focus:** the dotted line turns solid, 2px. **Pressed:** `--color-pressed`.
+  `cursor: ew-resize`. The focus ring goes round the 24px hit area.
 
 #### Layout
 
@@ -97,9 +112,13 @@ No test file for the component.
 
 ### Gotchas & rejected alternatives
 
-- **Handles sit outside the render box.** The component's element has no padding or border so `Wpx`
-  is unambiguously its width; a handle inside would hide 9px of the picture. They are
-  counter-scaled by `1 / zoom` so they stay hittable at wide presets.
+- **Hit areas are centred on the edge and include the squares** (Pol, P3b review: the first
+  version sat wholly outside the box, which read as off-centre and left half of each square out).
+  The cost: the inner 16px of each hit area lies over the box and takes those pixels from the
+  Handpick brush, which has to start a stroke on an edge cell further in. Everything is
+  counter-scaled by `1 / zoom` so the handle is the same size on screen at every preset.
+- **Drawn, not downloaded.** Figma's export is one fixed 579px picture; the handle must stretch with
+  the box.
 - **`room` is floored** to a whole pixel, so the same file at the same preset draws the same
   picture from run to run.
 - **A native `<button>` for each handle**, not a `role="separator"` div, because a focusable
@@ -109,5 +128,5 @@ No test file for the component.
 
 - `onPointerMove`'s comment (line 119) says "Step 7's brush will need it". The brush exists
   (`PaintLayer.svelte`, via `metricsOf`/`toRenderSpace`). (stale comment)
-- The handle width is `--handle-w` in CSS and `HANDLE = 9` in `width.ts`; changing one does not
-  change the other. (inconsistency, minor; P3 redraws the handles)
+- The handle width is `--handle-w` in CSS and `HANDLE = 16` (half of it) in `width.ts`; changing one does not
+  change the other. (inconsistency, minor)

@@ -81,13 +81,20 @@
   --footer-pad-bottom: 36px; /* black space under the sidebar footer (Pol, Block F review) */
   --hint-w: 260px; /* widest a field hint bubble grows */
   --badge: 16px; /* a tile asset's delete badge; not in Figma (Block D) */
-  --handle-w: 9px; /* the preview frame's width handles; `width.ts`'s HANDLE matches */
+  /* The preview's width handles (Figma *Handle*, Stage 2 P3b). */
+  --handle-w: 32px; /* hit area, centred on the box edge; `width.ts`'s HANDLE is half */
+  --handle-square: 6px; /* the square at each end */
+  --handle-cap: 16px; /* the solid line from the box edge into the square */
+  --handle-cap-w: 2px;
+  --handle-reach: 19px; /* how far the squares reach past the box's top and bottom */
+  /* How far the hit area reaches: past the squares by as much as it is wider than them. */
+  --handle-hit-reach: calc(var(--handle-reach) + (var(--handle-w) - var(--handle-square)) / 2);
+  --handle-dot: 1px; /* the dotted line along the edge: 1 on, 2 off */
+  --handle-dot-gap: 2px;
   /* The preview's bars (Figma *UI top* and *UI Bottom*), Stage 2. */
   --preview-bar-h: 56px; /* the top bar; 57 in Figma */
   --width-chip-w: 60px; /* a size preset */
   --width-chip-h: 44px; /* 43 in Figma */
-  --breakpoint-w: 92px; /* 91.2 in Figma */
-  --breakpoint-h: 64px; /* 65 in Figma */
   --swatch-w: 80px; /* the background colour picker, as tall as the bar */
   --swatch-rule-w: 2px;
   --asset-gap: 10px; /* between tile asset rows: Figma's 32px rows at a 42px pitch */
@@ -140,7 +147,6 @@
   --color-muted: var(--grey-600); /* secondary text in the preview chrome, never for controls */
   --color-selection: var(--blue-500); /* cells an operation selects or a stroke adds */
   --color-erase: var(--red-600); /* cells a stroke removes */
-  --color-frame: var(--grey-500); /* the preview frame's dashed edge and its handles (3.9:1) */
   --color-seed: var(--magenta);
   /* Placeholders until the Stage 2 warnings group decides them. */
   --color-danger: var(--black);

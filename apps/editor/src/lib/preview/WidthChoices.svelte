@@ -1,6 +1,7 @@
 <!--
-  A framed row of width buttons: the size presets in the top bar and the file's
-  breakpoints in the bottom bar (Figma *Preview sizes*, *Breakpoints*).
+  A framed row of width buttons, both in the top bar: the size presets and the
+  file's breakpoints (Figma *Preview sizes*, *Breakpoints*). One size for both,
+  since the breakpoints moved up from their own bar (Pol, Stage 2).
 
   Each button is an action, "show the preview at this width", so they are
   `aria-pressed` buttons rather than a radio group: a dragged width matches
@@ -23,14 +24,13 @@
     onChoose: (value: T) => void;
     /** The group's accessible name. */
     label: string;
-    size: "preset" | "breakpoint";
     divided?: boolean;
   }
 
-  let { choices, chosen, onChoose, label, size, divided = false }: Props = $props();
+  let { choices, chosen, onChoose, label, divided = false }: Props = $props();
 </script>
 
-<div class="choices {size}" class:divided role="group" aria-label={label}>
+<div class="choices" class:divided role="group" aria-label={label}>
   {#each choices as choice (choice.value)}
     {@const on = choice.value === chosen}
     <button
@@ -55,6 +55,8 @@
 
   .choice {
     box-sizing: border-box;
+    min-width: var(--width-chip-w);
+    height: var(--width-chip-h);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -66,16 +68,6 @@
     transition:
       background-color var(--dur-fast) var(--ease),
       color var(--dur-fast) var(--ease);
-  }
-
-  .preset .choice {
-    min-width: var(--width-chip-w);
-    height: var(--width-chip-h);
-  }
-
-  .breakpoint .choice {
-    min-width: var(--breakpoint-w);
-    height: var(--breakpoint-h);
   }
 
   .divided .choice + .choice {

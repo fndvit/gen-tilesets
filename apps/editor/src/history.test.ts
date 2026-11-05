@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from "vitest";
 import { newDocument, setCellSize, setReferenceWidth, setRows, setYOffset } from "./document.js";
-import { applied, historyOf, replaced, undone, UNDO_LIMIT } from "./history.js";
+import { applied, appliedLive, historyOf, replaced, settled, undone, UNDO_LIMIT } from "./history.js";
 
 describe("a stack of whole values — 09 §4.4", () => {
   it("starts with nothing to undo", () => {
@@ -116,5 +116,47 @@ describe("purity — the stack never mutates what it holds", () => {
     const h = applied(applied(historyOf(start), setRows("9")), setRows("11"));
     expect(h.past[0]).toBe(start);
     expect(start.config.rows).toBe(5);
+  });
+});
+
+describe("a live gesture is one undo entry", () => {
+  const start = () => historyOf(newDocument());
+
+  it("follows every frame and undoes to before the drag", () => {
+    const before = start();
+    let h = appliedLive(before, "w", setRows("6"));
+    h = appliedLive(h, "w", setRows("7"));
+    h = appliedLive(h, "w", setRows("8"));
+    expect(h.current.config.rows).toBe(8);
+    expect(h.past).toHaveLength(1);
+    expect(undone(settled(h)).current).toBe(before.current);
+  });
+
+  it("starts a new entry after release, even on the same control", () => {
+    let h = settled(appliedLive(start(), "w", setRows("6")));
+    h = settled(appliedLive(h, "w", setRows("7")));
+    expect(h.past).toHaveLength(2);
+    expect(undone(h).current.config.rows).toBe(6);
+  });
+
+  it("starts a new entry for another control, or after any other operation", () => {
+    let h = appliedLive(start(), "a", setRows("6"));
+    h = appliedLive(h, "b", setRows("7"));
+    expect(h.past).toHaveLength(2);
+    h = applied(h, setYOffset("0.5"));
+    h = appliedLive(h, "b", setRows("8"));
+    expect(h.past).toHaveLength(4);
+  });
+
+  it("opens no gesture on a refused first frame", () => {
+    const before = start();
+    const h = appliedLive(before, "w", (f) => f);
+    expect(h).toBe(before);
+    expect(h.gesture).toBeUndefined();
+  });
+
+  it("settling with no gesture open changes nothing", () => {
+    const h = start();
+    expect(settled(h)).toBe(h);
   });
 });

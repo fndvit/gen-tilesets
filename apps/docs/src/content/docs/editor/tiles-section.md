@@ -60,7 +60,8 @@ records what the chosen files are for (`null` means a new group) and clicks it.
 | Group trash | `deleteTile(id)` | `tileReferences` names the operations and palette entries that use it, and nothing is applied |
 | Variant badge | `deleteAsset(tileId, assetId)` | the last variant (checked first), or the transition returned the same file (the last non-zero weight) |
 | Reset weights | `resetAssetWeights(tileId)` | never refused; already all 1 is an identity, so no undo entry |
-| Weight slider release | `setAssetWeight(tileId, assetId, String(weight))` | the same file came back and the weight was `0` |
+| Weight slider, each frame | `session.applyLive("weight:tile:asset", setAssetWeight(…))` | a refused frame leaves the file as it was |
+| Weight slider release | the same, then `session.settle()` | the weight was `0` and the file did not take it. Told by the weight the file ended with, since the last frame may already be in it |
 
 `refused(transition)` applies a transition and reports whether `session.file` is still the same
 object, because a refused transition is an identity.

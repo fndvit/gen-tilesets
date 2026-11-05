@@ -4,7 +4,7 @@ import { activeBound, boundsOf, holdingLabel, MIN_WIDTH, roomFor, widthFor, zoom
 
 describe("roomFor", () => {
   it("floors the column and leaves a gutter for each handle", () => {
-    expect(roomFor(1000.7)).toBe(1000 - 18);
+    expect(roomFor(1000.7)).toBe(1000 - 32);
   });
 
   it("never goes under the minimum width", () => {
@@ -28,11 +28,11 @@ describe("widthFor", () => {
 
 describe("zoomFor", () => {
   it("shrinks a width wider than the room", () => {
-    expect(zoomFor(1800, 900, 918)).toBe(0.5);
+    expect(zoomFor(1800, 900, 932)).toBe(0.5);
   });
 
   it("never magnifies", () => {
-    expect(zoomFor(360, 900, 918)).toBe(1);
+    expect(zoomFor(360, 900, 932)).toBe(1);
   });
 
   it("is 1 before the column is measured", () => {

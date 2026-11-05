@@ -33,7 +33,7 @@
   shows the rule taking over with nothing added here.
 
   Since Stage 2 the width, the backdrop and the zoom live in `view.svelte.ts`,
-  shared with `PreviewTopBar` (presets, readout, swatch) and `BreakpointBar`.
+  shared with `PreviewTopBar` (readout, breakpoints, presets, swatch).
   This component measures the column, owns the handles and draws at `Wpx`.
 -->
 <script lang="ts">
@@ -151,10 +151,9 @@
              --zoom: {zoom};"
     >
     <!--
-      Two handles, one per edge. They sit outside the render box: `08` **S9**
-      gives the component's own element no padding and no border so that `Wpx` is
-      unambiguously its width, and a handle drawn inside it would be a decoration
-      the component did not put there.
+      Two handles, one per edge, centred on it. They are siblings of the render
+      box, not inside it: `08` **S9** gives the component's own element no
+      padding and no border so that `Wpx` is unambiguously its width.
     -->
     <button
       type="button"
@@ -165,7 +164,7 @@
       onpointerup={onPointerUp}
       onpointercancel={onPointerUp}
       onkeydown={(e) => onKeyDown(e, -1)}
-    ></button>
+    ><span class="mark" aria-hidden="true"></span></button>
 
     {@render children(width)}
 
@@ -178,7 +177,7 @@
       onpointerup={onPointerUp}
       onpointercancel={onPointerUp}
       onkeydown={(e) => onKeyDown(e, 1)}
-    ></button>
+    ><span class="mark" aria-hidden="true"></span></button>
     </div>
   </div>
 </div>
@@ -216,17 +215,22 @@
       measurement is required" is not only an optimisation.
     */
     align-items: flex-start;
+    /* Room for the handles, whose squares and hit areas reach past the top
+       and bottom of the box. Content-box, so the inline height stays the
+       frame's own. */
+    box-sizing: content-box;
+    padding-block: var(--handle-hit-reach);
   }
 
   .frame {
     position: relative;
     /*
-      No background of its own: the backdrop is the whole column's
-      (`preview.background`, set in `App.svelte`), so the picture is judged
-      against one colour everywhere. The dashed outline is the editor saying
-      where the box ends; the box itself says nothing.
+      No background and no outline of its own: the backdrop is the whole
+      column's (`preview.background`, set in `App.svelte`), so the picture is
+      judged against one colour everywhere. The handles mark the sides and the
+      grid shows the cells; nothing marks top and bottom, as in Figma (Pol,
+      Stage 2 P3b).
     */
-    outline: var(--rule-w) dashed var(--color-frame);
     /* Scaled about the top centre, so the frame stays centred and the top edge
        stays put as the zoom changes. */
     transform-origin: top center;
@@ -242,38 +246,89 @@
     the one E11 states: it writes no field.
   */
   .handle {
+    /*
+      Counter-scaled, so the handle stays the same size on screen whatever the
+      display zoom is. Every length below is divided by the zoom for the same
+      reason.
+    */
+    --sq: calc(var(--handle-square) / var(--zoom, 1));
+    --cap: calc(var(--handle-cap) / var(--zoom, 1));
+    --cap-w: calc(var(--handle-cap-w) / var(--zoom, 1));
+    --reach: calc(var(--handle-reach) / var(--zoom, 1));
+    --hit: calc(var(--handle-hit-reach) / var(--zoom, 1));
+    --line: calc(var(--handle-dot) / var(--zoom, 1));
+    --gap: calc(var(--handle-dot-gap) / var(--zoom, 1));
+    --mark-color: var(--color-ink);
+
     position: absolute;
-    top: 0;
-    bottom: 0;
+    top: calc(-1 * var(--hit));
+    bottom: calc(-1 * var(--hit));
     /* Above every layer inside the frame: the width control must not become
        the one thing an overlay can cover. */
     z-index: 4;
-    /*
-      Counter-scaled, so the grab target stays the same size on screen whatever
-      the display zoom is. Without this a 60% zoom leaves a 5px handle, and at
-      the wide presets it becomes hard to hit — which is how the handles appeared
-      to vanish before the zoom existed at all.
-    */
     width: calc(var(--handle-w) / var(--zoom, 1));
     padding: 0;
     border: 0;
     border-radius: 0;
+    background: none;
     cursor: ew-resize;
-    background: var(--color-frame);
     touch-action: none;
   }
 
-  .handle:hover,
-  .handle:focus-visible {
-    background: var(--color-ink);
-    outline: none;
-  }
-
+  /*
+    The hit area is centred on the box edge, so the line is in its middle, and
+    it reaches past the squares, so the ends are as easy to grab as the line
+    (Pol, P3b review). Its inner half lies over the box and takes those pixels
+    from the Handpick brush; the outer half is the gutter `HANDLE` reserves.
+  */
   .handle.left {
-    left: calc(-1 * var(--handle-w) / var(--zoom, 1));
+    left: calc(-1 * var(--handle-w) / 2 / var(--zoom, 1));
   }
 
   .handle.right {
-    right: calc(-1 * var(--handle-w) / var(--zoom, 1));
+    right: calc(-1 * var(--handle-w) / 2 / var(--zoom, 1));
   }
+
+  .handle:focus-visible {
+    outline-width: calc(var(--focus-w) / var(--zoom, 1));
+    outline-offset: calc(var(--focus-offset) / var(--zoom, 1));
+  }
+
+  /* Hover and focus: the dotted line turns solid and doubles (Block F). */
+  .handle:hover,
+  .handle:focus-visible {
+    --line: var(--cap-w);
+    --gap: 0px;
+  }
+
+  .handle:active {
+    --mark-color: var(--color-pressed);
+  }
+
+  /*
+    Figma's *Handle*, drawn rather than downloaded so it stretches with the box:
+    a square at each end, a solid cap from each square to the box edge, and a
+    dotted line along the edge. Centred in the hit area, so on the edge.
+  */
+  .mark {
+    position: absolute;
+    top: calc(var(--hit) - var(--reach));
+    bottom: calc(var(--hit) - var(--reach));
+    left: calc(50% - var(--sq) / 2);
+    width: var(--sq);
+    pointer-events: none;
+    background:
+      linear-gradient(var(--mark-color), var(--mark-color)) center top / var(--sq) var(--sq) no-repeat,
+      linear-gradient(var(--mark-color), var(--mark-color)) center bottom / var(--sq) var(--sq) no-repeat,
+      linear-gradient(var(--mark-color), var(--mark-color)) left 50% top calc(var(--reach) - var(--cap)) /
+        var(--cap-w) var(--cap) no-repeat,
+      linear-gradient(var(--mark-color), var(--mark-color)) left 50% bottom calc(var(--reach) - var(--cap)) /
+        var(--cap-w) var(--cap) no-repeat,
+      repeating-linear-gradient(
+          var(--mark-color) 0 var(--line),
+          transparent var(--line) calc(var(--line) + var(--gap))
+        )
+        left 50% top var(--reach) / var(--line) calc(100% - 2 * var(--reach)) no-repeat;
+  }
+
 </style>

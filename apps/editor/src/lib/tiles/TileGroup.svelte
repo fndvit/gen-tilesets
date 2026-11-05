@@ -33,6 +33,9 @@
     hint?: string | undefined;
     onRename: (name: string) => void;
     onDelete: () => void;
+    /** Every frame of a weight drag; the file follows it. */
+    onWeightInput: (assetId: string, weight: number) => void;
+    /** A weight drag's release, or a keyboard step. */
     onWeight: (assetId: string, weight: number) => void;
     onDeleteAsset: (assetId: string) => void;
     /** Every variant back to weight 1. */
@@ -49,6 +52,7 @@
     hint,
     onRename,
     onDelete,
+    onWeightInput,
     onWeight,
     onDeleteAsset,
     onResetWeights,
@@ -63,13 +67,9 @@
   /** Disabled, not hidden, when there is nothing to reset. */
   const equal = $derived(assets.every((a) => a.weight === 1));
 
-  /** A drag in progress: the moving variant's weight, so every row's % follows it. */
-  let live = $state<{ id: string; weight: number } | null>(null);
-
-  const weightOf = (id: string, weight: number) => (live?.id === id ? live.weight : weight);
-  const total = $derived(assets.reduce((n, a) => n + weightOf(a.id, a.weight), 0));
-  const percentOf = (id: string, weight: number) =>
-    total > 0 ? Math.round((weightOf(id, weight) / total) * 100) : 0;
+  /** From the file, which follows a drag frame by frame, so every row's % moves with it. */
+  const total = $derived(assets.reduce((n, a) => n + a.weight, 0));
+  const percentOf = (weight: number) => (total > 0 ? Math.round((weight / total) * 100) : 0);
 
   /** The bar's thumbnails (Figma group B), kept while open too (Pol, Block F review). */
   const thumbs = $derived(assets.slice(0, 4).map((a) => stored(tile.id, a.id)?.url ?? null));
@@ -117,13 +117,10 @@
           tileId={tile.id}
           {asset}
           position={i + 1}
-          percent={percentOf(asset.id, asset.weight)}
+          percent={percentOf(asset.weight)}
           canDelete={assets.length > 1}
-          onInput={(weight) => (live = { id: asset.id, weight })}
-          onCommit={(weight) => {
-            live = null;
-            onWeight(asset.id, weight);
-          }}
+          onInput={(weight) => onWeightInput(asset.id, weight)}
+          onCommit={(weight) => onWeight(asset.id, weight)}
           onDelete={() => onDeleteAsset(asset.id)}
         />
       {/each}

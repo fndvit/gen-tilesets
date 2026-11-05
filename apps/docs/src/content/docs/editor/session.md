@@ -46,6 +46,8 @@ one.
 | `canUndo` | getter, `boolean` | `history.past.length > 0`. Drives the Undo button. |
 | `apply(transition)` | method | `history = applied(history, transition)` |
 | `undo()` | method | `history = undone(history)` |
+| `applyLive(key, transition)` | method | `history = appliedLive(history, key, transition)`: a weight drag changes the file every frame and is one undo entry |
+| `settle()` | method | `history = settled(history)`, on release |
 | `reset()` | method | `history = historyOf(newDocument())`. Not undoable. |
 | `open(file)` | method | `history = replaced(history, file)` |
 

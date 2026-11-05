@@ -31,7 +31,7 @@ Generic over `T extends string | number | boolean`.
 | --- | --- | --- | --- |
 | `options` | `{ value: T; label: string }[]` | required | In display order. |
 | `value` | `T` | required | The chosen value. |
-| `onChange` | `(value: T) => void` | required | Called on every change. |
+| `onChange` | `(value: T) => void` | required | Called on every change; never with the current `value`. |
 | `label` | `string` | required | `aria-label` of the radio group. |
 | `disabled` | `boolean` | `false` | |
 
@@ -49,6 +49,8 @@ Generic over `T extends string | number | boolean`.
 ### Invariants
 
 - **Every move commits.** Each chip is a whole value, so there is no separate confirm step.
+- **Choosing the chosen chip calls nothing**, as with a native radio. Before Stage 2, clicking the
+  chosen Alignment chip asked to confirm a destructive edit that changed nothing (Pol).
 - **The component holds no value.** It shows `value` and reports changes.
 
 ### Callers / callees

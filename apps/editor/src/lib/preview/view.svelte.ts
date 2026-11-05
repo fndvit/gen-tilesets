@@ -1,10 +1,10 @@
 /**
  * The preview's own state: its width, its backdrop and whether the grid shows.
  *
- * Shared by three surfaces: the top bar sets the width and the backdrop, the
- * breakpoint bar sets the width, and `PreviewFrame` measures the column, drags
- * the edges and draws at the result. They are siblings in `App.svelte`, because
- * the bars stay put while the picture scrolls, so the state lives here rather
+ * Shared by two surfaces: the top bar sets the width (presets, breakpoints)
+ * and the backdrop, and `PreviewFrame` measures the column, drags the edges and
+ * draws at the result. They are siblings in `App.svelte`, because the bar stays
+ * put while the picture scrolls, so the state lives here rather
  * than in any one of them.
  *
  * **Transient UI state, never written to the file** (**E11**, §4.1, **E4**).

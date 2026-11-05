@@ -4,7 +4,9 @@
 
   It is a radio group, so Tab enters it once, on the chosen chip, and the arrow
   keys move the choice. Every move commits through `onChange`; there is no
-  separate confirm, because each chip is a complete value.
+  separate confirm, because each chip is a complete value. Choosing the chip
+  that is already chosen is not a change and calls nothing, as with a native
+  radio; otherwise a gated caller (Alignment) would ask to confirm a no-op.
 
   Name it with `label`, or put it in a `FieldRow` (which names its group) and
   pass the same text.
@@ -31,13 +33,17 @@
 
   const selected = $derived(options.findIndex((o) => o.value === value));
 
+  function choose(next: T): void {
+    if (next !== value) onChange(next);
+  }
+
   function onKeydown(event: KeyboardEvent, i: number): void {
     const next = rovingIndex(event.key, i, options.length);
     if (next === null) return;
     event.preventDefault();
     const option = options[next];
     if (!option) return;
-    onChange(option.value);
+    choose(option.value);
     chips[next]?.focus();
   }
 </script>
@@ -52,7 +58,7 @@
       aria-checked={i === selected}
       tabindex={i === selected || (selected < 0 && i === 0) ? 0 : -1}
       {disabled}
-      onclick={() => onChange(option.value)}
+      onclick={() => choose(option.value)}
       onkeydown={(event) => onKeydown(event, i)}
     >
       {option.label}

@@ -26,7 +26,6 @@
   import { drafting } from "./drafting.svelte.js";
   import { atRisk, needsConfirmation, orphans } from "./orphans.js";
   import PaintLayer from "./lib/PaintLayer.svelte";
-  import BreakpointBar from "./lib/preview/BreakpointBar.svelte";
   import PreviewFrame from "./lib/preview/PreviewFrame.svelte";
   import PreviewGrid from "./lib/preview/PreviewGrid.svelte";
   import PreviewTopBar from "./lib/preview/PreviewTopBar.svelte";
@@ -452,7 +451,6 @@
       </div>
     </ScrollArea>
     </div>
-    <BreakpointBar {rules} />
   </section>
 
 </main>
@@ -524,14 +522,14 @@
   }
 
   /*
-    The preview column: the top bar, the picture area, the breakpoint bar. The
-    bars stay put and only the picture area scrolls, in a `ScrollArea` like the
+    The preview column: the top bar (with the breakpoints, Pol, Stage 2), then
+    the picture area. The bar stays put and only the picture area scrolls, in a `ScrollArea` like the
     sidebar, so a scrollbar never takes width from the frame and the sidebar
     never moves.
   */
   .preview {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr);
   }
 

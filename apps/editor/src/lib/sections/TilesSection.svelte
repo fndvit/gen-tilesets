@@ -144,8 +144,26 @@
     }
   }
 
+  /**
+   * A weight drag changes the file on every frame, so the picture follows it
+   * (Pol, Stage 2), and the whole drag is one undo entry (`session.applyLive`).
+   * One gesture per slider.
+   */
+  const weightGesture = (tile: Tile, assetId: string) => `weight:${tile.id}:${assetId}`;
+
+  function slideWeight(tile: Tile, assetId: string, weight: number): void {
+    session.applyLive(weightGesture(tile, assetId), setAssetWeight(tile.id, assetId, String(weight)));
+  }
+
+  /**
+   * Release. The last frame may already be in the file, so a refusal is told
+   * by the weight the file ended with rather than by an unchanged file.
+   */
   function changeWeight(tile: Tile, assetId: string, weight: number): void {
-    if (refused(setAssetWeight(tile.id, assetId, String(weight))) && weight === 0) {
+    slideWeight(tile, assetId, weight);
+    session.settle();
+    const kept = session.file.config.tiles.find((t) => t.id === tile.id)?.assets.find((a) => a.id === assetId);
+    if (weight === 0 && kept?.weight !== 0) {
       report([`"${tile.name}" must keep one variant with a weight above 0.`]);
     }
   }
@@ -183,6 +201,7 @@
           : undefined}
         onRename={(name) => rename(tile, name)}
         onDelete={() => removeTile(tile)}
+        onWeightInput={(assetId, weight) => slideWeight(tile, assetId, weight)}
         onWeight={(assetId, weight) => changeWeight(tile, assetId, weight)}
         onDeleteAsset={(assetId) => removeAsset(tile, assetId)}
         onResetWeights={() => session.apply(resetAssetWeights(tile.id))}

@@ -31,15 +31,15 @@ export const MIN_WIDTH = 160;
 export const PRESETS = [360, 768, 1024, 1440] as const;
 
 /**
- * How much room each width handle needs beside the frame, in screen px. Matches
- * `--handle-w`.
+ * How much room each width handle needs beside the frame, in screen px: half of
+ * `--handle-w` (32), because the hit area is centred on the box edge (Pol, P3b
+ * review) and only its outer half lies beside the box.
  *
- * The handles sit just outside the render box — `08` **S9** gives the
+ * The handles are not inside the render box — `08` **S9** gives the
  * component's own element no padding and no border so `Wpx` is unambiguously
- * its width, and drawing a handle inside it would hide part of the picture the
- * author is judging. So the column reserves the gutter instead.
+ * its width — so the column reserves the gutter instead.
  */
-export const HANDLE = 9;
+export const HANDLE = 16;
 
 /** The default backdrop. */
 export const WHITE = "#ffffff"; // part of the picture, not chrome, so not a token
