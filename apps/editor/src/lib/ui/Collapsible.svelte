@@ -178,9 +178,10 @@
   }
 
   /* The triangle hangs in the gutter, so the title lines up with the fields below. */
+  /* The gutter on the right too, so a summary or "+" stays clear of the scroll handle. */
   .section > .heading .bar {
     min-height: var(--bar-h-section);
-    padding-right: var(--space-4);
+    padding-right: var(--pad-x);
   }
 
   .section > .heading .toggle {

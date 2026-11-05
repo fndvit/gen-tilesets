@@ -95,9 +95,9 @@
     flex: 1 1 0;
     flex-direction: column;
     justify-content: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     min-width: 0;
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-1) var(--space-3);
     border: 0;
     background: var(--color-paper);
     color: var(--color-label);
@@ -114,8 +114,11 @@
     border-left: var(--divider);
   }
 
+  /* Untrimmed: it clips for the ellipsis, and a cap-trimmed box lost the letters' tops. */
   .name {
     overflow: hidden;
+    line-height: var(--leading-title);
+    text-box: none;
     text-overflow: ellipsis;
   }
 

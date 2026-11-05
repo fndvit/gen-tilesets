@@ -168,7 +168,6 @@
     border: 0;
     background: transparent;
     color: var(--color-ink);
-    line-height: 1;
     text-align: right;
     appearance: textfield;
   }
