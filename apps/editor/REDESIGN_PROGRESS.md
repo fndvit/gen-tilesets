@@ -12,9 +12,9 @@ iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into th
 (P1–P4) are complete. Their functionality is unchanged, but their *look* in the sections below
 is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. Stage 2 ·
 Warnings and dialogs is **closed** (W0–W5: `8364d4e`, `3034fc1`, `3a8ca84`, `feafa9a`). The palette
-group (item 7) reached K3 (`71fd0c1`) and is **paused before K4**. **Next session: follow "Next
-session plan: Tile and pattern (item 11)" below**, starting with T0's questions for Pol. K4's
-sweep folds into T4.
+group (item 7) reached K3 (`71fd0c1`) and paused before K4, whose sweep folds into the Tile and
+pattern group's T4. Tile and pattern (item 11): T0–T2 done, **T3 committed (`bf60a0d`)**.
+**Next session: follow "Next session plan: T4 · Sweep" below**, which closes both groups.
 
 ## Stage 1 blocks
 
@@ -1352,7 +1352,78 @@ saves one entry, switching back before Save restores the list, one undo reverts 
 there is no sideways scroll, no text under 12px and no target under 24px at 1728, 1024, 600 and
 320 px.
 
-Next: Pol reviews T3, then commit, then the T4 sweep.
+Committed as `bf60a0d` (2026-11-06), with Pol's go-ahead.
+
+## Next session plan: T4 · Sweep (written 2026-11-06)
+
+T4 closes **two** groups: Tile and pattern (item 11), and the palette widget (item 7, whose K4
+folded in here). It is one block that stops for Pol's review before committing. Read
+`DESIGN_SYSTEM.md` (**Palette**, **Operation stepper**, **Tile picker**) and "T3" above first.
+No new design: the sweep fixes what the probes find, and asks Pol before changing anything
+visible.
+
+### Step 0 · Three questions for Pol (before any fix)
+1. **Constant shows "Tile" twice.** The options bar says "Tile", and inside the well the label
+   is "Tile" again. The T1 mock did the same. Drop the inner label, or keep it?
+2. **Old files with several entries under `constant`.** The stepper shows the one entry that
+   paints, and Save writes only it. But a collapsed card reads the *file*, so until it is
+   re-saved its title lists every entry, including ones that never paint. Make `writesOf` apply
+   the same rule (`constantEntry`), or leave the card showing the file as written?
+   Recommendation: apply it, because the card should say what the operation does.
+3. **The open card's accent edge (backlog 10).** Handle it in this sweep, or leave it for later?
+
+### Step 1 · Probes (rebuild from W5's and T3's helpers)
+Use `t3/smoke.mjs` + `t3/readme.zip` (session `135a6279`'s scratchpad) and W5's `w5/probe.mjs`
+(session `e17b73a2`'s scratchpad: targets, text size, capitals, contrast). If they are gone,
+rebuild them (see "How to test"). Dev server on **5175**. Check:
+- **Targets ≥ 24px**, including a zero-weight row's slider, the grip, Constant's 48px thumb, the
+  Pattern glyph cells and the picker cells;
+- **text ≥ 12px** and **no capitals** (`text-transform`), including "≈ painted", "chance",
+  "every selected cell" and the glyph labels;
+- **contrast**: the muted header note, captions, the "—" readout and the step answers (4.5:1).
+  The Pattern glyphs' grey-300 cells are decorative, since the label carries the meaning; say so
+  rather than "fixing" them;
+- **focus order and keyboard**: the Pattern radiogroup's arrow keys, the keyboard reorder path
+  (Menu → Move earlier/later, WCAG 2.5.7) under Noise and Gradient, the picker from Constant's
+  thumb (opens, Esc returns focus), and after Remove;
+- **no sideways scroll** at 1728, 1024, 600 and 320, with the palette open in each mode. The
+  250px container query under the narrowest sidebar: the header note is hidden and nothing
+  overflows (check that "≈100%" fits `--share-measured-w`);
+- **screen reader names**: the Random list is a `ul` "Palette", the ordered one an `ol` "Palette,
+  in order"; Constant's thumb is "Tile: Beige, change"; the kept-entries line is announced
+  (Advisory's `role="status"`).
+
+### Step 2 · Behaviour not covered by T3's smoke
+- **Gradient against `generate()`**, as Noise was in T3: a throwaway vitest in `apps/editor/src`
+  counting op1 under `gradient` (angle 45, and 0) at 29 and 9 columns, compared with the UI's ≈%.
+  Delete the throwaway test afterwards.
+- **"—"**: a Tile operation whose Selection selects nothing (Handpick with no cells) shows "—" on
+  every row and draws no NaN in the strip.
+- **Numeric attribute under Constant**: `NumericMapping` still collapses to one handle in the new
+  order, and switching Pattern back un-collapses it.
+- **Speed**: time a weight drag on the readme grid (29×14) and on a large grid (e.g. 60×120).
+  The field does not depend on the palette, so a drag should only re-run `coverageOf`. Confirm
+  this with a counter or a performance mark, then remove the instrumentation. Only optimise if it
+  stutters.
+- **Undo**: one Save is one undo entry under each pattern; Discard leaves no entry.
+- **Edit-draft coverage**: reopening op1 (an edit-draft, so its id is already in the stack)
+  measures the draft, not the stored operation. Change the noise params and the ≈% moves before
+  Save.
+
+### Step 3 · Leftovers and docs
+- Apply Pol's Step 0 answers, with tests (`labels.test.ts` for question 2).
+- Grep the user-facing docs and copy for a step called "Source". The code keeps `source` and
+  `sourceType`, and the docs may name those, but not the step. Grep for "threshold" and "advisory
+  8" too. Stale line-number citations in the touched docs pages: fix the ones T3 moved.
+- Re-run the docs build and the coverage check.
+
+### Step 4 · Close
+- `pnpm test`, `pnpm typecheck` and the docs build all green; the probe and smoke counts recorded
+  here.
+- Stop for Pol's review, then commit and **close both groups** (item 7 and item 11) in "Current
+  position" and the backlog.
+- Pick the next group with Pol. Recommendation: **12 (explain Noise)**, while the Pattern step is
+  fresh; then 1 (export menu), 6 (Attribute and Blend glyphs), 8, 9 and 10.
 
 Side note: the notes untracked by 9e9590c had also been deleted from disk. `CLAUDE.md` and
 `ARCHITECTURE.md` were restored from `9e9590c^` (Pol's choice: these two only).
