@@ -21,18 +21,12 @@
   } from "../../document.js";
   import { drawLoadSalt, loadVaries } from "../../reseed.js";
   import { session } from "../../session.svelte.js";
+  import { preview } from "../preview/view.svelte.js";
   import Button from "../ui/Button.svelte";
   import FieldRow from "../ui/FieldRow.svelte";
   import Hint from "../ui/Hint.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import Toggle from "../ui/Toggle.svelte";
-
-  interface Props {
-    /** §8.5's load-preview value. App holds it, because `<Tileset>` reads it. */
-    loadSalt: number;
-  }
-
-  let { loadSalt = $bindable() }: Props = $props();
 
   const config = $derived(session.file.config);
   const seedId = $props.id();
@@ -126,7 +120,7 @@
           wide
           describedby={hintId}
           disabled={!varies}
-          onclick={() => (loadSalt = drawLoadSalt())}
+          onclick={() => (preview.loadSalt = drawLoadSalt())}
         />
       {/snippet}
     </Hint>

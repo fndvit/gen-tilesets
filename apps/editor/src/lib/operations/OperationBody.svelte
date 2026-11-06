@@ -2,8 +2,9 @@
   The open operation's body: a vertical stepper inside its card
   (`OperationCard`). It edits a draft, never the file (`09-editor.md` §7).
 
-  Four steps, in the order the author walks them: **Selection → attribute →
-  Source → Blend**, with the mapping folded into the attribute step per §7.4.
+  Four steps, in the order the author walks them: **Selection → Pattern →
+  Attribute → Blend**, with the mapping folded into the attribute step per §7.4.
+  "Pattern" is the Source step's label; its key stays `source` (`STEP_LABELS`).
   Iteration 2 lays them out as a numbered list joined by a line, each row the
   step's name and its current answer, instead of a row of tabs: how the steps
   follow one another is visible, and every answer stays in view while one is
@@ -18,15 +19,16 @@
   | Step      | Options from                                  |
   | --------- | --------------------------------------------- |
   | Selection | the registry, with Figma's artwork             |
-  | attribute | `TARGETS` (label-only until designed)          |
-  | Source    | the registry (label-only until designed)       |
+  | Pattern   | the registry, with hand-drawn artwork          |
+  | Attribute | `TARGETS` (label-only until designed)          |
   | Blend     | `acceptedBlends()` — §7.7, ADR-001             |
 
   A Selection or Source registered later appears with no change here (**E9**),
-  as a label-only cell if it has no artwork. The steps stay navigable after the
-  fact rather than being a one-way wizard: §7.4's collapse under a `constant`
-  Source and §7.6's advisory about a reordered palette under `random` make the
-  attribute step depend on the Source after it (`DECISIONS.md` D8).
+  as a label-only cell if it has no artwork. The Pattern comes before the
+  Attribute because it decides what the mapping means: §7.4's collapse under
+  `constant`, and a palette read as chances under `random` but as measured
+  coverage under an ordered Pattern (Pol, T0). The steps stay navigable in any
+  order once opened (`DECISIONS.md` D8).
 
   The Blend grid shows every accepted Blend with the Target's default chosen,
   rather than §7.7's "reveal the accepted set only on request" (Pol, Block E).
@@ -37,9 +39,11 @@
   one undo entry (**E6**).
 -->
 <script lang="ts">
-  import type { Snippet } from "svelte";
+  import { createRawSnippet, type Snippet } from "svelte";
   import {
     acceptedBlends,
+    activeRules,
+    ruleOverride,
     selections,
     sources,
     TARGETS,
@@ -54,6 +58,7 @@
   import randomGlyph from "../../assets/glyphs/selection/random.svg";
   import rectGlyph from "../../assets/glyphs/selection/rect.svg";
   import { isTileTarget } from "../../controls/mapping.js";
+  import { coverageOf, fieldOf } from "../../controls/palette.js";
   import NumericMappingControl from "../../controls/NumericMapping.svelte";
   import PaletteList from "../../controls/PaletteList.svelte";
   import ParamFields from "../../controls/ParamFields.svelte";
@@ -62,18 +67,28 @@
     defaultParams,
     isComplete,
     retarget,
+    shadowConfig,
     STEPS,
     toOperation,
     type Draft,
     type Step,
   } from "../../draft.svelte.js";
   import { session } from "../../session.svelte.js";
+  import { preview } from "../preview/view.svelte.js";
   import Button from "../ui/Button.svelte";
   import FieldRow from "../ui/FieldRow.svelte";
   import GlyphGrid from "../ui/GlyphGrid.svelte";
   import Hint from "../ui/Hint.svelte";
   import Toggle from "../ui/Toggle.svelte";
-  import { draftParts, labelFor, summaryCells, writesOf, writesText } from "./labels.js";
+  import {
+    draftParts,
+    labelFor,
+    STEP_LABELS,
+    summaryCells,
+    writesOf,
+    writesText,
+  } from "./labels.js";
+  import { PATTERN_ORDER, patternSvg } from "./pattern-art.js";
 
   interface Props {
     /**
@@ -107,12 +122,20 @@
     cellList: handpickGlyph,
   };
 
-  const QUESTIONS: Record<Step, string> = {
+  /**
+   * The Pattern's question names tiles when the Target is Tile, and also while
+   * no Target is chosen: the walk reaches Pattern before Attribute, and Tile is
+   * the common case.
+   */
+  const questions = $derived<Record<Step, string>>({
     selection: "Which cells does this operation affect?",
+    source:
+      draft.target === null || isTileTarget(draft.target)
+        ? "How should the tiles spread?"
+        : "How should the values spread?",
     attribute: "What does this operation write?",
-    source: "Where does each cell's number come from?",
     blend: "How does this combine with what is already there?",
-  };
+  });
 
   /** The 1-based numbers of the file's breakpoints that name `rows` or `columns`. */
   const resizedBy = $derived(
@@ -154,11 +177,28 @@
     schema !== null && Object.keys(schema).length > 0;
 
   /**
-   * `04` §5.2's presets. `vignette` is specified there but is **not registered**
-   * in `packages/tileset`, so it is absent — an engine gap, flagged and not
-   * worked around.
+   * `04` §5.2's presets, drawn ones first in `PATTERN_ORDER`. `vignette` is
+   * specified there but is **not registered** in `packages/tileset`, so it is
+   * absent — an engine gap, flagged and not worked around.
+   *
+   * The art is a static SVG string (`pattern-art.ts`), wrapped as a snippet so
+   * `GlyphGrid` can take it per item. A Source with no art keeps a label-only
+   * cell (**E9**).
    */
-  const sourceItems = sources.all().map((r) => ({ value: r.name, label: labelFor(r.name) }));
+  const patternRank = (name: string): number => {
+    const i = PATTERN_ORDER.indexOf(name);
+    return i < 0 ? PATTERN_ORDER.length : i;
+  };
+  const sourceItems = [...sources.all()]
+    .sort((a, b) => patternRank(a.name) - patternRank(b.name))
+    .map((r) => {
+      const svg = patternSvg(r.name);
+      return {
+        value: r.name,
+        label: labelFor(r.name),
+        ...(svg === null ? {} : { artwork: createRawSnippet(() => ({ render: () => svg })) }),
+      };
+    });
 
   /**
    * `04` §7.2's Targets, from the package's own table. Closed by `05` §4.2, which
@@ -194,10 +234,43 @@
   /**
    * §7.4 — "the handles collapse to one when the Source is `constant`." `04`
    * §5.2: `constant` emits `0` always, so a fixed value is the mapping's `min`
-   * equal to its `max`. Live, because the Source comes after the attribute
+   * equal to its `max`. Live, because the steps can be revisited in any order
    * (`DECISIONS.md` D8).
    */
   const collapsed = $derived(draft.sourceType === "constant");
+
+  /**
+   * The pattern's `t` at every selected cell, for the palette's measured "≈
+   * painted" share (T3). `null` while there is nothing to measure: no Selection
+   * or Pattern yet, or no Tile Target.
+   *
+   * Counted on the grid the preview is showing — the active breakpoint's rows
+   * and columns at `preview.width` — with the file's seed and the preview's load
+   * salt, the same three inputs `<Tileset>` draws with, against the same shadow
+   * config as the Selection overlay. So the figure is what Save will paint here.
+   *
+   * It does not read the palette (`toShadowOperation` carries none), so a
+   * weight drag re-counts this list in `coverageOf` and never re-evaluates the
+   * pattern.
+   */
+  const field = $derived.by(() => {
+    if (draft.sourceType === null || draft.target === null || !isTileTarget(draft.target)) return null;
+    const file = session.file;
+    const shadow = shadowConfig(file.config, draft);
+    if (shadow === null) return null;
+    const shape = ruleOverride(activeRules(file.responsive ?? [], preview.width));
+    const grid = {
+      ...shadow.config,
+      rows: shape.rows ?? shadow.config.rows,
+      columns: shape.columns ?? shadow.config.columns,
+    };
+    return fieldOf(grid, shadow.operationId, file.config.defaultSeed, preview.loadSalt);
+  });
+
+  /** Each entry's measured share, or `null` for "—" (nothing measured, or no cell selected). */
+  const measured = $derived(
+    field === null || field.length === 0 ? null : coverageOf(field, draft.palette),
+  );
 
   /**
    * Choosing a type materializes every parameter at its schema default (§7.1,
@@ -234,7 +307,7 @@
    * §7.2), so answering the attribute answers the Blend too (§7.7).
    */
   const unanswered = $derived.by(() => {
-    const open = STEPS.filter((step) => chosen(step) === null).map(labelFor);
+    const open = STEPS.filter((step) => chosen(step) === null).map((step) => STEP_LABELS[step]);
     // Every step answered and still not whole: `06` §7.3's rules on the mapping
     // — an empty palette, or weights summing to zero.
     if (open.length === 0 && !isComplete(draft)) open.push("the mapping");
@@ -279,7 +352,7 @@
           onclick={() => (draft.step = step)}
         >
           <span class="dot t-console" aria-hidden="true">{i + 1}</span>
-          <span class="name t-title">{labelFor(step)}</span>
+          <span class="name t-title">{STEP_LABELS[step]}</span>
           <span class="answer t-console" class:unset={chosen(step) === null}>
             {chosen(step) === null ? "Not set" : answers[step]}
           </span>
@@ -296,7 +369,7 @@
   <div class="actions">
     <Button label="Discard" variant="tertiary" onclick={onClose} />
     {#if next !== null}
-      <Button label="Next: {labelFor(next)}" onclick={() => (draft.step = next)} />
+      <Button label="Next: {STEP_LABELS[next]}" onclick={() => (draft.step = next)} />
     {/if}
     <Hint text={unanswered.length > 0 ? `Still open: ${unanswered.join(", ")}.` : undefined}>
       {#snippet children()}
@@ -314,7 +387,7 @@
 {#snippet content()}
   <Hint text={draft.step === "selection" ? selectionHint : undefined}>
     {#snippet children()}
-      <p class="question t-label">{QUESTIONS[draft.step]}</p>
+      <p class="question t-label">{questions[draft.step]}</p>
     {/snippet}
   </Hint>
 
@@ -340,42 +413,9 @@
       {/snippet}
       {@render options(draft.selectionType, fields)}
     {/if}
-  {:else if draft.step === "attribute"}
-    <!--
-      §7.4 folds the mapping into this step: "a numeric mapping is two handles
-      on the Target's slider track, and the author never sees the word
-      *mapping*". The Target decides which shape appears — `06` **C8**.
-    -->
-    <GlyphGrid
-      items={targetItems}
-      value={draft.target}
-      onChange={(target) => retarget(draft, target)}
-      label="Attribute"
-    />
-    {#if draft.target !== null}
-      {@const target = draft.target}
-      {#snippet fields()}
-        {#if isTileTarget(target)}
-          <PaletteList
-            palette={draft.palette}
-            tiles={session.file.config.tiles}
-            sourceType={draft.sourceType}
-            onChange={(palette) => (draft.palette = palette)}
-          />
-        {:else}
-          <NumericMappingControl
-            target={target as AttributeName}
-            mapping={draft.numeric}
-            {collapsed}
-            onChange={(mapping) => (draft.numeric = mapping)}
-          />
-        {/if}
-      {/snippet}
-      {@render options(target, fields)}
-    {/if}
   {:else if draft.step === "source"}
     <!-- Every Source emits a value in [0, 1); the mapping gives it units. -->
-    <GlyphGrid items={sourceItems} value={draft.sourceType} onChange={chooseSource} label="Source" />
+    <GlyphGrid items={sourceItems} value={draft.sourceType} onChange={chooseSource} label="Pattern" />
     {#if draft.sourceType !== null && (hasFields(sourceSchema) || stochastic)}
       {#snippet fields()}
         {#if sourceSchema}
@@ -406,6 +446,40 @@
         {/if}
       {/snippet}
       {@render options(draft.sourceType, fields)}
+    {/if}
+  {:else if draft.step === "attribute"}
+    <!--
+      §7.4 folds the mapping into this step: "a numeric mapping is two handles
+      on the Target's slider track, and the author never sees the word
+      *mapping*". The Target decides which shape appears — `06` **C8**.
+    -->
+    <GlyphGrid
+      items={targetItems}
+      value={draft.target}
+      onChange={(target) => retarget(draft, target)}
+      label="Attribute"
+    />
+    {#if draft.target !== null}
+      {@const target = draft.target}
+      {#snippet fields()}
+        {#if isTileTarget(target)}
+          <PaletteList
+            palette={draft.palette}
+            tiles={session.file.config.tiles}
+            sourceType={draft.sourceType}
+            coverage={measured}
+            onChange={(palette) => (draft.palette = palette)}
+          />
+        {:else}
+          <NumericMappingControl
+            target={target as AttributeName}
+            mapping={draft.numeric}
+            {collapsed}
+            onChange={(mapping) => (draft.numeric = mapping)}
+          />
+        {/if}
+      {/snippet}
+      {@render options(target, fields)}
     {/if}
   {:else if draft.target === null}
     <!-- A Blend belongs to a Target: `04` §7.2 gives each its own accepted set. -->

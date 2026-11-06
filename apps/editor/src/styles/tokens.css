@@ -81,6 +81,7 @@
   --notice-w: 360px; /* a notice in the preview's stack */
   --thumb: 32px;
   --thumb-sm: 16px;
+  --thumb-lg: 48px; /* Constant's one tile (T1) */
   --icon: 16px; /* every icon: one 16px grid, 1.5px stroke */
   --icon-button: 28px; /* a square icon button: above the 24px floor, with air round the 16px icon */
   --field-label-w: 38%; /* label column: values start at one tab stop, close to their label */
@@ -112,6 +113,7 @@
   --swatch-w: 30px; /* the background colour swatch, a control-high square */
   --asset-gap: 8px; /* between tile asset rows */
   --share-w: 40px; /* a tile asset's % */
+  --share-measured-w: 48px; /* a measured "≈68%" */
   /* The palette list and its tile picker. */
   --strip-h: 12px; /* the proportion strip: read-only, so no target size applies */
   --strip-zero: 2px; /* a zero-weight entry's tick on the strip */

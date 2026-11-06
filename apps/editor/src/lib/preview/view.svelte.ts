@@ -1,5 +1,6 @@
 /**
- * The preview's own state: its width, its backdrop and whether the grid shows.
+ * The preview's own state: its width, its backdrop, whether the grid shows, and
+ * which load it previews.
  *
  * Shared by two surfaces: the top bar sets the width (presets, breakpoints)
  * and the backdrop, and `PreviewFrame` measures the column, drags the edges and
@@ -35,6 +36,23 @@ let background = $state(WHITE);
 /** Whether the grid behind the picture is drawn. On by default. */
 let showGrid = $state(true);
 
+/**
+ * §8.5's load preview. **Writes no field** — §8.1's fourth row is the one that
+ * is not an edit, so it lives here and reaches `<Tileset>` through its `options`.
+ *
+ * **R12** — one value per session, held for its duration. `08` **S7** makes
+ * that structural rather than disciplinary: the component draws no random
+ * number at all, so a regeneration has nothing to redraw. Only the footer's
+ * Fresh load button moves it, which is what makes it a *preview of another load*
+ * rather than noise under every edit.
+ *
+ * Here rather than in `App.svelte` because three surfaces read it that are not
+ * nested in one another: `<Tileset>` and its overlay, the footer's Fresh load
+ * button, and the palette's measured coverage (T3), which must count the same
+ * load the picture draws.
+ */
+let loadSalt = $state(0);
+
 const room = $derived(roomFor(available));
 const width = $derived(widthFor(requested, room));
 const zoom = $derived(zoomFor(width, room, available));
@@ -66,6 +84,13 @@ export const preview = {
   },
   set showGrid(next: boolean) {
     showGrid = next;
+  },
+
+  get loadSalt(): number {
+    return loadSalt;
+  },
+  set loadSalt(next: number) {
+    loadSalt = next;
   },
 
   /** The column less the handle gutters: what Fill fills. */

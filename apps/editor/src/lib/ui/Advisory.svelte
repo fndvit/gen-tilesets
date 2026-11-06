@@ -1,6 +1,6 @@
 <!--
   An inline advisory: a muted info icon and a muted line, under the control it
-  is about (`09` §12.2's 6, 8 and 9). It is shown where the author can act on
+  is about (`09` §12.2's 6 and 9; 8 is retired, T0). It is shown where the author can act on
   it, so it is never a popup and has no ✕: it goes when its condition does.
 
   No box and no colour (**E16**: never styled as an error). It is a polite live

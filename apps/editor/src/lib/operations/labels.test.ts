@@ -5,6 +5,7 @@ import {
   draftParts,
   labelFor,
   partsOf,
+  STEP_LABELS,
   summarize,
   summaryCells,
   writesOf,
@@ -31,6 +32,13 @@ describe("labelFor", () => {
   });
 });
 
+describe("STEP_LABELS", () => {
+  it("calls the Source step Pattern, without relabelling a registry name", () => {
+    expect(STEP_LABELS.source).toBe("Pattern");
+    expect(labelFor("source")).toBe("Source");
+  });
+});
+
 describe("summaryCells", () => {
   it("gives each step its own answer, for the cell above its tab", () => {
     const op: Operation = {
@@ -43,8 +51,8 @@ describe("summaryCells", () => {
     };
     expect(summaryCells(partsOf(op), tiles)).toEqual({
       selection: "Checkered",
-      attribute: "Opacity [0.5 - 1]",
       source: "Random",
+      attribute: "Opacity [0.5 - 1]",
       blend: "Set",
     });
   });
@@ -65,7 +73,7 @@ describe("summarize", () => {
       mapping: { range: [0.5, 1] },
       blend: "set",
     };
-    expect(summarize(partsOf(op), tiles)).toBe("Checkered * Opacity [0.5 - 1] * Random * Set");
+    expect(summarize(partsOf(op), tiles)).toBe("Checkered * Random * Opacity [0.5 - 1] * Set");
   });
 
   it("shows steps only when present", () => {
@@ -77,7 +85,7 @@ describe("summarize", () => {
       mapping: { range: [0, 90], steps: 4 },
       blend: "add",
     };
-    expect(summarize(partsOf(op), tiles)).toBe("All * Rotation [0 - 90] × 4 * Gradient * Add");
+    expect(summarize(partsOf(op), tiles)).toBe("All * Gradient * Rotation [0 - 90] × 4 * Add");
   });
 
   it("names palette tiles, never ids, and calls an empty entry clear", () => {
@@ -94,7 +102,7 @@ describe("summarize", () => {
       },
       blend: "set",
     };
-    expect(summarize(partsOf(op), tiles)).toBe("All * Tile [sand, clear] * Random * Set");
+    expect(summarize(partsOf(op), tiles)).toBe("All * Random * Tile [sand, clear] * Set");
   });
 
   it("marks unanswered steps in a fresh draft", () => {

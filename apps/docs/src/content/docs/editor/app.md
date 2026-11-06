@@ -37,8 +37,8 @@ through it, and hands the open draft to the preview's overlays.
 
 `App.svelte` wires the editor's state modules to its components. It owns almost no logic of its
 own: a handful of `$derived` values computed from `session.file` and `drafting.draft`, some
-local state (`pending`, `askingResize`, `askingNew`, `loadSalt`, `failures`, `conditions`,
-`renderBox`), the destructive gate, `newTileset`, `openOperation`, and the markup. The sidebar sections live in `lib/sections/`. Every edit goes through `session.apply(transition)` with a transition from
+local state (`pending`, `askingResize`, `askingNew`, `failures`, `conditions`, `renderBox`;
+`loadSalt` is read from `preview.loadSalt`), the destructive gate, `newTileset`, `openOperation`, and the markup. The sidebar sections live in `lib/sections/`. Every edit goes through `session.apply(transition)` with a transition from
 [document.ts](/editor/document/). The header comment states the load-bearing rule: the preview
 is `<Tileset>` on the file, drawing the complete operation stack, and overlays are drawn over
 that output, never in place of it (cited as **S2**).
@@ -96,7 +96,7 @@ Which component renders which, in source order. Conditional children are marked.
 | [`notices`](/editor/notices/) | `shown`, `forget`, `dismiss`, `clear` |
 | `entry` (`entry.svelte.ts`) | `active`; `input`, `done`, `keydown` |
 | [`opening`](/editor/opening/) | `open` (the orphan notice's action) |
-| local `$state` | `failures`, `conditions`, `renderBox`, `loadSalt` (bound into the footer), `pending`, `askingResize`, `askingNew` |
+| local `$state` | `failures`, `conditions`, `renderBox`, `pending`, `askingResize`, `askingNew` |
 
 #### Derived values
 
@@ -109,7 +109,8 @@ Which component renders which, in source order. Conditional children are marked.
 | `liveFailures` | the `failures` whose asset still has the same `meta` object, as text | `current` |
 | `current` | `documentNotices(file, orphaned, liveFailures, openOperation)` from `advisories.ts` | `conditions` |
 | `painting` | the draft's Selection schema, looked up via [`selections`](/api/index/variables/selections/), searched for a param of type `cellList` | `PaintLayer`, `PreviewFrame`'s `painting` |
-| `shadow` | `toShadowOperation(draft)`, spliced into `config.operations` | `SelectionOverlay` |
+| `loadSalt` | `preview.loadSalt` ([view.svelte.ts](/editor/preview-width/)) | `<Tileset>`, `SelectionOverlay`, `orphaned` |
+| `shadow` | `shadowConfig(config, draft)` ([draft.svelte.ts](/editor/draft/)) | `SelectionOverlay` |
 
 #### The preview's props
 

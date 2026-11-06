@@ -16,8 +16,8 @@ The draft module describes an operation while the author is still building it. C
 operation takes four choices:
 
 - which cells it affects;
+- how its values spread over them (the Pattern);
 - which property it changes;
-- where its values come from;
 - how they combine with what is already there.
 
 Until all four are made, the operation is not a legal part of a tileset. So the half-built
@@ -48,15 +48,16 @@ returns non-`null`.
 
 | Export | Signature | Meaning |
 | --- | --- | --- |
-| `Step` | `"selection" \| "attribute" \| "source" \| "blend"` | The four steps. |
-| `STEPS` | `Step[]` | In walking order. |
+| `Step` | `"selection" \| "source" \| "attribute" \| "blend"` | The four steps. `source` is labelled "Pattern" (`STEP_LABELS`, [labels.ts](/editor/operation-labels/)). |
+| `STEPS` | `Step[]` | In walking order: Selection → Pattern → Attribute → Blend. |
 | `Draft` | interface | See the table below. |
 | `defaultParams(schema)` | `(ParamSchema) → Record<string, unknown>` | Every declared parameter at its default; `cellList` → `[]`. |
 | `newDraft(id)` | `(string) → Draft` | A fresh create-draft. |
 | `retarget(draft, target)` | `(Draft, TargetName) → void` | Sets the Target; rebuilds the numeric mapping; settles the Blend. Mutates. |
 | `isComplete(draft)` | `(Draft) → boolean` | The gate. |
-| `mappingOf(draft)` | `(Draft) → Operation["mapping"]` | `{ palette }` for a tile Target, else `numeric`. |
-| `toShadowOperation(draft)` | `(Draft) → Operation \| null` | An Operation that `selection()` can resolve, for the overlay. |
+| `mappingOf(draft)` | `(Draft) → Operation["mapping"]` | `{ palette }` for a tile Target, else `numeric`. Under `constant`, a one-entry palette. |
+| `toShadowOperation(draft)` | `(Draft) → Operation \| null` | An Operation that `selection()` can resolve, for the overlay, carrying the draft's Pattern for the palette's coverage. |
+| `shadowConfig(config, draft)` | `(TilesetConfig, Draft) → { operationId, config } \| null` | The config with the shadow Operation in it, replaced by id or appended. Shared by the overlay and the coverage. |
 | `fromOperation(op)` | `(Operation) → Draft` | Reopens an Operation as an edit-draft. |
 | `toOperation(draft)` | `(Draft) → Operation \| null` | The committed Operation, or `null` if incomplete. |
 | `draftDiffers(draft, op)` | `(Draft, Operation \| null) → boolean` | Whether discarding the draft would lose anything. `op` is the stored Operation for an edit-draft, `null` for a create-draft. |
@@ -95,9 +96,17 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 - **`isComplete`.** False if any of `selectionType`, `target`, `sourceType` or `blend` is `null`,
   or the pair is not accepted. For a tile Target the palette must be non-empty with
   `paletteTotal > 0`. Otherwise both ends of `numeric.range` must be finite.
+- **`mappingOf`.** A numeric Target gives `numeric`. A tile Target gives `{ palette }`, except
+  under a `constant` Source, where it gives `{ palette: [{ tileId, weight: 1 }] }` for the entry
+  `t = 0` lands on (`constantEntry`, the first non-zero weight). The draft keeps its whole palette,
+  so switching the Pattern back before Save restores the list (T0).
 - **`toShadowOperation`.** `null` until `selectionType` is set. Otherwise it returns the real `id`,
-  `salt`, `reseedOnLoad` and `selection`, plus the placeholders `source: { type: "constant" }`,
-  `target: "opacity"`, `mapping: { range: [1, 1] }` and `blend: "set"`.
+  `salt`, `reseedOnLoad` and `selection`, the draft's `source` once one is chosen (a
+  `{ type: "constant" }` placeholder before), and the placeholders `target: "opacity"`,
+  `mapping: { range: [1, 1] }` and `blend: "set"`.
+- **`shadowConfig(config, draft)`.** `null` when `toShadowOperation` is. Otherwise the config with
+  the shadow Operation replacing the one with its id (an edit-draft) or appended (a create-draft).
+  Replacing matters: `selection()` resolves by id and would find the unedited Operation first.
 - **`fromOperation(op)`.** It un-spreads `type` from `selection` and `source`. It copies
   `salt ?? 0` and `reseedOnLoad === true`. For a tile mapping it deep-copies each palette entry and
   seeds `numeric` from `newDraft`. For a numeric mapping it copies `range` and seeds `palette` from
@@ -130,7 +139,9 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
   array is not cloned, because the brush replaces it wholesale (`App.svelte`'s `paintCells`).
 - **The shadow's placeholders are never read.** `selection()` reads only the selection, id, salt
   and `reseedOnLoad`, through a closure the source says invariant O4 fixes. `salt` is real
-  because an edit-draft's overlay would otherwise disagree with the picture.
+  because an edit-draft's overlay would otherwise disagree with the picture. The `source` is real
+  because `fieldOf` (`controls/palette.ts`) evaluates it; nothing reads the target, mapping or
+  blend. The shadow carries no palette, so a weight drag does not re-evaluate the Pattern.
 
 ### Callers / callees
 
@@ -141,10 +152,10 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 | `lib/operations/OperationBody.svelte:211`, `:214` | `STEPS` and `isComplete` for Save's "Still open" hint |
 | `lib/operations/OperationBody.svelte:225` | `toOperation` on commit, then `replaceOperation`/`addOperation` (`:227`) |
 | `lib/operations/OperationBody.svelte:266` | `retarget(draft, target)` |
-| `lib/operations/OperationHeader.svelte:58` | `STEPS` as the step tabs |
+| `lib/operations/OperationBody.svelte` | `shadowConfig(file.config, draft)` for the palette's measured coverage |
 | `lib/sections/OperationsSection.svelte:63` | `draftDiffers` before switching away from an open draft |
 | `lib/operations/labels.ts:91` | `mappingOf(draft)` for the header's summary |
-| `App.svelte:228` | `toShadowOperation(draft)` for the overlay's shadow config |
+| `App.svelte` | `shadowConfig(config, draft)` for the overlay |
 
 `mappingOf` is also used internally (`:350`) and by `controls/mapping.test.ts`.
 
@@ -155,7 +166,12 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
   absent, un-spreads parameters, and seeds the unused mapping slot from a fresh draft. It copies
   containers rather than aliasing (it mutates the draft's palette and `numeric.range` and checks
   the source Operation). A reopened draft is complete immediately. `toShadowOperation` carries the
-  real salt (7) and is `null` before a Selection type.
+  real salt (7) and is `null` before a Selection type. `STEPS` walks Selection, Pattern, Attribute,
+  Blend from Selection. Constant with Tile saves only the first non-zero entry, at weight 1;
+  switching to Noise before Save restores the list; a saved Constant operation reopens unchanged;
+  a file's multi-entry palette under `constant` saves its first non-zero entry; a numeric mapping
+  is left alone. `shadowConfig` appends a create-draft, replaces an edit-draft by id, carries the
+  draft's Pattern, and is `null` before a Selection type.
   `draftDiffers`: a fresh create-draft is unchanged until a step is answered; a reopened
   Operation is unchanged whatever step is open; an edited parameter, a new Blend and a new salt
   are changes; retargeting there and back is not, since the unused mapping never commits; an edit
@@ -172,8 +188,11 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 
 ### Gotchas & rejected alternatives
 
-- **Not a one-way wizard.** The mapping control depends on the Source, which comes after it. So the
-  steps can be visited in any order once opened.
+- **Pattern before Attribute (T0).** The Pattern decides what the mapping means: a numeric mapping
+  collapses to one handle under `constant`, and a palette weight is a chance only under `random`.
+  Asked the other way round, the weights read as chances before the author had said which.
+- **Not a one-way wizard.** The steps can be visited in any order once opened, and the mapping
+  control re-reads the Source whenever it changes.
 - **Rejected: committing step by step.** No default Selection, Source or Target exists, so the
   intermediate states are not legal files.
 - **Rejected: editing in the file directly.** Retargeting `tileId` → `opacity` passes through a

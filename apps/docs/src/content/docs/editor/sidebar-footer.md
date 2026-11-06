@@ -27,9 +27,9 @@ zip.
 
 ### Public surface
 
-| Prop | Type | Meaning |
-| --- | --- | --- |
-| `loadSalt` | `number` (bindable) | §8.5's load-preview value. App holds it because `<Tileset>` reads it. |
+No props. §8.5's load-preview value is `preview.loadSalt` in
+[view.svelte.ts](/editor/preview-width/), because `<Tileset>`, the footer and the palette's
+measured coverage all read it.
 
 ### Inputs → outputs
 
@@ -39,7 +39,7 @@ zip.
 | New seed `IconButton` (`strong`) | `rerollSeed()` |
 | Assets on load `Toggle` | `setReseedAssetsOnLoad(on)` |
 | Reroll assets `Button` | `rerollAssets()` |
-| Preview a fresh load `Button` (disabled unless `loadVaries`) | `loadSalt = drawLoadSalt()`; writes no field |
+| Preview a fresh load `Button` (disabled unless `loadVaries`) | `preview.loadSalt = drawLoadSalt()`; writes no field |
 
 The fresh-load hint only says whether a fresh load varies. The inert-flags advisory (Operations
 that reseed on load over a source that is not random) is now the `inertReseed` notice in the
@@ -58,7 +58,7 @@ and stack in a narrow sidebar.
 
 ### Callers / callees
 
-Caller: `App.svelte` (`<SidebarFooter bind:loadSalt />`). Callees: `FieldRow`, `Hint`,
+Caller: `App.svelte` (`<SidebarFooter />`). Callees: `FieldRow`, `Hint`,
 `IconButton`, `Toggle`, `Button`; `document.ts` (`setDefaultSeed`, `rerollSeed`, `rerollAssets`,
 `setReseedAssetsOnLoad`); `reseed.ts` (`loadVaries`, `drawLoadSalt`). Export, Import, New and
 Undo live in `SidebarTopBar` since iteration 2.

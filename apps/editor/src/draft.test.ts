@@ -14,12 +14,15 @@
 
 import type { Operation } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
+import { newDocument } from "./document.js";
 import {
   draftDiffers,
   fromOperation,
   isComplete,
   newDraft,
   retarget,
+  shadowConfig,
+  STEPS,
   toOperation,
   toShadowOperation,
 } from "./draft.svelte.js";
@@ -45,6 +48,14 @@ const tileTargeted: Operation = {
   mapping: { palette: [{ tileId: "t1", weight: 2 }, { tileId: null, weight: 1 }] },
   blend: "set",
 };
+
+describe("STEPS", () => {
+  it("walks Selection, Pattern, Attribute, Blend, starting at Selection", () => {
+    // The Pattern decides what the mapping means, so it is asked first (Pol, T0).
+    expect(STEPS).toEqual(["selection", "source", "attribute", "blend"]);
+    expect(newDraft("op1").step).toBe("selection");
+  });
+});
 
 describe("fromOperation", () => {
   it("round-trips a numeric Operation unchanged", () => {
@@ -179,5 +190,77 @@ describe("draftDiffers", () => {
     const draft = fromOperation(tileTargeted);
     draft.palette = [];
     expect(draftDiffers(draft, tileTargeted)).toBe(true);
+  });
+});
+
+describe("Constant with Tile (T0)", () => {
+  const palette = [
+    { tileId: "t0", weight: 0 },
+    { tileId: "t1", weight: 2 },
+    { tileId: "t2", weight: 1 },
+  ];
+  const constant: Operation = {
+    ...tileTargeted,
+    source: { type: "constant" },
+    mapping: { palette: [{ tileId: "t1", weight: 1 }] },
+  };
+
+  it("saves only the entry t = 0 lands on, the first with a weight", () => {
+    const draft = fromOperation({ ...tileTargeted, mapping: { palette } });
+    draft.sourceType = "constant";
+    draft.sourceParams = {};
+    expect(toOperation(draft)?.mapping).toEqual({ palette: [{ tileId: "t1", weight: 1 }] });
+  });
+
+  it("keeps the whole list in the draft, so switching back before Save restores it", () => {
+    const draft = fromOperation({ ...tileTargeted, mapping: { palette } });
+    draft.sourceType = "constant";
+    draft.sourceType = "valueNoise";
+    draft.sourceParams = { cellsPerFeature: 5, octaves: 2 };
+    expect(toOperation(draft)?.mapping).toEqual({ palette });
+  });
+
+  it("reopens a saved Constant operation unchanged", () => {
+    expect(draftDiffers(fromOperation(constant), constant)).toBe(false);
+  });
+
+  it("opens a file's multi-entry palette under constant on its first non-zero entry", () => {
+    const old: Operation = { ...constant, mapping: { palette } };
+    const draft = fromOperation(old);
+    expect(draft.palette).toEqual(palette);
+    expect(toOperation(draft)?.mapping).toEqual({ palette: [{ tileId: "t1", weight: 1 }] });
+  });
+
+  it("leaves a numeric mapping alone, whose collapse is the control's", () => {
+    const draft = fromOperation({ ...numeric, source: { type: "constant" } });
+    expect(toOperation(draft)?.mapping).toEqual(numeric.mapping);
+  });
+});
+
+describe("shadowConfig", () => {
+  const config = { ...newDocument().config, operations: [tileTargeted] };
+
+  it("appends a create-draft and replaces an edit-draft by id", () => {
+    const created = newDraft("op1");
+    created.selectionType = "all";
+    expect(shadowConfig(config, created)?.config.operations.map((o) => o.id)).toEqual(["op9", "op1"]);
+
+    const edited = fromOperation(tileTargeted);
+    edited.selectionType = "checkerboard";
+    edited.selectionParams = { parity: 0 };
+    const ops = shadowConfig(config, edited)!.config.operations;
+    expect(ops).toHaveLength(1);
+    expect(ops[0]!.selection.type).toBe("checkerboard");
+  });
+
+  it("carries the draft's own Pattern, which coverage evaluates", () => {
+    const draft = fromOperation(tileTargeted);
+    draft.sourceType = "gradient";
+    draft.sourceParams = { angle: 45 };
+    expect(shadowConfig(config, draft)?.config.operations[0]!.source).toEqual({ type: "gradient", angle: 45 });
+  });
+
+  it("is null before a Selection type is chosen", () => {
+    expect(shadowConfig(config, newDraft("op1"))).toBeNull();
   });
 });

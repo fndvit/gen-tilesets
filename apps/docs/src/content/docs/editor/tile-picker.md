@@ -46,4 +46,5 @@ It does not block the page. A click outside, Esc or Tab closes it.
 
 ### Callers
 
-`controls/PaletteList.svelte`, for an entry's tile and for "Add entry".
+`controls/PaletteList.svelte`, for an entry's tile, for "Add entry", and under a Constant pattern for
+the one tile (anchored to the 48px thumbnail).

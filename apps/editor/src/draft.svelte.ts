@@ -38,26 +38,33 @@ import {
   type PaletteEntry,
   type ParamSchema,
   type TargetName,
+  type TilesetConfig,
 } from "@vit-foundation/gen-tilesets";
 import { defaultFor } from "./controls/affordance.js";
+import { constantEntry } from "./controls/palette.js";
 import { defaultNumericMapping, isTileTarget } from "./controls/mapping.js";
 
 /**
- * The four steps, in the order the author walks them.
+ * The four steps, in the order the author walks them: Selection → Pattern →
+ * Attribute → Blend (Pol, T0). The internal key stays `source`, because it is
+ * `op.source` and `sourceType` in the file; only the label says "Pattern"
+ * (`STEP_LABELS`).
  *
  * The mapping is folded into the attribute step per §7.4 — "a numeric mapping is
  * two handles on the Target's slider track, and the author never sees the word
  * *mapping*".
  *
- * §7.4's collapse to a single handle under a `constant` Source, and §7.6's
- * advisory about a reordered palette under `random`, both make the attribute
- * step depend on the **Source**, which comes after it. The steps are therefore
- * navigable in any order once opened rather than being a one-way wizard, and the
- * mapping control re-reads the Source whenever it changes (`DECISIONS.md` D8).
+ * The Pattern comes first because it decides what the attribute's mapping means:
+ * §7.4 collapses a numeric mapping to one handle under `constant`, and a palette
+ * reads as chances under `random` but as measured coverage under any ordered
+ * Pattern. Asked in the old order, the weights read as chances before the author
+ * had said which (T0). The steps stay navigable in any order once opened rather
+ * than being a one-way wizard, and the mapping control re-reads the Source
+ * whenever it changes (`DECISIONS.md` D8).
  */
-export type Step = "selection" | "attribute" | "source" | "blend";
+export type Step = "selection" | "source" | "attribute" | "blend";
 
-export const STEPS: Step[] = ["selection", "attribute", "source", "blend"];
+export const STEPS: Step[] = ["selection", "source", "attribute", "blend"];
 
 export interface Draft {
   /** Allocated at creation, never reassigned (§4.3). */
@@ -212,11 +219,23 @@ export function isComplete(draft: Draft): boolean {
   return draft.numeric.range.every((n) => Number.isFinite(n));
 }
 
-/** The mapping the draft's Target selects — **C8**, discriminated by `target`. */
+/**
+ * The mapping the draft's Target selects — **C8**, discriminated by `target`.
+ *
+ * **Under a Constant pattern a palette saves one entry** (Pol, T0): the one
+ * `t = 0` lands on (`constantEntry`), at weight 1. The rest could never be
+ * painted, so writing them would put tiles in the file that no picture shows.
+ * The draft keeps its whole palette, so switching the Pattern back before Save
+ * restores the list; and the comparison in `draftDiffers` goes through here on
+ * both sides, so a saved Constant operation reopens unchanged.
+ */
 export function mappingOf(draft: Draft): Operation["mapping"] {
-  return draft.target !== null && isTileTarget(draft.target)
-    ? { palette: draft.palette }
-    : draft.numeric;
+  if (draft.target === null || !isTileTarget(draft.target)) return draft.numeric;
+  if (draft.sourceType === "constant") {
+    const shown = draft.palette[constantEntry(draft.palette)];
+    if (shown !== undefined) return { palette: [{ tileId: shown.tileId, weight: 1 }] };
+  }
+  return { palette: draft.palette };
 }
 
 /**
@@ -262,12 +281,48 @@ export function toShadowOperation(draft: Draft): Operation | null {
     salt: draft.salt,
     reseedOnLoad: draft.reseedOnLoad,
     selection: { type: draft.selectionType, ...draft.selectionParams },
-    // Not read by `selection()`. Placeholders, not defaults.
-    source: { type: "constant" },
+    // The draft's own pattern once one is chosen: `selection()` does not read
+    // it, but the palette's measured coverage (`fieldOf`) does, against this
+    // same shadow. A placeholder until then, never read.
+    source:
+      draft.sourceType === null
+        ? { type: "constant" }
+        : { type: draft.sourceType, ...draft.sourceParams },
+    // Not read by `selection()` or `fieldOf`. Placeholders, not defaults.
     target: "opacity",
     mapping: { range: [1, 1] },
     blend: "set",
   };
+}
+
+/**
+ * The **shadow config**: the file's config with the draft's shadow Operation in
+ * it — `DECISIONS.md` D7's recorded consequence. `null` until the draft has a
+ * Selection type.
+ *
+ * Shared by App's Selection overlay and the palette's coverage, so the cells the
+ * overlay rings are exactly the cells the coverage counts.
+ *
+ * ## It replaces where the id is already there, and appends where it is not
+ *
+ * An **edit**-draft's id is in `config.operations` already, so appending would
+ * put two Operations with one id in the same stack. `selection()` resolves *by
+ * id* and would find the first — the unedited one — so the overlay would draw
+ * the Selection the author is in the middle of changing away from, and the
+ * brush would paint against it. Replacing covers both cases in one expression,
+ * because a create-draft's id matches nothing and the append is the fallback.
+ */
+export function shadowConfig(
+  config: TilesetConfig,
+  draft: Draft,
+): { operationId: string; config: TilesetConfig } | null {
+  const operation = toShadowOperation(draft);
+  if (operation === null) return null;
+  const present = config.operations.some((op) => op.id === operation.id);
+  const operations = present
+    ? config.operations.map((op) => (op.id === operation.id ? operation : op))
+    : [...config.operations, operation];
+  return { operationId: operation.id, config: { ...config, operations } };
 }
 
 /**

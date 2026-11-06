@@ -18,8 +18,9 @@ Every function here is pure. An advisory never blocks, never changes the file, a
 styled as an error (**E16**). The package has no diagnostics helper, so these detections are the
 editor's own.
 
-Advisories 6, 8 and 9 are not here. Each is about one control, so it is shown inline under that
-control (`ui/Advisory.svelte`).
+Advisories 6 and 9 are not here. Each is about one control, so it is shown inline under that
+control (`ui/Advisory.svelte`). Advisory 8 (a palette reordered under `random`) is retired: under
+Random the palette list has no order to change (T0).
 
 ## In detail
 

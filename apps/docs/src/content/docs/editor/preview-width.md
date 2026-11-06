@@ -29,6 +29,7 @@ None of it reaches the document. It is session state that a reload forgets.
 | `requested` | get / set | `null` for Fill (the starting state), or a width in px. |
 | `background` | get / set | The colour behind the picture, across the whole picture area. Starts `#ffffff`. |
 | `showGrid` | get / set | Whether the grid is drawn. Starts `true`. |
+| `loadSalt` | get / set | §8.5's load-preview value. Starts `0`; only the footer's Fresh load sets it (**R12**). Writes no field. Read by `App.svelte` for `<Tileset>` and the overlay, and by `OperationBody` for the palette's measured coverage, so both count the same load. |
 | `room` | get | `roomFor(available)`. |
 | `width` | get | `widthFor(requested, room)`: `Wpx`. |
 | `zoom` | get | `zoomFor(width, room, available)`. |

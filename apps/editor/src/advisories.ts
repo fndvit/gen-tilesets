@@ -7,9 +7,10 @@
  * error. The package has no diagnostics helper, so the detections are the
  * editor's.
  *
- * Three advisories are not here, because they are about one control and are
- * shown inline at it (`ui/Advisory.svelte`): 6 (two tiles share a name), 8 (a
- * palette reordered under `random`) and 9 (rotation ends that coincide).
+ * Two advisories are not here, because they are about one control and are
+ * shown inline at it (`ui/Advisory.svelte`): 6 (two tiles share a name) and 9
+ * (rotation ends that coincide). 8 (a palette reordered under `random`) is
+ * retired: under Random the palette list has no order to change (T0).
  *
  * ## Conditions and events
  *

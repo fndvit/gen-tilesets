@@ -13,7 +13,7 @@
   - **Title: what it writes.** The Attribute in the group-title style, then the
     mapping: the palette's tile thumbnails and names, or a numeric range in mono
     (`writesOf`). Clicking it opens the Attribute step.
-  - **Chips: where and how.** One per other step: Selection, Source and Blend,
+  - **Chips: where and how.** One per other step: Selection, Pattern and Blend,
     each a muted step name over its answer. A chip opens its own step. They wrap
     rather than clip, so a long answer or a narrow sidebar never hides one.
   - **Actions, right.** Re-seed stays visible because it is the operation's
@@ -33,7 +33,7 @@
   import type { Step } from "../../draft.svelte.js";
   import IconButton from "../ui/IconButton.svelte";
   import Menu from "../ui/Menu.svelte";
-  import { labelFor, summaryCells, UNANSWERED, writesOf, type SummaryParts } from "./labels.js";
+  import { STEP_LABELS, summaryCells, UNANSWERED, writesOf, type SummaryParts } from "./labels.js";
 
   interface Props {
     /** 1-based stack position. */
@@ -137,7 +137,7 @@
       {#each chips as step (step)}
         <li>
           <button type="button" class="chip" onclick={() => onSelect(step)}>
-            <span class="key">{labelFor(step)}</span>
+            <span class="key">{STEP_LABELS[step]}</span>
             <span class="value t-console" class:unset={cells[step] === UNANSWERED}>{cells[step]}</span>
           </button>
         </li>

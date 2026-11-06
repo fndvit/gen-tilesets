@@ -8,23 +8,33 @@
   same editor, with opposite rules. §7.6: "The presentation has to make the
   difference legible or the author will learn one and apply it to the other."
 
-  §7.6 chose a single bar for that. The bar was hard to grasp (Pol, Block F): an
-  entry was not visible as an entry, the controls edited one you could not see
-  beside them, and the weight was a bare number. So the entries are rows again,
-  and three things keep them from reading as the tile group's sorted list:
-  - a **proportion strip** above them shows the sequence and the shares in one
-    object, with `04` §6.3's thresholds under it wherever order matters;
-  - the rows are **numbered**, and are dragged by a grip to rearrange them;
-  - a **caption** under them says what order means under this Source.
+  ## Its shape follows the Pattern (T0–T1)
 
-  A Tile's asset list, by contrast, gets no drag affordance at all (§10.1) — see
-  `tiles/TileGroup.svelte`. The rules live in `palette.ts`, where they are tested.
+  The weights mean different things under different Patterns, and showing them
+  one way read as chances everywhere. Measured with three equal weights, Noise
+  paints the middle entry 68–75% and Constant paints only the first. So:
+
+  - **Random:** order means nothing, so the rows have no number and no grip and
+    the Menu no Move items. The % is each entry's **chance**, from the weights.
+  - **Noise, Gradient, and any other Pattern:** an ordered list, numbered and
+    dragged by a grip. The % is the **measured** share of the selected cells,
+    "≈68%" (`coverage`, passed in). The strip draws the same shares, so the two
+    always agree; no threshold labels, which described weights and not what is
+    painted.
+  - **Constant:** one tile, not a palette — the entry `t = 0` lands on
+    (`constantEntry`). The other entries stay in the draft, named in a line,
+    and Save writes only this one (`mappingOf`).
+
+  Advisory 8 (a palette reordered under Random) is retired: under Random there
+  is no order to change. A Tile's asset list still gets no drag affordance at
+  all (§10.1) — see `tiles/TileGroup.svelte`. The rules live in `palette.ts`,
+  where they are tested.
 -->
 <script lang="ts">
   import { tick } from "svelte";
   import type { PaletteEntry, Tile } from "@vit-foundation/gen-tilesets";
-  import AddBar from "../lib/ui/AddBar.svelte";
   import Advisory from "../lib/ui/Advisory.svelte";
+  import AddBar from "../lib/ui/AddBar.svelte";
   import Icon from "../lib/ui/Icon.svelte";
   import Menu from "../lib/ui/Menu.svelte";
   import Popup from "../lib/ui/Popup.svelte";
@@ -32,6 +42,8 @@
   import TilePicker from "./TilePicker.svelte";
   import {
     add,
+    constantEntry,
+    keptText,
     move,
     nameOf,
     percents,
@@ -41,7 +53,6 @@
     setWeight,
     shares,
     sliderMax,
-    thresholds,
     thumbOf,
     type Edit,
     type Refusal,
@@ -50,12 +61,25 @@
   interface Props {
     palette: PaletteEntry[];
     tiles: Tile[];
-    /** §12.2's eighth advisory fires under a uniform Source. */
+    /** The operation's Pattern (its Source), which decides the list's shape. `null` before one is chosen. */
     sourceType: string | null;
+    /**
+     * Each entry's measured share of the selected cells, 0–1, by index; `null`
+     * shows "—" (no Pattern or Selection yet, or nothing selected). Read under
+     * every Pattern but Random and Constant. The caller measures, so this list
+     * stays presentational.
+     */
+    coverage?: number[] | null;
     onChange: (palette: PaletteEntry[]) => void;
   }
 
-  let { palette, tiles, sourceType, onChange }: Props = $props();
+  let { palette, tiles, sourceType, coverage = null, onChange }: Props = $props();
+
+  type Mode = "chance" | "measured" | "constant";
+  const mode: Mode = $derived(
+    sourceType === "random" ? "chance" : sourceType === "constant" ? "constant" : "measured",
+  );
+  const ordered = $derived(mode === "measured");
 
   /**
    * A key per row, so a moved row keeps its DOM (and its focus) instead of
@@ -70,14 +94,21 @@
     if (keys.length !== palette.length) keys = palette.map(() => nextKey++);
   });
 
-  const pct = $derived(percents(palette));
-  const share = $derived(shares(palette));
   const top = $derived(sliderMax(palette));
 
-  /** Thresholds mean something under every Source but `random` (`04` §6.4). */
-  const banded = $derived(sourceType !== "random");
-  let stripWidth = $state(0);
-  const ticks = $derived(banded && stripWidth > 0 ? thresholds(palette, stripWidth) : []);
+  /** The strip's widths: the chances under Random, the measured shares otherwise (weights until measured). */
+  const strip = $derived(mode === "measured" && coverage !== null ? coverage : shares(palette));
+
+  /** Each row's %: "33%" (a chance), "≈68%" (measured) or "—" (nothing measured yet). */
+  const readouts = $derived.by(() => {
+    if (mode !== "measured") return percents(palette).map((n) => `${n}%`);
+    if (coverage === null) return palette.map(() => "—");
+    return coverage.map((c) => `≈${Math.round(c * 100)}%`);
+  });
+
+  /** Under Constant: the one entry painted, and the line naming the others. */
+  const shown = $derived(Math.max(0, constantEntry(palette)));
+  const kept = $derived(keptText(palette, tiles, shown));
 
   /** The row under the pointer or holding focus: its segment is ringed. */
   let hovered = $state<number | null>(null);
@@ -88,22 +119,12 @@
   let refusal = $state<Refusal | null>(null);
   let reporting = $state(false);
 
-  let list = $state<HTMLOListElement | undefined>(undefined);
+  let list = $state<HTMLElement | undefined>(undefined);
   let addAnchor = $state<HTMLElement | undefined>(undefined);
+  let oneButton = $state<HTMLButtonElement | undefined>(undefined);
 
   /** Which picker is open: an entry's (by index), "add", or none. */
   let picking = $state<number | "add" | null>(null);
-
-  /**
-   * The Source a reorder last happened under. The advisory is about a palette
-   * *reordered* under `random` (§12.2), so it shows once the author has
-   * reordered, not merely because the Source is random: a line that is always
-   * there is a line nobody reads.
-   */
-  let reorderedUnder = $state<string | null>(null);
-  const orderMeaningless = $derived(sourceType === "random" && palette.length > 1);
-  // Not while a drag is still moving the row: only once it is let go.
-  const showReorderAdvisory = $derived(orderMeaningless && reorderedUnder === sourceType && dragging === null);
 
   function refuse(reason: Refusal): void {
     refusal = reason;
@@ -123,13 +144,16 @@
     const next = move(palette, from, to);
     if (next === palette) return;
     keys = move(keys, from, to);
-    reorderedUnder = sourceType;
     onChange(next);
   }
 
   /** The row element at `index`, for focus after an edit. */
   const row = (index: number): HTMLElement | undefined =>
     (list?.children[index] as HTMLElement | undefined) ?? undefined;
+
+  /** The thumbnail button that opens entry `index`'s picker: Constant's one, or the row's. */
+  const thumbButton = (index: number): HTMLElement | undefined =>
+    mode === "constant" ? oneButton : (row(index)?.querySelector<HTMLElement>(".thumb-button") ?? undefined);
 
   async function removeAt(index: number): Promise<void> {
     const edit = remove(palette, index);
@@ -153,11 +177,11 @@
       keys = [...keys, nextKey++];
       onChange(add(palette, tileId));
       await tick();
-      row(palette.length - 1)?.querySelector<HTMLElement>(".thumb-button")?.focus();
+      thumbButton(palette.length - 1)?.focus();
     } else if (at !== null) {
       onChange(setTile(palette, at, tileId));
       await tick();
-      row(at)?.querySelector<HTMLElement>(".thumb-button")?.focus();
+      thumbButton(at)?.focus();
     }
   }
 
@@ -165,16 +189,11 @@
     const at = picking;
     picking = null;
     if (!refocus || at === null) return;
-    const anchor = at === "add" ? addAnchor?.querySelector("button") : row(at)?.querySelector(".thumb-button");
-    (anchor as HTMLElement | null | undefined)?.focus();
+    (at === "add" ? addAnchor?.querySelector<HTMLElement>("button") : thumbButton(at))?.focus();
   }
 
   const pickerAnchor = $derived(
-    picking === "add"
-      ? addAnchor
-      : picking !== null
-        ? (row(picking)?.querySelector<HTMLElement>(".thumb-button") ?? undefined)
-        : undefined,
+    picking === "add" ? addAnchor : picking !== null ? thumbButton(picking) : undefined,
   );
 
   /**
@@ -224,124 +243,162 @@
     apply(setWeight(palette, index, weight));
   }
 
+  /** The T1 mock's captions: what the % means, and what order does, under this Pattern. */
   const caption = $derived(
-    banded
-      ? "Order matters: entries next to each other here end up next to each other on the canvas."
-      : "Under the Random source every value is equally likely, so order does not matter here.",
+    mode === "chance"
+      ? "Each cell picks a tile at random. The % is each tile's chance."
+      : sourceType === null
+        ? "Choose a pattern to see what each entry paints."
+        : sourceType === "valueNoise"
+          ? "Order matters: neighbours in this list meet on the canvas. Under Noise the middle entries cover more, so ≈ is what each one paints with this seed."
+          : sourceType === "gradient"
+            ? "Order matters: the bands follow this list from one side to the other. ≈ is what each one paints with this seed."
+            : "Order matters: neighbours in this list meet on the canvas. ≈ is what each one paints with this seed.",
   );
 </script>
 
-<div class="palette">
-  <span class="t-label">Palette</span>
-
-  <!--
-    Read-only, and hidden from assistive tech: the rows say the same in words.
-    A zero-weight entry is legal and means *listed but never chosen* (`03`
-    §4.1), so §7.6 draws it "as a zero-width marker rather than disappearing".
-  -->
-  <div class="strip" aria-hidden="true" bind:clientWidth={stripWidth}>
-    {#each palette as entry, index (keys[index] ?? index)}
-      {@const thumb = thumbOf(tiles, entry.tileId)}
-      <span
-        class="segment"
-        class:zero={entry.weight === 0}
-        class:clear={thumb.clear}
-        class:lit={lit === index}
-        style:flex-grow={share[index]}
-        style:background-image={thumb.url && entry.weight > 0 ? `url("${thumb.url}")` : undefined}
-      ></span>
-    {/each}
+{#if mode === "constant"}
+  {@const entry = palette[shown]}
+  {@const thumb = thumbOf(tiles, entry?.tileId ?? null)}
+  {@const name = nameOf(tiles, entry?.tileId ?? null)}
+  <div class="palette">
+    <span class="t-label">Tile</span>
+    <div class="one">
+      <button
+        type="button"
+        class="thumb-button"
+        bind:this={oneButton}
+        aria-label="Tile: {name}, change"
+        aria-haspopup="dialog"
+        aria-expanded={picking === shown}
+        onclick={() => (picking = picking === shown ? null : shown)}
+      >
+        {#if thumb.url}
+          <img class="large" src={thumb.url} alt="" />
+        {:else}
+          <span class="thumb large" class:clear={thumb.clear}></span>
+        {/if}
+      </button>
+      <span class="who">
+        <span class="t-body" class:muted={entry?.tileId === null}>{name}</span>
+        <span class="t-console muted">every selected cell</span>
+      </span>
+    </div>
+    <Advisory when={kept !== null}>{kept}</Advisory>
   </div>
-  {#if ticks.length > 0}
-    <div class="ticks t-console" aria-hidden="true">
-      {#each ticks as t (t.at)}
-        <span class={t.align} style:left="{t.at * 100}%">{t.label}</span>
+{:else}
+  <div class="palette">
+    <div class="head">
+      <span class="t-label">Palette</span>
+      <span class="head-note t-console">{mode === "chance" ? "chance" : "≈ painted"}</span>
+    </div>
+
+    <!--
+      Read-only, and hidden from assistive tech: the rows say the same in words.
+      A zero share is drawn "as a zero-width marker rather than disappearing"
+      (§7.6), whether its weight is zero or it paints no cell.
+    -->
+    <div class="strip" aria-hidden="true">
+      {#each palette as entry, index (keys[index] ?? index)}
+        {@const thumb = thumbOf(tiles, entry.tileId)}
+        {@const zero = (strip[index] ?? 0) === 0}
+        <span
+          class="segment"
+          class:zero
+          class:clear={thumb.clear}
+          class:lit={lit === index}
+          style:flex-grow={strip[index] ?? 0}
+          style:background-image={thumb.url && !zero ? `url("${thumb.url}")` : undefined}
+        ></span>
       {/each}
     </div>
-  {/if}
 
-  <ol
-    class="rows"
-    aria-label="Palette, in order"
-    bind:this={list}
-    onpointermove={onListMove}
-    onpointerup={onListUp}
-    onpointercancel={onListUp}
-  >
-    {#each palette as entry, index (keys[index] ?? index)}
-      {@const thumb = thumbOf(tiles, entry.tileId)}
-      {@const name = nameOf(tiles, entry.tileId)}
-      <li
-        class="entry"
-        class:zero={entry.weight === 0}
-        class:dragging={dragging === index}
-        onpointerenter={() => (hovered = index)}
-        onpointerleave={() => (hovered = hovered === index ? null : hovered)}
-        onfocusin={() => (focused = index)}
-        onfocusout={() => (focused = focused === index ? null : focused)}
-      >
-        <!-- Pointer only: the menu's Move earlier / Move later is the keyboard path (WCAG 2.5.7). -->
-        <span class="grip" aria-hidden="true" title="Drag to reorder" onpointerdown={(e) => onGripDown(e, index)}>
-          <Icon name="grip" />
-        </span>
-        <span class="number t-console" aria-hidden="true">{index + 1}</span>
-        <button
-          type="button"
-          class="thumb-button"
-          aria-label="Tile of entry {index + 1}: {name}, change"
-          aria-haspopup="dialog"
-          aria-expanded={picking === index}
-          onclick={() => (picking = picking === index ? null : index)}
+    <svelte:element
+      this={ordered ? "ol" : "ul"}
+      role="list"
+      class="rows"
+      aria-label={ordered ? "Palette, in order" : "Palette"}
+      bind:this={list}
+      onpointermove={onListMove}
+      onpointerup={onListUp}
+      onpointercancel={onListUp}
+    >
+      {#each palette as entry, index (keys[index] ?? index)}
+        {@const thumb = thumbOf(tiles, entry.tileId)}
+        {@const name = nameOf(tiles, entry.tileId)}
+        <li
+          class="entry"
+          class:zero={entry.weight === 0}
+          class:dragging={dragging === index}
+          onpointerenter={() => (hovered = index)}
+          onpointerleave={() => (hovered = hovered === index ? null : hovered)}
+          onfocusin={() => (focused = index)}
+          onfocusout={() => (focused = focused === index ? null : focused)}
         >
-          {#if thumb.url}
-            <img src={thumb.url} alt="" />
-          {:else}
-            <span class="thumb" class:clear={thumb.clear}></span>
+          {#if ordered}
+            <!-- Pointer only: the menu's Move earlier / Move later is the keyboard path (WCAG 2.5.7). -->
+            <span class="grip" aria-hidden="true" title="Drag to reorder" onpointerdown={(e) => onGripDown(e, index)}>
+              <Icon name="grip" />
+            </span>
+            <span class="number t-console" aria-hidden="true">{index + 1}</span>
           {/if}
-        </button>
-        <span class="name t-body" class:muted={entry.tileId === null}>{name}</span>
-        <span class="slider">
-          <Slider
-            label="Weight of entry {index + 1}, {name}"
-            min={0}
-            max={top}
-            step={0.01}
-            value={entry.weight}
-            onInput={(weight) => weightInput(index, weight)}
-            onCommit={(weight) => weightCommit(index, weight)}
+          <button
+            type="button"
+            class="thumb-button"
+            aria-label="Tile of entry {index + 1}: {name}, change"
+            aria-haspopup="dialog"
+            aria-expanded={picking === index}
+            onclick={() => (picking = picking === index ? null : index)}
+          >
+            {#if thumb.url}
+              <img src={thumb.url} alt="" />
+            {:else}
+              <span class="thumb" class:clear={thumb.clear}></span>
+            {/if}
+          </button>
+          <span class="name t-body" class:muted={entry.tileId === null}>{name}</span>
+          <span class="slider">
+            <Slider
+              label="Weight of entry {index + 1}, {name}"
+              min={0}
+              max={top}
+              step={0.01}
+              value={entry.weight}
+              onInput={(weight) => weightInput(index, weight)}
+              onCommit={(weight) => weightCommit(index, weight)}
+            />
+          </span>
+          <span class="share t-value" class:measured={mode === "measured"}>{readouts[index]}</span>
+          <Menu
+            label="More for entry {index + 1}"
+            items={ordered
+              ? [
+                  { label: "Change tile…", icon: "swap", onSelect: () => (picking = index) },
+                  { label: "Move earlier", icon: "up", disabled: index === 0, onSelect: () => reorder(index, index - 1) },
+                  {
+                    label: "Move later",
+                    icon: "down",
+                    disabled: index === palette.length - 1,
+                    onSelect: () => reorder(index, index + 1),
+                  },
+                  { label: "Remove", icon: "trash", onSelect: () => void removeAt(index) },
+                ]
+              : [
+                  { label: "Change tile…", icon: "swap", onSelect: () => (picking = index) },
+                  { label: "Remove", icon: "trash", onSelect: () => void removeAt(index) },
+                ]}
           />
-        </span>
-        <span class="share t-value">{pct[index]}%</span>
-        <Menu
-          label="More for entry {index + 1}"
-          items={[
-            { label: "Change tile…", icon: "swap", onSelect: () => (picking = index) },
-            { label: "Move earlier", icon: "up", disabled: index === 0, onSelect: () => reorder(index, index - 1) },
-            {
-              label: "Move later",
-              icon: "down",
-              disabled: index === palette.length - 1,
-              onSelect: () => reorder(index, index + 1),
-            },
-            { label: "Remove", icon: "trash", onSelect: () => void removeAt(index) },
-          ]}
-        />
-      </li>
-    {/each}
-  </ol>
+        </li>
+      {/each}
+    </svelte:element>
 
-  {#if showReorderAdvisory}
-    <Advisory when={true}>
-      Under the Random source, order means nothing: reordering only reshuffles the canvas.
-    </Advisory>
-  {:else}
     <p class="caption t-body">{caption}</p>
-  {/if}
 
-  <span class="add" bind:this={addAnchor}>
-    <AddBar label="Add entry" onclick={() => (picking = picking === "add" ? null : "add")} />
-  </span>
-</div>
+    <span class="add" bind:this={addAnchor}>
+      <AddBar label="Add entry" onclick={() => (picking = picking === "add" ? null : "add")} />
+    </span>
+  </div>
+{/if}
 
 {#if picking !== null && pickerAnchor}
   <TilePicker
@@ -364,6 +421,18 @@
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
     color: var(--color-ink);
+    container-type: inline-size;
+  }
+
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .head-note {
+    color: var(--color-muted);
   }
 
   /* ── The strip ── */
@@ -408,27 +477,6 @@
     box-shadow:
       0 0 0 var(--rule-strong) var(--color-well),
       0 0 0 calc(2 * var(--rule-strong)) var(--color-accent);
-  }
-
-  .ticks {
-    position: relative;
-    height: var(--text-console-size);
-    margin-top: calc(-1 * var(--space-2));
-    color: var(--color-muted);
-  }
-
-  .ticks span {
-    position: absolute;
-    top: 0;
-    white-space: nowrap;
-  }
-
-  .ticks .centre {
-    transform: translateX(-50%);
-  }
-
-  .ticks .end {
-    transform: translateX(-100%);
   }
 
   /* ── The rows ── */
@@ -548,10 +596,6 @@
     white-space: nowrap;
   }
 
-  .name.muted {
-    color: var(--color-muted);
-  }
-
   .slider {
     flex: 1 1 0;
     min-width: var(--target-min);
@@ -563,8 +607,47 @@
     text-align: right;
   }
 
+  /* "≈68%" is wider than "33%". */
+  .share.measured {
+    width: var(--share-measured-w);
+  }
+
   .zero .share {
     color: var(--color-muted);
+  }
+
+  /* ── Constant: one tile ── */
+  .one {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+  }
+
+  img.large,
+  .thumb.large {
+    width: var(--thumb-lg);
+    height: var(--thumb-lg);
+  }
+
+  .who {
+    display: grid;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .muted {
+    color: var(--color-muted);
+  }
+
+  /* The narrowest sidebars (T1): tighter rows, and the right-hand label goes. */
+  @container (max-width: 250px) {
+    .entry {
+      gap: var(--space-2);
+    }
+
+    .head-note {
+      display: none;
+    }
   }
 
   .caption {

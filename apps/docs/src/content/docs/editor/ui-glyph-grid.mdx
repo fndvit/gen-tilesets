@@ -17,7 +17,7 @@ up and down by a row.
 
 ## Try it
 
-The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports. The second grid shows label-only cells, as Attribute, Source and Blend will until their
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports. The second grid shows label-only cells, as Attribute and Blend will until their
 glyphs are designed.
 
 <UiPrimitivesStory show="glyph-grid" client:only="svelte" />
@@ -30,7 +30,7 @@ Generic over `T extends string`.
 
 | Prop | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `items` | `{ value: T; label: string; src?: string; disabled?: boolean }[]` | required | |
+| `items` | `{ value: T; label: string; src?: string; artwork?: Snippet; disabled?: boolean }[]` | required | `src` is an image URL; `artwork` is markup (the Pattern glyphs). With neither, the cell is label-only. |
 | `value` | `T \| null` | required | The chosen item, or none. |
 | `onChange` | `(value: T) => void` | required | |
 | `label` | `string` | required | `aria-label` of the radio group. |

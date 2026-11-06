@@ -6,10 +6,11 @@
 
   It is a radio group. Tab enters once, on the chosen cell; arrows move the
   choice (Up/Down by a row) and commit it through `onChange`, as `Toggle` does.
-  Items say nothing about their artwork beyond an optional `src`, so a step can
-  mix drawn and label-only cells.
+  Items say nothing about their artwork beyond an optional `src` (an image) or
+  `artwork` (markup), so a step can mix drawn and label-only cells.
 -->
 <script lang="ts" generics="T extends string">
+  import type { Snippet } from "svelte";
   import OperationGlyph from "./OperationGlyph.svelte";
   import { rovingIndex } from "./keys.js";
 
@@ -17,6 +18,7 @@
     value: T;
     label: string;
     src?: string;
+    artwork?: Snippet;
     disabled?: boolean;
   }
 
@@ -71,6 +73,7 @@
       onclick={() => onChange(item.value)}
       onkeydown={(event) => onKeydown(event, i)}
       {...item.src ? { src: item.src } : {}}
+      {...item.artwork ? { artwork: item.artwork } : {}}
     />
   {/each}
 </div>

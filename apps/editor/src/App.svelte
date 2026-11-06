@@ -25,7 +25,7 @@
   import type { Notice } from "./notices.js";
   import { editorProvider, replaceAll, stored } from "./assets.js";
   import type { Transition } from "./document.js";
-  import { toShadowOperation } from "./draft.svelte.js";
+  import { shadowConfig } from "./draft.svelte.js";
   import { drafting } from "./drafting.svelte.js";
   import { opening } from "./opening.svelte.js";
   import { atRisk, needsConfirmation, orphans } from "./orphans.js";
@@ -160,17 +160,8 @@
   // all it does is measure.
   let renderBox = $state<HTMLElement | null>(null);
 
-  /**
-   * §8.5's load preview. **Writes no field** — §8.1's fourth row is the one that
-   * is not an edit, so it lives here and reaches `<Tileset>` through its `options`.
-   *
-   * **R12** — one value per session, held for its duration. `08` **S7** makes
-   * that structural rather than disciplinary: the component draws no random
-   * number at all, so a regeneration has nothing to redraw. Only the footer's
-   * Fresh load button moves it, which is what makes it a *preview of another load* rather than
-   * noise under every edit.
-   */
-  let loadSalt = $state(0);
+  /** §8.5's load preview, held in `preview` (`view.svelte.ts`) with its reasons. */
+  const loadSalt = $derived(preview.loadSalt);
 
   /**
    * **E12's confirmation** — §9.3. A destructive edit held until the author
@@ -272,38 +263,18 @@
   });
 
   /**
-   * The **shadow config** the overlay resolves against — `DECISIONS.md` D7's
-   * recorded consequence.
+   * The **shadow config** the overlay resolves against (`shadowConfig`).
    *
    * `selection()` resolves an Operation **by id** and the draft is not in the
-   * file, so the overlay is drawn against `{ ...config, operations: [...ops,
-   * draft] }`. A pure local value; it touches nothing, and **E3** is untouched
-   * because the document is still exactly `session.file`.
+   * file, so the overlay is drawn against the config with the draft in it. A
+   * pure local value; it touches nothing, and **E3** is untouched because the
+   * document is still exactly `session.file`.
    *
    * `null` until the draft has a Selection type — before that there is no
    * predicate to resolve, which is different from a predicate that matches
    * nothing, and §6.1 shows the overlay for the Operation *being edited*.
-   *
-   * ## It replaces where the id is already there, and appends where it is not
-   *
-   * An **edit**-draft's id is in `config.operations` already, so appending would
-   * put two Operations with one id in the same stack. `selection()` resolves *by
-   * id* and would find the first — the unedited one — so the overlay would draw
-   * the Selection the author is in the middle of changing away from, and the
-   * brush would paint against it. Replacing covers both cases in one expression,
-   * because a create-draft's id matches nothing and the append is the fallback.
    */
-  const shadow = $derived.by(() => {
-    const draft = drafting.draft;
-    if (draft === null) return null;
-    const operation = toShadowOperation(draft);
-    if (operation === null) return null;
-    const present = config.operations.some((op) => op.id === operation.id);
-    const operations = present
-      ? config.operations.map((op) => (op.id === operation.id ? operation : op))
-      : [...config.operations, operation];
-    return { operationId: operation.id, config: { ...config, operations } };
-  });
+  const shadow = $derived(drafting.draft === null ? null : shadowConfig(config, drafting.draft));
 
   /**
    * §4.4's repair, applied to the draft rather than to the file.
@@ -367,7 +338,7 @@
       </ScrollArea>
     </div>
 
-    <SidebarFooter bind:loadSalt />
+    <SidebarFooter />
     </div>
   </aside>
 

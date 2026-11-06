@@ -27,6 +27,21 @@ export function labelFor(name: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/**
+ * What a **step** is called, which is not what its registry name would label.
+ *
+ * Kept apart from `NAMED` on purpose: `NAMED` maps registry names, and a Source
+ * registered later under the name `source` would be mislabelled "Pattern" if
+ * the step's label lived there. The step's key stays `source` because it is the
+ * file's `op.source`; the author sees "Pattern" (Pol, T0).
+ */
+export const STEP_LABELS: Record<Step, string> = {
+  selection: "Selection",
+  source: "Pattern",
+  attribute: "Attribute",
+  blend: "Blend",
+};
+
 /** The parts of an Operation the summary reads, each `null` while unanswered. */
 export interface SummaryParts {
   selection: string | null;
@@ -41,7 +56,7 @@ export const UNANSWERED = "—";
 
 /**
  * Each step's answer on its own, for the cell above that step's tab:
- * `{ selection: "Checkered", attribute: "Opacity [0.5 - 1]", source: "Random", blend: "Set" }`.
+ * `{ selection: "Checkered", source: "Random", attribute: "Opacity [0.5 - 1]", blend: "Set" }`.
  *
  * A palette lists tile **names**, never ids; an empty entry (`tileId: null`)
  * is "clear", as `PaletteBar` names it. `steps` absent means continuous (§7.4), so only a
@@ -57,15 +72,14 @@ export function summaryCells(parts: SummaryParts, tiles: readonly Tile[]): Recor
         : `${labelFor(parts.target)} ${mappingText(parts.mapping, tiles)}`;
   return {
     selection: label(parts.selection),
-    attribute,
     source: label(parts.source),
+    attribute,
     blend: label(parts.blend),
   };
 }
 
 /**
- * `04` §3's sentence in step order, as Figma writes it:
- * `Checkered * Opacity [0.5 - 1] * Random * Set`. The cells of `summaryCells`, joined.
+ * The Operation in step order: `Checkered * Random * Opacity [0.5 - 1] * Set`. The cells of `summaryCells`, joined.
  */
 export function summarize(parts: SummaryParts, tiles: readonly Tile[]): string {
   const cells = summaryCells(parts, tiles);

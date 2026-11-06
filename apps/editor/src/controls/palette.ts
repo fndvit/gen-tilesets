@@ -10,7 +10,19 @@
  * `02` §8.1). It is never a Tile in the library.
  */
 
-import { canonicalAssets, paletteTotal, type PaletteEntry, type Tile } from "@vit-foundation/gen-tilesets";
+import {
+  canonicalAssets,
+  effectiveSeeds,
+  evalSource,
+  isTileMapping,
+  operationCtx,
+  paletteTotal,
+  selection,
+  sources,
+  type PaletteEntry,
+  type Tile,
+  type TilesetConfig,
+} from "@vit-foundation/gen-tilesets";
 import { stored } from "../assets.js";
 
 export type Refusal = "last-entry" | "last-weight";
@@ -78,48 +90,88 @@ export function sliderMax(palette: PaletteEntry[]): number {
   return Math.max(2, ...palette.map((e) => e.weight));
 }
 
-export interface Threshold {
-  /** Position along the strip, 0–1. */
-  at: number;
-  label: string;
-  align: "start" | "centre" | "end";
+/**
+ * The entry a Constant pattern paints: the first with a weight above zero.
+ *
+ * `constant` emits `t = 0` (`04` §5.2), and the walk picks the first entry whose
+ * running total is strictly above `0 × total` — the first non-zero weight, not
+ * necessarily `palette[0]`. `-1` for a palette with no weight at all, which
+ * `06` §7.3 forbids.
+ */
+export function constantEntry(palette: PaletteEntry[]): number {
+  return palette.findIndex((e) => e.weight > 0);
 }
 
 /**
- * The labels under the strip: 0, each band edge, and 1. A band edge is where a
- * non-zero share ends (`04` §6.3's cumulative thresholds); edges at the same
- * place are one label. An inner label that would collide with a kept neighbour
- * at this strip width is dropped; 0 and 1 are always kept.
+ * Which entry `t` lands on — `applyTileMapping`'s walk (`packages/tileset/src/mapping.ts`),
+ * copied so it can answer with an **index**.
+ *
+ * The engine answers with a tile id, and two entries can name the same tile (or
+ * both be clear), so counting its answers could not tell their shares apart.
+ * A copy can drift, so `palette.test.ts` checks it against `applyTileMapping`
+ * cell by cell; if the engine's walk changes, that test fails here.
+ *
+ * Strict comparison, so a zero weight never wins; at exactly `t = 1` (a
+ * Gradient's far corner) the last non-zero entry wins, as in the engine.
  */
-export function thresholds(palette: PaletteEntry[], width: number, charWidth = 7.3, gap = 6): Threshold[] {
-  const total = paletteTotal(palette);
-  const edges: number[] = [];
-  let acc = 0;
-  for (const entry of palette) {
-    acc += entry.weight;
-    const at = total > 0 ? acc / total : 0;
-    if (entry.weight > 0 && at > 0 && at < 1 && !edges.some((e) => Math.abs(e - at) < 1e-9)) edges.push(at);
+export function entryIndex(palette: PaletteEntry[], t: number): number {
+  const target = t * paletteTotal(palette);
+  let cumulative = 0;
+  let last = -1;
+  for (const [i, entry] of palette.entries()) {
+    cumulative += entry.weight;
+    if (cumulative > target) return i;
+    if (entry.weight > 0) last = i;
   }
+  return last;
+}
 
-  const label = (at: number): string => (at === 0 || at === 1 ? String(at) : at.toFixed(2));
-  const span = (t: Threshold): [number, number] => {
-    const w = t.label.length * charWidth;
-    const x = t.at * width;
-    return t.align === "start" ? [x, x + w] : t.align === "end" ? [x - w, x] : [x - w / 2, x + w / 2];
-  };
-
-  const first: Threshold = { at: 0, label: "0", align: "start" };
-  const last: Threshold = { at: 1, label: "1", align: "end" };
-  const kept: Threshold[] = [first];
-  const end = span(last);
-  for (const at of edges) {
-    const t: Threshold = { at, label: label(at), align: "centre" };
-    const [a, b] = span(t);
-    const prev = span(kept[kept.length - 1]!);
-    if (a >= prev[1] + gap && b + gap <= end[0]) kept.push(t);
+/**
+ * The pattern's value `t` at every cell the Operation selects, in reading order.
+ *
+ * Built only from the package's exports, the way `generate()` builds it: the
+ * Selection's predicate from `selection()`, and the Source evaluated against
+ * `operationCtx` with the same effective seeds. So a share measured from this
+ * is what Save would paint with this seed and load salt, cell for cell.
+ *
+ * Split from `coverageOf` because it does not read the palette: a weight drag
+ * re-counts this list, and never re-evaluates the pattern.
+ */
+export function fieldOf(config: TilesetConfig, operationId: string, seed: string, loadSalt: number): number[] {
+  const op = config.operations.find((o) => o.id === operationId);
+  if (op === undefined) return [];
+  const selected = selection(config, operationId, seed, loadSalt);
+  const source = sources.get(op.source.type);
+  const ctx = operationCtx(config, op, effectiveSeeds(seed, loadSalt));
+  const params = op.source as Record<string, unknown>;
+  const field: number[] = [];
+  for (let y = 0; y < config.rows; y++) {
+    for (let x = 0; x < config.columns; x++) {
+      if (selected(x, y)) field.push(evalSource(source, params, x, y, ctx));
+    }
   }
-  kept.push(last);
-  return kept;
+  return field;
+}
+
+/**
+ * Each entry's share of the selected cells, 0–1, by **entry index** — the
+ * measured "≈ painted" figure under Noise, Gradient and any ordered pattern.
+ * All zeros when nothing is selected; the list shows "—" for that, not 0%.
+ */
+export function coverageOf(field: readonly number[], palette: PaletteEntry[]): number[] {
+  const counts = palette.map(() => 0);
+  for (const t of field) {
+    const i = entryIndex(palette, t);
+    if (i >= 0) counts[i]! += 1;
+  }
+  return counts.map((n) => (field.length > 0 ? n / field.length : 0));
+}
+
+/** `coverageOf(fieldOf(...))` for an Operation whose mapping is a palette. */
+export function coverage(config: TilesetConfig, operationId: string, seed: string, loadSalt: number): number[] {
+  const op = config.operations.find((o) => o.id === operationId);
+  if (op === undefined || !isTileMapping(op.mapping)) return [];
+  return coverageOf(fieldOf(config, operationId, seed, loadSalt), op.mapping.palette);
 }
 
 /** A thumbnail for an entry: the tile's first asset, or `null` for clear or a missing picture. */
@@ -131,4 +183,17 @@ export function thumbOf(tiles: readonly Tile[], tileId: string | null): { clear:
 
 export function nameOf(tiles: readonly Tile[], tileId: string | null): string {
   return tileId === null ? "clear" : (tiles.find((t) => t.id === tileId)?.name ?? tileId);
+}
+
+/**
+ * Constant's kept-entries line: the other entries' names, or `null` when there
+ * are none. The draft keeps them so switching the Pattern back restores the
+ * list; Save writes only the shown entry (T0).
+ */
+export function keptText(palette: PaletteEntry[], tiles: readonly Tile[], shown: number): string | null {
+  const names = palette.filter((_, i) => i !== shown).map((e) => nameOf(tiles, e.tileId));
+  if (names.length === 0) return null;
+  const list = names.length === 1 ? names[0]! : `${names.slice(0, -1).join(", ")} and ${names.at(-1)!}`;
+  const verb = names.length === 1 ? "is" : "are";
+  return `${list.charAt(0).toUpperCase()}${list.slice(1)} ${verb} kept until you save, in case you switch back to a pattern that uses a palette.`;
 }

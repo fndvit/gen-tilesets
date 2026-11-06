@@ -16,8 +16,8 @@ UI shows "Every Nth", "Handpick", "Scale X". Joined in step order by ` * `, the 
 line:
 
 ```text
-Checkered * Opacity [0.5 - 1] * Random * Set
-All * Tile [sand, clear] * Random * Set
+Checkered * Random * Opacity [0.5 - 1] * Set
+All * Random * Tile [sand, clear] * Set
 — * — * — * —
 ```
 
@@ -28,6 +28,7 @@ All * Tile [sand, clear] * Random * Set
 | Export | Signature | Meaning |
 | --- | --- | --- |
 | `labelFor` | `(name: string) => string` | Figma's name for a registry name. |
+| `STEP_LABELS` | `Record<Step, string>` | What each step is called: `source` → "Pattern", the others title-cased. |
 | `SummaryParts` | interface | `selection`, `target`, `mapping`, `source`, `blend`, each `null` while unanswered. |
 | `UNANSWERED` | `"—"` | Shown for a step with no answer. |
 | `summaryCells` | `(parts, tiles: readonly Tile[]) => Record<Step, string>` | Each step's answer, for the header's cell above that step's tab. |
@@ -41,7 +42,9 @@ All * Tile [sand, clear] * Random * Set
   `tileId` → "Tile", `valueNoise` → "Noise". Any other name is split before each capital that
   follows a lower-case letter or digit, and its first letter is capitalized: `everyNth` →
   "Every Nth", `scaleX` → "Scale X", `rect` → "Rect".
-- **`summaryCells`.** `{ selection, attribute, source, blend }`, each through `labelFor` or
+- **`STEP_LABELS`.** Kept apart from `labelFor`'s fixed names on purpose: those map registry
+  names, and a Source registered under the name `source` would otherwise read "Pattern".
+- **`summaryCells`.** `{ selection, source, attribute, blend }`, each through `labelFor` or
   `UNANSWERED`. The attribute is `UNANSWERED` with no Target, the bare label with a Target and
   no mapping, and otherwise the label followed by the mapping:
   - a tile mapping lists its palette by **tile name**, as `[sand, clear]`. A `null` entry is
@@ -67,7 +70,8 @@ All * Tile [sand, clear] * Random * Set
 | Caller | Use |
 | --- | --- |
 | `sections/OperationsSection.svelte:29` | `draftParts`, `partsOf`, `summaryCells` for each header |
-| `operations/OperationBody.svelte:72` | `labelFor` for every glyph cell and for Save's "Still open" hint |
+| `operations/OperationBody.svelte` | `labelFor` for every glyph cell; `STEP_LABELS` for the step rows, "Next: …" and Save's "Still open" hint |
+| `operations/OperationCard.svelte` | `STEP_LABELS` for the chips' step names |
 | `controls/ParamControl.svelte:19` | `labelFor(name)` as the field label |
 | `controls/NumericMapping.svelte:27` | `labelFor(target)` as the mapping's label |
 
@@ -76,14 +80,13 @@ Callees: `isTileMapping` (package), `mappingOf`, `STEPS` (`draft.svelte.ts`).
 ### Tests
 
 `lib/operations/labels.test.ts`: Figma's names where they differ from the registry's; title case
-for any other name; `summaryCells` giving each step its own answer, and `—` for every step of a
+for any other name; `STEP_LABELS.source` is "Pattern" while `labelFor("source")` stays "Source"; `summaryCells` giving each step its own answer, and `—` for every step of a
 new draft; a numeric operation read in step order; `steps` shown only when present;
 palette tiles named, never by id, with an empty entry called "clear"; and a fresh draft reading
 `— * — * — * —`.
 
 ### Gotchas & rejected alternatives
 
-- **`valueNoise` → "Noise" is not tested.** The other three fixed names are.
 - **The separator is ` * `**, as Figma writes the strip, not a sentence. The header no longer
   shows the joined line (it shows `summaryCells`); `summarize` is kept for the tests and as
   `04` §3's sentence.

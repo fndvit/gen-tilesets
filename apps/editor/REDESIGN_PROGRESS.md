@@ -1320,6 +1320,40 @@ and `tile-picker.md` (Constant uses it). Run the docs build and the docs coverag
 - Stop for Pol's review. The **T4 sweep** (with K4's accessibility probes) follows, as planned in
   "Blocks".
 
+## T3 (implemented 2026-11-06, in review, uncommitted)
+
+Built as planned above, with these decisions and findings:
+- **Coverage is measured on the grid the preview shows.** The open question needed no answer from
+  Pol: `preview.width` is already a store, and the active rules give rows and columns. To get
+  there, **`loadSalt` moved from `App.svelte` into `preview`** (`view.svelte.ts`), because App,
+  the footer's Fresh load and the coverage all read it. `SidebarFooter` has no props now.
+- **`shadowConfig(config, draft)`** in `draft.svelte.ts` replaces App's inline shadow, and
+  `toShadowOperation` now carries the draft's real `source` once one is chosen. Nothing else
+  changes for `selection()`, which never read it. The shadow still carries no palette, so a
+  weight drag recounts the field and does not re-evaluate the pattern.
+- **`fieldOf` + `coverageOf` were split from the start** rather than after timing. The field is
+  derived in `OperationBody` and does not depend on `draft.palette`. `PaletteList` is
+  presentational: it takes `coverage: number[] | null` and shows "—" for `null`.
+- **The plan's "`toShadowOperation` uses the same Constant rule" was moot**: the preview draws
+  `session.file`, not the draft, so only `mappingOf` (and with it `toOperation`, the card's
+  title and `draftDiffers`) needed the one-entry rule.
+- **Pattern glyphs** are `pattern-art.ts` (SVG strings, tested) passed to `GlyphGrid` as an
+  `artwork` snippet via `createRawSnippet`; `GlyphGrid` items gained `artwork?: Snippet`.
+- The Random list is a `<ul>`, the ordered one an `<ol>` (`svelte:element` with `role="list"`).
+  A zero *measured* share also draws as a strip tick.
+- Tokens: `--thumb-lg` 48, `--share-measured-w` 48 ("≈68%" did not fit `--share-w` 40).
+
+Verified: `pnpm test` (655 package + 396 editor) and `pnpm typecheck` green, docs build and
+coverage pass. The browser smoke passed **51/51** (`t3/smoke.mjs` + `t3/readme.zip` in session
+`135a6279`'s scratchpad). Its ≈% figures were checked against `generate()` on op1 alone, counted
+by a throwaway test: 29 columns [63, 37], and [16, 77, 7] with Pink added; 9 columns (the ≤500
+breakpoint) [52, 48] and [0, 84, 16]. Fresh load moves them, since op1 reseeds on load. Constant
+saves one entry, switching back before Save restores the list, one undo reverts the Save, and
+there is no sideways scroll, no text under 12px and no target under 24px at 1728, 1024, 600 and
+320 px.
+
+Next: Pol reviews T3, then commit, then the T4 sweep.
+
 Side note: the notes untracked by 9e9590c had also been deleted from disk. `CLAUDE.md` and
 `ARCHITECTURE.md` were restored from `9e9590c^` (Pol's choice: these two only).
 
