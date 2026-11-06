@@ -1157,6 +1157,53 @@ change. Rejected: reworking only the Tile step (the stepper would then differ by
 numeric min/max share the problem in a milder form); renaming the options after what they paint
 (Pol keeps the current names).
 
+### T1 answers (Pol, 2026-11-06), done
+
+Mocks are on a scratch page, not in the repo: the stepper in the new order, then the palette
+under Random, Noise/Gradient (3a and 3b) and Constant, each at 455px and 380px.
+- **The strip under Noise and Gradient: 3b.** It draws the **measured coverage**, so it matches
+  the rows' "≈N%". The thresholds are dropped, because they no longer line up with it. "For
+  now": the deeper problem, that Noise itself is unexplained, is backlog item 12.
+- **Pattern glyphs: approved as mocked.** Each is 4×4 cells (10px at an 11px pitch) in ink
+  tints (paper, grey-300, grey-500, ink). Random is scattered, Noise is clumped, Gradient is
+  diagonal, and Constant is one flat tint.
+- **Constant's kept-entries line: keep.** It is a muted info line under the picker, shown only
+  when the draft holds other entries.
+- Also mocked and not objected to: under Random, the strip stays (it shows the chances), the
+  rows are unnumbered with "chance" over the %, and the ⋯ menu has no Move items. Under
+  Noise/Gradient, the header says "≈ painted". At 320px the rows tighten their gaps (a
+  container query) and drop that label.
+
+### T2: pattern written (2026-11-06), waiting for Pol's review
+
+`DESIGN_SYSTEM.md` changes:
+- **Palette** is rewritten as one row with a shared anatomy and three modes (Random, Noise and
+  Gradient, Constant).
+- **Operation stepper** gets the new order and Pattern's question.
+- **Operation card** chips are now Selection, Pattern, Blend.
+- **Inline advisory:** advisory 8 is retired.
+- **Tile picker** is also Constant's single tile.
+- **Menu:** the Move items appear only under Noise and Gradient.
+- **Operation glyphs:** the Pattern artwork is described.
+
+There is no longer any "Source" in the user-facing docs (the code keeps `source` and
+`sourceType`).
+
+For T3, beyond the file list in "Blocks":
+- **A new token**, `--thumb-lg` (48px), for Constant's thumbnail.
+- **The strip's widths and the rows' "≈%"** both come from `coverage()`. `thresholds()` and the
+  tick labels lose their last caller under Noise and Gradient, so delete them with their tests.
+  Do not keep them unused.
+- **`coverage()` cost:** it evaluates the Source over the selection on every weight drag. Measure
+  it on the readme grid. If a drag stutters, derive coverage from the field computed once per
+  pattern/seed/selection change (the weights only move the cut points). Do not throttle the
+  readout.
+- **Advisory 8** goes, with its `reorderedUnder` state in `PaletteList` and any docs or tests
+  that name it.
+- **Save under Constant** writes `palette: [shown entry]`. The draft keeps the full list until
+  Save. Test this in `draft` (switch to Constant and back: the list is restored; Save: one
+  entry).
+
 Side note: the notes untracked by 9e9590c had also been deleted from disk. `CLAUDE.md` and
 `ARCHITECTURE.md` were restored from `9e9590c^` (Pol's choice: these two only).
 
@@ -1298,3 +1345,8 @@ design are not done here (Stage 2, items 1–2).
     contradict each other. Palette weights read as chances, but the Source, chosen afterwards,
     decides what they mean. The editor's % is false under noise, a diagonal gradient and
     constant. Planned in "Next session plan: Tile and pattern (item 11)".
+12. Explain Noise (Pol, T1 review, 2026-11-06): the user needs Noise itself explained. Why do
+    the middle entries cover more? What do *Octaves* and *Cells per feature* do? Settle this
+    after item 11. Options include a hint or a short explainer on the Pattern step, a live
+    preview of the field, and renaming the params in the editor only (the file format keeps
+    `cellsPerFeature` and `octaves`).
