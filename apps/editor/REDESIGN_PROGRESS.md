@@ -990,6 +990,31 @@ gesture" with no extra work. Discard throws the edits away.
   then one undo.
 - Then K4's probes.
 
+Pol agreed to all five choices (2026-11-06).
+
+### K3: implemented (2026-11-06), waiting for Pol's review, uncommitted
+
+- `controls/palette.ts` + `palette.test.ts` (18 tests). `move` is generic, so the list moves its
+  row keys the same way.
+- `controls/PaletteList.svelte` and `controls/TilePicker.svelte`. `PaletteBar.svelte` is deleted.
+- `OperationCard` now uses `thumbOf`.
+- Icons `grip` and `swap`. Tokens `--strip-h`, `--strip-zero`, `--entry-num-w`, `--entry-name-w`,
+  `--picker-w`, `--picker-cell` and `--picker-thumb`.
+- Rows are keyed by a local key, so a moved row keeps its focus. A drag captures the pointer on
+  the list, because a moved row is reinserted and would lose a capture on its grip.
+- Docs: `palette-list.mdx` (renamed, rewritten), the new `tile-picker.md`, `PaletteListStory`, and
+  the pages that named PaletteBar. The palette no longer uses FieldRow, NumericInput, Hint or
+  Button, so those mentions went.
+- Checks: typecheck clean; 378 tests pass; the docs build passes (coverage 121/121); a browser
+  smoke on the readme zip passes 31/31 (`k3/smoke.mjs` in the session scratchpad). The smoke
+  covers: add through the picker (keyboard), focus on the new thumbnail, a weight, thresholds,
+  change tile, menu Move earlier with focus following the entry, a drag reorder, both refusals in
+  the Popup, remove with focus to Add entry, `random` (no thresholds, its caption, advisory 8
+  after a reorder), and Save then one undo.
+
+Next: Pol reviews K3, commit, then K4 (sweep: probes at 1728 / 1024 / 600 / 320, contrast, focus
+order).
+
 ### How to test
 
 As before: the dev server on **5175**, Playwright from `node_modules/.pnpm/playwright-core@1.56.1`

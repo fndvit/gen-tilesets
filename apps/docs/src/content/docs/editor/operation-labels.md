@@ -45,7 +45,7 @@ All * Tile [sand, clear] * Random * Set
   `UNANSWERED`. The attribute is `UNANSWERED` with no Target, the bare label with a Target and
   no mapping, and otherwise the label followed by the mapping:
   - a tile mapping lists its palette by **tile name**, as `[sand, clear]`. A `null` entry is
-    "clear", as `PaletteBar` names it. An id with no Tile is shown as the id;
+    "clear", as the palette list names it. An id with no Tile is shown as the id;
   - a numeric mapping is `[min - max]`, with ` × steps` only when `steps` is present (absent
     means continuous).
 - **`summarize`.** `STEPS.map((step) => cells[step]).join(" * ")` over `summaryCells`.

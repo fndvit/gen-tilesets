@@ -1,11 +1,11 @@
 <!--
-  The editor's `PaletteBar`, rendered alone with the docs fixture's tiles. It
+  The editor's `PaletteList`, rendered alone with the docs fixture's tiles. It
   holds no state of its own: the story keeps the palette and shows what
-  `onChange` hands back. Switch the Source to `random` to see its advisory.
+  `onChange` hands back. Switch the Source to `random` to see its caption change; reorder after that to see advisory 8.
 -->
 <script lang="ts">
   import { loadTilesetFile, type PaletteEntry } from "@vit-foundation/gen-tilesets";
-  import PaletteBar from "../../../editor/src/controls/PaletteBar.svelte";
+  import PaletteList from "../../../editor/src/controls/PaletteList.svelte";
   import raw from "../fixtures/basic.json";
 
   const { tiles } = loadTilesetFile(raw, "fixtures/basic.json").config;
@@ -24,7 +24,7 @@
       <option>valueNoise</option><option>random</option><option>gradient</option><option>constant</option>
     </select>
   </label>
-  <PaletteBar {palette} {tiles} {sourceType} onChange={(p) => (palette = p)} />
+  <PaletteList {palette} {tiles} {sourceType} onChange={(p) => (palette = p)} />
   <pre>{JSON.stringify(palette)}</pre>
 </div>
 

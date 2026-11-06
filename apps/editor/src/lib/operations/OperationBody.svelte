@@ -55,7 +55,7 @@
   import rectGlyph from "../../assets/glyphs/selection/rect.svg";
   import { isTileTarget } from "../../controls/mapping.js";
   import NumericMappingControl from "../../controls/NumericMapping.svelte";
-  import PaletteBar from "../../controls/PaletteBar.svelte";
+  import PaletteList from "../../controls/PaletteList.svelte";
   import ParamFields from "../../controls/ParamFields.svelte";
   import { addOperation, replaceOperation } from "../../document.js";
   import {
@@ -356,7 +356,7 @@
       {@const target = draft.target}
       {#snippet fields()}
         {#if isTileTarget(target)}
-          <PaletteBar
+          <PaletteList
             palette={draft.palette}
             tiles={session.file.config.tiles}
             sourceType={draft.sourceType}

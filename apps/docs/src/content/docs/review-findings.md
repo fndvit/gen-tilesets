@@ -124,8 +124,8 @@ was fixed in the editor redesign. The other kinds were spot-checked, not all re-
 | `OperationDraft.svelte` (file removed in Block E) | Under a `constant` Source the control collapses, but a stored `range[1]` stays in the file, hidden | inconsistency |
 | [ParamControl.svelte](/editor/param-control/) | `pending` treats empty text as `Number("")` = 0, while `commit` refuses `""` | inconsistency |
 | [ParamControl.svelte](/editor/param-control/) | Dragging the slider leaves stale typed text in the exact-value field until blur | inconsistency |
-| [PaletteBar.svelte](/editor/palette-bar/) | A refused weight edit leaves the refused number in the box; no draft-text model | inconsistency |
-| [PaletteBar.svelte](/editor/palette-bar/) | The weight input has `step="1"`, but weights may be fractional | inconsistency |
+| PaletteBar.svelte (replaced) | A refused weight edit leaves the refused number in the box; no draft-text model | inconsistency. Resolved: PaletteList's weight is a slider that springs back, and the refusal is reported in a Popup |
+| PaletteBar.svelte (replaced) | The weight input has `step="1"`, but weights may be fractional | inconsistency. Resolved: the weight is a slider with `step` 0.01 |
 | [NumericMapping.svelte](/editor/numeric-mapping/) | The `steps` input has no draft-text model, unlike the two range ends | inconsistency |
 | [NumericMapping.svelte](/editor/numeric-mapping/) | Slider step is `/200` here but `/100` in affordance.ts; neither comment mentions the other | inconsistency |
 | `BlendControl.svelte` (file removed in Block E) | The single-option sentence always talks about palettes, though the branch applies to any target with one accepted Blend (not reachable today) | inconsistency |

@@ -112,6 +112,14 @@
   --swatch-w: 30px; /* the background colour swatch, a control-high square */
   --asset-gap: 8px; /* between tile asset rows */
   --share-w: 40px; /* a tile asset's % */
+  /* The palette list and its tile picker. */
+  --strip-h: 12px; /* the proportion strip: read-only, so no target size applies */
+  --strip-zero: 2px; /* a zero-weight entry's tick on the strip */
+  --entry-num-w: 2ch; /* a palette entry's mono number */
+  --entry-name-w: 64px; /* a palette entry's name, before it gives way to the slider */
+  --picker-w: 300px;
+  --picker-cell: 64px;
+  --picker-thumb: 36px;
 
   /* ── Border and radius ─────────────────────────────────────────────── */
   --rule-w: 1px;

@@ -60,7 +60,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 Callers: `lib/ImportPanel.svelte` (refusals only), `lib/sections/SidebarTopBar.svelte` (export
 failure only), `lib/sections/TilesSection.svelte` (refusals only; files that do not attach are a
-failure notice since Stage 2 W5), and `lib/ui/Dialog.svelte` (`actions` and `alert`). Callees: `lib/ui/Button.svelte`.
+failure notice since Stage 2 W5), `controls/PaletteList.svelte` (refusals: the last entry, the
+last non-zero weight), and `lib/ui/Dialog.svelte` (`actions` and `alert`). Callees: `lib/ui/Button.svelte`.
 
 ### Tests
 

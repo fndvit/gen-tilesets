@@ -18,7 +18,7 @@ question, in the field labels' style, then the options:
 | Step | Question | Options | Then |
 | --- | --- | --- | --- |
 | Selection | "Which cells does this operation affect?" | the registered Selections, with Figma's artwork | [ParamFields](/editor/param-fields/) |
-| attribute | "What does this operation write?" | the eight Targets, label only | [PaletteBar](/editor/palette-bar/) or [NumericMapping](/editor/numeric-mapping/) |
+| attribute | "What does this operation write?" | the eight Targets, label only | [PaletteList](/editor/palette-list/) or [NumericMapping](/editor/numeric-mapping/) |
 | Source | "Where does each cell's number come from?" | the registered Sources, label only | ParamFields, and "Reseed on load" for a stochastic Source |
 | Blend | "How does this combine with what is already there?" | the Blends the Target accepts, label only | nothing |
 
@@ -81,7 +81,7 @@ block, shown only when the chosen Selection has parameters.
 #### Attribute
 
 One label-only cell per key of `TARGETS`. Choosing one calls `retarget(draft, target)`. Then a
-`"tile"` Target (`isTileTarget`) shows `PaletteBar` with `session.file.config.tiles` and
+`"tile"` Target (`isTileTarget`) shows `PaletteList` with `session.file.config.tiles` and
 `draft.sourceType`; any other shows `NumericMapping` with `collapsed` true when the Source is
 `constant`. Either goes in the options block, named after the Target ("TILE", "OPACITY").
 
@@ -142,7 +142,7 @@ Callees: [`acceptedBlends`](/api/index/functions/acceptedblends/),
 [`selections`](/api/index/variables/selections/), [`sources`](/api/index/variables/sources/),
 [`TARGETS`](/api/index/variables/targets/); the six Selection glyphs in
 `assets/glyphs/selection/`; `isTileTarget` (`controls/mapping.ts`);
-[NumericMapping](/editor/numeric-mapping/), [PaletteBar](/editor/palette-bar/),
+[NumericMapping](/editor/numeric-mapping/), [PaletteList](/editor/palette-list/),
 [ParamFields](/editor/param-fields/); `addOperation`, `replaceOperation` (`document.ts`);
 `defaultParams`, `isComplete`, `retarget`, `STEPS`, `toOperation` (`draft.svelte.ts`); `session`;
 [Button](/editor/ui-button/), [FieldRow](/editor/ui-field-row/),

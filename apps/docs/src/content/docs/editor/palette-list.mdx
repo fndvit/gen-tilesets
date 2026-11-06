@@ -1,0 +1,152 @@
+---
+title: PaletteList.svelte
+description: The palette editor for a tile operation. A proportion strip over numbered entry rows, because palette order is meaningful.
+sidebar:
+  order: 50
+---
+
+import PaletteListStory from "../../../stories/PaletteListStory.svelte";
+
+
+**Written from:** `apps/editor/src/controls/PaletteList.svelte`, `apps/editor/src/controls/palette.ts`,
+`apps/editor/src/controls/palette.test.ts`, and the call site in `lib/operations/OperationBody.svelte`.
+
+## Overview
+
+The palette list appears in the attribute step of an open operation when the author chooses
+Tile (`tileId`), which means the operation places tiles. From top to bottom it holds:
+- **a proportion strip**: one segment per entry, in order. Each segment is as wide as its share
+  and filled with the tile's picture, so the strip reads as a sample of the canvas;
+- **thresholds** under the strip (0, each band edge, 1), shown under every Source except `random`;
+- **one row per entry**: a grip, its number, the thumbnail, the name, a weight slider with its %,
+  and a ⋯ menu;
+- **a caption** that says what order means under this Source;
+- **"Add entry"**, which opens the [tile picker](/editor/tile-picker/).
+
+The order of the entries matters. Under a smooth Source such as noise or a gradient,
+neighbouring entries become neighbouring regions on the canvas, so water next to sand is said by
+putting water next to sand in the list. The author reorders by dragging a row's grip, or with the
+menu's Move earlier and Move later, which is the keyboard path. Clicking a thumbnail, or the
+menu's "Change tile…", opens the picker for that entry.
+
+In the editor's pipeline (import → document → **draft**/history → preview → export), it edits the
+draft's palette. It never touches the document: Save commits the whole draft as one undo step.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone with the docs fixture's tiles and no editor state. The story holds the palette and prints what `onChange` returns. The editor's own stylesheet is not loaded here, so it looks plainer than in the app, and the fixture's tiles have no stored pictures, so thumbnails are grey.
+
+<PaletteListStory client:only="svelte" />
+
+## In detail
+
+### Purpose
+
+The component edits a [`PaletteEntry`](/api/index/interfaces/paletteentry/)`[]` and reports each
+change through `onChange`. The header comment gives the history. A Tile's asset list is sorted by
+id so that dragging cannot reshuffle the canvas, while a palette's order is authored and
+significant (cited as **O6**): "two adjacent lists in the same editor, with opposite rules". §7.6
+first answered that with a single segmented bar. The bar was hard to grasp, so the entries are
+rows again, and three things keep them from reading as the tile group's sorted list: the strip
+shows the sequence and the shares, the rows are numbered and dragged by a grip, and the caption
+says why order matters.
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `palette` | `PaletteEntry[]` | required | The entries, in authored order. |
+| `tiles` | [`Tile`](/api/index/interfaces/tile/)`[]` | required | The library, for names, thumbnails and the picker. |
+| `sourceType` | `string \| null` | required | The draft's Source: thresholds, the caption, advisory 8. |
+| `onChange` | `(palette: PaletteEntry[]) => void` | required | Receives the whole new palette. |
+
+### The rules: `palette.ts`
+
+The rules live outside the component so they can be tested. Each edit returns the next palette,
+or a refusal reason.
+
+| Function | Returns | Refused when |
+| --- | --- | --- |
+| `move(list, from, to)` | the list with one item moved; generic, so the row keys move the same way | never: out of range or unchanged returns `list` itself |
+| `add(palette, tileId)` | the palette with `{ tileId, weight: 1 }` at the end | never |
+| `remove(palette, index)` | `Edit` | `last-entry` (none left) or `last-weight` (the rest all zero) |
+| `setWeight(palette, index, weight)` | `Edit` | `last-weight`; a negative or non-finite weight is ignored |
+| `setTile(palette, index, tileId)` | the palette with that entry's tile changed | never |
+| `shares`, `percents` | each entry's share, 0–1 or a rounded % | |
+| `sliderMax(palette)` | 2, or the largest weight if that is more | |
+| `thresholds(palette, width)` | the labels under the strip, with collisions dropped | |
+| `thumbOf(tiles, tileId)`, `nameOf(tiles, tileId)` | the thumbnail (also used by [OperationCard](/editor/operation-card/)) and the name | |
+
+`REFUSALS` holds the Popup's words for each reason.
+
+### Inputs → outputs
+
+- **Strip:** `aria-hidden`, read-only. A segment's `flex-grow` is its share, and its background is
+  the tile's first asset, repeated along the strip. Clear is the slashed square, a missing picture
+  is field grey, and a zero weight is a `--strip-zero` ink tick. The row under the pointer, holding
+  focus or being dragged rings its segment in the accent.
+- **Thresholds:** `thresholds(palette, stripWidth)`. A band edge is where a non-zero share ends;
+  edges at the same place are one label. 0 and 1 are always kept and aligned to the strip's ends.
+  An inner label that would collide with the one before, or with 1, is dropped. None under
+  `random`.
+- **Rows:** an `<ol aria-label="Palette, in order">`. Each row is keyed by a local key, not its
+  index, so a moved row keeps its DOM and its focus. The grip is `aria-hidden` and pointer only.
+  The thumbnail is a button, "Tile of entry 2: Blue, change". The weight is a
+  [Slider](/editor/ui-slider/), "Weight of entry 2, Blue", from 0 to `sliderMax`. The ⋯
+  [Menu](/editor/ui-menu/) holds Change tile…, Move earlier, Move later and Remove.
+- **Weight:** `onInput` applies a weight live unless it would leave every weight at zero.
+  `onCommit` applies it, or reports `last-weight` in a [Popup](/editor/ui-popup/), and the slider
+  springs back to the palette's value.
+- **Drag:** `pointerdown` on a grip captures the pointer on the list, which stays put while the
+  rows move. `pointermove` swaps the dragged row with a neighbour once the pointer crosses that
+  row's middle. The dragged row is lifted (white, `--shadow-float`).
+- **Remove:** refused reasons go to the Popup. After a removal, focus goes to the next row's menu,
+  or to "Add entry" after the last row.
+- **Add and change:** both open the [tile picker](/editor/tile-picker/). After a pick, focus goes
+  to that row's thumbnail.
+- **Caption and advisory 8:** a muted line, "Order matters: entries next to each other here end up
+  next to each other on the canvas." Under `random`: "every value is equally likely, so order does
+  not matter here". Once the author has reordered under `random` (and let go of any drag),
+  [Advisory](/editor/ui-advisory/) 8 replaces the caption.
+
+### Invariants
+
+- **Order is authored and never sorted.** Only `move` changes the sequence.
+- **`null` is an ordinary entry** meaning *clear this cell*. It is the picker's first cell and is
+  not a Tile in the library.
+- **At least one entry, and a total above zero** (`06` §7.3), or nothing can ever win the walk.
+  Both are refused after the attempt, never by disabling a control.
+- **Zero weight is legal**, meaning "listed but never chosen", and stays visible: a tick on the
+  strip, and a full row with 0%.
+
+### Callers / callees
+
+| Caller | Use |
+| --- | --- |
+| `lib/operations/OperationBody.svelte:58` | import |
+| `lib/operations/OperationBody.svelte:359` | `palette={draft.palette}`, `tiles={session.file.config.tiles}`, `sourceType={draft.sourceType}`, writes `draft.palette` |
+
+Callees: `controls/palette.ts`, [TilePicker](/editor/tile-picker/), [Slider](/editor/ui-slider/),
+[Menu](/editor/ui-menu/), [Popup](/editor/ui-popup/), [AddBar](/editor/ui-add-bar/),
+[Advisory](/editor/ui-advisory/), [Icon](/editor/ui-icon/).
+
+### Tests
+
+`controls/palette.test.ts` covers every refusal, the moves at both ends, the zero-weight rules,
+percentages, the slider's top, names, and the threshold collisions at both ends.
+`controls/mapping.test.ts` pins the palette's surroundings in the draft: changing Target away
+from `tileId` and back keeps the palette, and an empty or all-zero palette makes the draft
+incomplete.
+
+### Gotchas & rejected alternatives
+
+- **The bar (until Stage 2).** One bar segmented by weight, with an editor under it for the
+  selected entry. It was rejected because an entry was not visible as an entry, the controls
+  edited one you could not see beside them, and the weight was a bare number.
+- **Stepper circles on the rows (K1 variant A).** They read well as a sequence, but they repeated
+  the operation's own stepper one level down. The rows use mono numbers instead.
+- **The `random` advisory.** Under `random` values are uniform, so adjacency means nothing and
+  reordering "reshuffles the canvas with no visible reason". The advisory shows only after a
+  reorder: a line that is always there is a line nobody reads.
+- **The pointer is captured on the list, not the grip.** A keyed row that moves is reinserted,
+  which would drop a capture held by its grip.

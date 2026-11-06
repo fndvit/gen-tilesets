@@ -71,6 +71,13 @@ export const ICONS = {
     "M11 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0M18 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0" +
       "M4 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0",
   ),
+  /** Drag to reorder: a palette entry's grip (Lucide grip-vertical). */
+  grip: icon(
+    "M8 5a1 1 0 1 0 2 0a1 1 0 1 0-2 0M8 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0M8 19a1 1 0 1 0 2 0a1 1 0 1 0-2 0" +
+      "M14 5a1 1 0 1 0 2 0a1 1 0 1 0-2 0M14 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0M14 19a1 1 0 1 0 2 0a1 1 0 1 0-2 0",
+  ),
+  /** Change one thing for another: a palette entry's tile (Lucide arrow-right-left). */
+  swap: icon("m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"),
   /** Done. */
   check: icon("M20 6 9 17l-5-5"),
   /** An advisory: something worth knowing that blocks nothing (a notice, an inline advisory). */

@@ -13,8 +13,8 @@ sidebar:
 paper" (2026-11-06) they are one outline family, Lucide's paths (ISC licence), on a 24-unit grid,
 drawn at 16px with a 1.5px stroke and round caps and joins.
 
-There are fifteen: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`,
-`export`, `new`, `more`, `check`, `info` and `alert`.
+There are seventeen: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`,
+`export`, `new`, `more`, `grip`, `swap`, `check`, `info` and `alert`.
 
 ## In detail
 
@@ -36,6 +36,8 @@ There are fifteen: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `un
 | `reseed` | Draw the randomness again. The shape, not a colour, says it |
 | `undo`, `import`, `export`, `new` | The sidebar top bar's document actions |
 | `more` | More actions, in a menu |
+| `grip` | Drag to reorder: a palette entry's grip |
+| `swap` | Change a palette entry's tile, in its menu |
 | `check` | Done |
 | `info` | An advisory: a `Notice` of kind `advisory`, and an inline advisory |
 | `alert` | A failure: a `Notice` of kind `failure`, drawn in `--color-danger` |

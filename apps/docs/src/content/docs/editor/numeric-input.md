@@ -96,7 +96,6 @@ the transitions in `document.ts` parse again on their own terms.
 | `lib/sections/BreakpointsSection.svelte` | each breakpoint rule field | `RULE_PARSERS[field]` |
 | `controls/ParamControl.svelte` | a `number` parameter (with the range as `hint`) | `admits(spec, n)` |
 | `controls/NumericMapping.svelte` | From, To (or Value when collapsed), Steps | `admitsTyped(target, n)`; an integer `≥ MIN_STEPS` |
-| `controls/PaletteBar.svelte` | the selected entry's Weight (with a `hint`) | finite and `≥ 0` |
 
 Callees: `format` and the `ParseResult` type from `fields.ts:27`, and
 [`ui/FieldRow`](/editor/ui-field-row/) for the row (label on the left, field on the right, with

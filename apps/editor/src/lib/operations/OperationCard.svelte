@@ -27,9 +27,9 @@
   stepper's own rows.
 -->
 <script lang="ts">
-  import { canonicalAssets, type Tile } from "@vit-foundation/gen-tilesets";
+  import type { Tile } from "@vit-foundation/gen-tilesets";
   import type { Snippet } from "svelte";
-  import { stored } from "../../assets.js";
+  import { thumbOf } from "../../controls/palette.js";
   import type { Step } from "../../draft.svelte.js";
   import IconButton from "../ui/IconButton.svelte";
   import Menu from "../ui/Menu.svelte";
@@ -79,13 +79,7 @@
   const chips = ["selection", "source", "blend"] as const;
 
   /** Up to four palette thumbnails: the tile's first asset, or `null` for clear or a missing picture. */
-  const thumbs = $derived(
-    (writes?.tileIds ?? []).slice(0, 4).map((id) => {
-      const tile = id === null ? undefined : tiles.find((t) => t.id === id);
-      const asset = tile ? canonicalAssets(tile)[0] : undefined;
-      return { clear: id === null, url: tile && asset ? (stored(tile.id, asset.id)?.url ?? null) : null };
-    }),
-  );
+  const thumbs = $derived((writes?.tileIds ?? []).slice(0, 4).map((id) => thumbOf(tiles, id)));
 
   const name = $derived(`operation ${index}`);
 </script>
