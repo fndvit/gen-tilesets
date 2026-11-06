@@ -13,9 +13,9 @@ iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into th
 is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. Stage 2 ·
 Warnings and dialogs is **closed** (W0–W5: `8364d4e`, `3034fc1`, `3a8ca84`, `feafa9a`). The palette
 group (item 7) and Tile and pattern (item 11) are **closed** (K0–K3, T0–T4: `71fd0c1`,
-`bf60a0d`, `855d6ad`). Explain Noise (item 12) is **in progress**: N0 is answered (see "N0 answers" under "Next
-session plan: Explain Noise (item 12)"). The preview now goes live while a draft is built.
-**Next: Pol picks from the N1 mocks**, then N2 docs.
+`bf60a0d`, `855d6ad`). Explain Noise (item 12) is **in progress**: N0 and N1 are answered (see "N0 answers" and
+"N1 picks" under "Next session plan: Explain Noise (item 12)"). N2 docs are written.
+**Next: Pol reviews N2**, then N3 code.
 
 ## Stage 1 blocks
 
@@ -1622,6 +1622,28 @@ longer the saved file. N2 records the amendment at the point of use (`App.svelte
 `DESIGN_SYSTEM.md`, together with the option rejected (a separate preview renderer, which is
 the drift S2 exists to prevent). **E3** is untouched: nothing is written to `session.file`.
 
+### N1 picks (Pol, 2026-11-06)
+
+The mock is a scratch page (session `47d2af55`, `n1/mock.html`), not in the repo.
+
+1. **Field preview placement A**: above the fields in the well, full width, with a 0–1 scale
+   under it.
+2. The "How noise works" popover as mocked (explanation, the share bars for Octaves 1/2/3, the
+   ends advice, the position note).
+3. Gradient and Random get the same preview; Constant none.
+4. **No incomplete-draft state.** The field is not drawn over the main preview. Until the draft
+   can paint, the preview stays as today (the saved picture and the selection overlay); once
+   `isComplete`, it draws the real result. N0.3's "field over selection" is dropped.
+   Consequence (Claude's call, flagged in N2): the draft cue shows **only while the preview
+   draws the draft**, so it always means "this picture is not saved".
+5. The palette caption as mocked.
+6. **Draft frame 1px** (`--rule-w`), ultramarine.
+
+Measured for the popover (engine, `fieldOf` + `coverageOf`, Cells per feature 5, 40×40,
+40 seeds, three entries): equal weights paint 23/52/26 (Octaves 1), 15/68/17 (2), 12/75/14
+(3). First and last at weight *w*, Octaves 2: 1.5 → 22/54/25, 2 → 27/44/29, 2.5 → 30/37/33,
+3 → 32/32/35. So "about three times the middle one" under 2 octaves.
+
 ### Blocks, revised after N0
 
 - **N1 · Mocks.** A static scratch page (not in the repo) at a 400px sidebar and at the
@@ -1634,13 +1656,13 @@ the drift S2 exists to prevent). **E3** is untouched: nothing is written to `ses
 - **N3 · Implement.**
   - `lib/operations/labels.ts`: the sentence-case fallback, and `labels.test.ts`.
   - `controls/palette.ts`: `fieldCells(config, operationId, seed, loadSalt)` → `{x, y, t}[]`
-    beside `fieldOf` (`fieldOf` becomes its `t`s), tested against `fieldOf`.
+    beside `fieldOf` (`fieldOf` becomes its `t`s), tested against `fieldOf`. The well's field
+    preview needs the positions to draw the whole grid.
   - `draft.svelte.ts`: `draftFile(file, draft)`, the file with `toOperation(draft)` in it,
     or `null` while incomplete. It shares `shadowConfig`'s replace-or-append rule (factored
     into one function). Tested in `draft.test.ts`.
-  - `App.svelte`: `<Tileset>` draws `draftFile ?? file`. A new `lib/preview/FieldLayer.svelte`
-    (grey cells from `fieldCells`, drawn like `SelectionOverlay`) shows while the draft is
-    incomplete. Add the accent frame and the "Draft · not saved" tag.
+  - `App.svelte`: `<Tileset>` draws `draftFile ?? file`. While `draftFile` is not `null`, the
+    1px accent frame and the "Draft · not saved" tag show. (No FieldLayer: N1 pick 4.)
   - The Pattern well: a small field-preview component (its logic in a tested `.ts` file:
     field → grey levels), the ⓘ popover, and per-param hints (`ParamFields` /
     `ParamControl`, hint text kept in the editor, keyed by param name).
