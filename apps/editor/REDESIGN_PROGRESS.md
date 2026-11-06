@@ -1128,6 +1128,38 @@ then tiles.**
 The palette group's test helpers, `k3/smoke.mjs` and `k3/readme.zip`, live in session
 `c5a97149`'s scratchpad. Rebuild them if that is gone (see "How to test").
 
+### T0 answers (Pol, 2026-11-06), done
+
+These replace the "Recommended direction" above wherever the two differ.
+
+1. **Step order:** swap the steps for **every** attribute: Selection → **Pattern** → Attribute →
+   Blend.
+2. **Naming:** the step "Source" is renamed **Pattern**. **The options keep their names** (Random,
+   Noise, Gradient, Constant, from `labels.ts`), so *Scattered / Patches / Bands / Same
+   everywhere* is dropped. The question becomes "How should the tiles spread?", or "How should
+   the values spread?" for a numeric attribute.
+3. **The row %:** the **chance** under Random, and the **measured coverage** ("≈ 68%") under Noise
+   and Gradient. The measured figure moves with the seed and the selection.
+4. **Constant with Tile** collapses to one tile picker. **Save writes only that entry**, so what
+   you see is what is saved, as `NumericMapping` writes min = max. The draft keeps the other
+   entries until Save, so switching the pattern back before saving restores them.
+5. **Under Random:** hide the order UI (numbers, grip, thresholds) and **retire advisory 8**.
+6. **Decision record:** here and in `DESIGN_SYSTEM.md` (T2). Not in the spec: the spec,
+   `DECISIONS.md` and the ADRs are archived on purpose and frozen at v0.1.0 in
+   `../gen-tileset-spec-archive/` (ab8bf3c; CLAUDE.md: "the code is the authority"). This
+   decision **departs from archive `09` §7.6** (the step order) and **`04` §6.4** (the palette
+   weights read as bands). Leave the archive as it is.
+
+**Decision (2026-11-06): pattern before attribute.** A palette weight is the width of a band of
+numbers, and it is a chance only under Random. So the editor asks for the pattern first, and the
+palette shows what its weights mean under that pattern. The file format and the engine do not
+change. Rejected: reworking only the Tile step (the stepper would then differ by attribute, and
+numeric min/max share the problem in a milder form); renaming the options after what they paint
+(Pol keeps the current names).
+
+Side note: the notes untracked by 9e9590c had also been deleted from disk. `CLAUDE.md` and
+`ARCHITECTURE.md` were restored from `9e9590c^` (Pol's choice: these two only).
+
 ### How to test
 
 As before: the dev server on **5175**, Playwright from `node_modules/.pnpm/playwright-core@1.56.1`
