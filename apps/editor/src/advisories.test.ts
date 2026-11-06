@@ -7,6 +7,7 @@ import type { Operation, TilesetFile } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import {
   assetFailures,
+  attachFailures,
   documentNotices,
   importNotices,
   inertReseed,
@@ -161,6 +162,24 @@ describe("asset failures — §12.3", () => {
     const file = doc({ columns: 10 }, { horizontalAlignment: "column" });
     const keys = documentNotices(file, [], ["t1/a1: 404"]).map((n) => n.key);
     expect(keys).toEqual(["asset-failures", "parity"]);
+  });
+});
+
+describe("attach failures — §12.3", () => {
+  it("shows nothing when every file attached", () => {
+    expect(attachFailures([])).toBeNull();
+  });
+
+  it("collapses the files that did not attach into one failure notice", () => {
+    const notice = attachFailures(["notes.txt: not an image", "broken.png: decode failed"]);
+    expect(notice?.key).toBe("attach-failures");
+    expect(notice?.kind).toBe("failure");
+    expect(notice?.title).toBe("2 files didn't attach");
+    expect(notice?.data).toEqual(["notes.txt: not an image", "broken.png: decode failed"]);
+  });
+
+  it("names one file in the singular", () => {
+    expect(attachFailures(["notes.txt: not an image"])?.title).toBe("A file didn't attach");
   });
 });
 

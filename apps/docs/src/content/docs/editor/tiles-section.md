@@ -1,6 +1,6 @@
 ---
 title: sections/TilesSection.svelte
-description: The Tiles section. Adds a tile group from N files, adds variants, renames, weights and deletes, and explains every refusal in a popup.
+description: The Tiles section. Adds a tile group from N files, adds variants, renames, weights and deletes, explains every refusal in a popup, and pushes a failure notice for files that did not attach.
 sidebar:
   order: 44
 ---
@@ -42,8 +42,10 @@ files through [assets.ts](/editor/assets/).
 | Square "+", or a drop on a group | `addVariants(tile, files)` | `attachAll(tile.id, tile's asset ids, files)`, then `addAssets(tile.id, assets)` |
 
 `attachAll` allocates an asset id only for a file that attaches, so a new group is always
-`a1…aN` with no gaps. Files that fail are listed in the popup as `"<name>: <reason>"`, and the
-others are still committed.
+`a1…aN` with no gaps. Files that fail are pushed as one failure notice, `attachFailures` in
+[advisories.ts](/editor/advisories/), listing each as `"<name>: <reason>"`, and the others are still
+committed. It is a notice, not a popup, because part of the drop did attach (Pol, Stage 2 W5). A
+second failed drop replaces the notice (same key).
 
 `reserved` holds the Tile ids of attaches still in flight. `addGroup` allocates before it awaits
 and commits after, so without it two quick drops could allocate the same id. `addTiles` does not
@@ -85,7 +87,8 @@ apart." This is §12.2's sixth advisory, and it is display only.
 - **N files, one Tile** (redesign Block D). This replaces `DECISIONS.md` D13 (one Tile per file).
 - **E13 / E4:** an attach writes `meta.src`, `width` and `height` and nothing else, or it fails
   (`attachAsset` in `assets.ts`). A failed file never reaches the document.
-- **Reports appear after the attempt, in a popup**, never in the layout (Block C rule).
+- **Refusals appear after the attempt, in a popup**, never in the layout (Block C rule). Nothing
+  happened, so the popup blocks. Files that did not attach are a failure notice instead.
 - **The drop targets are disjoint.** A group stops its drop from bubbling, so a drop on a group adds
   variants and never also makes a new group. The "+" bar is always part of the section's target, so
   a new group can always be dropped, however full the list is.
@@ -93,8 +96,9 @@ apart." This is §12.2's sixth advisory, and it is display only.
 ### Callers / callees
 
 Called by `App.svelte` (`<TilesSection />` in `.scrollable`). Callees: `attachAll`,
-`heldTileIds`, `tileNameOf` (`assets.ts`); the library transitions from `document.ts`;
-`nextTileId` (`ids.ts`); `Section`, `tiles/TileGroup`, `ui/AddBar`, `ui/Popup`.
+`heldTileIds`, `tileNameOf` (`assets.ts`); `attachFailures` (`advisories.ts`); `notices.push`
+(`notices.svelte.ts`); the library transitions from `document.ts`; `nextTileId` (`ids.ts`);
+`Section`, `tiles/TileGroup`, `ui/AddBar`, `ui/Popup`.
 
 ### Tests
 

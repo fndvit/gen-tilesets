@@ -1,6 +1,6 @@
 ---
 title: ui/Button.svelte
-description: A text button for an action (Undo, Import, Download, Close), in the chip look Toggle already uses.
+description: A text button for an action (Undo, Import, Export, Cancel), in three weights told apart by fill.
 sidebar:
   order: 74
 ---
@@ -11,10 +11,11 @@ import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
 
 ## Overview
 
-`Button` is the editor's text button: Undo, Import, New, Download in the sidebar footer, Change it
-and Cancel in the confirmation, Close in a popup. It looks like a `Toggle` chip (a thin border,
-small uppercase text, inverting on hover), so an action and a choice read as the same family. The
-difference is that a chip stays filled when it is chosen, and a button never does.
+`Button` is the editor's text button: Undo, New, Import and Export in the sidebar top bar, the
+footer's rerolls, Cancel and the named verb in a dialog, Close in a popup, and a notice's actions.
+It has three weights, told apart by fill, never by border: `primary` (ink, white text, one per
+area), `secondary` (the default, a grey fill a step darker than the panel) and `tertiary` (text
+only, a wash under the pointer). Each darkens a step on hover and another while pressed.
 
 ## Try it
 
@@ -28,25 +29,32 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 | Prop | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `label` | `string` | required | The visible text, uppercased by `.t-xs`. |
+| `label` | `string` | required | The visible text, in `.t-xs`, in sentence case. |
+| `icon` | `IconName` | none | An icon before the label, for actions people find by shape (Undo, Import, Export). |
 | `onclick` | `(event: MouseEvent) => void` | required | |
-| `disabled` | `boolean` | `false` | `--color-inactive` border and text, `cursor: default`. |
+| `disabled` | `boolean` | `false` | `--color-disabled` text, `cursor: default`; a disabled `primary` takes the secondary fill. |
 | `wide` | `boolean` | `false` | Stretches to its container (`width: 100%`). |
+| `variant` | `"primary" \| "secondary" \| "tertiary"` | `"secondary"` | The weight, by fill. |
+| `describedby` | `string` | none | The id of a hint that explains it. |
 
 ### Inputs → outputs
 
-- `--rule` border, `--control-h` (28px) tall with `--space-4` side padding, `--color-paper` fill,
-  `--color-ink` text. Hover swaps the two; pressing fills it with `--color-pressed` and
-  `--color-on-pressed` text (Block F). It reads only semantic tokens, so inside `.theme-inverted` it is a white-bordered button on
-  black with no style of its own.
+- At least `--control-h` tall, with `--space-6` side padding (`--space-4` for `tertiary`), no
+  border, `--radius-sm` corners. The height keeps it above the 24px target floor (WCAG 2.2, 2.5.8).
+- `primary`: `--color-primary` fill and `--color-on-primary` text; hover `--color-primary-hover`;
+  pressed is ink with an inset ring.
+- `secondary`: `--color-secondary` fill and ink text; hover `--color-secondary-hover`; pressed
+  `--color-secondary-pressed`.
+- `tertiary`: no fill; hover `--color-hover`; pressed `--color-pressed`.
 
 ### Callers / callees
 
-Callers: `lib/sections/SidebarFooter.svelte` (Undo, New, Download), `lib/ImportPanel.svelte`
-(Import), `lib/ui/Popup.svelte` (Close), `App.svelte` (the confirmation's Change it and Cancel),
+Callers: `lib/sections/SidebarTopBar.svelte` (Undo, New, Export), `lib/ImportPanel.svelte`
+(Import), `lib/sections/SidebarFooter.svelte` (Reroll assets, Preview a fresh load),
+`lib/ui/Popup.svelte` (Close), `lib/ui/Dialog.svelte` (Cancel and the named verb, for the resize,
+New and unsaved-changes dialogs), `lib/ui/Notice.svelte` (a notice's actions),
 `lib/tiles/TileGroup.svelte` (Reset weights), `lib/operations/OperationBody.svelte` (Discard,
-Save / Add), `lib/sections/OperationsSection.svelte` (the popup's Keep editing and Discard),
-`controls/PaletteBar.svelte` (Earlier, Later, Remove, + Entry, + Clear).
+Save / Add), `controls/PaletteBar.svelte` (Earlier, Later, Remove, + Entry, + Clear).
 Callees: none.
 
 ### Tests

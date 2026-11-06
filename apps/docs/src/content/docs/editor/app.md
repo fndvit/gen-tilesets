@@ -273,5 +273,5 @@ validates.
   on Enter or blur. The source does not say whether the seed behaviour is intended.
 - Clicking "Add operation" while an edit-draft is open calls `drafting.start`, which replaces the
   open draft without asking. Nothing in the source says whether that is intended. **Fixed in
-  Block E:** `OperationsSection` asks first, in an "Unsaved changes" popup, when the open draft
-  differs from the file (`draftDiffers`).
+  Block E:** the guard asks first, when the open draft differs from the file (`draftDiffers`).
+  Since Stage 2 W4 it is the "Discard your changes?" `Dialog`, held in `opening.svelte.ts`.

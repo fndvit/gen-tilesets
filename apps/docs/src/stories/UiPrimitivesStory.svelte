@@ -181,7 +181,7 @@
       {#if !dismissed.includes("advisory")}
         <Notice
           kind="advisory"
-          title="Orphaned by a resize"
+          title="An operation lost cells in a resize"
           data={["op-2 · cellList: 3 of 11 painted cells are outside the grid"]}
           actions={[{ label: "Open op-2", run: () => (log = "open op-2") }]}
           onDismiss={() => (dismissed = [...dismissed, "advisory"])}

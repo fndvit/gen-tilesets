@@ -10,10 +10,15 @@
   adds variants to it.
 
   **Refusals are reported after the attempt, in a `Popup`**, never in the
-  layout (Block C rule): a file that will not attach, a Tile an operation
-  still uses (§4.2, D15), the last variant (`03` §4.1), the last non-zero
-  weight (§10.2, `06` §6). Each check runs here so the refusal can be
-  explained; the transition refuses again on its own terms.
+  layout (Block C rule): a Tile an operation still uses (§4.2, D15), the last
+  variant (`03` §4.1), the last non-zero weight (§10.2, `06` §6), a taken name.
+  Nothing happened, so the report blocks, like "Import refused". Each check
+  runs here so the refusal can be explained; the transition refuses again on
+  its own terms.
+
+  **Files that will not attach are a failure notice** (`attachFailures`, Pol,
+  W5), not a refusal: the rest of the drop did attach, so the author keeps
+  working while the notice says which files are missing.
 
   **Names are unique in the editor** (Pol, Block D, overriding `09` §10.1's
   "never blocks a rename"). A rename to a name another group has, ignoring case
@@ -24,6 +29,7 @@
 -->
 <script lang="ts">
   import type { Tile } from "@vit-foundation/gen-tilesets";
+  import { attachFailures } from "../../advisories.js";
   import { attachAll, heldTileIds, tileNameOf } from "../../assets.js";
   import {
     addAssets,
@@ -38,6 +44,7 @@
     uniqueTileName,
   } from "../../document.js";
   import { nextTileId } from "../../ids.js";
+  import { notices } from "../../notices.svelte.js";
   import { session } from "../../session.svelte.js";
   import Section from "../Section.svelte";
   import TileGroup from "../tiles/TileGroup.svelte";
@@ -54,6 +61,12 @@
     if (messages.length === 0) return;
     problems = messages;
     reporting = true;
+  }
+
+  /** The files of one drop or pick that did not attach. */
+  function reportFailures(failures: string[]): void {
+    const notice = attachFailures(failures);
+    if (notice !== null) notices.push(notice);
   }
 
   /** Files dragged over the section background. Purely visual. */
@@ -79,13 +92,13 @@
       const name = uniqueTileName(session.file, tileNameOf(first.name));
       session.apply(addTiles([{ id: tileId, name, assets }]));
     }
-    report(failures);
+    reportFailures(failures);
   }
 
   async function addVariants(tile: Tile, files: File[]): Promise<void> {
     const { assets, failures } = await attachAll(tile.id, tile.assets.map((a) => a.id), files);
     session.apply(addAssets(tile.id, assets));
-    report(failures);
+    reportFailures(failures);
   }
 
   /** One hidden file picker. `target` says what the chosen files are for. */

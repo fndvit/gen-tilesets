@@ -36,6 +36,10 @@ options are disabled and marked "pinned".
 - Per present field in `RULE_FIELDS`: a [`NumericInput`](/editor/numeric-input/) with
   `RULE_PARSERS[field]` → `setRuleField(i, field, t)`, and a trash `IconButton` →
   `removeRuleField(i, field)`. The label is the field name in words (`minWidth` → "min width").
+- `rows`, `columns` and `cellSize` (`GRID_SHAPING`) use `commit="blur"`: they commit once, on blur
+  or Enter, and show the "↵ Enter to apply" cue while they hold a change, as Grid & size does.
+  Otherwise typing "14" would build a 1-row grid first (Pol, Stage 2 W5). The other fields follow
+  the typing, like Grid & size's Y offset.
 - A native `<select>` styled as a chip adds a missing field with `addRuleField`. `rows` and
   `columns` are disabled while `risked` is not empty.
 - [`AddBar`](/editor/ui-add-bar/) "Add breakpoint" → `addRule()`.

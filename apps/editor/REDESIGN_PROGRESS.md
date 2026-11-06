@@ -10,9 +10,10 @@ iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into th
 `37a2726` from `exploration/design-direction-3`. `DESIGN_SYSTEM.md` now describes it, and
 `DESIGN_DIRECTION.md` records why each choice was made. Stage 1 and the Stage 2 preview group
 (P1–P4) are complete. Their functionality is unchanged, but their *look* in the sections below
-is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. **Next
-session: follow "Next session plan: W5 · Sweep" below.** Stage 2 · Warnings and dialogs is in
-progress: W0–W4 are done (`8364d4e`, `3034fc1`, `3a8ca84`), and W5 closes the group.
+is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. Stage 2 ·
+Warnings and dialogs: W0–W4 are done (`8364d4e`, `3034fc1`, `3a8ca84`). **W5 (the sweep) is
+implemented and waiting for Pol's review** (see "W5: sweep" below). Once Pol closes the group,
+the next group is chosen (recommended: 7, the palette widget).
 
 ## Stage 1 blocks
 
@@ -771,6 +772,50 @@ with `responsive` removed, because a rows / columns override beside a `cellList`
 **5. Close the group with Pol.** The recommended next group is 7 (the palette widget), then 1 (the
 export menu), 6 (glyphs), 8, 9 and 10.
 
+### W5: sweep (2026-11-06), waiting for Pol's review
+
+**Pol's step-0 answers:** the breakpoint `rows` / `columns` / `cellSize` overrides commit on
+blur, with the Enter cue. Y offset stays live. The Tiles attach report becomes a failure notice.
+
+- **`BreakpointsSection`:** `GRID_SHAPING` (`rows`, `columns`, `cellSize`) passes `commit="blur"`.
+  The other rule fields (`minWidth`, `maxWidth`, `bleed`, `yOffset`) follow the typing. The cue
+  fits inside the narrower rule field (checked by the probe and on a screenshot).
+- **Tiles attach failures are a notice:** `attachFailures(failures)` in `advisories.ts` (3 new
+  tests), pushed by `TilesSection` with key `attach-failures`, so a second failed drop replaces
+  it. The refusals (a taken name, a tile in use, the last variant, the last non-zero weight) stay
+  in the `Popup`, because nothing happened, like "Import refused".
+- **Copy fix found by the probe:** advisories 1 and 4 said "Any change in Grid & size counts the
+  columns again". Rows and Y offset never change the count, so they now say "Changing the cell
+  size, design width or alignment counts the columns again".
+- **Leftovers:** stale docs fixed. `app.md` and `ui-popup.mdx` still mentioned the "Unsaved
+  changes" popup. `ui-button.mdx` still described the Block F chip look (border, uppercase, the
+  footer's Download, "Change it"), so its overview, props table and styling are rewritten. The
+  Notice story's title now matches the app's ("An operation lost cells in a resize"). The grep for
+  "sticky", `confirm(`, "until Stage 2 W" and "Change it" finds nothing else stale.
+- **Docs:** `DESIGN_SYSTEM.md` has an "Input, waiting" row, Popup is limited to "nothing happened"
+  reports, Notice lists the attach failures, and "Warnings and confirmations" states the
+  grid-shaping rule. The `advisories`, `breakpoints-section` and `tiles-section` pages are updated.
+- **Checks:**
+  - editor typecheck and 360 tests; docs coverage (119 files), docs typecheck and build.
+  - Probe and smoke test, **58/58**, on port 5175: `w5/probe.mjs` in the session scratchpad, with
+    `w5.zip` (readme + op9 `cellList`) and `advisories.zip` (the same with 30 columns, which
+    raises parity). It covers:
+    - the live regions (polite / assertive, nothing advisory in the assertive one);
+    - 24×24 targets, no text under 12px and no capitals, in the stack and in all three dialogs;
+    - the muted notice body ≥ 4.5:1, and the Enter cue ≥ 4.5:1 on the field and on its hover;
+    - Tab order through the stack;
+    - no sideways scroll at 1728, 1024, 600 and 320 with the stack showing;
+    - a notice held while Y offset is typed, and parity cleared by a cell size change;
+    - the resize Dialog (Cancel, Change, focus);
+    - Open op9 through the guard;
+    - a breakpoint rows override (no commit while typing, cue, Enter commits, one undo);
+    - a good file plus a bad one (a failure notice, no popup, the group still made, Dismiss);
+    - New (Esc, focus back, Start new clears the notices);
+    - no console errors.
+  - A test zip built without its pictures (my mistake, found from a blank preview) made 15
+    "didn't load" failures; the rebuilt zip draws, and the run above uses it.
+- **Not done / for Pol:** close the group. Items 3 and 4 are marked done in the backlog.
+
 ## Known issues / notes
 
 - **Block F testing** (headless Chrome): a target probe finds no enabled control under 24×24 in
@@ -876,10 +921,10 @@ design are not done here (Stage 2, items 1–2).
    bar, and the footer holds only randomness. The export menu is still to do.)*
 2. *(Done, Stage 2 · Preview P1–P4.)* Preview: top UI (sizes, colour, current size), minimal corner handles, a full-viewport grid
    tied to the tileset grid, breakpoint buttons, removal of the reference image.
-3. Warnings as dismissible pop-ups (one reusable notification component). *(Done in W1–W3;
-   closed in W5.)*
-4. Destructive params confirm **on blur**, and only when the value really changed. Redesigned dialog.
-   *(Done in W4; closed in W5.)*
+3. *(Done, Stage 2 · Warnings and dialogs W1–W3 and W5.)* Warnings as dismissible pop-ups (one
+   reusable notification component).
+4. *(Done, Stage 2 · Warnings and dialogs W4 and W5.)* Destructive params confirm **on blur**, and
+   only when the value really changed. Redesigned dialog.
 5. *(Done in P1.)* Remove the "The file" debug view.
 6. Glyphs for Attribute, Source and Blend.
 7. *(Stack, header and body redesigned by the adopted design: cards plus a stepper. The palette

@@ -33,6 +33,7 @@ control (`ui/Advisory.svelte`).
 | `nonSquare(file)` | advisory 7 | an asset's `meta.width` and `meta.height` are both numbers and differ. An unmeasured asset is skipped |
 | `orphanedNotice(orphans, onOpen?)` | advisory 3, §9.4 | `orphans.ts` found Operations a resize left reaching fewer cells. With `onOpen`, one "Open op-2" action per Operation, at most `MAX_OPEN_ACTIONS` (3) |
 | `assetFailures(failures)` | §12.3 | a picture failed to resolve or load. All failures go into one notice |
+| `attachFailures(failures)` | §12.3 | files dropped or picked in Tiles did not attach. Pushed, one notice for the drop |
 | `documentNotices(file, orphans, failures, onOpen?)` | | all of the above, failures first; `onOpen` goes to `orphanedNotice` |
 | `exportedEmpty` | advisory 5 | a constant notice, pushed after an export of a document that draws nothing |
 | `importNotices({ upgrades, failed })` | §12.4 | an upgraded file (advisory), and pictures that could not be read (failure) |
@@ -44,18 +45,21 @@ counts), so a dismissed notice comes back when they change.
 
 `documentNotices` is derived from the document every time it changes, so its notices go away by
 themselves. `exportedEmpty` and `importNotices` follow an event that leaves no trace in the
-document, so their callers push them.
+document, so their callers push them. So does `attachFailures`: a file that never attached leaves
+nothing in the document to derive it from.
 
-Advisories 1, 2 and 4 can only arrive by import. Every Grid & size edit counts the columns again
-(`derive.ts`), and the editor only offers reseed on load over a random Source. Advisory 1's and
-4's text says that any change in Grid & size fixes them.
+Advisories 1, 2 and 4 can only arrive by import. Every edit to the cell size, design width or
+alignment counts the columns again (`derive.ts`), and the editor only offers reseed on load over a
+random Source. Advisory 1's and 4's text names those three fields. Rows and Y offset never change
+the count (Stage 2 W5 corrected the earlier "any change in Grid & size").
 
 ### Callers / callees
 
 Callers:
 - `App.svelte` calls `documentNotices`;
 - `lib/ImportPanel.svelte` calls `importNotices`;
-- `lib/sections/SidebarTopBar.svelte` pushes `exportedEmpty`.
+- `lib/sections/SidebarTopBar.svelte` pushes `exportedEmpty`;
+- `lib/sections/TilesSection.svelte` pushes `attachFailures`.
 
 Callees: `reseed.ts` (`inertFlags`); the `Notice` type from `notices.ts` and the `Orphan` type from
 `orphans.ts`.
@@ -68,6 +72,7 @@ Callees: `reseed.ts` (`inertFlags`); the `Notice` type from `notices.ts` and the
   string-sized asset for 7;
 - the orphan wording and a signature that changes with the counts;
 - no action without `onOpen`, and with it one "Open" per orphan, at most three;
+- `attachFailures`: nothing for no failures, one notice for many, singular and plural titles;
 - failures collapse into one notice and come first;
 - import notes, and a clean import that pushes nothing.
 

@@ -17,6 +17,11 @@
   that leaves no box, a rule with no condition. Where the editor already knows
   an option would be refused, it is disabled and says why ("pinned"): while an
   Operation is coordinate-bound, no rule may change `rows` or `columns`.
+
+  **The fields that shape the grid commit on blur** (`rows`, `columns`,
+  `cellSize`; Pol, Stage 2 W5), like Grid & size: typing "14" would otherwise
+  build a 1-row grid first. The others (`minWidth`, `maxWidth`, `bleed`,
+  `yOffset`) follow the typing, as Y offset does in Grid & size.
 -->
 <script lang="ts">
   import type { Operation } from "@vit-foundation/gen-tilesets";
@@ -63,6 +68,9 @@
     rules.length === 0 ? "None" : `${rules.length} ${rules.length === 1 ? "rule" : "rules"}`,
   );
 
+  /** Fields committed once, on blur or Enter, rather than on every keystroke. */
+  const GRID_SHAPING: ReadonlySet<RuleField> = new Set(["rows", "columns", "cellSize"]);
+
   const pinned = (field: RuleField): boolean =>
     (field === "rows" || field === "columns") && risked.length > 0;
 </script>
@@ -101,6 +109,7 @@
                   label={sentence(words(field))}
                   value={rule[field]!}
                   parse={RULE_PARSERS[field]}
+                  commit={GRID_SHAPING.has(field) ? "blur" : "parse"}
                   onCommit={(t) => session.apply(setRuleField(i, field, t))}
                 />
               </div>

@@ -46,7 +46,7 @@ export function parityMismatch(file: TilesetFile): Notice | null {
     data: [`${columns} columns, aligned on a ${alignment}`],
     body:
       `Aligning on a ${alignment} needs an ${alignment === "column" ? "odd" : "even"} count, so ` +
-      "the picture isn't centred. Any change in Grid & size counts the columns again.",
+      "the picture isn't centred. Changing the cell size, design width or alignment counts the columns again.",
   };
 }
 
@@ -65,7 +65,7 @@ export function narrowGrid(file: TilesetFile): Notice | null {
     kind: "advisory",
     title: "The grid is narrower than the design width",
     data: [`${columns} × ${cellSize} px = ${width} px, under ${referenceWidth} px`],
-    body: "Gaps show at the sides of the picture. Any change in Grid & size counts the columns again.",
+    body: "Gaps show at the sides of the picture. Changing the cell size, design width or alignment counts the columns again.",
   };
 }
 
@@ -172,6 +172,24 @@ export function assetFailures(failures: readonly string[]): Notice | null {
     title: one ? "A picture didn't load" : `${failures.length} pictures didn't load`,
     data: failures,
     body: one ? "Its cells draw nothing. Attach the file again in Tiles." : "Their cells draw nothing. Attach the files again in Tiles.",
+  };
+}
+
+/**
+ * §12.3 — files dropped or picked in Tiles that did not attach. Pushed, not
+ * derived: the document keeps no trace of a file that never attached. The
+ * others in the same drop did attach, so the report does not block (Pol, W5).
+ */
+export function attachFailures(failures: readonly string[]): Notice | null {
+  if (failures.length === 0) return null;
+  const one = failures.length === 1;
+  return {
+    key: "attach-failures",
+    signature: failures.join("\n"),
+    kind: "failure",
+    title: one ? "A file didn't attach" : `${failures.length} files didn't attach`,
+    data: failures,
+    body: one ? "Check that it is an image, then drop it in Tiles again." : "Check that they are images, then drop them in Tiles again.",
   };
 }
 
