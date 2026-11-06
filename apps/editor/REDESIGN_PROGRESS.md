@@ -926,6 +926,70 @@ the operation header and the glyphs only. The design comes from the K1 mocks.
 K1 mocks three variants of the rows + strip: A (stepper circles, strip on top), B (the joining
 line *is* the strip) and C (compact 32px rows, the §7.6 risk check).
 
+### K1 answer (Pol, 2026-11-06), done
+
+**A with C's rows**: A's 12px strip with the thresholds under it, and C's rows (32px, a mono
+number, no circles and no joining line). B was ruled out: at the narrowest sidebar its names
+shrink to 27px.
+
+### K2: pattern written (2026-11-06), waiting for Pol's review
+
+`DESIGN_SYSTEM.md` gains two rows, **Palette** (`PaletteList`) and **Tile picker**
+(`TilePicker`). Two new icons, `grip` and `swap` (Lucide). The palette's select leaves the Input
+row; its refusals join the Popup row; its menu joins the Menu row.
+
+### K3 analysis (to confirm with Pol before coding)
+
+**Files.**
+- `src/controls/PaletteList.svelte` replaces `PaletteBar.svelte`, and `OperationBody` swaps the
+  import.
+- `src/controls/TilePicker.svelte` is the popover.
+- `src/controls/palette.ts` + `palette.test.ts` hold the rules: `move`, `add`, `remove`,
+  `setWeight`, `setTile` (each returns the new palette or a refusal reason), `thresholds` (the
+  labels to show at a given strip width, dropping collisions), `shares`, and `thumbOf(tiles, id)`.
+  `thumbOf` is moved out of `OperationCard`, so the card and the list share it.
+- Icons: `grip` and `swap` in `icons.ts`, and its test.
+- Docs: `palette-bar.mdx` → `palette-list.mdx`, `PaletteBarStory` → `PaletteListStory`, a
+  `tile-picker` page, and every page that names PaletteBar (operation-body, operation-labels,
+  numeric-input, ui-field-row, ui-button, ui-hint, ui-advisory, engine/mapping, review-findings).
+
+**Behaviour, and five choices of mine for Pol to confirm:**
+1. **Refusals.** Removing the last entry, or the last non-zero weight (by Remove or by dragging
+   a slider to 0), is refused **after the attempt, in a Popup**, as Tiles does. The menu items
+   stay enabled, and the slider springs back. During a drag, a value that would make the total
+   zero is not applied to the preview.
+2. **The caption and advisory 8 do not stack.** Under `random` the caption reads "order does not
+   matter here". After a reorder, advisory 8 *replaces* the caption instead of adding a second
+   line that says the same thing.
+3. **The slider's top** is the larger of 2 and the largest weight in the palette, so an imported
+   weight of 5 is not shown as 2 or clipped by a drag. The % is always the true share.
+4. **Dragging reorders live:** the rows swap as the pointer crosses a row's middle, and the
+   dragged row is lifted (white, `--shadow-float`). There is no drop line, matching how the bar
+   works today. Advisory 8 waits for the release.
+5. **Thresholds show under every Source except `random`**, including `constant` (its single value
+   still lands in one band).
+
+**Focus and names:**
+- The rows are an `<ol aria-label="Palette, in order">`.
+- The slider's name is "Weight of entry 2, Blue". The thumbnail button is "Tile of entry 2: Blue,
+  change". The menu is "More for entry 2".
+- After "+ Entry", focus goes to the new row's thumbnail. After Remove, it goes to the next row's
+  menu, or "+ Entry" if there is no next row. After a move, the Menu already returns focus to its
+  button.
+- The grip is `aria-hidden` and out of the tab order. The menu is the keyboard path.
+
+**Undo.** The palette edits the draft. Save commits the draft as one transition, so a drag, a
+slider gesture or a menu action never adds an undo step of its own. That meets "one undo per
+gesture" with no extra work. Discard throws the edits away.
+
+**Exit criteria:**
+- `palette.test.ts` passes, covering every refusal and the threshold collisions.
+- Typecheck, the full test run and the docs build are clean.
+- A browser check on the readme zip covers: add through the picker, a weight drag, a drag
+  reorder, menu moves by keyboard, a refused remove, the random caption and advisory 8, and Save
+  then one undo.
+- Then K4's probes.
+
 ### How to test
 
 As before: the dev server on **5175**, Playwright from `node_modules/.pnpm/playwright-core@1.56.1`
