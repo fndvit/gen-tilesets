@@ -22,6 +22,8 @@
   import Marquee from "../../../editor/src/lib/ui/Marquee.svelte";
   import OperationGlyph from "../../../editor/src/lib/ui/OperationGlyph.svelte";
   import Popup from "../../../editor/src/lib/ui/Popup.svelte";
+  import Dialog from "../../../editor/src/lib/ui/Dialog.svelte";
+  import Notice from "../../../editor/src/lib/ui/Notice.svelte";
   import Slider from "../../../editor/src/lib/ui/Slider.svelte";
   import Menu from "../../../editor/src/lib/ui/Menu.svelte";
   import Toggle from "../../../editor/src/lib/ui/Toggle.svelte";
@@ -39,6 +41,8 @@
     | "add-bar"
     | "button"
     | "popup"
+    | "dialog"
+    | "notice"
     | "collapsible"
     | "inline-edit"
     | "field-row"
@@ -58,6 +62,8 @@
 
   let open = $state(true);
   let popupOpen = $state(false);
+  let dialogOpen = $state(false);
+  let dismissed = $state<string[]>([]);
   let groupName = $state("Tile group B");
   let alignment = $state<"column" | "gutter">("column");
   let weight = $state(1);
@@ -86,6 +92,10 @@
         return `open: ${open} · last: ${log}`;
       case "popup":
         return `open: ${popupOpen} · last: ${log}`;
+      case "dialog":
+        return `open: ${dialogOpen} · last: ${log}`;
+      case "notice":
+        return `dismissed: ${dismissed.join(", ") || "none"} · last: ${log}`;
       case "inline-edit":
         return `value: ${groupName}`;
       case "toggle":
@@ -139,6 +149,43 @@
     <Popup title="Import refused" bind:open={popupOpen} onClose={() => (log = "closed")}>
       <p class="t-body">Not opened. Nothing in the current document has changed.</p>
     </Popup>
+  {:else if show === "dialog"}
+    <div class="row">
+      <Button label="Start a new tileset" onclick={() => (dialogOpen = true)} />
+    </div>
+    <Dialog
+      title="Start a new tileset?"
+      confirmLabel="Start new"
+      bind:open={dialogOpen}
+      onConfirm={() => (log = "confirmed")}
+      onCancel={() => (log = "cancelled")}
+    >
+      <p class="t-body">Everything in this one is lost, and this can't be undone. Export it first to keep it.</p>
+    </Dialog>
+  {:else if show === "notice"}
+    <div class="stack narrow">
+      {#if !dismissed.includes("failure")}
+        <Notice
+          kind="failure"
+          title="A picture didn't load"
+          data={["tiles/sand-dunes-variant-2.png"]}
+          body="Its tile draws as empty. Attach the file again from Tiles."
+          onDismiss={() => (dismissed = [...dismissed, "failure"])}
+        />
+      {/if}
+      {#if !dismissed.includes("advisory")}
+        <Notice
+          kind="advisory"
+          title="Orphaned by a resize"
+          data={["op-2 · cellList: 3 of 11 painted cells are outside the grid"]}
+          actions={[{ label: "Undo the resize", run: () => (log = "undo") }]}
+          onDismiss={() => (dismissed = [...dismissed, "advisory"])}
+        />
+      {/if}
+      {#if dismissed.length > 0}
+        <Button label="Show them again" onclick={() => (dismissed = [])} />
+      {/if}
+    </div>
   {:else if show === "collapsible"}
     <div class="stack">
       <Collapsible title="Grid & Size" bind:open>

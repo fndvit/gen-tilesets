@@ -1,0 +1,70 @@
+---
+title: ui/Notice.svelte
+description: One notice, a card that tells the author something without stopping them. An advisory in ink, or a failure with a red alert icon.
+sidebar:
+  order: 76
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Notice.svelte`.
+
+## Overview
+
+A notice is how the editor tells the author something without interrupting them: a picture
+that did not load, or an operation left outside the grid by a resize. Notices float in a stack
+at the preview's top-right and never take space in the layout.
+
+There are two kinds:
+- An **advisory** (spec `09` §12.2) is worth knowing and blocks nothing. It is drawn in ink with
+  an info icon, and never looks like an error (**E16**).
+- A **failure** (§12.3) is something that did not work. Its alert icon is red
+  (`--color-danger`), and that is its only colour: no edge and no fill (Pol, 2026-11-06).
+
+A notice can carry actions, such as "Undo the resize". Its ✕ dismisses it.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone, with the editor's `tokens.css` and
+`type.css`.
+
+<UiPrimitivesStory show="notice" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `kind` | `"advisory"` \| `"failure"` | required | The icon (`info` in ink, or `alert` in `--color-danger`). |
+| `title` | `string` | required | One sentence, in `.t-title`. It wraps. |
+| `data` | `readonly string[]` | none | Data, one line each, in ink `.t-console`: file names, sizes, operation ids. Long names wrap anywhere. |
+| `body` | `string` | none | A short explanation, in muted `.t-body`. |
+| `actions` | `readonly NoticeAction[]` | none | Tertiary buttons under the text. Each is `{ label, run }`. |
+| `onDismiss` | `() => void` | required | The ✕ (an `IconButton` labelled "Dismiss"). |
+
+### Inputs → outputs
+
+- A grid: a 16px icon, the content column, and a 28px ✕. It is a white card, radius 8, on
+  `--shadow-float`. It sets no width; the stack it sits in does.
+- It holds no live region and never takes focus. The stack announces it: politely for an
+  advisory, assertively for a failure.
+
+### Callers / callees
+
+Callers: none yet (the notice stack arrives in Stage 2 W3), and the docs story. Callees:
+`lib/ui/Icon.svelte`, `lib/ui/IconButton.svelte`, `lib/ui/Button.svelte`; the `NoticeKind` and
+`NoticeAction` types from `notices.ts`.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`). The dismissal rules are in `notices.ts`, which is
+tested.
+
+### Gotchas & rejected alternatives
+
+- **No red edge on a failure.** The W1 mock drew a 3px red left edge, the same anatomy as the
+  open operation's accent edge. Pol found it too loud, so only the icon is red. The icon's shape
+  and the words, not colour alone, tell a failure from an advisory (WCAG 1.4.1).
+- **No warning colour.** An advisory is ink. Amber was considered and declined (W0), so that the
+  palette keeps one accent with one meaning.

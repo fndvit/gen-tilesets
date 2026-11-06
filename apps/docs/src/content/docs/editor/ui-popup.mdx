@@ -19,7 +19,8 @@ page, takes no space in the layout, and closes with its Close button or Esc. Pol
 A popup can also ask a question. Then it shows its own buttons in place of Close, as the
 Operations section does for "Unsaved changes" ("Keep editing" or "Discard").
 
-It is the first piece of the Stage 2 notification work, which will extend it.
+`Dialog` is built on it, for a question that interrupts (Stage 2 W2). Notices that block nothing
+are `Notice`, not a popup.
 
 ## Try it
 
@@ -38,24 +39,29 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 | `onClose` | `() => void` | none | Called once however it closes: Esc, the button, or `open = false`. |
 | `children` | `Snippet` | required | The report. |
 | `actions` | `Snippet<[() => void]>` | none | Buttons in place of Close, for a popup that asks something. Receives `close`, so a choice can act and then close the dialog. |
+| `alert` | `boolean` | `false` | Sets `role="alertdialog"`, for a question that interrupts. `Dialog` passes it. |
 
 ### Inputs → outputs
 
 - A native `<dialog>` opened with `showModal()`, so focus moves in, Esc closes it, and the page
   behind is inert. The dialog's `close` event sets `open = false` and calls `onClose`.
-- A black title bar in `.t-section` (the section bar), a scrolling paper body, and an actions
-  row, all inside a `--rule` frame. At most 520px wide and the viewport's height.
+- A white panel, radius 12, on `--shadow-float`, with no frame and no bar: the title in
+  `.t-section`, a scrolling body, and an actions row. At most 480px wide and the viewport's
+  height, on a backdrop of ink at 24%.
 - The actions row renders `actions(close)` when given, otherwise a Close `Button`. It is
-  right-aligned, with `--chip-gap` between buttons. `close` calls `dialog.close()`, so `onClose`
+  right-aligned, with `--space-4` between buttons. `close` calls `dialog.close()`, so `onClose`
   still runs once.
+- It sets `margin: auto` itself, so it stays centred on a page whose reset zeroes every margin
+  (Starlight's docs site).
 - It carries `.theme-default`, so a popup opened from inside the inverted footer is still drawn
   on paper (`tokens.css`).
 
 ### Callers / callees
 
-Callers: `lib/ImportPanel.svelte` (import reports), `lib/sections/SidebarFooter.svelte` (export
+Callers: `lib/ImportPanel.svelte` (import reports), `lib/sections/SidebarTopBar.svelte` (export
 reports), `lib/sections/TilesSection.svelte` (refusals), `lib/sections/OperationsSection.svelte`
-("Unsaved changes", the only caller of `actions`). Callees: `lib/ui/Button.svelte`.
+("Unsaved changes", until Stage 2 W4 moves it to `Dialog`), and `lib/ui/Dialog.svelte` (`actions`
+and `alert`). Callees: `lib/ui/Button.svelte`.
 
 ### Tests
 

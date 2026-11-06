@@ -41,7 +41,7 @@ Layout and the Selection artwork still come from the Figma file **Tileset Creato
 | Colour, actions | `--color-primary` / `-hover` / `--color-on-primary` · `--color-secondary` / `-hover` / `-pressed` · `--color-hover` / `--color-pressed` (washes for tertiary, icons and headers) · `--color-selected` / `--color-on-selected` (ink) | |
 | Colour, accent | `--color-accent` · `--color-accent-wash` (the active step's row) · `--color-selection` (= accent, the preview's selected and painted cells) · `--color-erase` | |
 | Colour, lines | `--color-bar-rule` (ink, under both top bars) · `--color-track` (slider tracks, the stepper line, hairlines) · `--color-grid` · `--color-scrollbar` | |
-| Status | `--color-danger` `--color-warn` | Placeholders until Stage 2 (warnings) |
+| Status | `--color-danger` (= `--red-600`) | Only the alert icon of a failure notice. There is no warning colour: an advisory is ink |
 | Font | `--font-ui` (Helvetica, standing in for Neue Haas Grotesk) · `--font-mono` (Roboto Mono 400 and 500, self-hosted via `@fontsource`) | |
 | Space | `--space-1…7` = 2 / 4 / 6 / 8 / 10 / 12 / 16 px | 2px base |
 | Size | `--control-h` 30 · `--header-h` 52 (a section header) · `--preview-bar-h` 52 (both top bars) · `--group-h` 34 · `--add-h` 32 · `--icon` 16 · `--icon-button` 28 · `--op-index` 24 · `--step-dot` 20 · `--menu-w` 200 · `--thumb` 32 · `--thumb-sm` 16 · `--slider-thumb` 16 · `--glyph-w` 72 · `--glyph-slot` 43 · `--badge` 16 · `--field-label-w` 38% (`-compact` 116px in an operation) · `--width-chip-w` 48 · `--swatch-w` 30 · `--sidebar-w` clamp(400, 30vw, 560) · the preview handle sizes | |
@@ -83,6 +83,9 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
   content with 12px above and 16px at the sides and below. Each body sets its own row gap.
 - **Reports after an action** (a refused import, a failed export) open in a `Popup` and never take
   space in the layout.
+- **Notices** float in a stack at the preview's top-right, `--space-6` under the top bar's
+  hairline, newest on top. They never cover the sidebar, and they never take space in the layout.
+  At narrow widths the stack fills the preview's width, less `--space-6` on each side.
 - **Reflow:** below `40rem` the columns stack; only then does the page scroll.
 - **Every grid in the sidebar** names its column (`minmax(0, 1fr)`).
 
@@ -103,7 +106,10 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
 | **Operation card** (`OperationCard`) | A grey well, collapsed:<br>1. a 24px ink index square;<br>2. the title, which is what it writes: the attribute in `.t-title`, then palette thumbnails and names, or the range in mono;<br>3. re-seed and a menu;<br>4. a row of step chips (Selection, Source, Blend), each a muted step name and a mono answer, on white, wrapping. Each chip opens its step; the title opens Attribute.<br>Open, the card is white with a 3px accent edge and an accent index, and holds the stepper | Operations |
 | **Operation stepper** (`OperationBody`) | Four rows joined by a vertical line. Each row is a 20px number, the step name in `.t-title`, and the answer in mono. The number is hollow when unanswered, ink when answered, and accent while active (the active row also gets the accent wash). The active step unfolds under its row: the question, a glyph grid, then the chosen option's fields in a grey well under a muted caption. The card ends, under a hairline, with Discard, **Next: <step>** and Save/Add | Operations, open |
 | **Glyph grid** | Cells at `--glyph-w` or wider (`auto-fill`): a mono label over a 43px artwork slot. Hover washes; selected is a white tile with a 2px ink ring | Operation step options |
-| **Popup** | A white panel, radius 12, `--shadow-float`, with no frame or black title bar | Reports, unsaved-changes question |
+| **Popup** | A white panel, radius 12, `--shadow-float`, with no frame or black title bar | Reports after an action (import, export, attach) |
+| **Notice** (`Notice`, `notices` store) | A 360px white card, radius 8, `--shadow-float`, never blocking. It holds a 16px icon, then the title in `.t-title`, data (file names, numbers) in ink `.t-console`, a muted `.t-body` explanation, optional tertiary actions, and a 28px ✕. An advisory has the `info` icon in ink. A failure has the `alert` icon in `--color-danger`, which is its only colour: no edge, no fill. ✕ dismisses it until its condition changes. A notice goes away by itself when its condition does | Asset load failures, advisories (§12.2) that are not about one control, import notes |
+| **Inline advisory** | A muted `info` icon and a muted `.t-body` line under the control it is about. No box, no colour, no ✕. It shows only while its condition holds | Advisories about one control: duplicate tile names (6), palette under random (8), rotation ends (9) |
+| **Dialog** (`Dialog`) | The Popup panel asking one question. The title is the question ("Change columns to 8?"), and the body says what changes and how to undo it, with any affected operations listed in a well. Buttons: Cancel (secondary), then the verb that names the action (primary, at the far right: "Change columns", not "OK"). Danger is in the words, never in red. Focus starts on Cancel, Esc cancels, and focus returns to the trigger | Destructive resize (E12), New tileset, unsaved changes |
 | **Width choices, swatch** | Segments on a white track in the preview bar; the chosen one is ink. The swatch is a 30px rounded square with an edge | Preview top bar |
 | **Footer: Randomness** | A white card with a `.t-title` heading. It holds the seed field and a strong re-seed button; Assets on load; then Reroll assets and Preview a fresh load as two secondary buttons with the re-seed icon | Sidebar foot |
 
@@ -112,7 +118,7 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
 There is one outline family, made of Lucide paths (ISC licence). They are drawn on a 24-unit
 grid, rendered at 16px with a 1.5px stroke and round caps and joins, in `currentColor`.
 - The set: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`, `export`,
-  `new`, `more`, `check`.
+  `new`, `more`, `check`, `info` (an advisory), `alert` (a failure).
 - An icon names an action, sits beside a word or inside a named control, and is never
   decorative.
 - Add an icon only in the same family and grid.
@@ -138,6 +144,7 @@ glyphs are **not designed yet**, and show label-only cells.
 | Editing now | The accent: the open operation (edge and index), the active step (number, name and wash), and the preview's selected cells |
 | Focus | A 2px `--color-accent` ring, offset 2px; inset on full-width rows |
 | Disabled | `--color-disabled`, `cursor: default`, kept in place (never hidden) |
+| Warnings and confirmations | Asked or shown only once a value is **committed** (blur or Enter), never while the author is typing, so nothing interrupts them twice. A destructive field asks its Dialog on commit, and only when the value really changed. An advisory never blocks and never edits the file (**E16**) |
 | Explanations | A hint (`ui/Hint`) on the label or control: an ink bubble shown on hover, with `aria-describedby` on the control. Never text in the layout |
 | Secondary actions | They live in a menu when showing them on every row would crowd it (operation reorder and delete). An action used often stays visible (re-seed) |
 | Scrolling | `ScrollArea`: the native scrollbar is hidden, and an overlay handle shows while hovered or scrolling. A scrollbar never takes width |
@@ -154,13 +161,14 @@ glyphs are **not designed yet**, and show label-only cells.
 | Non-text: a field's edge 4.3:1 on white; ink lines; accent rings | 1.4.11 | The fill alone would be too faint to say "type here", so the edge carries it |
 | Reflow: one column below 40rem, no sideways scroll at 320 | 1.4.10 | Chips and actions wrap |
 | Focus visible everywhere; the menu returns focus to its button after an action | 2.4.7, 2.4.11 | |
+| Notices are announced without taking focus: advisories in a polite live region, failures in an assertive one. A failure is told apart by its icon's shape and its words, not by colour alone | 4.1.3, 1.4.1 | Dialogs are modal `<dialog>`s with `role="alertdialog"` |
 
 ## Naming
 
 Components are PascalCase nouns (`Section`, `TileGroup`, `TileAsset`, `OperationCard`,
 `OperationBody`, `OperationGlyph`, `GlyphGrid`).
 - Generic primitives live in `src/lib/ui/`: `Icon`, `IconButton`, `AddBar`, `Collapsible`,
-  `FieldRow`, `Hint`, `InlineEdit`, `Toggle`, `Button`, `Menu`, `Popup`, `Slider`, `Marquee`,
+  `FieldRow`, `Hint`, `InlineEdit`, `Toggle`, `Button`, `Menu`, `Popup`, `Dialog`, `Notice`, `Slider`, `Marquee`,
   `OperationGlyph`, `GlyphGrid`, `ScrollArea`. Alongside them: `icons.ts`, `keys.ts` and
   `motion.ts`.
 - Sidebar sections, the top bar and the footer live in `src/lib/sections/`.

@@ -485,6 +485,52 @@ file, and is never styled as an error.
 - Is there a count or badge anywhere (for example "2 notes" in the top bar) when notices are
   dismissed?
 
+### W0 answers (Pol, 2026-11-06), done
+
+- **Group confirmed:** Warnings and dialogs. Figma has no warning, notice or dialog frames, so W1
+  designs from `DESIGN_SYSTEM.md` alone.
+- **Colour:** advisories are ink on paper with an outline info icon, and get no new colour.
+  Failures (asset load) get a red left edge and an alert icon (`--red-600`). `--color-warn` goes
+  away and `--color-danger` maps to `--red-600`.
+- **Placement:** a notice stack in the preview's top-right, under the preview top bar, floating
+  over the picture. It never covers the sidebar.
+- **Advisories 1, 4 and 7:** detect and surface all three (W3).
+- **Confirm-on-blur** (item 4) is folded into W4.
+- **Not asked, Claude's default:** there is no count or badge for dismissed notices. A dismissed
+  notice comes back only when its condition changes. Pol can overrule this at W1.
+
+### W1 and W2 (2026-11-06)
+
+- **W1 approved** with changes. The mock was a scratch page that was never committed.
+  - **No red edge on a failure notice.** Pol found the 3px edge too loud. Only the alert icon is
+    red (`--color-danger` = `--red-600`).
+  - The open operation card's 3px accent edge has the same anatomy. Pol may want it subtler as
+    well: added as backlog item 10.
+  - **Notices carry actions** (tertiary buttons).
+  - **Warnings and confirmations come only once a value is committed** (blur or Enter), never
+    while typing, so the author is not interrupted twice.
+  - The patterns are written into `DESIGN_SYSTEM.md`: Notice, Inline advisory, Dialog, the
+    Status token, placement, the "Warnings and confirmations" convention, and `aria-live`.
+  - The design-exploration screenshots (`design-explorations/`, untracked) were deleted at Pol's
+    request. `DESIGN_EXPLORATIONS.md` (text) is kept, but its image links are now broken.
+- **W2 implemented, waiting for Pol's review:**
+  - `lib/ui/Notice.svelte` and `lib/ui/Dialog.svelte`, which is a `Popup` with the new `alert`
+    prop.
+  - `notices.ts` (pure, 9 tests) and `notices.svelte.ts` (state).
+  - The `info` and `alert` icons.
+  - Docs pages `ui-notice`, `ui-dialog` and `notices`, demos in `UiPrimitivesStory`, and the
+    `ui-popup` and `ui-icons` pages brought up to date.
+  - Popup now sets `margin: auto`, because Starlight's reset left it top-left in the docs.
+  - Checks: typecheck, 339 editor tests, docs coverage (114) and the docs build all pass.
+  - A browser run of the docs stories passes 16 checks:
+    - the failure icon is red with no edge, and the advisory icon is ink;
+    - every target is at least 24px and no text is under 12px;
+    - actions and dismiss work;
+    - the dialog has the `alertdialog` role, focus starts on Cancel, and Esc and Enter cancel;
+    - focus returns to the trigger, and the verb confirms once;
+    - there are no console errors.
+  - Nothing is wired into the app yet (that is W3 and W4).
+
 **How to test (found in P3b):** the editor dev server now runs on port **5175** from this tree
 (`lsof -iTCP:5175`); reuse it. Playwright is `node_modules/.pnpm/playwright-core@1.56.1`, and the
 browser that exists is
@@ -614,3 +660,6 @@ design are not done here (Stage 2, items 1–2).
    that is not focusable (the preview readout, tile thumbnails) never shows without a mouse. A
    screen reader still reads it through `aria-describedby`. Decide system-wide (show on
    focus-within, or make the anchors focusable).
+10. The open operation card's 3px accent edge may become subtler, like the failure notice's
+    red edge, which was removed in W1 (Pol, 2026-11-06: "we will handle the one in operation
+    section later").

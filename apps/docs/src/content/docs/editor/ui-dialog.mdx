@@ -1,0 +1,68 @@
+---
+title: ui/Dialog.svelte
+description: A blocking question with Cancel and one verb that acts, such as "Start a new tileset?". A Popup announced as an alertdialog.
+sidebar:
+  order: 77
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Dialog.svelte`.
+
+## Overview
+
+A dialog asks the author one question before something hard to take back happens:
+- changing the column count when operations are tied to specific cells (**E12**);
+- starting a new tileset;
+- discarding an operation's unsaved changes.
+
+The title is the question. The body says what will change and how to undo it. There are two
+buttons: Cancel, and a verb that names the action ("Start new", never "OK"). Danger is said in
+the words, never in red.
+
+A dialog is asked only once the author has finished entering a value (on blur or Enter), and
+only when the value really changed. It never interrupts typing (Pol, 2026-11-06).
+
+## Try it
+
+<UiPrimitivesStory show="dialog" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `title` | `string` | required | The question, and the dialog's accessible name. |
+| `open` | `boolean` (bindable) | `false` | Shows or hides it. |
+| `confirmLabel` | `string` | required | The verb, on the primary button at the far right. |
+| `cancelLabel` | `string` | `"Cancel"` | The secondary button, for example "Keep editing". |
+| `onConfirm` | `() => void` | required | Called once, after the dialog starts closing. |
+| `onCancel` | `() => void` | none | Called once for Cancel, Esc, or `open = false` from outside. |
+| `children` | `Snippet` | required | The body. |
+
+### Inputs → outputs
+
+- It renders a `Popup` with `alert`, so the native `<dialog>` has `role="alertdialog"`. It
+  inherits Popup's modal behaviour: the page behind is inert, and Esc closes it.
+- Cancel comes first in the DOM, so `showModal()` focuses it, and Enter gives the safe answer.
+  When the dialog closes, the browser returns focus to whatever opened it.
+- The verb sets a flag before closing, so the `close` event that follows is not taken as a
+  cancel. Each way of closing calls exactly one of `onConfirm` and `onCancel`.
+
+### Callers / callees
+
+Callers: none yet (Stage 2 W4 moves E12, New and unsaved changes onto it), and the docs story.
+Callees: `lib/ui/Popup.svelte`, `lib/ui/Button.svelte`.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).
+
+### Gotchas & rejected alternatives
+
+- **Built on Popup, not beside it.** A question and a report share the panel, the backdrop and
+  the focus handling. Only the buttons and the role differ, so `Popup` gained an `alert` prop
+  rather than being copied.
+- **Focus starts on Cancel.** It costs one extra keypress for an author who meant to go ahead,
+  but Enter never destroys anything.

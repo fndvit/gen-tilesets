@@ -73,6 +73,10 @@ export const ICONS = {
   ),
   /** Done. */
   check: icon("M20 6 9 17l-5-5"),
+  /** An advisory: something worth knowing that blocks nothing (a notice, an inline advisory). */
+  info: icon("M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 16v-4M12 8h.01"),
+  /** A failure: something that did not work (a picture that did not load). */
+  alert: icon("m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3M12 9v4M12 17h.01"),
 } as const satisfies Record<string, IconDef>;
 
 export type IconName = keyof typeof ICONS;

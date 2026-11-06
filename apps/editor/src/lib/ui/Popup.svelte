@@ -27,9 +27,11 @@
      * `close`, so a choice can act and then close the dialog.
      */
     actions?: Snippet<[() => void]>;
+    /** For a question that interrupts (`Dialog`): announced as an `alertdialog`. */
+    alert?: boolean;
   }
 
-  let { title, open = $bindable(false), onClose, children, actions }: Props = $props();
+  let { title, open = $bindable(false), onClose, children, actions, alert = false }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
   const titleId = $props.id();
@@ -47,7 +49,13 @@
   }
 </script>
 
-<dialog bind:this={dialog} class="popup theme-default" aria-labelledby={titleId} onclose={closed}>
+<dialog
+  bind:this={dialog}
+  class="popup theme-default"
+  role={alert ? "alertdialog" : undefined}
+  aria-labelledby={titleId}
+  onclose={closed}
+>
   <div class="bar">
     <h2 class="t-section" id={titleId}>{title}</h2>
   </div>
@@ -67,6 +75,8 @@
   .popup {
     width: min(480px, calc(100vw - 2 * var(--space-6)));
     max-height: calc(100dvh - 2 * var(--space-6));
+    /* The UA centres a modal dialog with `margin: auto`; a page reset (Starlight's) undoes it. */
+    margin: auto;
     padding: 0;
     border: 0;
     border-radius: var(--radius-lg);
