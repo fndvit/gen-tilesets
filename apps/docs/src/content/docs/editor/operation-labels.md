@@ -33,6 +33,8 @@ All * Random * Tile [sand, clear] * Set
 | `UNANSWERED` | `"—"` | Shown for a step with no answer. |
 | `summaryCells` | `(parts, tiles: readonly Tile[]) => Record<Step, string>` | Each step's answer, for the header's cell above that step's tab. |
 | `summarize` | `(parts, tiles: readonly Tile[]) => string` | The cells joined in step order, as one line. |
+| `writesOf` | `(parts, tiles: readonly Tile[]) => Writes \| null` | What the operation writes, for the card's title: the Target, the palette's names or the range, and the tile ids for thumbnails. `null` before a Target. |
+| `writesText` | `(writes: Writes \| null) => string` | The same as one line, `"Tile · Pink, Blue"`; `—` for `null`. |
 | `partsOf` | `(op: Operation) => SummaryParts` | The parts of a stored Operation. |
 | `draftParts` | `(draft: Draft) => SummaryParts` | The parts of an open draft. |
 
@@ -56,6 +58,10 @@ All * Random * Tile [sand, clear] * Set
   `op.blend`.
 - **`draftParts(draft)`** reads the draft's types, Target and Blend. The mapping is
   `mappingOf(draft)` once a Target is chosen, and `null` before.
+- **Under Constant, one tile.** `writesOf` and `summaryCells` name only the entry that paints
+  (`constantEntry`, the first non-zero weight), as the stepper does and as Save writes. A file
+  saved before T3 can still hold the others, and the card names what the operation *does*, so
+  they are dropped here too (Pol, T4). A palette with no weight is shown as written.
 
 ### Invariants
 
@@ -63,26 +69,29 @@ All * Random * Tile [sand, clear] * Set
   title-cased label with no change here.
 - **Tile ids never reach the summary** while the Tile exists.
 - **Pure.** No state, no Svelte runes. It imports only `isTileMapping` and types from the package,
-  and `mappingOf`, `STEPS`, `Draft` and `Step` from `draft.svelte.ts`.
+  `mappingOf`, `STEPS`, `Draft` and `Step` from `draft.svelte.ts`, and `constantEntry` from
+  `controls/palette.ts`.
 
 ### Callers / callees
 
 | Caller | Use |
 | --- | --- |
-| `sections/OperationsSection.svelte:29` | `draftParts`, `partsOf`, `summaryCells` for each header |
+| `sections/OperationsSection.svelte:36`, `operations/OperationCard.svelte:36` | `draftParts` and `partsOf` for each card; the card's `summaryCells` and `writesOf` |
 | `operations/OperationBody.svelte` | `labelFor` for every glyph cell; `STEP_LABELS` for the step rows, "Next: …" and Save's "Still open" hint |
 | `operations/OperationCard.svelte` | `STEP_LABELS` for the chips' step names |
-| `controls/ParamControl.svelte:19` | `labelFor(name)` as the field label |
-| `controls/NumericMapping.svelte:27` | `labelFor(target)` as the mapping's label |
+| `controls/ParamControl.svelte:32` | `labelFor(name)` as the field label |
+| `controls/NumericMapping.svelte:98` | `labelFor(target)` as the mapping's label |
 
-Callees: `isTileMapping` (package), `mappingOf`, `STEPS` (`draft.svelte.ts`).
+Callees: `isTileMapping` (package), `mappingOf`, `STEPS` (`draft.svelte.ts`), `constantEntry`
+(`controls/palette.ts`).
 
 ### Tests
 
 `lib/operations/labels.test.ts`: Figma's names where they differ from the registry's; title case
 for any other name; `STEP_LABELS.source` is "Pattern" while `labelFor("source")` stays "Source"; `summaryCells` giving each step its own answer, and `—` for every step of a
 new draft; a numeric operation read in step order; `steps` shown only when present;
-palette tiles named, never by id, with an empty entry called "clear"; and a fresh draft reading
+palette tiles named, never by id, with an empty entry called "clear"; under Constant, only the
+entry that paints, skipping a zero first weight, while other Patterns list every entry; and a fresh draft reading
 `— * — * — * —`.
 
 ### Gotchas & rejected alternatives

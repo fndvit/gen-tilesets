@@ -148,13 +148,13 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 | Caller | Uses |
 | --- | --- |
 | `drafting.svelte.ts:27`, `:56`, `:69` | `newDraft`, `fromOperation`, `Draft` |
-| `lib/operations/OperationBody.svelte:189`, `:194` | `defaultParams(...)` when a Selection or Source type is chosen |
-| `lib/operations/OperationBody.svelte:211`, `:214` | `STEPS` and `isComplete` for Save's "Still open" hint |
-| `lib/operations/OperationBody.svelte:225` | `toOperation` on commit, then `replaceOperation`/`addOperation` (`:227`) |
-| `lib/operations/OperationBody.svelte:266` | `retarget(draft, target)` |
+| `lib/operations/OperationBody.svelte:281`, `:286` | `defaultParams(...)` when a Selection or Source type is chosen |
+| `lib/operations/OperationBody.svelte:310`, `:313` | `STEPS` and `isComplete` for Save's "Still open" hint |
+| `lib/operations/OperationBody.svelte:335` | `toOperation` on commit, then `replaceOperation`/`addOperation` (`:337`) |
+| `lib/operations/OperationBody.svelte:459` | `retarget(draft, target)` |
 | `lib/operations/OperationBody.svelte` | `shadowConfig(file.config, draft)` for the palette's measured coverage |
-| `lib/sections/OperationsSection.svelte:63` | `draftDiffers` before switching away from an open draft |
-| `lib/operations/labels.ts:91` | `mappingOf(draft)` for the header's summary |
+| `opening.svelte.ts:40` | `draftDiffers` before switching away from an open draft |
+| `lib/operations/labels.ts:176` | `mappingOf(draft)` for the header's summary |
 | `App.svelte` | `shadowConfig(config, draft)` for the overlay |
 
 `mappingOf` is also used internally (`:350`) and by `controls/mapping.test.ts`.

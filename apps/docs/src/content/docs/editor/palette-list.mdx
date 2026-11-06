@@ -35,8 +35,10 @@ Under Random and the ordered Patterns, from top to bottom:
 - **a caption** that says what the % and the order mean under this Pattern;
 - **"Add entry"**, which opens the [tile picker](/editor/tile-picker/).
 
-Under Constant, the label "Tile", a 48px thumbnail button that opens the picker, the tile's name
-and "every selected cell". When the draft holds other entries, an [Advisory](/editor/ui-advisory/)
+Under Constant, a 48px thumbnail button that opens the picker, the tile's name and "every
+selected cell". It has no label of its own: the options caption above already reads "Tile", and
+a second one inside the well read as a stutter (Pol, T4). The button's name, "Tile: Beige,
+change", still carries it for a screen reader. When the draft holds other entries, an [Advisory](/editor/ui-advisory/)
 line names them: "Blue and Pink are kept until you save, in case you switch back to a pattern
 that uses a palette."
 
@@ -108,7 +110,9 @@ or a refusal reason.
 `fieldOf` uses only the package's exports, the way `generate()` does: the predicate from
 [`selection`](/api/index/functions/selection/), and the Source through `evalSource` against
 `operationCtx` with `effectiveSeeds(seed, loadSalt)`. `coverageOf` then counts each `t` into an
-entry with `entryIndex`. It counts by **index**, not by tile id, because two entries can name the
+entry with `entryIndex`'s walk, reading the palette once rather than per cell: the palette is the
+draft's `$state` proxy, and reading it per cell cost ~14 ms a drag move on a 61×120 grid (T4;
+0.1 ms after). It counts by **index**, not by tile id, because two entries can name the
 same tile (or both be clear), and counting the engine's answers could not tell their shares apart.
 
 `OperationBody` feeds it the **shadow config** (`shadowConfig` in
@@ -183,7 +187,8 @@ percentages, the slider's top, names, `constantEntry`, `keptText`, and the cover
 (the **parity test**, which fails if the copied walk drifts from the engine's); two entries naming
 one tile keep their own shares; Random lands near the weight shares on a 60×60 grid; Noise gives
 the middle entry the most; Constant gives every cell to the first non-zero entry; a zero weight
-gets nothing; an empty selection gives all zeros. `draft.test.ts` pins Constant's one-entry save.
+gets nothing; an empty selection gives all zeros; `coverageOf` matches the engine's own answers,
+counted by tile id, under a diagonal Gradient with zero weights and `t = 1`. `draft.test.ts` pins Constant's one-entry save.
 `controls/mapping.test.ts` pins the palette's surroundings in the draft: changing Target away
 from `tileId` and back keeps the palette, and an empty or all-zero palette makes the draft
 incomplete.

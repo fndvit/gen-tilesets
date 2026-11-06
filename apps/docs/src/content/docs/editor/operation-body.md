@@ -159,9 +159,9 @@ an unregistered name gives `null`.
 
 | Caller | Use |
 | --- | --- |
-| `sections/OperationsSection.svelte:27` | import |
-| `sections/OperationsSection.svelte:119` | under the open stored operation: `{draft}`, `editing`, `id={bodyId}`, `onClose={() => drafting.discard()}` |
-| `sections/OperationsSection.svelte:138` | under the new operation's header: `editing={false}` |
+| `sections/OperationsSection.svelte:34` | import |
+| `sections/OperationsSection.svelte:127` | under the open stored operation: `{draft}`, `editing`, `id={bodyId}`, `onClose={() => drafting.discard()}` |
+| `sections/OperationsSection.svelte:147` | under the new operation's header: `editing={false}` |
 
 Callees: [`acceptedBlends`](/api/index/functions/acceptedblends/),
 [`selections`](/api/index/variables/selections/), [`sources`](/api/index/variables/sources/),

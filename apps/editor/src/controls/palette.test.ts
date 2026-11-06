@@ -5,6 +5,7 @@ import {
   add,
   constantEntry,
   coverage,
+  coverageOf,
   entryIndex,
   fieldOf,
   keptText,
@@ -176,6 +177,20 @@ describe("coverage", () => {
         }
       }
     }
+  });
+
+  it("counts what the engine paints (coverageOf reads the palette once, not per cell)", () => {
+    const palette: PaletteEntry[] = [
+      { tileId: "a", weight: 0 },
+      { tileId: "b", weight: 0.3 },
+      { tileId: "c", weight: 2 },
+      { tileId: "d", weight: 0 },
+    ];
+    const field = [...fieldOf(config(op({ type: "gradient", angle: 45 }, palette)), "op1", SEED, 0), 0, 1];
+    const engine = palette.map(
+      (e) => field.filter((t) => applyTileMapping({ palette }, t) === e.tileId).length / field.length,
+    );
+    expect(coverageOf(field, palette)).toEqual(engine);
   });
 
   it("counts by entry, so two entries naming one tile keep their own shares", () => {

@@ -261,8 +261,12 @@
   {@const entry = palette[shown]}
   {@const thumb = thumbOf(tiles, entry?.tileId ?? null)}
   {@const name = nameOf(tiles, entry?.tileId ?? null)}
+  <!--
+    No label of its own: the options caption above already says "Tile", and a
+    second one inside the well read as a stutter (Pol, T4). The button's name
+    still carries it for a screen reader.
+  -->
   <div class="palette">
-    <span class="t-label">Tile</span>
     <div class="one">
       <button
         type="button"

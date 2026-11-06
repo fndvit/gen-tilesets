@@ -214,7 +214,7 @@ failures.
 | Caller | What |
 | --- | --- |
 | `apps/editor/src/main.ts:2` | `import App from "./App.svelte"` |
-| `apps/editor/src/main.ts:4` | `mount(App, { target: document.getElementById("app")! })` |
+| `apps/editor/src/main.ts:7` | `mount(App, { target: document.getElementById("app")! })` |
 | `apps/editor/index.html:10` | `<script type="module" src="/src/main.ts">`, with `<div id="app">` at line 9 |
 
 `apps/demo/src/main.ts:2` also imports an `App.svelte`, but that is the demo's own file.

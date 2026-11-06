@@ -19,7 +19,8 @@ therefore said little about what each operation did. The card leads with the ans
 2. **Title, what it writes**: the attribute (`Tile`, `Rotation`) in the group-title style, then
    the mapping. A tile mapping shows up to four palette thumbnails and the tile names. A numeric
    mapping shows its range in mono, for example `0 – 270 · 4 steps` (`writesOf` in
-   [labels](/editor/operation-labels/)). Clicking it opens the attribute step.
+   [labels](/editor/operation-labels/)). Under Constant it names only the entry that paints,
+   even for a file saved with several, because the card says what the operation does (T4). Clicking it opens the attribute step.
 3. **Chips**: one each for Selection, Pattern and Blend, in step order. Each shows the step name
    (`STEP_LABELS`, so the Source step reads "Pattern"), muted, then the answer in mono. A chip opens its step. The chips wrap rather than clip.
 4. **Actions**: re-seed, always visible, and a [menu](/editor/ui-menu/) with Move earlier, Move

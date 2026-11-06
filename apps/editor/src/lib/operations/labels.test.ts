@@ -143,6 +143,27 @@ describe("writesOf", () => {
     expect(writesOf(partsOf(fixed), tiles)?.detail).toBe("90");
   });
 
+  it("names only the entry that paints under constant, for a file saved with several", () => {
+    const op = (palette: { tileId: string | null; weight: number }[], type: string) =>
+      ({
+        id: "op1",
+        selection: { type: "all" },
+        source: { type },
+        target: "tileId",
+        mapping: { palette },
+        blend: "set",
+      }) as Operation;
+    const old = op([{ tileId: "t1", weight: 1 }, { tileId: null, weight: 1 }], "constant");
+    expect(writesOf(partsOf(old), tiles)).toEqual({ target: "Tile", detail: "grass", tileIds: ["t1"] });
+    expect(summaryCells(partsOf(old), tiles).attribute).toBe("Tile [grass]");
+    // `t = 0` skips a zero weight, so the first entry is not always the one.
+    const skips = op([{ tileId: "t1", weight: 0 }, { tileId: null, weight: 1 }], "constant");
+    expect(writesOf(partsOf(skips), tiles)?.tileIds).toEqual([null]);
+    // Every other pattern lists the palette as written.
+    const noise = op([{ tileId: "t1", weight: 1 }, { tileId: null, weight: 1 }], "noise");
+    expect(writesOf(partsOf(noise), tiles)?.tileIds).toEqual(["t1", null]);
+  });
+
   it("is null, and reads as unanswered, before a target is chosen", () => {
     const draft = newDraft("op1");
     expect(writesOf(draftParts(draft), tiles)).toBeNull();

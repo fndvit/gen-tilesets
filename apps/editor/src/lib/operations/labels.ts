@@ -10,6 +10,7 @@
  */
 
 import { isTileMapping, type Operation, type Tile } from "@vit-foundation/gen-tilesets";
+import { constantEntry } from "../../controls/palette.js";
 import { mappingOf, STEPS, type Draft, type Step } from "../../draft.svelte.js";
 
 const NAMED: Record<string, string> = {
@@ -69,7 +70,7 @@ export function summaryCells(parts: SummaryParts, tiles: readonly Tile[]): Recor
       ? UNANSWERED
       : parts.mapping === null
         ? labelFor(parts.target)
-        : `${labelFor(parts.target)} ${mappingText(parts.mapping, tiles)}`;
+        : `${labelFor(parts.target)} ${mappingText(painting(parts.mapping, parts.source), tiles)}`;
   return {
     selection: label(parts.selection),
     source: label(parts.source),
@@ -107,7 +108,7 @@ export interface Writes {
 export function writesOf(parts: SummaryParts, tiles: readonly Tile[]): Writes | null {
   if (parts.target === null) return null;
   const target = labelFor(parts.target);
-  const mapping = parts.mapping;
+  const mapping = painting(parts.mapping, parts.source);
   if (mapping === null) return { target, detail: "", tileIds: [] };
   if (isTileMapping(mapping)) {
     return {
@@ -126,6 +127,20 @@ export function writesOf(parts: SummaryParts, tiles: readonly Tile[]): Writes | 
 export function writesText(writes: Writes | null): string {
   if (writes === null) return UNANSWERED;
   return writes.detail === "" ? writes.target : `${writes.target} · ${writes.detail}`;
+}
+
+/**
+ * The mapping as it paints. Under `constant` only one tile entry ever paints
+ * (`constantEntry`), and Save writes only that one (`mappingOf`). A file saved
+ * before T3 can still hold the others; the card names what the operation
+ * *does*, so it drops them too (Pol, T4) rather than listing tiles that never
+ * appear. A palette with no weight (`-1`, which `06` §7.3 forbids) is shown as
+ * written.
+ */
+function painting<M extends Operation["mapping"] | null>(mapping: M, source: string | null): M {
+  if (mapping === null || source !== "constant" || !isTileMapping(mapping)) return mapping;
+  const at = constantEntry(mapping.palette);
+  return at < 0 ? mapping : { ...mapping, palette: [mapping.palette[at]!] };
 }
 
 function mappingText(mapping: Operation["mapping"], tiles: readonly Tile[]): string {

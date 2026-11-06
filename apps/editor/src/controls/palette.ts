@@ -115,15 +115,33 @@ export function constantEntry(palette: PaletteEntry[]): number {
  * Gradient's far corner) the last non-zero entry wins, as in the engine.
  */
 export function entryIndex(palette: PaletteEntry[], t: number): number {
-  const target = t * paletteTotal(palette);
+  return entryWalk(palette)(t);
+}
+
+/**
+ * `entryIndex` with the palette read once, for a whole field of `t`s.
+ *
+ * The running totals are summed in the same order as the walk above, so they
+ * are the same floats, and the fall-through is the last non-zero entry, which
+ * is where the walk's `last` ends up. `coverageOf` needs this: the palette it
+ * gets is the draft's `$state` proxy, and reading it per cell took ~14 ms a
+ * drag move on a 61×120 grid (T4); the walk per cell is now plain numbers.
+ */
+function entryWalk(palette: PaletteEntry[]): (t: number) => number {
+  const total = paletteTotal(palette);
+  const bounds: number[] = [];
   let cumulative = 0;
   let last = -1;
   for (const [i, entry] of palette.entries()) {
     cumulative += entry.weight;
-    if (cumulative > target) return i;
+    bounds.push(cumulative);
     if (entry.weight > 0) last = i;
   }
-  return last;
+  return (t) => {
+    const target = t * total;
+    for (let i = 0; i < bounds.length; i++) if (bounds[i]! > target) return i;
+    return last;
+  };
 }
 
 /**
@@ -160,8 +178,9 @@ export function fieldOf(config: TilesetConfig, operationId: string, seed: string
  */
 export function coverageOf(field: readonly number[], palette: PaletteEntry[]): number[] {
   const counts = palette.map(() => 0);
+  const walk = entryWalk(palette);
   for (const t of field) {
-    const i = entryIndex(palette, t);
+    const i = walk(t);
     if (i >= 0) counts[i]! += 1;
   }
   return counts.map((n) => (field.length > 0 ? n / field.length : 0));

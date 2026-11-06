@@ -1438,6 +1438,63 @@ helpers (targets, text size, capitals, contrast).
 
 After item 7, the recommended order is 1 (export menu), 6 (glyphs), 8, 9 and 10.
 
+## T4 · Step 0 answers (Pol, 2026-11-06), done
+1. Constant's inner "Tile" label: **dropped**. The chip and the options caption keep it; the
+   thumb's name ("Tile: Beige, change") still carries it for a screen reader.
+2. Old multi-entry files under `constant`: **the card applies `constantEntry`**. `writesOf` and
+   `summaryCells` name only the entry that paints.
+3. Backlog 10 (accent edge): **left for later**.
+
+## T4: sweep (2026-11-06), waiting for Pol's review, uncommitted
+
+Changes:
+- **`labels.ts`**: a `painting()` helper gives `writesOf` and `summaryCells` the one entry
+  `constantEntry` picks under `constant`, so they agree with the stepper and with Save. 1 new
+  test in `labels.test.ts` (an old two-entry file, a zero first weight, Noise unchanged).
+- **`PaletteList.svelte`**: Constant's inner "Tile" label removed, with the reason in place.
+- **`palette.ts`: `coverageOf` was too slow on large grids.** It read the draft's `$state`
+  palette per cell and re-summed it every time: **13.9 ms a drag move on 61×120** (7,320 cells),
+  1.4 ms on the readme grid. `entryWalk` reads the palette once, and `entryIndex` is now
+  `entryWalk(palette)(t)`, so the parity test still covers the walk: **0.10 ms** and **0.02 ms**.
+  A frame went from 49 ms back to the headless baseline of 33. The drag never recounts the
+  field (`fieldOf` ran 0 times during it). 1 new test: `coverageOf` against `applyTileMapping`
+  counted by id (diagonal Gradient, zero weights, `t = 1`).
+- **Docs**: `numeric-mapping.mdx` called the step "Source" → "Pattern"; `operation-labels.md`
+  gains `writesOf`/`writesText` and the Constant rule; `palette-list.mdx` and
+  `operation-card.md` gain the T4 changes; stale line citations fixed in `app.md`, `draft.md`,
+  `operation-body.md` and `operation-labels.md` (`draftDiffers` moved to `opening.svelte.ts`
+  in W4). `app.md`'s `Tileset.svelte:199` stays: it describes the 0.8.1 code. "Threshold" and
+  "advisory 8" appear only as "retired in T3" notes.
+
+Verified:
+- **Gradient against `generate()`** (a throwaway vitest, deleted): op1 at angle 0 and 45, at 29
+  and 9 columns. generate() gave [48, 52], [44, 56], [50, 50], [50, 50]; the UI shows the same.
+- **Probe 69/69** (`t4/probe.mjs` in session `06ac963b`'s scratchpad, built from W5's helpers;
+  the two drag-timing checks need the counters, which are removed now). It covers: targets ≥ 24,
+  text ≥ 12 and no capitals in the palette (all three modes), steps, Pattern glyphs, entry menu
+  and picker; contrast ≥ 4.5 for the header note, caption, shares, "—", step answers and "every
+  selected cell"; the `ol`/`ul` names, "Tile: Beige, change", and the kept line as a status; the
+  Pattern arrow keys; Move earlier/later by keyboard under Noise and Gradient (focus stays on the
+  row's menu); picker from the thumb by keyboard, Esc back to the thumb; Remove moves focus to
+  "Add entry"; no sideways scroll at 1728, 1024, 600 and 320 in each mode, and "≈100%" fits;
+  Handpick with no cells shows "—" with no NaN; Opacity collapses to one handle under Constant
+  and comes back; reopening op1 and changing the noise moves the ≈% before Save; one Save is one
+  undo entry under Random, Gradient and Constant, and Discard adds none.
+- **T3's smoke 51/51** unchanged.
+- `pnpm test` (655 package + 398 editor), `pnpm typecheck`, the docs build and coverage (122
+  files) all green.
+
+Notes, no change made:
+- The grip is 24×32 and `aria-hidden`: a pointer-only shortcut, and the menu is the target.
+- The Pattern glyphs' grey cells are decorative; the label carries the meaning.
+- Under Noise, the ≈% belongs to the **position**, not the tile: swapping two equal-weight
+  entries swaps the tiles and keeps [63, 37]. That is correct (the field is ordered), but it may
+  surprise someone; item 12 (explain Noise) is the place to say so.
+- At 1024 the palette is 280px wide, so the 250px container query only applies at 320.
+
+Next: Pol reviews T4, then commit and close items 7 and 11, then pick the next group
+(recommended 12, explain Noise).
+
 ## Known issues / notes
 
 - **Block F testing** (headless Chrome): a target probe finds no enabled control under 24×24 in

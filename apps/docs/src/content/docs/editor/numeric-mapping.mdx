@@ -16,12 +16,12 @@ the call site in `lib/operations/OperationBody.svelte`.
 This control appears in the attribute step of an open operation when the author picks a
 number attribute such as Rotation, Scale X or Opacity. It is a track with two handles, under the
 heading "Range" (the black bar of the block it sits in already names the attribute). The handles mark the lowest and highest value the operation will write, and
-each cell gets a value between them according to its Source. Exact numbers can be typed in the
+each cell gets a value between them according to its Pattern. Exact numbers can be typed in the
 "From" and "To" fields underneath.
 
 The handles may cross. Crossing them reverses the effect, which is the only way to invert a
-Source. A "Values" toggle below chooses between **Continuous** (any value in between) and
-**Stepped** (a fixed number of evenly spaced values, set in a "Steps" field). When the Source is
+Pattern. A "Values" toggle below chooses between **Continuous** (any value in between) and
+**Stepped** (a fixed number of evenly spaced values, set in a "Steps" field). When the Pattern is
 `constant`, the two handles become one, with a single "Value" field, because a fixed value is a
 range whose ends are equal. Explanations, such as the track's domain, are hints on the labels.
 When the two ends of a rotation range are the same angle, an advisory shows at the end of the
