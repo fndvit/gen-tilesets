@@ -13,11 +13,10 @@ iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into th
 is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. Stage 2 ·
 Warnings and dialogs is **closed** (W0–W5: `8364d4e`, `3034fc1`, `3a8ca84`, `feafa9a`). The palette
 group (item 7) and Tile and pattern (item 11) are **closed** (K0–K3, T0–T4: `71fd0c1`,
-`bf60a0d`, `855d6ad`). Explain Noise (item 12) is **in progress**: N0 and N1 are answered (see "N0 answers" and
-"N1 picks" under "Next session plan: Explain Noise (item 12)"). N2 docs are committed (`30116cb`).
-N3 is committed (`4f1129b`, after three review rounds). The N4 sweep found nothing to fix (see
-"N4 · Sweep" below). **Next: Pol closes item 12** and picks the next group (recommended: 1, the
-export menu).
+`bf60a0d`, `855d6ad`). Explain Noise (item 12) is **closed** (N0–N4: `0b91a38`, `30116cb`,
+`4f1129b`, `2277185`; the accent became pink #CD1957 along the way). **Next session: follow
+"Next session plan: Export menu (item 1)" below, starting with X0's questions. No code before
+Pol answers.**
 
 ## Stage 1 blocks
 
@@ -1890,6 +1889,97 @@ on T4's helpers, and it passes 40/40. With N3's 46/46 probe it covers every N4 i
 Open, for later: in dev only, a Cells per feature change on 61×120 costs ~145–170 ms, because
 App's overlay shadow carries the Pattern (see "N3 · Done"). Production is fine.
 
+## Next session plan: Export menu (item 1) (written 2026-11-06)
+
+**Read first:**
+- `DESIGN_SYSTEM.md`: Layout (the sidebar top bar), the **Menu** and **Button** rows, Popup,
+  Notice.
+- `src/lib/sections/SidebarTopBar.svelte`: Export is the area's one primary button. Today it
+  runs `exportZip` directly.
+- `src/export.ts`: **E14**, so the file and its asset folder go out together, and it explains
+  why they are one action, not two.
+- `src/download.ts`: `zipOf`, `exportZip`.
+- `lib/ui/Menu.svelte`: the WAI-ARIA menu button that the operation and palette ⋯ menus use.
+
+### What exists
+
+- **One action, Export.** It writes `tileset.zip`: `tileset.json`, plus
+  `tiles/<tileId>/<assetId>.<ext>` for every asset. `engineVersion` is stamped at export.
+- A failure opens a Popup ("Export failed"). An empty export pushes advisory 5
+  (`exportedEmpty`), which never blocks.
+- **No image export.** The backlog says so ("image export does not exist yet").
+
+What the package offers for an image:
+- The preview draws one `<canvas class="presented">` (the default `"canvas"` substrate), at
+  the preview width × `devicePixelRatio`.
+- Its pictures are same-origin `blob:` URLs from the editor's store, so the canvas is not
+  tainted and `canvas.toBlob("image/png")` should work. **Check this in X3 before relying on
+  it.**
+- The preview's background colour is CSS on `.canvas`, not in the tileset canvas. So a capture
+  has a transparent background unless it is filled.
+- The package has no "render at width W to an image" function. A size other than the one on
+  screen means an offscreen `TilesetRenderer` (`render/renderer.ts`) in a hidden box, waiting
+  for its pictures to load. That costs more.
+
+### Recommendation (to confirm at X0)
+
+- **Export becomes a split control:** the primary "Export" still does the zip in one click
+  (the common case, and E14's pairing), with a chevron that opens a Menu of:
+  - **Tileset (.zip)**, which is what Export does;
+  - **Image (.png)**, the picture as the preview shows it now: the active width, the file's
+    seed and the current load preview.
+- **The image is a capture of the preview's own canvas,** so it is exactly the picture the
+  author sees (the S2 spirit; no second renderer). Pixels are the canvas's (width × dpr).
+- The preview's background is optional, filled from `preview.background` by default.
+- File name: `tileset-<width>px.png`.
+
+### Blocks
+
+- **X0 · Questions (talk, no code).** For Pol:
+  1. **Menu shape:** a split button (Export = zip, chevron = menu), or Export always opens the
+     menu (two clicks for the zip)?
+  2. **What the menu holds:** the zip and a PNG? Also SVG? Also a "copy embed snippet"
+     (the `<Tileset>` / vanilla call with the package version)? JSON alone stays out, because
+     it breaks E14.
+  3. **Image size:** the preview as shown (width × dpr)? Or also chosen sizes (each breakpoint
+     width, 1×/2×)? The second needs the offscreen renderer.
+  4. **Background:** the preview's colour, or transparent, or a choice?
+  5. **An open draft:** while the preview draws an unsaved draft, export the picture on screen
+     (draft included) or the saved one? The zip always exports the saved file. Recommendation:
+     the image follows the zip and uses the saved file; while a draft is drawn, the menu item
+     says so ("Image of the saved tileset"), or asks.
+  6. **Seed:** the file's seed is the default. "Preview a fresh load" changes `loadSalt`.
+     Should an image after a fresh-load preview capture that load (what is on screen)?
+- **X1 · Mocks.** A scratch page (not in the repo) showing the top bar with the split button
+  and the open menu, at 400px and at the narrowest sidebar, plus any image options. Pol picks.
+- **X2 · Docs.** `DESIGN_SYSTEM.md`: a **Split button** pattern (or the Menu row), the Export
+  menu, and image export's rules, before any code.
+- **X3 · Implement.**
+  - The split control in `lib/ui/` (its logic in a tested `.ts` if it has any).
+  - `SidebarTopBar` wiring.
+  - An `image-export.ts` (pure, tested): the file name and the options to pixels. The capture
+    goes through the preview's canvas (`renderBox` is already bound in `App.svelte`), so App
+    or a small store exposes "capture" to the top bar.
+  - Failure goes to the existing Popup.
+  - A docs page for each new file.
+  - The offscreen renderer only if X0 asks for other sizes.
+- **X4 · Sweep.**
+  - Probe the menu: keyboard (WAI-ARIA menu button), 24px targets, contrast, reflow at
+    1728/1024/600/320.
+  - The PNG's size and pixels against the on-screen canvas.
+  - The zip unchanged: compare with `w5/probe.mjs` (session `e17b73a2`), and keep the
+    `tiles/*/*` check.
+  - Then close the group with Pol.
+
+**How to test:**
+- The dev server runs on 5175.
+- The probes start from `n4/probe.mjs` (session `e5333bf0`'s scratchpad). It has the
+  Playwright headless shell path, the audit and contrast helpers, and `readme.zip`.
+- A download in Playwright: `page.waitForEvent("download")`.
+
+After 1, the remaining backlog is 6 (Attribute and Blend glyphs), 8 (label spacing), 9 (hints
+for keyboard users) and 10 (the open card's accent edge).
+
 ## Known issues / notes
 
 - **Block F testing** (headless Chrome): a target probe finds no enabled control under 24×24 in
@@ -2017,7 +2107,7 @@ design are not done here (Stage 2, items 1–2).
     contradict each other. Palette weights read as chances, but the Source, chosen afterwards,
     decides what they mean. The editor's % is false under noise, a diagonal gradient and
     constant. Planned in "Next session plan: Tile and pattern (item 11)".
-12. Explain Noise (Pol, T1 review, 2026-11-06): the user needs Noise itself explained. Why do
+12. *(Done, N0–N4.)* Explain Noise (Pol, T1 review, 2026-11-06): the user needs Noise itself explained. Why do
     the middle entries cover more? What do *Octaves* and *Cells per feature* do? Settle this
     after item 11. Options include a hint or a short explainer on the Pattern step, a live
     preview of the field, and renaming the params in the editor only (the file format keeps
