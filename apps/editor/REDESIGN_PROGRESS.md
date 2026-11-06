@@ -11,9 +11,9 @@ iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into th
 `DESIGN_DIRECTION.md` records why each choice was made. Stage 1 and the Stage 2 preview group
 (P1–P4) are complete. Their functionality is unchanged, but their *look* in the sections below
 is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. Stage 2 ·
-Warnings and dialogs: W0–W4 are done (`8364d4e`, `3034fc1`, `3a8ca84`). **W5 (the sweep) is
-implemented and waiting for Pol's review** (see "W5: sweep" below). Once Pol closes the group,
-the next group is chosen (recommended: 7, the palette widget).
+Warnings and dialogs is **closed** (W0–W5: `8364d4e`, `3034fc1`, `3a8ca84`, `feafa9a`). **Next
+session: follow "Next session plan: Palette widget (item 7)" below**, starting with K0's questions
+for Pol.
 
 ## Stage 1 blocks
 
@@ -772,7 +772,7 @@ with `responsive` removed, because a rows / columns override beside a `cellList`
 **5. Close the group with Pol.** The recommended next group is 7 (the palette widget), then 1 (the
 export menu), 6 (glyphs), 8, 9 and 10.
 
-### W5: sweep (2026-11-06), waiting for Pol's review
+### W5: sweep (2026-11-06), committed `feafa9a`; the group is closed
 
 **Pol's step-0 answers:** the breakpoint `rows` / `columns` / `cellSize` overrides commit on
 blur, with the Enter cue. Y offset stays live. The Tiles attach report becomes a failure notice.
@@ -814,7 +814,105 @@ blur, with the Enter cue. Y offset stays live. The Tiles attach report becomes a
     - no console errors.
   - A test zip built without its pictures (my mistake, found from a blank preview) made 15
     "didn't load" failures; the rebuilt zip draws, and the run above uses it.
-- **Not done / for Pol:** close the group. Items 3 and 4 are marked done in the backlog.
+- **Closed by Pol (2026-11-06):** committed as `feafa9a`. Items 3 and 4 are done in the backlog.
+
+## Next session plan: Palette widget (item 7) (written 2026-11-06)
+
+Read `DESIGN_SYSTEM.md` first (Operation card, Operation stepper, Tile group, Input and Input
+waiting, Segmented control, Inline advisory) and backlog item 7. The blocks are named K so they
+don't clash with the preview group's P. Stop for Pol after each block.
+
+### What exists today (analysed 2026-11-06)
+
+`src/controls/PaletteBar.svelte` (386 lines). `OperationBody` renders it in the Mapping step when
+the attribute is `tile`, with `draft.palette` and `draft.sourceType`. Its parts, top to bottom:
+1. a "Palette" label whose hint explains that order matters (or, under `random`, that it doesn't);
+2. **the bar**: one `button` per entry, `flex-grow` = its share, the tile name only when the share
+   is over 12%. Grey blocks; the edited one is ink; `clear` is panel with an edge; a zero weight
+   is a 4px sliver. Dragging a segment along the bar reorders live (`indexAt`);
+3. inline advisory 8 (reordered under `random`);
+4. a muted mono line of `name NN%` per entry, the edited one underlined;
+5. for the **selected** entry only: a native `<select>` for the Tile ("clear" + tile names), a
+   Weight `NumericInput` (commits per keystroke), then Earlier / Later / Remove;
+6. "+ Entry" (adds the first tile) and "+ Clear".
+
+The bar was chosen on purpose (header comment, `09` §7.6 and `04` O6/§6.4): palette order is
+meaningful (under a banded Source, neighbours on the bar end up as neighbours on the canvas),
+unlike a tile group's asset list, so it must not look like that list.
+
+**Why it is hard to grasp** (Pol, Block F round 2, "hard to grasp"; my reading, to check with Pol):
+- the entries are not visible as entries: no thumbnails, names hidden under 12%, and the edited
+  entry is chosen through a bar that is also a drag handle;
+- the controls under the bar edit an entry you can't see next to them (select-then-edit);
+- the weight is a bare number. The tile group's weights are sliders with a live %, so the same
+  idea looks different in two places;
+- the `name NN%` line repeats the bar in another form;
+- "+ Entry" always adds the first tile, which then has to be changed in a select with no pictures;
+- a zero-weight sliver is 4px, under the 24px target (Known issues);
+- the hint that explains order is only reachable on hover (backlog item 9).
+
+Reusable pieces: `OperationCard`'s palette thumbnails (the tile's first asset, or the slashed
+"clear" square), `TileAsset`'s thumbnail + slider + % row, `Slider`, `Menu`, `IconButton`
+reorder arrows, `Advisory`, and the glyph grid's selected look.
+
+### Blocks
+
+- **K0 · Questions and analysis (talk, no code).** First check whether the Figma file
+  (`VCp0HyxbLOBq0vOkpDWmIL`) has a palette frame. Then put these to Pol:
+  1. What was hard to grasp: what an entry is, which one is being edited, what order means, or
+     what the weight does? (Use this list as the prompt.)
+  2. **Shape.** Recommendation: **rows plus a strip.** Each entry is a row (number, thumbnail and
+     name, a weight slider with %, a ⋯ Menu with Move earlier / Move later / Remove), and above
+     them a thin proportion strip, read-only, that shows the order and the bands. The rows sit in
+     a numbered sequence joined by a line, like the stepper, so they read as an ordered sequence,
+     not a sorted list. The alternatives:
+     - keep the bar and add thumbnails, with an editor for the selected entry;
+     - keep the bar and edit in place with a popover per segment.
+     §7.6 argued against rows; the numbering and the strip are how this answers that argument.
+  3. **Picking a tile:** a thumbnail grid (the glyph grid look) in a popover, instead of the native
+     select? "clear" would be its first cell.
+  4. **Adding:** "+ Entry" opens the picker, instead of adding the first tile. Is "+ Clear" still
+     needed if clear is in the picker?
+  5. **Reorder:** drag on the rows (with a grab handle), the menu's Move earlier / Move later, or
+     both? Keyboard: the menu is enough for WCAG 2.5.7 (dragging movements).
+  6. **Show the Source's bands?** Under a banded Source (noise), the strip could label the
+     threshold positions (0.25, 0.6…). Under `random`, the strip shows shares only and advisory 8
+     still applies.
+  7. **Weight input:** the same slider as the tile group's (0–2, live %, drag = one undo), or a
+     number field?
+- **K1 · Mocks.** A static scratch page with 2–3 variants, as in W1 (not in the repo), at real
+  size inside an open operation card. Pol picks one.
+- **K2 · Pattern and docs.** Write the chosen pattern into `DESIGN_SYSTEM.md`'s component table
+  (a "Palette" row) before any code. Note what it reuses.
+- **K3 · Implement.** Rewrite `PaletteBar` (it may be renamed, for example `PaletteList`; update
+  `OperationBody` and the docs page). Keep the invariants:
+  - `06` §7.3: at least one entry, and the weights never all zero (refused);
+  - a zero weight stays visible and has a 24px target;
+  - `null` is "clear", never a library Tile;
+  - advisory 8 only after a reorder under `random`, once the drag is let go;
+  - one undo per gesture: today the palette edits a *draft*, which Save commits, so check how a
+    slider drag fits that.
+  Unit-test any logic moved out of the component (for example a `palette.ts` for
+  move/remove/add/weight rules, so the refusals are tested); vitest cannot load `.svelte`.
+- **K4 · Sweep.** Probes: 24px targets (including zero weight), 12px text, no capitals,
+  contrast, focus order, the keyboard path for reorder (WCAG 2.5.7), no sideways scroll at
+  1728 / 1024 / 600 / 320. A smoke test with the readme zip:
+  - open operation 1 (tile, noise);
+  - add an entry through the picker, weight it, reorder it, remove it;
+  - switch the Source to random, reorder, and see advisory 8;
+  - Save, then one undo.
+  Then the docs pages (`palette-bar` or its new name, `operation-body`), coverage, typecheck,
+  tests and the docs build, and close the group with Pol.
+
+### How to test
+
+As before: the dev server on **5175**, Playwright from `node_modules/.pnpm/playwright-core@1.56.1`
+with `executablePath` set to the headless shell (see "How to test" in P3b). Build test zips with
+`os.walk` over `tiles/`. Zipping only the `tiles/t1` directories leaves the pictures out, and the
+preview draws nothing. W5's `probe.mjs` (session scratchpad) is a template for the audit
+helpers (targets, text size, capitals, contrast).
+
+After item 7, the recommended order is 1 (export menu), 6 (glyphs), 8, 9 and 10.
 
 ## Known issues / notes
 
