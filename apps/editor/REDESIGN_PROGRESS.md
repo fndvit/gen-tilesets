@@ -11,8 +11,8 @@ iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into th
 `DESIGN_DIRECTION.md` records why each choice was made. Stage 1 and the Stage 2 preview group
 (P1–P4) are complete. Their functionality is unchanged, but their *look* in the sections below
 is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. **Next
-session: Pol picks the next Stage 2 group** (see the backlog; items 1 and 7 were partly answered
-by the new design).
+session: follow "Next session plan" below** (Stage 2 · Warnings and dialogs, block W0 first;
+items 1 and 7 of the backlog were partly answered by the new design).
 
 ## Stage 1 blocks
 
@@ -411,15 +411,82 @@ P4 (2026-11-05):
   nothing clipped. No enabled control under 24×24 and no sideways scroll at 1728, 1024, 600, 320.
   No console errors.
 
-## Next session plan (written 2026-11-05 after P4)
+## Next session plan (written 2026-11-06, after "Ink on paper" was adopted)
 
-Pol closes the preview group, then picks the next Stage 2 group from the backlog. Suggested:
-item 3, warnings, since the sticky notices and the asset failure list wait on it. Discuss the
-design with Pol before implementing, and split it into analysed / implemented / reviewed / tested
-blocks.
+**Next group: Stage 2 · Warnings and dialogs (backlog item 3, plus the dialog half of item 4).**
+It is the oldest open "until Stage 2" debt. The sticky preview notices, the red asset-failure
+list, the native `confirm()` for New, and the `--color-warn` / `--color-danger` placeholders all
+wait on it. It is also the one group the new design system has no pattern for yet. Pol may
+still pick another group at the start of the session. Recommended order after this one: 7
+(palette widget), 1 (export menu), 6 (glyphs), then 4's confirm-on-blur, 8 and 9.
 
-**How to test (found in P3b):** the editor dev server usually already runs on port 5199
-(`lsof -iTCP:5199`); reuse it. Playwright is `node_modules/.pnpm/playwright-core@1.56.1`, and the
+Read `DESIGN_SYSTEM.md` first: it describes the adopted design. The sections above it in this
+file describe looks that no longer exist.
+
+### What exists today (analysed 2026-11-06)
+
+Every place the editor tells the author something, against `09` §12 (the spec archive is
+`../gen-tileset-spec-archive/spec/09-editor.md`):
+
+| What | Spec | Where it shows now |
+|---|---|---|
+| E12: confirm a resize that hits coordinate-bound operations | §9.3 | Sticky white notice pinned over the preview (`App.svelte` `.notice`, `role="alertdialog"`), "Change it" / "Cancel" |
+| Advisory 3: an operation orphaned by a resize | §9.4, §12.2 | Second sticky notice in `App.svelte`, never dismissible |
+| Asset load failures | §12.3 | Red `<ul class="failures">` above the picture (`App.svelte`), never cleared except by New |
+| Advisory 5: the document draws nothing | §12.2 | Export popup (`SidebarTopBar`) |
+| Import refusal, upgrade notes, missing pictures | §12.1, §12.4 | Import popup (`ImportPanel`) |
+| Tile attach failures | E13 | Tiles popup (`TilesSection`) |
+| Advisory 2: reseedOnLoad over a non-random source | §12.2 | Only inside the fresh-load hint (`SidebarFooter`) |
+| Advisory 6: two tiles share a name | §12.2 | Hint and note on the tile group title |
+| Advisory 8: palette reordered under `random` | §12.2 | Inline in `PaletteBar` |
+| Advisory 9: rotation endpoints coincide mod 360 | §12.2 | Inline in `NumericMapping` |
+| Advisories 1, 4, 7 (parity vs alignment, grid narrower than design width, non-square asset) | §12.2 | **Not shown anywhere.** 1 and 4 are import-only; 7 has the data (`meta.width/height`) but no consumer |
+| Unsaved operation changes | Block E | `Popup` with Keep editing / Discard (`OperationsSection`) |
+| Start a new tileset | — | Native `confirm()` in `App.svelte` |
+
+The package has no diagnostics helper (`git grep "export function diagnos"` finds nothing), so
+the detections are the editor's. **E16** governs every advisory: it never blocks, never edits the
+file, and is never styled as an error.
+
+### Blocks (analysed / implemented / reviewed / tested, stop for Pol after each)
+
+| Block | Scope |
+|---|---|
+| W0. Kick-off (talk, no code) | Confirm the group with Pol, and ask the questions below. Check Figma (`VCp0HyxbLOBq0vOkpDWmIL`) for any warning or dialog frame before designing |
+| W1. Design proposal | Propose the taxonomy below as rendered mock states in the 5175 editor (or Figma), in the "Ink on paper" language: no caps, ink/paper, the accent only for "editing now", so **a warning colour must be decided** (see questions). Write the patterns into `DESIGN_SYSTEM.md` once Pol approves |
+| W2. Components | `lib/ui/Notice.svelte` (one notice), `lib/ui/Dialog.svelte` (modal confirm built on the native `<dialog>` `Popup` already uses), and a small store `notices.svelte.ts` (add, dedupe by key, dismiss, auto-clear when the condition goes away). Each new file needs a docs page. Unit tests for the store |
+| W3. Wire the advisories | Move orphaned (3), asset failures (§12.3), and the export (5) / import notes into notices. Add pure detections, with tests, for 1, 4 and 7 (and 2 outside the hint). Keep 6, 8 and 9 inline at their control, but give them the shared inline-advisory look |
+| W4. Dialogs (item 4's dialog half) | The E12 resize confirmation becomes a `Dialog` naming the affected operations. New tileset uses it instead of `confirm()`. Unsaved changes moves onto it too. Confirm-on-blur for destructive params stays in item 4 unless Pol folds it in |
+| W5. Sweep | Remove the sticky `.notices` and `.failures` from `App.svelte`. Replace the `--color-warn` / `--color-danger` placeholders. Update docs pages, the probes (24px targets, 12px text, no caps, focus order, `aria-live`), the smoke test and `DESIGN_SYSTEM.md` |
+
+### Proposed taxonomy (to put to Pol in W1)
+
+1. **Notice** (non-blocking, dismissible): advisories and asset failures. A stack in the preview's
+   top-right, under the top bar, so it never covers the sidebar. Polite `aria-live` for
+   advisories, assertive for failures. A dismissed notice stays dismissed until its condition
+   changes (keyed by condition, not by text).
+2. **Inline advisory**: a muted line with a small marker at the control it is about (6, 8, 9). It
+   is shown where the author can act, never as a popup.
+3. **Dialog** (blocking, one question): E12, New, unsaved changes. The primary action is ink,
+   with Cancel beside it. Focus is trapped and returns to the trigger.
+4. **Report** (after an action): the existing `Popup` for import, export and attach results.
+   Restyle it only if W1 changes the notice look.
+
+### Questions for Pol at W0
+
+- Does a warning get its own colour? The palette is ink, paper and one accent that means
+  "editing now". Options: an amber marker only, ink plus an icon, or the accent. A failure (asset
+  load) may need red, even though `--red-600` is today used only for the erase overlay.
+- Where do notices live: the preview's top-right, under the top bars across the window, or the
+  sidebar foot?
+- Should advisories 1, 4 and 7 be surfaced at all? They are import-only or rare, and the spec
+  says to report them.
+- Fold item 4's confirm-on-blur into this group, or keep it separate?
+- Is there a count or badge anywhere (for example "2 notes" in the top bar) when notices are
+  dismissed?
+
+**How to test (found in P3b):** the editor dev server now runs on port **5175** from this tree
+(`lsof -iTCP:5175`); reuse it. Playwright is `node_modules/.pnpm/playwright-core@1.56.1`, and the
 browser that exists is
 `~/Library/Caches/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell`
 (pass it as `executablePath`). For a real picture, zip `apps/demo/public/readme` (`tileset.json` +
