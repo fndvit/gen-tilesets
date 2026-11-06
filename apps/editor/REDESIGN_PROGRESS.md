@@ -904,6 +904,28 @@ reorder arrows, `Advisory`, and the glyph grid's selected look.
   Then the docs pages (`palette-bar` or its new name, `operation-body`), coverage, typecheck,
   tests and the docs build, and close the group with Pol.
 
+### K0 answers (Pol, 2026-11-06), done
+
+The Figma file has no palette frame: the Editor page holds the sidebar, the preview, tile assets,
+the operation header and the glyphs only. The design comes from the K1 mocks.
+
+1. **Hard to grasp:** all four: what an entry is, which one is being edited, what order means and
+   what the weight does.
+2. **Shape:** rows plus a strip. Numbered rows are joined by a line like the stepper, and each row
+   has a thumbnail, name, weight slider + % and a ⋯ Menu. A thin read-only proportion strip sits
+   above them.
+3. **Picking a tile:** a thumbnail grid in a popover (the glyph grid's selected look), with "clear"
+   as its first cell. The native select goes.
+4. **Adding:** "+ Entry" opens the picker. "+ Clear" is dropped.
+5. **Reorder:** both a drag on a grab handle and the menu's Move earlier / Move later (the keyboard
+   path for WCAG 2.5.7).
+6. **Bands:** under a banded Source the strip labels the threshold positions. Under `random` it
+   shows shares only, and advisory 8 still applies.
+7. **Weight:** the tile group's slider (0–2, live %, one drag = one undo).
+
+K1 mocks three variants of the rows + strip: A (stepper circles, strip on top), B (the joining
+line *is* the strip) and C (compact 32px rows, the §7.6 risk check).
+
 ### How to test
 
 As before: the dev server on **5175**, Playwright from `node_modules/.pnpm/playwright-core@1.56.1`
