@@ -17,8 +17,9 @@ the sidebar, the picture stays on screen. There is no header.
 
 The sidebar is two parts, as in Figma. The top part scrolls and holds the sections: Grid & Size,
 Breakpoints, Derived, Tiles and Operations. The bottom part is a fixed black footer with the
-seed, undo, import, new document and download. At the top of the preview the shell can show a
-confirmation when an edit would damage hand-placed work. Everything else the document holds, such
+seed, undo, import, new document and download. The shell asks with a dialog before an edit
+that would damage hand-placed work, and before starting a new document. Everything else the
+document holds, such
 as operations a resize has pushed off the grid or pictures that did not load, is a notice in a
 stack floating over the preview.
 
@@ -35,9 +36,9 @@ through it, and hands the open draft to the preview's overlays.
 ### Purpose
 
 `App.svelte` wires the editor's state modules to its components. It owns almost no logic of its
-own: a handful of `$derived` values computed from `session.file` and `drafting.draft`, five
-pieces of local state (`pending`, `loadSalt`, `failures`, `conditions`, `renderBox`), the destructive gate,
-`newTileset`, and the markup. The sidebar sections live in `lib/sections/`. Every edit goes through `session.apply(transition)` with a transition from
+own: a handful of `$derived` values computed from `session.file` and `drafting.draft`, some
+local state (`pending`, `askingResize`, `askingNew`, `loadSalt`, `failures`, `conditions`,
+`renderBox`), the destructive gate, `newTileset`, `openOperation`, and the markup. The sidebar sections live in `lib/sections/`. Every edit goes through `session.apply(transition)` with a transition from
 [document.ts](/editor/document/). The header comment states the load-bearing rule: the preview
 is `<Tileset>` on the file, drawing the complete operation stack, and overlays are drawn over
 that output, never in place of it (cited as **S2**).
@@ -70,8 +71,6 @@ Which component renders which, in source order. Conditional children are marked.
         - [`ImportPanel`](/editor/import-panel/), [`Popup`](/editor/ui-popup/)s for reports
     - `section.preview`: [`PreviewTopBar`](/editor/preview-bars/), then `.canvas` (the backdrop)
       holding a [`ScrollArea`](/editor/ui-scroll-area/) (`fill`) and `.preview-body` (clips the grid)
-      - `.notices` (sticky, *if* `pending !== null`): the confirmation. It stays here until
-        Stage 2 W4 makes it a `Dialog`.
       - `.stage` (centres the frame in the visible height), holding
         [`PreviewFrame`](/editor/preview-frame/)
         - `children(Wpx)` snippet:
@@ -82,6 +81,7 @@ Which component renders which, in source order. Conditional children are marked.
       - `NoticeStack` (`lib/preview/NoticeStack.svelte`), after the `ScrollArea` and inside
         `.canvas` (`position: relative`), so it stays put while the picture scrolls. It gets
         `notices.shown(conditions)` and `onDismiss={(n) => notices.dismiss(n)}`.
+- two [`Dialog`](/editor/ui-dialog/)s after `main`: E12's resize confirmation and New tileset.
 - `<svelte:window>` forwards `oninputcapture`, `onchange`, `onfocusout` and `onkeydown` to
   `entry` (`entry.svelte.ts`), which tracks whether the author is entering a value.
 
@@ -95,7 +95,8 @@ Which component renders which, in source order. Conditional children are marked.
 | [`drafting`](/editor/drafting/) | `draft`, `editing`; `discard` |
 | [`notices`](/editor/notices/) | `shown`, `forget`, `dismiss`, `clear` |
 | `entry` (`entry.svelte.ts`) | `active`; `input`, `done`, `keydown` |
-| local `$state` | `failures`, `conditions`, `renderBox`, `loadSalt` (bound into the footer), `pending` |
+| [`opening`](/editor/opening/) | `open` (the orphan notice's action) |
+| local `$state` | `failures`, `conditions`, `renderBox`, `loadSalt` (bound into the footer), `pending`, `askingResize`, `askingNew` |
 
 #### Derived values
 
@@ -106,7 +107,7 @@ Which component renders which, in source order. Conditional children are marked.
 | `risked` | `atRisk(config)` from [orphans.ts](/editor/orphans/) | confirmation, Grid & Size hints, Breakpoints' pinned fields |
 | `orphaned` | `orphans(config, config.defaultSeed, loadSalt)` | `current` |
 | `liveFailures` | the `failures` whose asset still has the same `meta` object, as text | `current` |
-| `current` | `documentNotices(file, orphaned, liveFailures)` from `advisories.ts` | `conditions` |
+| `current` | `documentNotices(file, orphaned, liveFailures, openOperation)` from `advisories.ts` | `conditions` |
 | `painting` | the draft's Selection schema, looked up via [`selections`](/api/index/variables/selections/), searched for a param of type `cellList` | `PaintLayer`, `PreviewFrame`'s `painting` |
 | `shadow` | `toShadowOperation(draft)`, spliced into `config.operations` | `SelectionOverlay` |
 
@@ -150,13 +151,22 @@ returns if the condition does.
 
 #### The destructive gate
 
-`destructive(label, transition)` is passed to `GridSection`, which calls it for cell size, design
-width and the alignment toggle.
-If `needsConfirmation(config)` is true it parks `{ label, apply: transition }` in `pending`;
-otherwise it applies at once. The confirmation, at the top of the preview, names every
-Operation in `risked`, and "Change it"
-calls `session.apply(pending.apply)`. Holding a `Transition` rather than a value means the
-confirm step does not have to work out which field the value belonged to.
+`destructive(field, value, transition)` is passed to `GridSection`, which calls it for cell
+size, design width and the alignment toggle, once the value is committed (the two fields use
+`NumericInput`'s `commit="blur"`). If `needsConfirmation(config)` is true it parks
+`{ field, value, apply: transition }` in `pending` and opens a [`Dialog`](/editor/ui-dialog/);
+otherwise it applies at once. The dialog asks "Change cell size to 54?", lists every Operation in
+`risked` in a well (its index square, then `id · selection type`), and its verb, "Change cell
+size", calls `session.apply(pending.apply)`. Cancel drops `pending`; the field already shows the
+file's value, because its draft went when it committed. Holding a `Transition` rather than a
+value means the confirm step does not have to work out which field the value belonged to.
+
+#### Opening an orphaned operation
+
+`openOperation(id)` is handed to `documentNotices`, which puts "Open op-2" on the orphan notice
+(one per orphaned operation, at most three). It calls `opening.open(id, "selection")`, which goes
+through the unsaved-changes guard, opens the operation on its Selection step, and unfolds the
+Operations section.
 
 #### Operations panel
 
@@ -173,7 +183,8 @@ and do nothing.
 #### New document
 
 The footer's *New* button calls `newTileset` (passed as `onNew`), which is **confirmed and not
-undoable**. It asks with `confirm(...)` first and returns if the author declines. Then it calls
+undoable**. The button opens a [`Dialog`](/editor/ui-dialog/), "Start a new tileset?", and only
+its verb, "Start new", calls `newTileset`. That calls
 `session.reset()`, sets `failures = []`, calls `notices.clear()`, and awaits `replaceAll([])` to reclaim every picture the
 session held. Reset comes first so the outgoing document is already gone from the preview: no
 `<img>` then draws an object URL `replaceAll` has just revoked, and nothing reports those as
@@ -185,7 +196,8 @@ failures.
 - **Every edit is a transition through `session.apply`** and therefore undoable (**E6**). Undo,
   reset and import are the only other writes, and all three go through `session`. Reset (New
   document) is the one deliberate exception to undoability, and is confirmed first.
-- **Destructive edits confirm only where something is at risk** (**E12**). A config holding only
+- **Destructive edits confirm only where something is at risk** (**E12**), and only once the
+  value is committed (Pol, W1). A config holding only
   procedural Selections applies directly. The comment quotes the reason: "a dialogue that
   appears every time teaches the author to dismiss it before reading".
 - **`loadSalt` writes no field and is held for the session** (**R12**). Only the footer's Fresh
@@ -211,9 +223,9 @@ Callees, by import: from the package, [`selections`](/api/index/variables/select
 [`ruleOverride`](/api/index/functions/ruleoverride/), [`naturalRatio`](/api/render/functions/naturalratio/),
 `Tileset.svelte`; from the editor, `advisories.ts` (`documentNotices`), `entry.svelte.ts`,
 `notices.svelte.ts` (and the `Notice` type from `notices.ts`), `assets.ts` (`editorProvider`, `replaceAll`, `stored`), `document.ts`
-(the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `orphans.ts`, `session.svelte.ts`,
+(the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `opening.svelte.ts`, `orphans.ts`, `session.svelte.ts`,
 the six `lib/sections/` components (Grid, Breakpoints, Derived, Tiles, Operations, SidebarFooter),
-`PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer` and `ui/Button`.
+`PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer` and `ui/Dialog`.
 
 ### Tests
 
@@ -227,8 +239,8 @@ validates.
 
 - **A full-height shell, not a scrolling document.** `main` is a grid,
   `var(--sidebar-w) minmax(0, 1fr)` at `100dvh`. The sidebar's sections and the preview column
-  each scroll their own contents. The confirmation and the notice stack sit in the preview
-  column, not above both columns, so the grid needs no conditional rows.
+  each scroll their own contents. The notice stack sits in the preview column, and the dialogs
+  are modal, so the grid needs no conditional rows.
 - **The last section ends on a darker ground.** `--color-surface` is `--aqua-200`, and each
   open section body is the lighter `--color-section` (`--aqua-50`, Figma's colour). Sections touch
   (Pol); the `.sections` bottom padding lets the ground show under the last one,

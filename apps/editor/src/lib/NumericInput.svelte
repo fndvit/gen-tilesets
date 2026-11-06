@@ -22,6 +22,14 @@
   and blur reverts. `02` §7.4 gives the failure clamping produces: "a loader that
   silently rewrites a value produces a picture the file does not describe, and
   the author's next save writes the rewritten value back over their own."
+
+  **Commit on blur** (`commit="blur"`, Stage 2 W4). A field whose edit asks
+  first (Grid & size's cell size and design width, **E12**) must ask once, for
+  the value the author meant, never after the first digit of "54" (Pol, W1:
+  confirmations come only once a value is committed). In this mode the draft is
+  held while typing and committed once, on blur or Enter, and only when it
+  parses to a value other than the file's. Esc drops the draft. The cost: the
+  preview does not follow the typing in these fields.
 -->
 <script lang="ts">
   import { format, type ParseResult } from "../fields.js";
@@ -38,9 +46,14 @@
     /** Explanation shown on hovering the label (`FieldRow`'s `hint`). */
     hint?: string;
     step?: string;
+    /**
+     * `"parse"` (the default) commits on every keystroke that parses, so the
+     * preview follows the typing. `"blur"` commits once, on blur or Enter.
+     */
+    commit?: "parse" | "blur";
   }
 
-  let { label, value, parse, onCommit, hint, step = "any" }: Props = $props();
+  let { label, value, parse, onCommit, hint, step = "any", commit = "parse" }: Props = $props();
 
   const inputId = $props.id();
 
@@ -63,6 +76,20 @@
 
   const text = $derived(draft ?? format(value));
 
+  /**
+   * `commit="blur"` only: the draft parses to a value the file does not hold,
+   * so Enter (or leaving) would apply it. The field says so, because the
+   * preview no longer follows the typing and nothing else shows that the value
+   * is waiting (Pol, W4 review).
+   */
+  const waiting = $derived.by(() => {
+    if (commit !== "blur" || draft === null) return false;
+    const parsed = parse(draft);
+    return parsed !== null && parsed !== value;
+  });
+
+  const waitingId = `${inputId}-waiting`;
+
   function onInput(event: Event): void {
     const next = (event.currentTarget as HTMLInputElement).value;
     draft = next;
@@ -71,7 +98,37 @@
     // every frame and recomputes the grid on every frame, which is correct and
     // cheap". Whether the editor debounces "is an editor decision with no
     // correctness content".
-    if (parse(next) !== null) onCommit(next);
+    if (commit === "parse" && parse(next) !== null) onCommit(next);
+  }
+
+  /**
+   * The one commit of `commit="blur"`: the draft, if it parses to a value the
+   * file does not already hold. Dropping the draft first means a re-entrant
+   * blur (the dialog `onCommit` may open takes focus) finds nothing to commit.
+   *
+   * Focus goes back to the field before committing. A dialog opened by the
+   * commit returns focus to whatever held it when it opened, and between a
+   * blur and the next element's focus that is `<body>`. The question is about
+   * this field, so Cancel and the verb both bring the author back here.
+   */
+  function commitDraft(input: HTMLInputElement): void {
+    const text = draft;
+    draft = null;
+    if (commit !== "blur" || text === null) return;
+    const parsed = parse(text);
+    if (parsed === null || parsed === value) return;
+    if (document.activeElement !== input) input.focus();
+    onCommit(text);
+  }
+
+  function onKeydown(event: KeyboardEvent): void {
+    if (commit !== "blur") return;
+    if (event.key === "Enter") {
+      // Otherwise the same Enter, arriving as a keypress, activates the
+      // dialog's Cancel the moment focus lands on it.
+      event.preventDefault();
+      commitDraft(event.currentTarget as HTMLInputElement);
+    } else if (event.key === "Escape") draft = null;
   }
 
   /**
@@ -81,10 +138,11 @@
    * That covers both cases at once. Text the file refused reverts to the last
    * legal value; text it accepted is normalized, so a committed `"1."` becomes
    * `"1"` and `"007"` becomes `"7"` — the file always held the number, and the
-   * draft was the only thing still showing the keystrokes.
+   * draft was the only thing still showing the keystrokes. In `commit="blur"`
+   * mode it is also the commit.
    */
-  function onBlur(): void {
-    draft = null;
+  function onBlur(event: FocusEvent): void {
+    commitDraft(event.currentTarget as HTMLInputElement);
   }
 </script>
 
@@ -95,21 +153,55 @@
 -->
 <FieldRow {label} for={inputId} {...hint ? { hint } : {}}>
   {#snippet children(describedBy)}
-    <input
-      id={inputId}
-      class="field t-value"
-      aria-describedby={describedBy}
-      type="number"
-      {step}
-      value={text}
-      oninput={onInput}
-      onblur={onBlur}
-      spellcheck="false"
-    />
+    <div class="box">
+      <input
+        id={inputId}
+        class="field t-value"
+        class:waiting
+        aria-describedby={[describedBy, waiting ? waitingId : undefined].filter(Boolean).join(" ") || undefined}
+        type="number"
+        {step}
+        value={text}
+        oninput={onInput}
+        onblur={onBlur}
+        onkeydown={onKeydown}
+        spellcheck="false"
+      />
+      {#if waiting}
+        <span class="waiting-cue t-console" id={waitingId}><span aria-hidden="true">↵</span> Enter to apply</span>
+      {/if}
+    </div>
   {/snippet}
 </FieldRow>
 
 <style>
+  /* `FieldRow`'s control is a flex row: grow to fill it, as the bare input did. */
+  .box {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /*
+    "↵ Enter to apply", inside the field at its right edge, muted: a state of
+    the field, not a message about it. The field keeps room for it so the
+    digits never run under it.
+  */
+  .waiting-cue {
+    position: absolute;
+    top: 50%;
+    right: var(--space-4);
+    translate: 0 -50%;
+    color: var(--color-muted);
+    white-space: nowrap;
+    pointer-events: none;
+    text-box: none;
+  }
+
+  .field.waiting {
+    padding-right: 120px;
+  }
+
   /*
     A filled box. Its 1px bottom edge (`--color-edge`, 3:1 or more on every
     surface) is the boundary that says "type here" (WCAG 1.4.11); the fill alone

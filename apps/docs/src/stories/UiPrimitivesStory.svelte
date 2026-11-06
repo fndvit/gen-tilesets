@@ -183,7 +183,7 @@
           kind="advisory"
           title="Orphaned by a resize"
           data={["op-2 · cellList: 3 of 11 painted cells are outside the grid"]}
-          actions={[{ label: "Undo the resize", run: () => (log = "undo") }]}
+          actions={[{ label: "Open op-2", run: () => (log = "open op-2") }]}
           onDismiss={() => (dismissed = [...dismissed, "advisory"])}
         />
       {/if}

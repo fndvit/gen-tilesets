@@ -31,9 +31,9 @@ control (`ui/Advisory.svelte`).
 | `narrowGrid(file)` | advisory 4 | `columns × cellSize < referenceWidth` |
 | `inertReseed(file)` | advisory 2 | an Operation has `reseedOnLoad` over a Source that is not random (`reseed.ts` `inertFlags`) |
 | `nonSquare(file)` | advisory 7 | an asset's `meta.width` and `meta.height` are both numbers and differ. An unmeasured asset is skipped |
-| `orphanedNotice(orphans)` | advisory 3, §9.4 | `orphans.ts` found Operations a resize left reaching fewer cells |
+| `orphanedNotice(orphans, onOpen?)` | advisory 3, §9.4 | `orphans.ts` found Operations a resize left reaching fewer cells. With `onOpen`, one "Open op-2" action per Operation, at most `MAX_OPEN_ACTIONS` (3) |
 | `assetFailures(failures)` | §12.3 | a picture failed to resolve or load. All failures go into one notice |
-| `documentNotices(file, orphans, failures)` | | all of the above, failures first |
+| `documentNotices(file, orphans, failures, onOpen?)` | | all of the above, failures first; `onOpen` goes to `orphanedNotice` |
 | `exportedEmpty` | advisory 5 | a constant notice, pushed after an export of a document that draws nothing |
 | `importNotices({ upgrades, failed })` | §12.4 | an upgraded file (advisory), and pictures that could not be read (failure) |
 
@@ -67,6 +67,7 @@ Callees: `reseed.ts` (`inertFlags`); the `Notice` type from `notices.ts` and the
 - each detection fires on its condition and stays silent otherwise, including an unmeasured or
   string-sized asset for 7;
 - the orphan wording and a signature that changes with the counts;
+- no action without `onOpen`, and with it one "Open" per orphan, at most three;
 - failures collapse into one notice and come first;
 - import notes, and a clean import that pushes nothing.
 

@@ -46,13 +46,22 @@ only when the value really changed. It never interrupts typing (Pol, 2026-11-06)
 - It renders a `Popup` with `alert`, so the native `<dialog>` has `role="alertdialog"`. It
   inherits Popup's modal behaviour: the page behind is inert, and Esc closes it.
 - Cancel comes first in the DOM, so `showModal()` focuses it, and Enter gives the safe answer.
-  When the dialog closes, the browser returns focus to whatever opened it.
+  When the dialog closes, the browser returns focus to whatever opened it. A dialog opened by a
+  field's blur would find `<body>` there, so `NumericInput`'s `commit="blur"` puts focus back on
+  the field before committing.
 - The verb sets a flag before closing, so the `close` event that follows is not taken as a
   cancel. Each way of closing calls exactly one of `onConfirm` and `onCancel`.
 
 ### Callers / callees
 
-Callers: none yet (Stage 2 W4 moves E12, New and unsaved changes onto it), and the docs story.
+Callers (Stage 2 W4):
+
+- `App.svelte`: E12's resize confirmation ("Change cell size to 54?", verb "Change cell size",
+  the risked operations in a well) and New tileset ("Start a new tileset?", verb "Start new").
+- `lib/sections/OperationsSection.svelte`: "Discard your changes?", cancel "Keep editing", verb
+  "Discard", bound to `opening.asking`.
+- The docs story.
+
 Callees: `lib/ui/Popup.svelte`, `lib/ui/Button.svelte`.
 
 ### Tests

@@ -16,7 +16,8 @@
 
   `onAdd` puts a "+" in the header for a section that holds a list
   (breakpoints, tiles, operations), so adding never needs a scroll to the end of
-  the list; it opens the section too, so the new item is in view.
+  the list; it opens the section too, so the new item is in view. `reveal` opens
+  it from outside: the orphan notice's "Open op-2" (Stage 2 W4).
 
   **The collapsed state is transient.** `09` §12 lists persisted editor state,
   collapsed panels among them, as `[POSTPONED]`, and **E4** forbids `meta` as
@@ -41,15 +42,21 @@
     onAdd?: (() => void) | undefined;
     /** The "+" button's name: "Add breakpoint". */
     addLabel?: string | undefined;
+    /** A counter: each change unfolds the section (something outside asked to show an item in it). */
+    reveal?: number;
     children: Snippet;
   }
 
-  let { title, open = true, summary, onAdd, addLabel, children }: Props = $props();
+  let { title, open = true, summary, onAdd, addLabel, reveal = 0, children }: Props = $props();
 
   // `open` seeds the state once. A later change to the prop would reopen a
   // section the author had just closed.
   // svelte-ignore state_referenced_locally
   let expanded = $state(open);
+
+  $effect(() => {
+    if (reveal > 0) expanded = true;
+  });
 </script>
 
 {#snippet add()}

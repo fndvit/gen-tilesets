@@ -12,6 +12,7 @@ import {
   inertReseed,
   narrowGrid,
   nonSquare,
+  MAX_OPEN_ACTIONS,
   orphanedNotice,
   parityMismatch,
 } from "./advisories.js";
@@ -124,6 +125,27 @@ describe("advisory 3 — orphans", () => {
     const a = orphanedNotice([{ operationId: "op2", selectionType: "rect", reachable: 4, empty: false }]);
     const b = orphanedNotice([{ operationId: "op2", selectionType: "rect", reachable: 2, empty: false }]);
     expect(a?.signature).not.toBe(b?.signature);
+  });
+
+  it("offers no action without a way to open an operation", () => {
+    const notice = orphanedNotice([{ operationId: "op2", selectionType: "rect", reachable: 0, empty: true }]);
+    expect(notice?.actions).toBeUndefined();
+  });
+
+  it("opens each orphaned operation, at most three", () => {
+    const opened: string[] = [];
+    const orphans = ["op1", "op2", "op3", "op4"].map((operationId) => ({
+      operationId,
+      selectionType: "rect",
+      reachable: 0,
+      empty: true,
+    }));
+    const notice = orphanedNotice(orphans, (id) => opened.push(id));
+    expect(notice?.actions?.map((a) => a.label)).toEqual(["Open op1", "Open op2", "Open op3"]);
+    expect(MAX_OPEN_ACTIONS).toBe(3);
+    notice?.actions?.[1]?.run();
+    expect(opened).toEqual(["op2"]);
+    expect(notice?.data).toHaveLength(4);
   });
 });
 

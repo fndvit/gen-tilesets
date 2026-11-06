@@ -27,6 +27,7 @@
   import type { Transition } from "./document.js";
   import { toShadowOperation } from "./draft.svelte.js";
   import { drafting } from "./drafting.svelte.js";
+  import { opening } from "./opening.svelte.js";
   import { atRisk, needsConfirmation, orphans } from "./orphans.js";
   import PaintLayer from "./lib/PaintLayer.svelte";
   import PreviewFrame from "./lib/preview/PreviewFrame.svelte";
@@ -41,7 +42,7 @@
   import SidebarTopBar from "./lib/sections/SidebarTopBar.svelte";
   import OperationsSection from "./lib/sections/OperationsSection.svelte";
   import TilesSection from "./lib/sections/TilesSection.svelte";
-  import Button from "./lib/ui/Button.svelte";
+  import Dialog from "./lib/ui/Dialog.svelte";
   import ScrollArea from "./lib/ui/ScrollArea.svelte";
   import SelectionOverlay from "./lib/SelectionOverlay.svelte";
   import type { Cell } from "./paint.js";
@@ -128,17 +129,16 @@
 
   /**
    * Starts a new tileset, **confirmed and not undoable** (`session.reset`). It
-   * discards everything, so it asks first, and it then reclaims every picture
-   * the session held.
+   * discards everything, so it asks first (a `Dialog`, Stage 2 W4), and it then
+   * reclaims every picture the session held.
    *
    * Reset first, then empty the store: the outgoing document is then already
    * gone from the preview, so no `<img>` draws an object URL `replaceAll` has
    * just revoked, and nothing reports those as failures.
    */
+  let askingNew = $state(false);
+
   async function newTileset(): Promise<void> {
-    if (!confirm("Start a new tileset? All progress in the current one is lost, and this cannot be undone.")) {
-      return;
-    }
     session.reset();
     failures = [];
     notices.clear();
@@ -185,7 +185,8 @@
    * dialogue would not be the total function E5 requires, so "confirmation
    * belongs to the caller".
    */
-  let pending = $state<{ label: string; apply: Transition } | null>(null);
+  let pending = $state<{ field: string; value: string; apply: Transition } | null>(null);
+  let askingResize = $state(false);
 
   /**
    * The gate the three destructive controls route through — §9.3.
@@ -195,15 +196,22 @@
    * directly: "a dialogue that appears every time teaches the author to dismiss
    * it before reading, which is worse than no dialogue."
    */
-  function destructive(label: string, transition: Transition): void {
-    if (needsConfirmation(config)) pending = { label, apply: transition };
-    else session.apply(transition);
+  function destructive(field: string, value: string, transition: Transition): void {
+    if (needsConfirmation(config)) {
+      pending = { field, value, apply: transition };
+      askingResize = true;
+    } else session.apply(transition);
   }
 
   function confirmPending(): void {
     if (pending === null) return;
     session.apply(pending.apply);
     pending = null;
+  }
+
+  /** "Cell size", for the dialog's verb. */
+  function capitalised(text: string): string {
+    return text.charAt(0).toUpperCase() + text.slice(1);
   }
 
   /** The Operations E12 requires the confirmation to name. */
@@ -217,12 +225,22 @@
   const orphaned = $derived(orphans(config, config.defaultSeed, loadSalt));
 
   /**
+   * The orphan notice's "Open op-2" (Pol, W4): the operation opens on its
+   * Selection step, which is what lost cells. It goes through the
+   * unsaved-changes guard, so an open draft's changes are never dropped
+   * without asking.
+   */
+  function openOperation(id: string): void {
+    opening.open(id, "selection");
+  }
+
+  /**
    * Every condition the document holds — §12.2's advisories and §12.3's
    * failures, as notices in the preview's stack (Stage 2, W3). Derived, so each
    * goes away by itself when the document no longer has it; a dismissal is
    * forgotten then too, so the notice returns if the condition does.
    */
-  const current = $derived(documentNotices(file, orphaned, liveFailures));
+  const current = $derived(documentNotices(file, orphaned, liveFailures, openOperation));
 
   /**
    * The conditions as of the last committed value. A numeric field commits on
@@ -332,7 +350,7 @@
       point of **S2**'s single live preview. `.fixed` (the footer) never
       scrolls.
     -->
-    <SidebarTopBar onNew={newTileset} />
+    <SidebarTopBar onNew={() => (askingNew = true)} />
 
     <div class="sidebar-body">
     <div class="scrollable">
@@ -359,39 +377,6 @@
     <div class="canvas" style="background: {preview.background};">
     <ScrollArea fill>
       <div class="preview-body">
-        {#if pending !== null}
-          {@const p = pending}
-          <!-- Pinned over the top of the preview until Stage 2 W4 makes it a Dialog. -->
-          <div class="notices">
-              <!--
-                **E12** — explicit confirmation, naming the Operations that will be
-                affected. It is a *held transition*: nothing has touched the file,
-                so cancelling costs nothing and confirming is one
-                `TilesetFile -> TilesetFile`. `nothing is migrated` is §9.4: undo is
-                the repair.
-              -->
-              <!-- A div, not a section: a section carries an implicit `region` role
-                   and cannot take an interactive one. -->
-              <div class="notice" role="alertdialog" aria-labelledby="confirm-title">
-                <h2 class="t-label" id="confirm-title">{p.label}</h2>
-                <p class="t-body">
-                  This changes the column count, and
-                  {risked.length === 1 ? "this operation is" : "these operations are"} tied to specific
-                  cells. Nothing is moved for you; undo puts it back.
-                </p>
-                <ul class="t-console">
-                  {#each risked as op (op.id)}
-                    <li>{op.id} · {op.selection.type}</li>
-                  {/each}
-                </ul>
-                <div class="actions">
-                  <Button label="Change it" variant="primary" onclick={confirmPending} />
-                  <Button label="Cancel" onclick={() => (pending = null)} />
-                </div>
-              </div>
-          </div>
-        {/if}
-
         <!--
           The host owns the render box's width through ordinary CSS. There is no
           width prop: `07` §5.3 makes every quantity a fixed fraction of Wpx, so
@@ -473,6 +458,39 @@
   </section>
 
 </main>
+
+<!--
+  **E12** — explicit confirmation, naming the Operations that will be affected
+  (Stage 2 W4: a `Dialog`, asked once the value is committed). It is a *held
+  transition*: nothing has touched the file, so cancelling costs nothing, and
+  the field already shows the file again because its draft went on blur.
+  Confirming is one `TilesetFile -> TilesetFile`. "Nothing is moved for you" is
+  §9.4: undo is the repair.
+-->
+<Dialog
+  title={pending ? `Change ${pending.field} to ${pending.value}?` : ""}
+  confirmLabel={pending ? `Change ${pending.field}` : "Change"}
+  bind:open={askingResize}
+  onConfirm={confirmPending}
+  onCancel={() => (pending = null)}
+>
+  <p class="t-body">
+    This changes the column count, and {risked.length === 1 ? "this operation is" : "these operations are"}
+    tied to specific cells. Nothing is moved for you; undo puts it back.
+  </p>
+  <ul class="risked">
+    {#each risked as op (op.id)}
+      <li>
+        <span class="index t-console" aria-hidden="true">{config.operations.indexOf(op) + 1}</span>
+        <span class="t-console">{op.id} · {op.selection.type}</span>
+      </li>
+    {/each}
+  </ul>
+</Dialog>
+
+<Dialog title="Start a new tileset?" confirmLabel="Start new" bind:open={askingNew} onConfirm={newTileset}>
+  <p class="t-body">Everything in this one is lost, and this can't be undone. Export it first to keep it.</p>
+</Dialog>
 
 <style>
   /*
@@ -600,53 +618,34 @@
     justify-content: center;
   }
 
-  .notices {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    display: grid;
-    gap: var(--space-4);
-    margin-bottom: var(--space-6);
-  }
 
-  /* A white panel lifted over the picture, like a popup but pinned. */
-  .notice {
+  /* E12's affected operations: a well, each row an ink index square and the id in mono. */
+  .risked {
     display: grid;
-    gap: var(--space-4);
-    max-width: 560px;
-    padding: var(--space-6) var(--space-7);
+    gap: var(--space-3);
+    margin: var(--space-6) 0 0;
+    padding: var(--space-4);
     border-radius: var(--radius);
-    background: var(--color-panel);
-    box-shadow: var(--shadow-float);
-    color: var(--color-warn);
-  }
-
-  .notice h2 {
-    margin: 0;
-    color: var(--color-ink);
-    font-size: var(--text-section-size);
-    font-weight: var(--weight-semibold);
-  }
-
-  .notice p {
-    margin: 0;
-    line-height: var(--leading-hint);
-    text-box: none;
-  }
-
-  .notice ul {
-    display: grid;
-    gap: var(--space-2);
-    margin: 0;
-    padding: 0;
+    background: var(--color-well);
     list-style: none;
-    line-height: var(--leading-hint);
+  }
+
+  .risked li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .risked .index {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--op-index);
+    height: var(--op-index);
+    border-radius: var(--radius-xs);
+    background: var(--color-ink);
+    color: var(--color-paper);
     text-box: none;
   }
-
-  .notice .actions {
-    display: flex;
-    gap: var(--space-2);
-  }
-
 </style>

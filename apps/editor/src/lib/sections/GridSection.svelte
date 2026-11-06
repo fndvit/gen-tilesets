@@ -17,6 +17,12 @@
   dialogue that appears every time teaches the author to dismiss it before
   reading"). Their hints say which of the two states the document is in. Rows
   and y offset never re-derive anything and apply directly.
+
+  Cell size and design width commit on blur or Enter (`commit="blur"`), so the
+  confirmation asks once, for the whole value (Stage 2 W4). Rows does too, so a
+  "14" does not first rebuild the grid at 1 row (Pol, W4 review). The preview
+  does not follow the typing in those three. Alignment is a toggle: a click is a
+  commit.
 -->
 <script lang="ts">
   import type { Operation } from "@vit-foundation/gen-tilesets";
@@ -38,8 +44,11 @@
   interface Props {
     /** The coordinate-bound Operations a resize would affect (`orphans.ts` `atRisk`). */
     risked: Operation[];
-    /** App's confirmation gate for an edit that re-derives `columns`. */
-    destructive: (label: string, transition: Transition) => void;
+    /**
+     * App's confirmation gate for an edit that re-derives `columns`. `field` is
+     * the label in lower case ("cell size"), `value` the new value as shown.
+     */
+    destructive: (field: string, value: string, transition: Transition) => void;
   }
 
   let { risked, destructive }: Props = $props();
@@ -74,13 +83,15 @@
       hint="One cell's size, in design px. {consequence}"
       value={layout.cellSize}
       parse={parseCellSize}
-      onCommit={(t) => destructive(`Cell size → ${t}`, setCellSize(t))}
+      commit="blur"
+      onCommit={(t) => destructive("cell size", t, setCellSize(t))}
     />
     <NumericInput
       label="Rows"
       step="1"
       value={config.rows}
       parse={parseRows}
+      commit="blur"
       onCommit={(t) => session.apply(setRows(t))}
     />
     <NumericInput
@@ -96,7 +107,8 @@
       hint="The page width the design is drawn at, in px. {consequence}"
       value={layout.referenceWidth}
       parse={parseReferenceWidth}
-      onCommit={(t) => destructive(`Design width → ${t}`, setReferenceWidth(t))}
+      commit="blur"
+      onCommit={(t) => destructive("design width", t, setReferenceWidth(t))}
     />
     <!--
       §9.1's toggle. It writes `horizontalAlignment`, which is authoring metadata
@@ -115,7 +127,7 @@
           options={[...alignments]}
           value={layout.horizontalAlignment}
           onChange={(option) =>
-            destructive(`Alignment → ${option}`, setHorizontalAlignment(option))}
+            destructive("alignment", option, setHorizontalAlignment(option))}
         />
       {/snippet}
     </FieldRow>

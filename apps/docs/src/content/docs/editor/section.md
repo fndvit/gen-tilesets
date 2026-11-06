@@ -37,6 +37,10 @@ ends is visible (Pol, Block F review).
 | --- | --- | --- | --- |
 | `title` | `string` | required | The bar's title, uppercased by `.t-section`. |
 | `open` | `boolean` | `true` | The **initial** state only. Read once into local state, which is bound to `Collapsible`. |
+| `summary` | `string` | none | The muted line a closed section shows. |
+| `onAdd` | `() => void` | none | Puts a "+" in the header; it also unfolds the section. |
+| `addLabel` | `string` | `"Add to <title>"` | The "+" button's name. |
+| `reveal` | `number` | `0` | A counter. Each change unfolds the section, for something outside that asks to show an item in it (Stage 2 W4: `opening.revealed`, from the orphan notice's "Open op-2"). |
 | `children` | `Snippet` | required | The content, rendered only while open. |
 
 No events, no bindings.
@@ -56,7 +60,7 @@ No events, no bindings.
 | `lib/sections/BreakpointsSection.svelte` | "Breakpoints", `open={rules.length > 0}` |
 | `lib/sections/DerivedSection.svelte` | "Derived", `open={false}` |
 | `lib/sections/TilesSection.svelte` | "Tiles" |
-| `lib/sections/OperationsSection.svelte` | "Operations" |
+| `lib/sections/OperationsSection.svelte` | "Operations", `reveal={opening.revealed}` |
 
 Callees: `lib/ui/Collapsible.svelte`.
 

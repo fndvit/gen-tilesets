@@ -114,12 +114,22 @@ export function nonSquare(file: TilesetFile): Notice | null {
   };
 }
 
+/** More than three "Open" buttons would crowd a 360px notice; the rest are in its data. */
+export const MAX_OPEN_ACTIONS = 3;
+
 /**
  * Advisory 3, widened by §9.4 — Operations a resize left reaching fewer cells.
  * `04` §4.4's distinction survives in the wording: a `cellList` is told how
  * many entries are unreachable, a Selection that matches nothing is told so.
+ *
+ * With `onOpen`, the notice carries "Open op-2", one action per orphaned
+ * Operation up to `MAX_OPEN_ACTIONS` (Pol, W4). The caller routes it through
+ * the unsaved-changes guard (`opening.svelte.ts`).
  */
-export function orphanedNotice(orphans: readonly Orphan[]): Notice | null {
+export function orphanedNotice(
+  orphans: readonly Orphan[],
+  onOpen?: (operationId: string) => void,
+): Notice | null {
   if (orphans.length === 0) return null;
   return {
     key: "orphaned",
@@ -137,6 +147,14 @@ export function orphanedNotice(orphans: readonly Orphan[]): Notice | null {
       return `${o.operationId} · ${o.selectionType}: ${what}`;
     }),
     body: "Nothing was moved for you. Undo puts the grid back, or edit the selection.",
+    ...(onOpen
+      ? {
+          actions: orphans.slice(0, MAX_OPEN_ACTIONS).map((o) => ({
+            label: `Open ${o.operationId}`,
+            run: () => onOpen(o.operationId),
+          })),
+        }
+      : {}),
   };
 }
 
@@ -162,10 +180,11 @@ export function documentNotices(
   file: TilesetFile,
   orphans: readonly Orphan[],
   failures: readonly string[],
+  onOpen?: (operationId: string) => void,
 ): Notice[] {
   return [
     assetFailures(failures),
-    orphanedNotice(orphans),
+    orphanedNotice(orphans, onOpen),
     nonSquare(file),
     inertReseed(file),
     parityMismatch(file),

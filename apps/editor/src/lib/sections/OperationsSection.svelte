@@ -11,27 +11,31 @@
 
   One draft at most is open (`drafting`). Opening another — a tab on another
   operation, or the add bar — while the open one has unsaved changes asks
-  first, in a popup (Pol, Block E). With nothing changed it switches at once:
-  discarding costs nothing because the draft was never in the file (Q7).
+  first, "Discard your changes?" in a `Dialog` (Pol, Block E; Stage 2 W4). With
+  nothing changed it switches at once: discarding costs nothing because the
+  draft was never in the file (Q7). The guard is `opening.svelte.ts`'s, shared
+  with the orphan notice's "Open op-2"; this section draws its question, and
+  unfolds when `opening.open` asks to show an operation.
 
   **No `disabled` toggle** (§4.1): there is no field for one, and adding one is
   a `schemaVersion` bump. Reordering is arrows, not a drag (`DECISIONS.md`
   D44): one gesture is one transition and one undo entry (D32).
 -->
 <script lang="ts">
+  import { tick } from "svelte";
   import type { Operation } from "@vit-foundation/gen-tilesets";
   import { moveOperation, removeOperation, rerollOperation } from "../../document.js";
-  import { draftDiffers, type Step } from "../../draft.svelte.js";
+  import { type Step } from "../../draft.svelte.js";
   import { drafting } from "../../drafting.svelte.js";
   import { nextOperationId } from "../../ids.js";
+  import { opening } from "../../opening.svelte.js";
   import { session } from "../../session.svelte.js";
   import Section from "../Section.svelte";
   import OperationBody from "../operations/OperationBody.svelte";
   import OperationCard from "../operations/OperationCard.svelte";
   import { draftParts, partsOf } from "../operations/labels.js";
   import AddBar from "../ui/AddBar.svelte";
-  import Button from "../ui/Button.svelte";
-  import Popup from "../ui/Popup.svelte";
+  import Dialog from "../ui/Dialog.svelte";
 
   const operations = $derived(session.file.config.operations);
   const tiles = $derived(session.file.config.tiles);
@@ -47,29 +51,22 @@
 
   const bodyId = $props.id();
 
-  /** The switch waiting on the popup's answer. */
-  let pending = $state<(() => void) | null>(null);
-  let asking = $state(false);
-
-  /** What the popup names: "operation 2", or "the new operation". */
+  /** What the dialog names: "operation 2", or "the new operation". */
   const openName = $derived.by(() => {
     if (creating) return "the new operation";
     const index = operations.findIndex((op) => op.id === editingId);
     return `operation ${index + 1}`;
   });
 
-  /** Runs `action` now, or after the author agrees to drop the open draft's changes. */
-  function guard(action: () => void): void {
-    if (draft !== null) {
-      const committed = operations.find((op) => op.id === editingId) ?? null;
-      if (draftDiffers(draft, drafting.editing ? committed : null)) {
-        pending = action;
-        asking = true;
-        return;
-      }
-    }
-    action();
-  }
+  const guard = opening.guard;
+
+  /** After `opening.open`, bring the opened card into view once the section has unfolded. */
+  $effect(() => {
+    if (opening.revealed === 0) return;
+    void tick().then(() =>
+      document.getElementById(bodyId)?.closest("article")?.scrollIntoView({ block: "nearest" }),
+    );
+  });
 
   function selectStep(op: Operation, step: Step): void {
     if (draft !== null && editingId === op.id) {
@@ -106,6 +103,7 @@
     : `${operations.length} ${operations.length === 1 ? "operation" : "operations"}`}
   addLabel="Add operation"
   onAdd={create}
+  reveal={opening.revealed}
 >
   <div class="stack">
     {#each operations as op, index (op.id)}
@@ -154,22 +152,16 @@
   </div>
 </Section>
 
-<Popup title="Unsaved changes" bind:open={asking} onClose={() => (pending = null)}>
-  <p class="t-body">Discard the changes to {openName}?</p>
-  {#snippet actions(close)}
-    <Button label="Keep editing" onclick={close} />
-    <Button
-      label="Discard"
-      variant="primary"
-      onclick={() => {
-        const action = pending;
-        drafting.discard();
-        close();
-        action?.();
-      }}
-    />
-  {/snippet}
-</Popup>
+<Dialog
+  title="Discard your changes?"
+  cancelLabel="Keep editing"
+  confirmLabel="Discard"
+  bind:open={opening.asking}
+  onConfirm={opening.confirm}
+  onCancel={opening.cancel}
+>
+  <p class="t-body">The changes to {openName} haven't been saved. Discarding them can't be undone.</p>
+</Dialog>
 
 <style>
   /* `minmax(0, 1fr)`, not the implicit `auto` column, which would grow to a long summary's width. */

@@ -183,8 +183,6 @@
   --color-erase: var(--red-600); /* cells a stroke removes */
   /* A failure notice's icon, and nothing else. An advisory has no colour: it is ink (E16). */
   --color-danger: var(--red-600);
-  /* Read only by App.svelte's old sticky notice; removed with it in Stage 2 W5. */
-  --color-warn: var(--black);
 
   /* The preview's handles draw in these. */
   --color-rule: var(--color-edge);

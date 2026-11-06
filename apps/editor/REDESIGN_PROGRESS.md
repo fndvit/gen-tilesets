@@ -11,8 +11,9 @@ iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into th
 `DESIGN_DIRECTION.md` records why each choice was made. Stage 1 and the Stage 2 preview group
 (P1–P4) are complete. Their functionality is unchanged, but their *look* in the sections below
 is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. **Next
-session: follow "Next session plan: W4 · Dialogs" below.** Stage 2 · Warnings and dialogs is
-in progress: W0–W3 are done (`8364d4e`, `3034fc1`), and W4 and then W5 remain.
+session: Pol reviews W4 (see "W4: dialogs" below), then W5, the sweep.** Stage 2 · Warnings
+and dialogs is in progress: W0–W3 are done (`8364d4e`, `3034fc1`), W4 is implemented and
+uncommitted, and W5 remains.
 
 ## Stage 1 blocks
 
@@ -660,6 +661,56 @@ browser that exists is
 the tileset draws to `canvas[data-tileset-canvas]`, so hash its pixels to see a change. Sidebar
 sections start folded (open "Breakpoints" before "Add breakpoint"). A destructive edit (for
 example the Gutter radio) asks for "Change it" first.
+
+### W4: dialogs (2026-11-06), waiting for Pol's review
+
+Pol's answers at the start of W4: breakpoint `rows` / `columns` overrides keep **hint only** (no
+dialog), and the orphan notice gets **one "Open op-N" per orphaned operation, at most 3**.
+
+- **`NumericInput` `commit="blur"`.** It holds the draft while typing and commits once, on blur or
+  Enter, only if the value parses to something other than the file's. Esc reverts. Cell size and
+  design width use it, so the preview no longer follows typing in those two fields.
+  - Enter calls `preventDefault`: otherwise the same Enter, arriving as a keypress, hit the
+    dialog's Cancel the moment focus moved there, and the dialog closed at once.
+  - Focus goes back to the field before committing. The dialog opens between the blur and the
+    next field's focus, so it remembered `<body>` and Cancel lost focus. Now both answers return
+    to the field.
+- **E12 is a `Dialog`** (`App.svelte`): "Change cell size to 54?", the risked operations in a well
+  (index square + `op.id · type`), Cancel and "Change cell size". `destructive(field, value,
+  transition)`. The sticky `.notices` / `.notice` markup and CSS, and `--color-warn`, are gone.
+- **New tileset** asks "Start a new tileset?" / "Start new" in a `Dialog`, instead of `confirm()`.
+- **Unsaved changes** asks "Discard your changes?" / "Keep editing" / "Discard" in a `Dialog`.
+- **`opening.svelte.ts`** (new) holds the guard, moved from `OperationsSection`, plus
+  `open(id, step)` and a `revealed` counter. `Section` got a `reveal` prop, which unfolds it, and
+  the section scrolls the open card into view.
+- **The orphan notice's "Open op9"** (`advisories.ts`, `MAX_OPEN_ACTIONS = 3`, 2 new tests) opens
+  the operation on Selection through the guard.
+- **Docs:** `numeric-input`, `grid-section`, `app`, `operations-section`, `advisories`,
+  `ui-dialog`, `section`, and a new `opening` page. The Notice story's action reads "Open op-2".
+  `DESIGN_SYSTEM.md`'s "Warnings and confirmations" mentions `commit="blur"`.
+- **Checks:**
+  - editor typecheck and 357 tests; docs coverage (119 files), docs typecheck and build.
+  - A browser run, 28/28 checks, on port 5175 with the readme zip plus a `cellList` op9 (its
+    `responsive` rule removed, because a rows / columns override with a cellList is refused). The
+    probe and zip are in the session scratchpad, `w4/`.
+    - Typing "54" asks nothing, and the canvas hash is unchanged.
+    - Tab asks once (`alertdialog`, focus on Cancel, op9 listed). Cancel reverts the field to 25
+      and focus returns to it.
+    - The same value asks nothing. Esc reverts and a later blur asks nothing.
+    - Enter asks, "Change cell size" applies, and one undo restores 25.
+    - "Open op9" opens operation 5 on Selection. With a dirty new draft, it asks "Discard your
+      changes?" first (focus on Keep editing), and Discard then opens op9.
+    - New asks; Esc cancels and focus returns to New; Start new resets.
+    - No console errors.
+- **Pol's first review (2026-11-06):** Pol likes the blur commit. Two changes, both done:
+  - 12px between the dialog's sentence and the well of operations (`.risked` margin-top);
+  - a cue in a blur-commit field holding a changed value: "↵ Enter to apply", muted mono, at the
+    field's right edge, and in its `aria-describedby`. It is not shown for the same value, for an
+    invalid value, or after Esc or Enter. The probe still passes 28/28.
+- **Pol's second review:** the cue's wrapper shrank every `NumericInput` to its content (it sat in
+  `FieldRow`'s flex control); fixed with `flex: 1`. Rows now commits on blur too, with the cue.
+- **Not done:** breakpoints (Pol: hint only). W5 is next: the probes (24px targets, 12px text, no
+  caps, focus order, `aria-live`), the smoke test, and closing the group.
 
 ## Known issues / notes
 
