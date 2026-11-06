@@ -11,8 +11,8 @@ iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into th
 `DESIGN_DIRECTION.md` records why each choice was made. Stage 1 and the Stage 2 preview group
 (P1–P4) are complete. Their functionality is unchanged, but their *look* in the sections below
 is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. **Next
-session: follow "Next session plan" below** (Stage 2 · Warnings and dialogs, block W0 first;
-items 1 and 7 of the backlog were partly answered by the new design).
+session: follow "Next session plan: W4 · Dialogs" below.** Stage 2 · Warnings and dialogs is
+in progress: W0–W3 are done (`8364d4e`, `3034fc1`), and W4 and then W5 remain.
 
 ## Stage 1 blocks
 
@@ -574,6 +574,82 @@ W2 was committed as `8364d4e`.
     - the stack holds while typing;
     - advisory 9 holds while typing and goes on Enter;
     - there are no console errors.
+
+### W3 closed (Pol, 2026-11-06), committed `3034fc1`
+
+Pol's answers:
+- The orphan notice's action becomes "jump to the operation", in W4.
+- A missing zero-weight picture with no notice is accepted.
+- E12 becomes a Dialog in W4.
+- `DESIGN_EXPLORATIONS.md` stays untracked.
+
+### Next session plan: W4 · Dialogs (written 2026-11-06)
+
+Read `DESIGN_SYSTEM.md` ("Dialog", and "Warnings and confirmations" under Interaction
+conventions) and `lib/ui/Dialog.svelte` first. Stop for Pol after W4, then W5 (the sweep).
+
+**The problem to solve first.** `NumericInput` commits on every keystroke that parses (E5). The
+three destructive Grid & size fields (`GridSection.svelte`: cell size, design width, alignment)
+call App's `destructive()` on each commit. So today the E12 confirmation can appear after the
+first digit of "54". Pol's rule is that a confirmation comes only once the value is committed
+(blur or Enter), and only when the value really changed.
+
+1. **Commit on blur for destructive fields.**
+   - Give `NumericInput` a mode (for example `commit="blur"`) that keeps the draft while typing
+     and calls `onCommit` once, on blur or Enter, and only if the parsed value differs from
+     `value`.
+   - `GridSection` uses it for cell size and design width. Alignment is a `Toggle`, so a click is
+     already a commit.
+   - The preview does not follow typing in these two fields. That is the cost; say so in the
+     field's docs.
+   - Esc should revert the draft without asking.
+2. **E12 becomes a `Dialog`** (`App.svelte`, the `pending` state and the sticky `.notices` /
+   `.notice` markup and CSS):
+   - the title is a question built from the change, for example "Change cell size to 54?";
+   - the body lists the risked operations in a well, each with its index square and
+     `op.id · selection type`;
+   - the buttons are Cancel and a verb that names the change ("Change cell size");
+   - Cancel must also put the field back to the file's value: the `NumericInput` draft is
+     dropped on blur, so check it.
+   - Then delete the `.notices` and `.notice` CSS and `--color-warn` (`tokens.css`). Its last
+     reader is that CSS.
+3. **New tileset:** a `Dialog` instead of `confirm()` in `App.svelte` `newTileset`. The title is
+   "Start a new tileset?", the verb is "Start new", and the body says it can't be undone and to
+   export first.
+4. **Unsaved changes** (`OperationsSection.svelte`, its `Popup` with `actions`) moves to a
+   `Dialog`. The title is "Discard your changes?", the cancel label is "Keep editing", and the verb
+   is "Discard". Keep the `guard(action)` flow.
+5. **The orphan notice's action** (Pol: OK). Add "Open op-2" (one action per orphaned operation,
+   or the first only) to `advisories.ts` `orphanedNotice`, with an `open` callback passed in. It
+   must go through `OperationsSection`'s `guard`, so unsaved changes still asks first.
+   - Option: move `guard` and its pending state into `drafting.svelte.ts`, or a small
+     `opening.svelte.ts` module, so `App` can call it.
+   - The operation should open on its Selection step, and the Operations section should be open
+     too.
+6. **Breakpoints** (`BreakpointsSection.svelte`, `rows` / `columns` overrides with `risked`):
+   check whether an override that hits coordinate-bound operations should also confirm. Ask Pol
+   before adding a dialog there; today it only hints.
+
+**Checks:**
+- typecheck, tests, docs coverage and the docs build;
+- docs pages updated: `numeric-input.md`, `grid-section.md`, `app.md`, `operations-section.md`,
+  `advisories.md`, `ui-dialog.mdx` (callers);
+- a browser run on port 5175, with a readme zip that has a handpicked or rect operation (build
+  one in the scratchpad):
+  - typing "54" into Cell size asks nothing until Tab or Enter, then asks once;
+  - typing the same value back asks nothing;
+  - Cancel reverts the field; Change applies, with one undo entry;
+  - New asks with a Dialog;
+  - unsaved changes asks with a Dialog;
+  - the orphan notice's action opens the operation, through the guard;
+  - focus returns to the trigger after each dialog;
+  - no console errors.
+
+**Then W5, the sweep:**
+- the probes: 24px targets, 12px text, no caps, focus order, `aria-live`;
+- the smoke test;
+- `DESIGN_SYSTEM.md` and this file;
+- close the group with Pol. The recommended next group is 7 (palette widget).
 
 **How to test (found in P3b):** the editor dev server now runs on port **5175** from this tree
 (`lsof -iTCP:5175`); reuse it. Playwright is `node_modules/.pnpm/playwright-core@1.56.1`, and the
