@@ -1954,15 +1954,15 @@ What the package offers for an image:
   and the open menu, at 400px and at the narrowest sidebar, plus any image options. Pol picks.
 - **X2 · Docs.** `DESIGN_SYSTEM.md`: a **Split button** pattern (or the Menu row), the Export
   menu, and image export's rules, before any code.
-- **X3 · Implement.**
+- **X3 · Implement.** *(Amended by the X0 answers below.)*
+  - First, a short analysis for Pol of the package addition (see "X0 answers").
   - The split control in `lib/ui/` (its logic in a tested `.ts` if it has any).
-  - `SidebarTopBar` wiring.
-  - An `image-export.ts` (pure, tested): the file name and the options to pixels. The capture
-    goes through the preview's canvas (`renderBox` is already bound in `App.svelte`), so App
-    or a small store exposes "capture" to the top bar.
+  - `SidebarTopBar` wiring, and the Export image Dialog.
+  - An `image-export.ts` (pure, tested): the size list from `boundsOf`, the file name
+    `tileset-<W>px@<d>x.png`, the options to pixels. ~~The capture goes through the preview's
+    canvas~~: withdrawn. Every size is an offscreen render of the saved file.
   - Failure goes to the existing Popup.
   - A docs page for each new file.
-  - The offscreen renderer only if X0 asks for other sizes.
 - **X4 · Sweep.**
   - Probe the menu: keyboard (WAI-ARIA menu button), 24px targets, contrast, reflow at
     1728/1024/600/320.
@@ -1976,6 +1976,42 @@ What the package offers for an image:
 - The probes start from `n4/probe.mjs` (session `e5333bf0`'s scratchpad). It has the
   Playwright headless shell path, the audit and contrast helpers, and `readme.zip`.
 - A download in Playwright: `page.waitForEvent("download")`.
+
+### X0 answers (Pol, 2026-11-06)
+
+1. **A split button.** "Export" still downloads the zip in one click. A chevron opens a Menu with
+   **Tileset (.zip)** and **Image (.png)…**.
+2. **Contents:** the zip and a PNG only. No SVG and no embed snippet. JSON on its own stays out
+   (**E14**).
+3. **Size is chosen explicitly at each export:** "Current preview · W px", plus one entry per
+   breakpoint bound (`boundsOf(rules)`, labelled like the top bar, with its holding rule). There
+   are no presets. With no breakpoints, only "Current preview" is listed.
+4. **Background:** a choice between the preview colour (`preview.background`) and transparent.
+5. The choices live in a **Dialog** ("Export image"): size, background, and **density 1× / 2×**
+   (2× by default, so the output does not depend on the machine's DPR), then Cancel / Download.
+6. **Draft:** the image uses the **saved** file, like the zip. While a draft is drawn, the
+   dialog says "Draft not included: this is the saved tileset".
+7. **Load:** the image uses the **current `loadSalt`** (the load on screen) and the file's
+   `defaultSeed`.
+
+**A finding that changes X3.** Sizes other than the one on screen, a fixed density and "the saved
+file, not the draft" rule out capturing the preview canvas. Every export is one **offscreen
+render**, and today the package cannot do one:
+- `TilesetRenderer` reads the DPR from `window` (`measure.ts` `currentDpr`, `observeDpr`). It
+  has no DPR option.
+- It has no public signal that says "pictures settled, canvas painted". The drawable bank
+  settles in private (`#settle`, `#settled`, `pending`).
+- Rendering at 2·W with a DPR of 1 instead is wrong, because it crosses breakpoints, so the rows
+  and columns change.
+
+So X3 needs a **package addition**: either a `dpr` override plus a `settled()` promise on
+`TilesetRenderer`, or one exported `renderImage(file, { width, density, seed, loadSalt,
+provider }) → Promise<HTMLCanvasElement>`, which mounts a hidden host that is laid out. The
+image is the box (W × natural height), clipped like `overflow: hidden`, so the bleed is cut. It
+is a public API addition at 0.x, so it needs a version bump and a CHANGELOG line. No generated
+output changes. Recommendation: `renderImage`. Rendering at a width to an image is useful to any
+consumer, and it keeps a DPR override out of the live renderer's options. X3 opens with this
+analysis for Pol.
 
 After 1, the remaining backlog is 6 (Attribute and Blend glyphs), 8 (label spacing), 9 (hints
 for keyboard users) and 10 (the open card's accent edge).
