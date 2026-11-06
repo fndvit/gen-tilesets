@@ -13,8 +13,9 @@ iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into th
 is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. Stage 2 ·
 Warnings and dialogs is **closed** (W0–W5: `8364d4e`, `3034fc1`, `3a8ca84`, `feafa9a`). The palette
 group (item 7) and Tile and pattern (item 11) are **closed** (K0–K3, T0–T4: `71fd0c1`,
-`bf60a0d`, `855d6ad`). **Next session: follow "Next session plan: Explain Noise (item 12)"
-below**, starting with N0's questions for Pol (no code).
+`bf60a0d`, `855d6ad`). Explain Noise (item 12) is **in progress**: N0 is answered (see "N0 answers" under "Next
+session plan: Explain Noise (item 12)"). The preview now goes live while a draft is built.
+**Next: Pol picks from the N1 mocks**, then N2 docs.
 
 ## Stage 1 blocks
 
@@ -1582,6 +1583,74 @@ hover (backlog 9), so anything essential cannot live only in a hint.
   `generate()`. Close the group with Pol.
 
 After 12, the recommended order is 1 (export menu), 6 (Attribute and Blend glyphs), 8, 9 and 10.
+
+### N0 answers (Pol, 2026-11-06)
+
+These replace the "Recommended direction" above where the two disagree.
+
+1. **The names stay.** "Cells per feature" and "Octaves" are not renamed. Each label gets a
+   hint (on hover) that says what it does: Cells per feature sets the patch size; Octaves sets
+   how strongly the middle entries win, and adds finer detail.
+2. **A "How noise works" popover**, opened from an ⓘ button in the Noise well (a Popup, so
+   keyboard users can reach it), holds the explanation. There is no always-visible caption in
+   the well.
+3. **A field preview for every pattern** (Noise, Gradient and Random; hidden for Constant) in
+   the Pattern well, **and the main preview goes live** (Pol: "the main preview will show the
+   operation effect as it is being built … all the inputs of the operation must change the
+   preview live"):
+   - While the draft is incomplete (it has a pattern but cannot paint yet), the main preview
+     shows the **pattern's greyscale field over the selected cells**, on top of the saved
+     picture.
+   - Once the draft is complete (`isComplete`), the main preview draws the **real result**:
+     `<Tileset>` on the file with `toOperation(draft)` in it (`shadowConfig`'s rule: replace
+     by id, else append).
+   - The **draft cue** is an ultramarine accent frame around the preview and a "Draft · not
+     saved" tag in the notice corner. Both go away on Save or Discard.
+4. **No "Even out" action.** The palette caption under Noise says why and what to do:
+   "Middle entries cover more because noise rarely reaches its ends. Give the first and last
+   entries more weight to even it out."
+5. That the ≈% follows the **position** in the list, not the tile, is said **in the popover
+   only**.
+6. **`labelFor`'s fallback becomes sentence case everywhere** ("Cells per feature"), with its
+   tests and docs.
+
+**This amends Invariant S2.** `App.svelte`'s header says the preview is `<Tileset>` on the
+file the editor holds, with "no preview mode". While a complete draft is open, `<Tileset>` will
+draw the file *with the draft's Operation in it*. What S2 guarantees still holds: it is the same
+component and the same code, so the live picture is the one Save produces. But the input is no
+longer the saved file. N2 records the amendment at the point of use (`App.svelte`) and in
+`DESIGN_SYSTEM.md`, together with the option rejected (a separate preview renderer, which is
+the drift S2 exists to prevent). **E3** is untouched: nothing is written to `session.file`.
+
+### Blocks, revised after N0
+
+- **N1 · Mocks.** A static scratch page (not in the repo) at a 400px sidebar and at the
+  narrowest sidebar. It shows the Noise well (hints, the open popover, the small field preview
+  in two or three placements), the main preview in three states (saved, incomplete draft with
+  the field over the selection, complete draft live), each with the draft cue, and the
+  palette's Noise caption. Pol picks.
+- **N2 · Docs.** `DESIGN_SYSTEM.md`: the Pattern well (hints, popover, field preview), the
+  live-draft preview and its cue, the palette's Noise caption, and the S2 amendment.
+- **N3 · Implement.**
+  - `lib/operations/labels.ts`: the sentence-case fallback, and `labels.test.ts`.
+  - `controls/palette.ts`: `fieldCells(config, operationId, seed, loadSalt)` → `{x, y, t}[]`
+    beside `fieldOf` (`fieldOf` becomes its `t`s), tested against `fieldOf`.
+  - `draft.svelte.ts`: `draftFile(file, draft)`, the file with `toOperation(draft)` in it,
+    or `null` while incomplete. It shares `shadowConfig`'s replace-or-append rule (factored
+    into one function). Tested in `draft.test.ts`.
+  - `App.svelte`: `<Tileset>` draws `draftFile ?? file`. A new `lib/preview/FieldLayer.svelte`
+    (grey cells from `fieldCells`, drawn like `SelectionOverlay`) shows while the draft is
+    incomplete. Add the accent frame and the "Draft · not saved" tag.
+  - The Pattern well: a small field-preview component (its logic in a tested `.ts` file:
+    field → grey levels), the ⓘ popover, and per-param hints (`ParamFields` /
+    `ParamControl`, hint text kept in the editor, keyed by param name).
+  - `PaletteList.svelte`: the Noise caption.
+- **N4 · Sweep.** Rebuild the probe from `t4/probe.mjs` (session `06ac963b`'s scratchpad):
+  targets, text, case, contrast, the popover by keyboard, and reflow at 1728/1024/600/320.
+  Measure the **cost of a live redraw** on a 61×120 grid while dragging a weight and Cells per
+  feature (if regenerating `<Tileset>` on every tick is too slow, throttle to animation
+  frames). Check that the live picture matches the picture after Save, cell for cell, and that
+  the cue goes away on Save and on Discard. Close the group with Pol.
 
 ## Known issues / notes
 
