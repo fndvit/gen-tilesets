@@ -11,9 +11,10 @@ iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into th
 `DESIGN_DIRECTION.md` records why each choice was made. Stage 1 and the Stage 2 preview group
 (P1–P4) are complete. Their functionality is unchanged, but their *look* in the sections below
 is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. Stage 2 ·
-Warnings and dialogs is **closed** (W0–W5: `8364d4e`, `3034fc1`, `3a8ca84`, `feafa9a`). **Next
-session: follow "Next session plan: Palette widget (item 7)" below**, starting with K0's questions
-for Pol.
+Warnings and dialogs is **closed** (W0–W5: `8364d4e`, `3034fc1`, `3a8ca84`, `feafa9a`). The palette
+group (item 7) reached K3 (`71fd0c1`) and is **paused before K4**. **Next session: follow "Next
+session plan: Tile and pattern (item 11)" below**, starting with T0's questions for Pol. K4's
+sweep folds into T4.
 
 ## Stage 1 blocks
 
@@ -1012,8 +1013,120 @@ Pol agreed to all five choices (2026-11-06).
   the Popup, remove with focus to Add entry, `random` (no thresholds, its caption, advisory 8
   after a reorder), and Save then one undo.
 
-Next: Pol reviews K3, commit, then K4 (sweep: probes at 1728 / 1024 / 600 / 320, contrast, focus
-order).
+Committed as `71fd0c1` (2026-11-06). Pol's review of K3 found a deeper problem: the Tile attribute and the
+Source contradict each other. The group is **paused before K4**, and K4's sweep folds into the
+next group's T4. K3's choice 5 (thresholds under `constant`) is superseded by that group: under
+`constant` only one tile is ever painted.
+
+## Next session plan: Tile and pattern (item 11) (written 2026-11-06)
+
+Read `DESIGN_SYSTEM.md` first (Operation stepper, Palette, Tile picker, Glyph grid), then the
+palette group above. Blocks are named T. Stop for Pol after each.
+
+### The problem (Pol, reviewing K3)
+
+"When clicking Tile, and creating a palette, one would expect that those are the weights as in
+the 'chances' that each tile is painted. But then, landing on the 'Source' step, it is not clear
+what it does, and why 'Random' overwrites what you have done before. I feel that the 'Tile'
+attribute might be the hardest one to understand for the user."
+
+### Analysis (2026-11-06, checked against the engine)
+
+**How it works.** An operation does three things in a row:
+1. the **Source** gives each selected cell a number from 0 to 1 (`packages/tileset/src/registry/sources.ts`);
+2. the **palette** cuts 0–1 into bands, one per entry, each as wide as its weight;
+3. each cell gets the tile whose band its number falls in (`applyTileMapping`, `packages/tileset/src/mapping.ts`).
+
+So a weight is the width of a band of *numbers*, not a chance. It is a chance only when the
+numbers are spread evenly over the cells, and only Random does that.
+
+**Measured** on the readme grid (29×14, averaged over many seeds), with three entries of equal
+weight (each shown as 33% in the editor), through the package's `evalSource` and
+`applyTileMapping`:
+
+| Source | A | B | C | Is the editor's % true? |
+|---|---|---|---|---|
+| random | 33% | 33% | 33% | yes: the weights are chances |
+| valueNoise (5, 2 octaves) | 14% | **68%** | 18% | no: the middle entry wins |
+| valueNoise (5, 3 octaves) | 12% | **75%** | 13% | no |
+| gradient 0° | 34% | 31% | 34% | yes |
+| gradient 45° | 26% | **48%** | 26% | no |
+| constant | **100%** | 0% | 0% | no: only the first weighted entry is painted |
+
+**Pol's intuition is right, and the editor contradicts it.** Random is the one Source where
+"weights are chances" holds. The confusion comes from the editor:
+1. **The order is backwards.** The steps run Selection → Attribute → Source → Blend
+   (`STEPS`, `draft.svelte.ts`). The palette is built before the Source that decides what its
+   weights mean, so choosing a Source afterwards silently changes what was built.
+2. **"Source" is abstract.** Its question, "Where does each cell's number come from?"
+   (`QUESTIONS`, `OperationBody.svelte`), asks the author to think in hidden numbers. Its options
+   are named after algorithms, not after what they paint.
+3. **The % is false under three of the four Sources.** It shows each weight's share of the
+   total. Under noise and under a diagonal gradient the middle entries cover much more. Under
+   `constant` only the first weighted entry is painted, yet every entry is listed with its %.
+4. **The palette's layout ignores the Source.** Order and thresholds mean something under noise
+   and gradient, nothing under random (advisory 8 is a patch on that mismatch), and under
+   `constant` there is one tile, not a palette.
+
+Numeric attributes share problem 1, but more mildly. `NumericMapping` already collapses to one
+value under `constant` (§7.4), which is the precedent for the Tile step.
+
+### Recommended direction (to confirm at T0)
+
+This changes the editor only: the file format and the engine stay as they are. **Pattern first,
+then tiles.**
+1. **Swap the steps** to Selection → **Pattern** (today's Source) → Attribute → Blend, for every
+   attribute. The steps stay navigable in any order (D8). Only the default walk and "Next"
+   change.
+2. **Name the patterns by what they paint**, each with artwork in the glyph grid: *Scattered*
+   (random), *Patches* (valueNoise), *Bands* (gradient), *Same everywhere* (constant). The
+   question becomes "How should the tiles spread?", or for a numeric attribute, "How should the
+   values spread?".
+3. **The palette adapts to the pattern:**
+   - **Scattered:** a plain list of tiles, each with its **chance**. No numbers, no grip, no
+     thresholds, because order means nothing. Advisory 8 is retired.
+   - **Patches / Bands:** K3's ordered list (the strip, thresholds, numbers and grip). The caption
+     says that neighbours meet, and under Patches that the middle entries cover more. Each row
+     shows the share it **actually paints**, measured, instead of its share of the weights.
+   - **Same everywhere:** one tile picker, the collapse `NumericMapping` already makes.
+4. **Measured coverage.** `coverage(draft, config)` in `controls/palette.ts` evaluates the draft's
+   Source over its Selection with the current seed (the package's `evalSource`,
+   `applyTileMapping` and `selection`) and counts cells per entry. It is a pure, tested function,
+   shown as "≈ 68%".
+
+### Blocks
+
+- **T0 · Questions (talk, no code).** For Pol:
+  1. Swap the steps for every attribute, or rework only the Tile step?
+  2. The step's name ("Pattern"? "Spread"?) and the four option names.
+  3. Which % to show: measured coverage under Patches and Bands, and the chance under Scattered?
+     The measured figure moves with the seed.
+  4. Same everywhere with Tile collapses to one picker. Should Save write only that entry (what
+     you see is what is saved), or keep the hidden ones?
+  5. Under Scattered, hide the order UI and retire advisory 8?
+  6. Record this as a decision in `DECISIONS.md` that amends `09` §7.6 and `04` §6.4?
+- **T1 · Mocks.** A scratch page with the stepper in the new order, the palette in its three
+  modes, and the pattern glyph artwork. Pol picks.
+- **T2 · Pattern and docs.** `DESIGN_SYSTEM.md` (Operation stepper, Palette) and the decision
+  record, before any code.
+- **T3 · Implement.** Files:
+  - `draft.svelte.ts`: the `STEPS` order, and the tests that rely on it;
+  - `OperationBody.svelte`: `QUESTIONS`, the labels, and the source glyph artwork;
+  - `labels.ts` and the `OperationCard` chips: their order and names;
+  - `controls/PaletteList.svelte`: the three modes;
+  - `controls/palette.ts`: `coverage`, with tests;
+  - `NumericMapping`: keep its `constant` collapse;
+  - the docs pages: operation-body, palette-list, operation-labels, draft.
+- **T4 · Sweep, for this group and the palette group's K4.**
+  - Smoke on the readme zip: build each pattern, check the measured % against the preview, the
+    Same everywhere collapse, and Save then one undo.
+  - K4's accessibility probes: 24px targets (including a zero weight), 12px text, no capitals,
+    contrast, focus order, the keyboard path for reordering, and no sideways scroll at 1728,
+    1024, 600 and 320.
+  - Close both groups with Pol.
+
+The palette group's test helpers, `k3/smoke.mjs` and `k3/readme.zip`, live in session
+`c5a97149`'s scratchpad. Rebuild them if that is gone (see "How to test").
 
 ### How to test
 
@@ -1149,3 +1262,7 @@ design are not done here (Stage 2, items 1–2).
 10. The open operation card's 3px accent edge may become subtler, like the failure notice's
     red edge, which was removed in W1 (Pol, 2026-11-06: "we will handle the one in operation
     section later").
+11. Tile and pattern (Pol, reviewing K3, 2026-11-06): the Tile attribute and the Source
+    contradict each other. Palette weights read as chances, but the Source, chosen afterwards,
+    decides what they mean. The editor's % is false under noise, a diagonal gradient and
+    constant. Planned in "Next session plan: Tile and pattern (item 11)".
