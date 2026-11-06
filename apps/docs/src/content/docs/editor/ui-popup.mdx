@@ -11,8 +11,8 @@ import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
 
 ## Overview
 
-`Popup` shows a report that follows something the author just did: an import that was refused
-or opened with notes, a download that failed or exported an empty document. It opens over the
+`Popup` shows a report that follows something the author just did: an import that was refused,
+or an export that failed. It opens over the
 page, takes no space in the layout, and closes with its Close button or Esc. Pol decided on
 2026-11-04 that such reports never take space in the sidebar footer.
 
@@ -58,8 +58,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 ### Callers / callees
 
-Callers: `lib/ImportPanel.svelte` (import reports), `lib/sections/SidebarTopBar.svelte` (export
-reports), `lib/sections/TilesSection.svelte` (refusals), `lib/sections/OperationsSection.svelte`
+Callers: `lib/ImportPanel.svelte` (refusals only), `lib/sections/SidebarTopBar.svelte` (export
+failure only), `lib/sections/TilesSection.svelte` (refusals), `lib/sections/OperationsSection.svelte`
 ("Unsaved changes", until Stage 2 W4 moves it to `Dialog`), and `lib/ui/Dialog.svelte` (`actions`
 and `alert`). Callees: `lib/ui/Button.svelte`.
 

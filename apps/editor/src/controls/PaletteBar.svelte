@@ -23,6 +23,7 @@
   import NumericInput from "../lib/NumericInput.svelte";
   import Button from "../lib/ui/Button.svelte";
   import FieldRow from "../lib/ui/FieldRow.svelte";
+  import Advisory from "../lib/ui/Advisory.svelte";
   import Hint from "../lib/ui/Hint.svelte";
 
   interface Props {
@@ -49,6 +50,7 @@
 
   function move(from: number, to: number): void {
     if (to < 0 || to >= palette.length || from === to) return;
+    reorderedUnder = sourceType;
     const next = [...palette];
     const [entry] = next.splice(from, 1);
     next.splice(to, 0, entry!);
@@ -137,6 +139,16 @@
   const orderMeaningless = $derived(sourceType === "random" && palette.length > 1);
 
   /**
+   * The Source a reorder last happened under. The advisory is about a palette
+   * *reordered* under `random` (§12.2), so it shows once the author has
+   * reordered, not merely because the Source is random: a line that is always
+   * there is a line nobody reads.
+   */
+  let reorderedUnder = $state<string | null>(null);
+  // Not while a drag is still moving the segment: only once it is let go.
+  const showReorderAdvisory = $derived(orderMeaningless && reorderedUnder === sourceType && dragging === null);
+
+  /**
    * The label's hint: order matters (`04` **O6**), and under `random` it does
    * not, which is §12.2's eighth advisory. "Under a `random` Source, reordering
    * a palette reshuffles the canvas with no visible reason, because uniform
@@ -145,7 +157,7 @@
    */
   const paletteHint = $derived(
     orderMeaningless
-      ? "Under the Random source every value is equally likely, so neighbours mean nothing: reordering only reshuffles the canvas."
+      ? "Under the Random source every value is equally likely, so neighbours mean nothing."
       : "Order matters: under a banded source, entries next to each other on the bar end up next to each other on the canvas. Drag a segment to move it.",
   );
 
@@ -202,6 +214,10 @@
       </button>
     {/each}
   </div>
+
+  <Advisory when={showReorderAdvisory}>
+    Under the Random source, order means nothing: reordering only reshuffles the canvas.
+  </Advisory>
 
   <p class="thresholds t-console">
     {#each palette as entry, index (index)}

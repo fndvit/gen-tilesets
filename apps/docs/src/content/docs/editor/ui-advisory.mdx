@@ -1,0 +1,55 @@
+---
+title: ui/Advisory.svelte
+description: An inline advisory, a muted info icon and a line under the control it is about. It waits until a value is committed before it appears or goes.
+sidebar:
+  order: 78
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Advisory.svelte`.
+
+## Overview
+
+Some advisories are about one control: two tile groups with the same name (spec `09` §12.2's
+sixth), a palette reordered under a random Source (eighth), rotation ends that are the same angle
+(ninth). Each is shown as a muted line with an info icon, right under that control, where the
+author can act on it.
+
+It has no box, no colour and no ✕, and it goes away when its condition does. It never looks like
+an error (**E16**).
+
+## Try it
+
+<UiPrimitivesStory show="advisory" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Meaning |
+| --- | --- | --- |
+| `when` | `boolean` | The condition. |
+| `children` | `Snippet` | The line. |
+
+### Inputs → outputs
+
+- `when` is copied into `shown` by an effect, but only while `entry.active` is false. So the line
+  never appears or goes while the author is typing or dragging, only once the value is committed
+  (Pol, W1).
+- A `role="status"` wrapper is always in the DOM, so the line is announced when it appears. It is
+  hidden while empty, so it takes no gap in a grid.
+
+### Callers / callees
+
+Callers:
+- `controls/PaletteBar.svelte` (advisory 8);
+- `controls/NumericMapping.svelte` (advisory 9);
+- `lib/tiles/TileGroup.svelte` (advisory 6);
+- the docs story.
+
+Callees: `lib/ui/Icon.svelte`, `entry.svelte.ts`.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).

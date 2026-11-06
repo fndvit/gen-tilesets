@@ -20,13 +20,17 @@
   import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
   import { naturalRatio, type AssetRef } from "@vit-foundation/gen-tilesets/render";
   import { activeRules, reshape, ruleOverride, type TilesetFile } from "@vit-foundation/gen-tilesets";
-  import { editorProvider, replaceAll } from "./assets.js";
+  import { documentNotices } from "./advisories.js";
+  import { entry } from "./entry.svelte.js";
+  import type { Notice } from "./notices.js";
+  import { editorProvider, replaceAll, stored } from "./assets.js";
   import type { Transition } from "./document.js";
   import { toShadowOperation } from "./draft.svelte.js";
   import { drafting } from "./drafting.svelte.js";
   import { atRisk, needsConfirmation, orphans } from "./orphans.js";
   import PaintLayer from "./lib/PaintLayer.svelte";
   import PreviewFrame from "./lib/preview/PreviewFrame.svelte";
+  import NoticeStack from "./lib/preview/NoticeStack.svelte";
   import PreviewGrid from "./lib/preview/PreviewGrid.svelte";
   import PreviewTopBar from "./lib/preview/PreviewTopBar.svelte";
   import { preview } from "./lib/preview/view.svelte.js";
@@ -41,6 +45,7 @@
   import ScrollArea from "./lib/ui/ScrollArea.svelte";
   import SelectionOverlay from "./lib/SelectionOverlay.svelte";
   import type { Cell } from "./paint.js";
+  import { notices } from "./notices.svelte.js";
   import { session } from "./session.svelte.js";
 
   const file = $derived(session.file);
@@ -74,7 +79,24 @@
    * `loadSalt` is §8.5's load-preview value, held below. `provider` is the
    * editor's own, bridging `meta.src` to the session `Blob` a drop created.
    */
-  let failures = $state<string[]>([]);
+  let failures = $state<{ ref: AssetRef; meta: unknown; text: string }[]>([]);
+
+  /**
+   * The failures whose asset is still the one that failed: the same `meta`
+   * object. An import, or attaching the file again, writes a new `meta`, so
+   * the failure goes; a deleted asset's goes too. Either way it would describe
+   * a picture the author can no longer see or fix.
+   */
+  const liveFailures = $derived(
+    failures
+      .filter(({ ref, meta }) => metaOf(ref) === meta)
+      .map((f) => f.text),
+  );
+
+  function metaOf(ref: AssetRef): unknown {
+    const tile = config.tiles.find((t) => t.id === ref.tileId);
+    return tile?.assets.find((a) => a.id === ref.assetId)?.meta;
+  }
 
   /**
    * **`onAssetError` is wired, always** (§5's table, **S6**).
@@ -91,13 +113,17 @@
    * failure is reported *beside* the preview, not inside it.
    */
   function onAssetError(ref: AssetRef, cause: unknown): void {
-    const failure = `${ref.tileId}/${ref.assetId}: ${String(cause)}`;
-    // The list below is keyed by the string, and a repeat would be a duplicate
-    // `{#each}` key, which Svelte throws on. The renderer reports a failure once
+    // The author's words, not the provider's: a picture with no file behind it
+    // (an archive that did not carry it, a reload) says so plainly.
+    const name = config.tiles.find((t) => t.id === ref.tileId)?.name ?? ref.tileId;
+    const reason = stored(ref.tileId, ref.assetId) === undefined ? "no file attached" : String(cause);
+    const failure = `${name} · ${ref.assetId}: ${reason}`;
+    // The notice lists each failure once, and its signature is the list, so a
+    // repeat would bring a dismissed notice back for nothing. The renderer reports a failure once
     // per resolution (`provider.ts` `DrawableCache`), but it resolves again when
     // an asset's `meta` changes, and the same picture can then fail the same way.
-    if (failures.includes(failure)) return;
-    failures = [...failures, failure];
+    if (failures.some((f) => f.text === failure)) return;
+    failures = [...failures, { ref, meta: metaOf(ref), text: failure }];
   }
 
   /**
@@ -115,6 +141,7 @@
     }
     session.reset();
     failures = [];
+    notices.clear();
     await replaceAll([]);
   }
 
@@ -188,6 +215,27 @@
    * an error.
    */
   const orphaned = $derived(orphans(config, config.defaultSeed, loadSalt));
+
+  /**
+   * Every condition the document holds — §12.2's advisories and §12.3's
+   * failures, as notices in the preview's stack (Stage 2, W3). Derived, so each
+   * goes away by itself when the document no longer has it; a dismissal is
+   * forgotten then too, so the notice returns if the condition does.
+   */
+  const current = $derived(documentNotices(file, orphaned, liveFailures));
+
+  /**
+   * The conditions as of the last committed value. A numeric field commits on
+   * every keystroke that parses (**E5**), so `current` moves while the author is
+   * typing; the stack holds still until the value is committed, so nothing
+   * interrupts them twice (Pol, W1, `entry.svelte.ts`).
+   */
+  let conditions = $state.raw<Notice[]>([]);
+  $effect(() => {
+    const next = current;
+    if (!entry.active) conditions = next;
+  });
+  $effect(() => notices.forget(conditions));
 
   /**
    * The draft's `cellList` parameter, if the Selection it is building has one.
@@ -272,6 +320,8 @@
   }
 </script>
 
+<svelte:window oninputcapture={entry.input} onchange={entry.done} onfocusout={entry.done} onkeydown={entry.keydown} />
+
 <main>
   <aside>
     <!--
@@ -309,11 +359,10 @@
     <div class="canvas" style="background: {preview.background};">
     <ScrollArea fill>
       <div class="preview-body">
-        {#if pending !== null || orphaned.length > 0}
-          <!-- Pinned over the top of the preview until Stage 2's warnings design. -->
+        {#if pending !== null}
+          {@const p = pending}
+          <!-- Pinned over the top of the preview until Stage 2 W4 makes it a Dialog. -->
           <div class="notices">
-            {#if pending !== null}
-              {@const p = pending}
               <!--
                 **E12** — explicit confirmation, naming the Operations that will be
                 affected. It is a *held transition*: nothing has touched the file,
@@ -340,48 +389,7 @@
                   <Button label="Cancel" onclick={() => (pending = null)} />
                 </div>
               </div>
-            {/if}
-
-            {#if orphaned.length > 0}
-              <!--
-                §9.4's step 2, carried as a §12.2 advisory until the author touches
-                the Operation. **E16** — never blocks, never modifies the file,
-                never an error.
-
-                `04` §4.4's distinction survives in the *wording* and not in the
-                repair: a `rect` can plausibly be re-dragged, a hand-painted
-                `cellList` cannot.
-              -->
-              <div class="notice">
-                <h2 class="t-label">Orphaned by a resize</h2>
-                <ul class="t-console">
-                  {#each orphaned as orphan (orphan.operationId)}
-                    <li>
-                      {orphan.operationId} · {orphan.selectionType}:
-                      {#if orphan.authored !== undefined}
-                        {orphan.authored - orphan.reachable} of {orphan.authored}
-                        painted {orphan.authored - orphan.reachable === 1 ? "cell is" : "cells are"}
-                        outside the grid and cannot be reached or unpainted.
-                      {:else if orphan.empty}
-                        lies wholly outside the grid and selects nothing. Re-drag it, or undo.
-                      {:else}
-                        reaches fewer cells than it did.
-                      {/if}
-                    </li>
-                  {/each}
-                </ul>
-              </div>
-            {/if}
           </div>
-        {/if}
-
-        {#if failures.length > 0}
-          <!-- Above the picture until Stage 2's warnings design. -->
-          <ul class="failures">
-            {#each failures as failure (failure)}
-              <li>{failure}</li>
-            {/each}
-          </ul>
         {/if}
 
         <!--
@@ -456,6 +464,11 @@
         </div>
       </div>
     </ScrollArea>
+    <!--
+      §12.2's advisories and §12.3's failures — "reported beside the preview,
+      not inside it": floating over the picture area, never drawn into a cell.
+    -->
+    <NoticeStack notices={notices.shown(conditions)} onDismiss={(n) => notices.dismiss(n)} />
     </div>
   </section>
 
@@ -557,7 +570,9 @@
     sidebar, so a scrollbar never takes width from the frame and the sidebar
     never moves.
   */
+  /* The notice stack is placed against it, so it stays put while the picture scrolls. */
   .canvas {
+    position: relative;
     min-height: 0;
   }
 
@@ -634,8 +649,4 @@
     gap: var(--space-2);
   }
 
-  .failures {
-    margin: 0 0 var(--space-6);
-    color: var(--color-danger);
-  }
 </style>

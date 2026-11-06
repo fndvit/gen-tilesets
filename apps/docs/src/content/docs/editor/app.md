@@ -17,9 +17,10 @@ the sidebar, the picture stays on screen. There is no header.
 
 The sidebar is two parts, as in Figma. The top part scrolls and holds the sections: Grid & Size,
 Breakpoints, Derived, Tiles and Operations. The bottom part is a fixed black footer with the
-seed, undo, import, new document and download. At the top of the preview the shell can show two
-notices: a confirmation when an edit would damage hand-placed work, and an advisory listing
-operations a resize has pushed off the grid.
+seed, undo, import, new document and download. At the top of the preview the shell can show a
+confirmation when an edit would damage hand-placed work. Everything else the document holds, such
+as operations a resize has pushed off the grid or pictures that did not load, is a notice in a
+stack floating over the preview.
 
 The preview is the package's own tileset component mounted on the document the editor holds,
 so the editor shows exactly what a production page would draw. Over it, the shell layers the
@@ -34,8 +35,8 @@ through it, and hands the open draft to the preview's overlays.
 ### Purpose
 
 `App.svelte` wires the editor's state modules to its components. It owns almost no logic of its
-own: a handful of `$derived` values computed from `session.file` and `drafting.draft`, four
-pieces of local state (`pending`, `loadSalt`, `failures`, `renderBox`), the destructive gate,
+own: a handful of `$derived` values computed from `session.file` and `drafting.draft`, five
+pieces of local state (`pending`, `loadSalt`, `failures`, `conditions`, `renderBox`), the destructive gate,
 `newTileset`, and the markup. The sidebar sections live in `lib/sections/`. Every edit goes through `session.apply(transition)` with a transition from
 [document.ts](/editor/document/). The header comment states the load-bearing rule: the preview
 is `<Tileset>` on the file, drawing the complete operation stack, and overlays are drawn over
@@ -69,9 +70,8 @@ Which component renders which, in source order. Conditional children are marked.
         - [`ImportPanel`](/editor/import-panel/), [`Popup`](/editor/ui-popup/)s for reports
     - `section.preview`: [`PreviewTopBar`](/editor/preview-bars/), then `.canvas` (the backdrop)
       holding a [`ScrollArea`](/editor/ui-scroll-area/) (`fill`) and `.preview-body` (clips the grid)
-      - `.notices` (sticky, *if* either is showing): the confirmation (*if* `pending !== null`),
-        "Orphaned by a resize" (*if* `orphaned.length > 0`)
-      - the asset failure list
+      - `.notices` (sticky, *if* `pending !== null`): the confirmation. It stays here until
+        Stage 2 W4 makes it a `Dialog`.
       - `.stage` (centres the frame in the visible height), holding
         [`PreviewFrame`](/editor/preview-frame/)
         - `children(Wpx)` snippet:
@@ -79,6 +79,11 @@ Which component renders which, in source order. Conditional children are marked.
           - `<Tileset>` from `@vit-foundation/gen-tilesets/Tileset.svelte`
           - [`SelectionOverlay`](/editor/selection-overlay/) (*if* `shadow !== null`)
           - [`PaintLayer`](/editor/paint-layer/) (*if* the draft has a `cellList` param and `renderBox` is bound)
+      - `NoticeStack` (`lib/preview/NoticeStack.svelte`), after the `ScrollArea` and inside
+        `.canvas` (`position: relative`), so it stays put while the picture scrolls. It gets
+        `notices.shown(conditions)` and `onDismiss={(n) => notices.dismiss(n)}`.
+- `<svelte:window>` forwards `oninputcapture`, `onchange`, `onfocusout` and `onkeydown` to
+  `entry` (`entry.svelte.ts`), which tracks whether the author is entering a value.
 
 ### Inputs → outputs
 
@@ -88,7 +93,9 @@ Which component renders which, in source order. Conditional children are marked.
 | --- | --- |
 | [`session`](/editor/session/) | `file`; `apply`, `reset` |
 | [`drafting`](/editor/drafting/) | `draft`, `editing`; `discard` |
-| local `$state` | `failures`, `renderBox`, `loadSalt` (bound into the footer), `pending` |
+| [`notices`](/editor/notices/) | `shown`, `forget`, `dismiss`, `clear` |
+| `entry` (`entry.svelte.ts`) | `active`; `input`, `done`, `keydown` |
+| local `$state` | `failures`, `conditions`, `renderBox`, `loadSalt` (bound into the footer), `pending` |
 
 #### Derived values
 
@@ -97,7 +104,9 @@ Which component renders which, in source order. Conditional children are marked.
 | `file`, `config`, `rules` | `session.file` (`rules` is `file.responsive ?? []`) | everything |
 | `shapedAt(Wpx)` | [`reshape`](/api/index/functions/reshape/)`(file, `[`ruleOverride`](/api/index/functions/ruleoverride/)`(`[`activeRules`](/api/index/functions/activerules/)`(rules, Wpx)))` | the frame's ratio and both overlays' geometry |
 | `risked` | `atRisk(config)` from [orphans.ts](/editor/orphans/) | confirmation, Grid & Size hints, Breakpoints' pinned fields |
-| `orphaned` | `orphans(config, config.defaultSeed, loadSalt)` | top advisory |
+| `orphaned` | `orphans(config, config.defaultSeed, loadSalt)` | `current` |
+| `liveFailures` | the `failures` whose asset still has the same `meta` object, as text | `current` |
+| `current` | `documentNotices(file, orphaned, liveFailures)` from `advisories.ts` | `conditions` |
 | `painting` | the draft's Selection schema, looked up via [`selections`](/api/index/variables/selections/), searched for a param of type `cellList` | `PaintLayer`, `PreviewFrame`'s `painting` |
 | `shadow` | `toShadowOperation(draft)`, spliced into `config.operations` | `SelectionOverlay` |
 
@@ -108,12 +117,17 @@ Which component renders which, in source order. Conditional children are marked.
 - **No `seed`.** The comment says the seed field writes `config.defaultSeed` and the component
   falls back to it, so the preview always shows what a visitor with no host seed would see. A
   separate preview seed "would let the author approve a picture the file does not produce".
-- **`onAssetError` is always wired.** Each failure appends `"<tileId>/<assetId>: <cause>"` to
-  `failures`, listed under the preview. A string already in the list is dropped, because the list
-  is keyed by the string and a repeat would be a duplicate `{#each}` key, which Svelte throws on.
-  The renderer reports a failure once per resolution (`provider.ts` `DrawableCache`), but it
-  resolves again when an asset's `meta` changes, and the same picture can then fail the same way.
-  The empty cell is not filled and no placeholder is drawn.
+- **`onAssetError` is always wired.** Each failure appends `{ ref, meta, text }` to `failures`.
+  `text` is `"<tile name> · <assetId>: <reason>"`. The reason is "no file attached" when the
+  store has no file for the asset (`stored()` from `assets.ts`), and the cause otherwise. `meta`
+  is the asset's `meta` object at the time. A failure whose text is already in the list is
+  dropped: the notice's signature is the list, so a repeat would bring back a dismissed notice
+  for nothing. The renderer reports a failure once per resolution (`provider.ts`
+  `DrawableCache`), but it resolves again when an asset's `meta` changes, and the same picture
+  can then fail the same way. The empty cell is not filled and no placeholder is drawn.
+- **`liveFailures`** keeps only failures whose asset still has the same `meta` object. An import,
+  or attaching the file again, writes a new `meta`, so the failure goes. A deleted asset's goes
+  too.
 - **`renderBox`** is bound out so `PaintLayer` can convert pointer events into render space.
   Since the canvas substrate became the default, the box is the canvas's wrapper `<div>`, which
   is why it is typed `HTMLElement`.
@@ -121,6 +135,18 @@ Which component renders which, in source order. Conditional children are marked.
 The overlays are given geometry from `shapedAt(Wpx)` rather than from the base file, because
 at a width where a rule changes `columns` the picture is not the base file's grid. The editing
 controls keep reading the base, because the base is what they edit.
+
+#### Notices
+
+`current = documentNotices(file, orphaned, liveFailures)` is every condition the document holds:
+§12.2's advisories and §12.3's failures. It is derived, so a notice goes away by itself when the
+document no longer has the condition.
+
+A numeric field commits on every keystroke that parses (**E5**), so `current` moves while the
+author types. An effect copies `current` into `conditions` only when `entry.active` is false, so
+the stack holds still until the value is committed. A second effect runs
+`notices.forget(conditions)`, so a dismissal is forgotten when its condition goes, and the notice
+returns if the condition does.
 
 #### The destructive gate
 
@@ -148,7 +174,7 @@ and do nothing.
 
 The footer's *New* button calls `newTileset` (passed as `onNew`), which is **confirmed and not
 undoable**. It asks with `confirm(...)` first and returns if the author declines. Then it calls
-`session.reset()`, sets `failures = []`, and awaits `replaceAll([])` to reclaim every picture the
+`session.reset()`, sets `failures = []`, calls `notices.clear()`, and awaits `replaceAll([])` to reclaim every picture the
 session held. Reset comes first so the outgoing document is already gone from the preview: no
 `<img>` then draws an object URL `replaceAll` has just revoked, and nothing reports those as
 failures.
@@ -183,10 +209,11 @@ failures.
 Callees, by import: from the package, [`selections`](/api/index/variables/selections/),
 [`reshape`](/api/index/functions/reshape/), [`activeRules`](/api/index/functions/activerules/),
 [`ruleOverride`](/api/index/functions/ruleoverride/), [`naturalRatio`](/api/render/functions/naturalratio/),
-`Tileset.svelte`; from the editor, `assets.ts` (`editorProvider`, `replaceAll`), `document.ts`
+`Tileset.svelte`; from the editor, `advisories.ts` (`documentNotices`), `entry.svelte.ts`,
+`notices.svelte.ts` (and the `Notice` type from `notices.ts`), `assets.ts` (`editorProvider`, `replaceAll`, `stored`), `document.ts`
 (the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `orphans.ts`, `session.svelte.ts`,
 the six `lib/sections/` components (Grid, Breakpoints, Derived, Tiles, Operations, SidebarFooter),
-`PreviewFrame`, `SelectionOverlay`, `PaintLayer` and `ui/Button`.
+`PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer` and `ui/Button`.
 
 ### Tests
 
@@ -200,8 +227,8 @@ validates.
 
 - **A full-height shell, not a scrolling document.** `main` is a grid,
   `var(--sidebar-w) minmax(0, 1fr)` at `100dvh`. The sidebar's sections and the preview column
-  each scroll their own contents. The two notices sit in the preview column, not above both
-  columns, so the grid needs no conditional rows.
+  each scroll their own contents. The confirmation and the notice stack sit in the preview
+  column, not above both columns, so the grid needs no conditional rows.
 - **The last section ends on a darker ground.** `--color-surface` is `--aqua-200`, and each
   open section body is the lighter `--color-section` (`--aqua-50`, Figma's colour). Sections touch
   (Pol); the `.sections` bottom padding lets the ground show under the last one,
@@ -210,9 +237,6 @@ validates.
   1440px) would grow the grid track and squeeze the sidebar.
 - **Destructive control is a number field, not the drag handle.** A page edge that can be dragged
   reads as a viewport, and a viewport does not destroy work.
-- **Footer controls are temporary.** The footer's contents are Stage 2's design. Until then they
-  are the old Seed and Import panels, the header's undo and the download button, built from
-  primitives.
 - **The shadow config replaces, then appends.** An edit-draft's id is already in the stack, so
   appending would put two Operations with one id in it, and `selection()` would find the
   unedited one first. Replacing by id covers both cases.
@@ -228,7 +252,8 @@ validates.
   duplicate key. Not verified at runtime. **Fixed in 0.8.1:** `onAssetError` drops a failure
   string already in the list, and the package now reports on a microtask, not from inside the
   derivation. Since then the renderer also reports a failure once per resolution
-  (`DrawableCache`) rather than on every reseed, and New document clears `failures`.
+  (`DrawableCache`) rather than on every reseed, and New document clears `failures`. Since
+  Stage 2 W3 there is no keyed list: the failures are one notice.
 - The seed field (now in `SidebarFooter`) commits on every `input` without `NumericInput`'s draft-text model.
   The empty case is safe, because `setDefaultSeed` (`document.ts`) trims and refuses `""`.
   But every keystroke that changes the seed is its own undo entry, so undoing a typed seed

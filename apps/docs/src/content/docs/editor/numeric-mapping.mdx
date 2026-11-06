@@ -24,6 +24,8 @@ Source. A "Values" toggle below chooses between **Continuous** (any value in bet
 **Stepped** (a fixed number of evenly spaced values, set in a "Steps" field). When the Source is
 `constant`, the two handles become one, with a single "Value" field, because a fixed value is a
 range whose ends are equal. Explanations, such as the track's domain, are hints on the labels.
+When the two ends of a rotation range are the same angle, an advisory shows at the end of the
+block.
 
 The author never sees the word "mapping". In the editor's pipeline (import → document →
 **draft**/history → preview → export), it edits the draft's numeric mapping.
@@ -60,12 +62,13 @@ separate control whose absence means *continuous*; the handles collapse to one u
 - The visible label is "Range", wrapped in a [Hint](/editor/ui-hint/): the options block's bar in
   `OperationBody` already names the attribute. `labelFor(target)` from
   [labels.ts](/editor/operation-labels/) still names the attribute in the aria labels. The hint
-  joins two sentences:
-  - "Soft track" or "Domain", then `min to max`, plus ", wrapping" for a wrapping track; or, when
-    collapsed, "A fixed value: the Constant source gives every cell the same number, so both ends
-    are one.";
-  - when `endpointsCoincide(target, mapping)`, the rotation advisory: the two ends are the same
-    angle, so one result lands twice as often.
+  is "Soft track" or "Domain", then `min to max`, plus ", wrapping" for a wrapping track; or, when
+  collapsed, "A fixed value: the Constant source gives every cell the same number, so both ends
+  are one."
+- At the end of the block, a `ui/Advisory` with `when={endpointsCoincide(target, mapping)}`: the
+  rotation advisory, that the two ends are the same angle so one result lands twice as often,
+  and that quarter turns are 0 to 270 in 4 steps. `Advisory` waits until a drag or a typed value
+  is committed before it shows or hides it.
 - The filled span runs between the two handles whichever way round they are. The handles are
   styled as `Slider`'s ink blocks (`--slider-thumb-w`, `--slider-thumb-h`).
 - `setEnd(index, value)`: refused unless `admitsTyped(target, value)`. Sets that end, and the other
@@ -101,7 +104,8 @@ separate control whose absence means *continuous*; the handles collapse to one u
 Callees (`NumericMapping.svelte:26`–`31`): `admitsTyped`, `endpointsCoincide`, `MIN_STEPS`,
 `trackFor` from [controls/mapping.ts](/editor/controls-mapping/); `labelFor`
 ([labels.ts](/editor/operation-labels/)); [NumericInput](/editor/numeric-input/),
-[FieldRow](/editor/ui-field-row/), [Hint](/editor/ui-hint/), [Toggle](/editor/ui-toggle/).
+[FieldRow](/editor/ui-field-row/), [Hint](/editor/ui-hint/), [Toggle](/editor/ui-toggle/),
+`ui/Advisory`.
 
 ### Tests
 

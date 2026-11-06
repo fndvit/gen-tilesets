@@ -61,7 +61,11 @@ sorting a list".
   package rather than recomputed.
 - **Label:** "Palette" in a [Hint](/editor/ui-hint/). The hint says order matters under a banded
   Source and that a segment can be dragged; under `random` with more than one entry it says
-  instead that reordering only reshuffles the canvas (the advisory below).
+  instead that every value is equally likely, so neighbours mean nothing.
+- **Advisory:** a `ui/Advisory` under the bar, "Under the Random source, order means nothing:
+  reordering only reshuffles the canvas." It shows only when `orderMeaningless`, the author has
+  reordered under the current Source (`reorderedUnder === sourceType`, set in `move`), and no drag
+  is in progress (`dragging === null`).
 - **Segments:** `flex-grow: weight / total`, ink with paper text. A zero-weight entry gets the
   `zero` class and is drawn as a narrow marker (`--space-2`) rather than vanishing. A `null`
   entry is paper with ink text. The selected entry uses the glyph look (`--color-inactive`). The
@@ -103,7 +107,7 @@ A refusal simply does not call `onChange`.
 
 Callees: [`paletteTotal`](/api/index/functions/palettetotal/) (`PaletteBar.svelte:22`);
 [NumericInput](/editor/numeric-input/), [Button](/editor/ui-button/),
-[FieldRow](/editor/ui-field-row/), [Hint](/editor/ui-hint/).
+[FieldRow](/editor/ui-field-row/), [Hint](/editor/ui-hint/), `ui/Advisory`.
 
 ### Tests
 
@@ -117,8 +121,10 @@ whose weights sum to zero makes the draft incomplete; a fresh `tileId` draft sta
 - **The `random` advisory.** Under a `random` Source values are uniform, so adjacency means
   nothing and reordering "reshuffles the canvas with no visible reason". The bar implies a spatial
   meaning that Source does not deliver. The editor carries this as an advisory rather than having
-  two palette presentations. It replaces the label's hint when `sourceType === "random"` and
-  there is more than one entry.
+  two palette presentations. The label's hint changes when `sourceType === "random"` and there is
+  more than one entry. The advisory itself shows inline only after the author reorders under
+  `random`, and not while a drag is still moving the segment: a line that is always there is a
+  line nobody reads.
 - **`current` is derived in the script**, not with `{@const}`, which Svelte allows only as an
   immediate child of a block. It is `undefined` when `selected` is stale after a removal.
 

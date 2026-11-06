@@ -74,8 +74,9 @@ uppercases them, so `Grass` and `grass` would look identical. A new group whose 
 taken is named by `uniqueTileName`: `grass 2`, `grass 3`, and so on.
 
 The schema still allows duplicates (`06` §5.3, **C10**), so an imported file may hold some. Those
-groups get `note="(t3)"` (their id) and a hint asking the author to rename one. This is §12.2's
-sixth advisory, and it is display only.
+groups get `note="(t3)"` (their id) and an `advisory`, shown inline at the top of the group's
+body: "Another tile group is also named X, so both show their id. Rename one to tell them
+apart." This is §12.2's sixth advisory, and it is display only.
 
 ### Invariants
 

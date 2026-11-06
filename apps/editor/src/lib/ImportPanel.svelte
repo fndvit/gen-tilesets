@@ -35,16 +35,22 @@
 
   ## Reports appear after an attempt, in a popup
 
-  A refusal, a newer-version file, or an import that opened with notes is shown
-  in a closable `ui/Popup` once the attempt ends, and never takes space in the
-  footer (Pol, 2026-11-04). Closing it clears the report.
+  A refusal or a newer-version file is shown in a closable `ui/Popup` once the
+  attempt ends, and never takes space in the layout (Pol, 2026-11-04). Closing
+  it clears the report.
+
+  An import that opened with notes (an upgrade, unreadable pictures)
+  opens: there is nothing to answer, so its notes are notices in the preview's
+  stack instead (Stage 2, W3), beside the picture they are about.
 -->
 <script lang="ts">
   import { migrate, validate, type TilesetFile, type ValidationError } from "@vit-foundation/gen-tilesets";
   import { unzipSync } from "fflate";
+  import { importNotices } from "../advisories.js";
   import { replaceAll, type Incoming } from "../assets.js";
   import { drafting } from "../drafting.svelte.js";
   import { mimeOf, nameOf, readArchive, type Archive } from "../import.js";
+  import { notices } from "../notices.svelte.js";
   import { session } from "../session.svelte.js";
   import Button from "./ui/Button.svelte";
   import Popup from "./ui/Popup.svelte";
@@ -76,8 +82,6 @@
    * file came to be told the editor was at fault.
    */
   let newer = $state<number | null>(null);
-  /** Non-fatal: an upgrade that happened, and pictures the archive did not carry. */
-  let advisories = $state<string[]>([]);
 
   let picker = $state<HTMLInputElement | null>(null);
 
@@ -85,7 +89,6 @@
     failure = null;
     errors = [];
     newer = null;
-    advisories = [];
   }
 
   // -------------------------------------------------------------------------
@@ -198,7 +201,9 @@
    * sees a file that already claims it.
    */
   async function open(archive: Archive): Promise<void> {
-    const { file: read, assets, missing } = readArchive(archive);
+    // A `meta.src` the archive did not carry (`missing`) is left to §12.3: the
+    // asset has no file, so it fails to draw and the preview's notice says so.
+    const { file: read, assets } = readArchive(archive);
 
     const outcome = migrate(read);
     // §12.4's case, and the only one where *update the editor, not the file* is
@@ -232,20 +237,15 @@
     // does not have.
     drafting.discard();
 
-    advisories = [
-      // **E16** — it never blocks, and the upgrade already happened. The second
-      // clause is the part the author cannot infer: the document now in the
-      // editor differs from the file still on their disk.
-      ...(outcome.kind === "migrated"
-        ? outcome.steps.map(
-            (step) =>
-              `Upgraded from schemaVersion ${step.from} — ${step.note}. ` +
-              `Export to save the new form; older builds will not read it.`,
-          )
-        : []),
-      ...missing.map((path) => `${path} — the archive carries no such file. That cell draws nothing.`),
-      ...failed.map((f) => `${f.tileId}/${f.assetId} — ${f.reason}`),
-    ];
+    // A new document starts with no notices, then gets its own. Non-fatal:
+    // the upgrade already happened (**E16**), and a document whose pictures
+    // are absent is still a legal file the author can repair by dropping the
+    // images back in. Refusing would throw away the operations, the seed and
+    // the layout over a picture.
+    notices.clear();
+    for (const notice of importNotices({ upgrades: outcome.kind === "migrated" ? outcome.steps : [], failed })) {
+      notices.push(notice);
+    }
   }
 
   async function run(archive: Promise<Archive>): Promise<void> {
@@ -257,12 +257,10 @@
       failure = cause instanceof Error ? cause.message : String(cause);
     } finally {
       busy = false;
-      reporting = failure !== null || errors.length > 0 || newer !== null || advisories.length > 0;
+      reporting = failure !== null || errors.length > 0 || newer !== null;
     }
   }
 
-  /** "Refused" when the document was not touched, "Imported" when it opened with notes. */
-  const reportTitle = $derived(advisories.length > 0 ? "Imported, with notes" : "Import refused");
 
   function onDrop(event: DragEvent): void {
     event.preventDefault();
@@ -331,7 +329,7 @@
   aria-hidden="true"
 />
 
-<Popup title={reportTitle} bind:open={reporting} onClose={reset}>
+<Popup title="Import refused" bind:open={reporting} onClose={reset}>
   {#if failure !== null}
     <p class="t-body">Not opened. Nothing in the current document has changed.</p>
     <p class="t-console detail">{failure}</p>
@@ -369,18 +367,6 @@
     </ul>
   {/if}
 
-  <!--
-    Opened, with holes. A document whose pictures are absent is still a legal
-    file and the author can repair it by dropping the images back in. Refusing
-    would throw away the operations, the seed and the layout over a picture.
-  -->
-  {#if advisories.length > 0}
-    <ul class="t-console">
-      {#each advisories as advisory, i (i)}
-        <li>{advisory}</li>
-      {/each}
-    </ul>
-  {/if}
 </Popup>
 
 <style>

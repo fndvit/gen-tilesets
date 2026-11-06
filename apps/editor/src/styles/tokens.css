@@ -78,6 +78,7 @@
   --op-index: 24px; /* an operation's index square */
   --step-dot: 20px; /* a step's number in the operation stepper */
   --menu-w: 200px; /* a popover menu */
+  --notice-w: 360px; /* a notice in the preview's stack */
   --thumb: 32px;
   --thumb-sm: 16px;
   --icon: 16px; /* every icon: one 16px grid, 1.5px stroke */

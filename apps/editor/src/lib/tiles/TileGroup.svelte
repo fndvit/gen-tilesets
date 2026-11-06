@@ -21,6 +21,7 @@
   import { canonicalAssets, type Tile } from "@vit-foundation/gen-tilesets";
   import { stored } from "../../assets.js";
   import AddBar from "../ui/AddBar.svelte";
+  import Advisory from "../ui/Advisory.svelte";
   import Button from "../ui/Button.svelte";
   import Collapsible from "../ui/Collapsible.svelte";
   import IconButton from "../ui/IconButton.svelte";
@@ -31,6 +32,8 @@
     /** `(t3)` where another Tile shares this name. */
     note?: string | undefined;
     hint?: string | undefined;
+    /** An inline advisory at the top of the body (`09` §12.2's sixth: a shared name). */
+    advisory?: string | undefined;
     onRename: (name: string) => void;
     onDelete: () => void;
     /** Every frame of a weight drag; the file follows it. */
@@ -50,6 +53,7 @@
     tile,
     note,
     hint,
+    advisory,
     onRename,
     onDelete,
     onWeightInput,
@@ -112,6 +116,7 @@
     {/snippet}
 
     <div class="body">
+      <Advisory when={advisory !== undefined}>{advisory}</Advisory>
       {#each assets as asset, i (asset.id)}
         <TileAsset
           tileId={tile.id}

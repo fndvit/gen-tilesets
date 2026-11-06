@@ -41,8 +41,9 @@ zip.
 | Reroll assets `Button` | `rerollAssets()` |
 | Preview a fresh load `Button` (disabled unless `loadVaries`) | `loadSalt = drawLoadSalt()`; writes no field |
 
-The fresh-load hint carries the inert-flags advisory: Operations that reseed on load over a
-source that is not random (`inertFlags`).
+The fresh-load hint only says whether a fresh load varies. The inert-flags advisory (Operations
+that reseed on load over a source that is not random) is now the `inertReseed` notice in the
+preview's stack (`advisories.ts`, Stage 2 W3), not a clause in this hint.
 
 ### Look
 
@@ -52,18 +53,15 @@ and stack in a narrow sidebar.
 
 ### Invariants
 
-- **One action exports the file and its folder together** (**E14**).
 - **`loadSalt` writes no field** (§8.1) and moves only on this button (**R12**).
-- **Advisories never block** (**E16**). The empty-document note is shown after the export, which
-  still happens.
 - **The seed field has no preview seed beside it** (§5): it writes `config.defaultSeed`.
 
 ### Callers / callees
 
-Caller: `App.svelte` (`<SidebarFooter bind:loadSalt onNew={newTileset} />`). Callees: `FieldRow`,
-`IconButton`, `Toggle`, `Button`, `Popup`, `ImportPanel`; `document.ts` (`setDefaultSeed`,
-`rerollSeed`, `rerollAssets`, `setReseedAssetsOnLoad`); `reseed.ts` (`loadVaries`, `inertFlags`,
-`drawLoadSalt`); `download.ts` (`exportZip`); `export.ts` (`drawsNothing`).
+Caller: `App.svelte` (`<SidebarFooter bind:loadSalt />`). Callees: `FieldRow`, `Hint`,
+`IconButton`, `Toggle`, `Button`; `document.ts` (`setDefaultSeed`, `rerollSeed`, `rerollAssets`,
+`setReseedAssetsOnLoad`); `reseed.ts` (`loadVaries`, `drawLoadSalt`). Export, Import, New and
+Undo live in `SidebarTopBar` since iteration 2.
 
 ### Tests
 

@@ -54,7 +54,9 @@ plugin, so a test cannot import a module that holds a rune.
 
 ### Callers / callees
 
-Callers: none yet (Stage 2 W3 wires the notice stack in `App.svelte`). Callees: none.
+Callers of `notices.svelte.ts`: `App.svelte` (`shown`, `forget`, `dismiss`, `clear`),
+`lib/ImportPanel.svelte` (`clear`, `push`), `lib/sections/SidebarTopBar.svelte` (`push`).
+Callees: none.
 
 ### Tests
 

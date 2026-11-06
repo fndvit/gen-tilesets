@@ -19,7 +19,7 @@
     setDefaultSeed,
     setReseedAssetsOnLoad,
   } from "../../document.js";
-  import { drawLoadSalt, inertFlags, loadVaries } from "../../reseed.js";
+  import { drawLoadSalt, loadVaries } from "../../reseed.js";
   import { session } from "../../session.svelte.js";
   import Button from "../ui/Button.svelte";
   import FieldRow from "../ui/FieldRow.svelte";
@@ -37,24 +37,18 @@
   const config = $derived(session.file.config);
   const seedId = $props.id();
 
-  /** §8.5's disabled condition, and §8.4's advisory. */
+  /** §8.5's disabled condition. */
   const varies = $derived(loadVaries(config));
-  const inert = $derived(inertFlags(config));
 
   /**
-   * `06` §10.4's second diagnostic, as **E16**'s advisory: never blocks, never
-   * modifies the file, never an error. §8.4 requires it to be *reported* rather
-   * than corrected: the flag still moves the Operation's `random` Selection
-   * (`04` §8.2), so it is not fully inert and clearing it would change the
-   * picture. Only reachable by import.
+   * `06` §10.4's second diagnostic (an Operation flagged over a non-random
+   * Source) is a notice in the preview's stack now (`advisories.ts`
+   * `inertReseed`, Stage 2 W3), not a clause in this hint.
    */
   const freshLoadHint = $derived(
-    (varies
+    varies
       ? "Shows what another visitor's load looks like. Writes nothing to the file."
-      : "Nothing is set to reseed on load, so every load looks the same.") +
-      (inert.length > 0
-        ? ` ${inert.map((op) => op.id).join(", ")} reseed on load over a source that is not random; only their random selection moves.`
-        : ""),
+      : "Nothing is set to reseed on load, so every load looks the same.",
   );
 </script>
 

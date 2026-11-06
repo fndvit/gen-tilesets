@@ -203,8 +203,8 @@
       <TileGroup
         {tile}
         note={isDuplicate(tile) ? `(${tile.id})` : undefined}
-        hint={isDuplicate(tile)
-          ? "This file was imported with two groups of the same name, so both show their id. Rename one to tell them apart."
+        advisory={isDuplicate(tile)
+          ? `Another tile group is also named ${tile.name}, so both show their id. Rename one to tell them apart.`
           : undefined}
         onRename={(name) => rename(tile, name)}
         onDelete={() => removeTile(tile)}

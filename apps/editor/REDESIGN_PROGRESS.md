@@ -531,6 +531,50 @@ file, and is never styled as an error.
     - there are no console errors.
   - Nothing is wired into the app yet (that is W3 and W4).
 
+### W3: notices wired in (2026-11-06), waiting for Pol's review
+
+W2 was committed as `8364d4e`.
+
+- **The stack.** `lib/preview/NoticeStack.svelte` sits at the preview's top-right with two live
+  regions. `App.svelte` derives the conditions (`advisories.ts` `documentNotices`).
+- **Removed from `App.svelte`:** the sticky orphan notice and the red failures list. E12's sticky
+  confirmation stays until W4.
+- **New detections**, pure and tested (16 tests in `advisories.test.ts`):
+  - advisory 1, parity;
+  - advisory 4, a narrow grid;
+  - advisory 2, inert reseed, moved out of the fresh-load hint;
+  - advisory 7, non-square assets.
+- **Moved to notices:** advisory 3 (orphans), §12.3 asset failures (collapsed into one notice),
+  advisory 5 (pushed after an empty export), and an import's upgrade and unreadable-picture notes
+  (pushed).
+- **The popups that remain:** "Import refused" and "Export failed".
+- **A missing picture is reported once.** An import used to report "not in the archive", and the
+  asset also failed to load, so the same picture showed twice. Only the §12.3 failure remains, and
+  it says "no file attached".
+- **Failures follow their asset.** Each failure remembers the asset's `meta` object, so an import
+  or a re-attach clears it. Failures used to survive an import.
+- **Inline advisories.** `lib/ui/Advisory.svelte` puts 6 (tile group), 8 (palette) and 9 (rotation)
+  visibly under their control. Before, they were inside hover hints that a keyboard user never saw.
+  Advisory 8 now shows only after a reorder under `random`, not all the time.
+- **Commit first** (Pol's W1 rule). `entry.svelte.ts` tracks an entry from a captured `input` event
+  until change, blur, Enter or Esc. The stack and inline advisories hold their last state until
+  then. This was needed because `NumericInput` commits on every keystroke that parses.
+- **Not done:**
+  - There is no action on the orphan notice. "Undo the resize" would be wrong when the last edit
+    was something else, and a jump to the operation needs the unsaved-changes guard. Left for Pol.
+  - A missing zero-weight picture is never drawn, so it shows no notice until export refuses it.
+- **Checks:**
+  - typecheck, 355 tests, and the docs pages for the new files;
+  - a browser run on port 5175 with doctored readme zips (in the scratchpad):
+    - a clean import shows nothing;
+    - advisories 1, 2, 4, 5, 6, 7, 8 and 9 each appear, with the failure first;
+    - placement is 12px from the top and right edges, 360px wide;
+    - dismiss works, and New clears;
+    - a committed grid edit clears advisory 4;
+    - the stack holds while typing;
+    - advisory 9 holds while typing and goes on Enter;
+    - there are no console errors.
+
 **How to test (found in P3b):** the editor dev server now runs on port **5175** from this tree
 (`lsof -iTCP:5175`); reuse it. Playwright is `node_modules/.pnpm/playwright-core@1.56.1`, and the
 browser that exists is

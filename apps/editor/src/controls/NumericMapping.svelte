@@ -25,6 +25,7 @@
   import type { AttributeName, NumericMapping } from "@vit-foundation/gen-tilesets";
   import NumericInput from "../lib/NumericInput.svelte";
   import { labelFor } from "../lib/operations/labels.js";
+  import Advisory from "../lib/ui/Advisory.svelte";
   import FieldRow from "../lib/ui/FieldRow.svelte";
   import Hint from "../lib/ui/Hint.svelte";
   import Toggle from "../lib/ui/Toggle.svelte";
@@ -87,26 +88,24 @@
     }
   }
 
+  /**
+   * §12.2's ninth advisory (never blocks, never modifies the file, never an
+   * error, **E16**). `Advisory` waits until a drag or a typed value is
+   * committed before it shows or hides it.
+   */
   const advisory = $derived(endpointsCoincide(target, mapping));
 
   const label = $derived(labelFor(target));
 
   /**
-   * The label's hint: the track's domain, why the handles collapsed, and
-   * §12.2's ninth advisory (never blocks, never modifies the file, never an
-   * error, **E16**). Spec references stay here, not in the bubble.
+   * The label's hint: the track's domain, and why the handles collapsed. The
+   * ninth advisory shows inline under the fields instead. Spec references stay
+   * here, not in the bubble.
    */
   const hint = $derived(
-    [
-      collapsed
-        ? "A fixed value: the Constant source gives every cell the same number, so both ends are one."
-        : `${track.soft ? "Soft track" : "Domain"} ${track.min} to ${track.max}${track.wraps ? ", wrapping" : ""}.`,
-      advisory
-        ? "Rotation wraps at 360, so these two ends are the same angle and one result lands twice as often. Quarter turns are 0 to 270 in 4 steps."
-        : "",
-    ]
-      .filter(Boolean)
-      .join(" "),
+    collapsed
+      ? "A fixed value: the Constant source gives every cell the same number, so both ends are one."
+      : `${track.soft ? "Soft track" : "Domain"} ${track.min} to ${track.max}${track.wraps ? ", wrapping" : ""}.`,
   );
 </script>
 
@@ -188,6 +187,11 @@
       step="1"
     />
   {/if}
+
+  <Advisory when={advisory}>
+    Rotation wraps at 360, so these two ends are the same angle and one result lands twice as often.
+    Quarter turns are 0 to 270 in 4 steps.
+  </Advisory>
 </div>
 
 <style>

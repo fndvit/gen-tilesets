@@ -15,16 +15,19 @@
   a folder that is quietly incomplete is `07` **R3**'s substitution problem
   moved into the artifact, where no `onAssetError` will ever fire for it.
 
-  Reports never take space here. An export failure, or the advisory that the
-  document draws nothing, appears in a `ui/Popup` after the download, like the
-  import reports (Pol, 2026-11-04).
+  Reports never take space here. An export failure appears in a `ui/Popup`
+  after the download, like the import reports (Pol, 2026-11-04). The advisory
+  that the document draws nothing is a notice in the preview's stack (Stage 2,
+  W3): the export happened, so there is nothing to answer.
 
   The bar takes dropped zips and folders for Import, and outlines itself while
   one is over it.
 -->
 <script lang="ts">
   import { exportZip } from "../../download.js";
+  import { exportedEmpty } from "../../advisories.js";
   import { drawsNothing } from "../../export.js";
+  import { notices } from "../../notices.svelte.js";
   import { session } from "../../session.svelte.js";
   import ImportPanel from "../ImportPanel.svelte";
   import Button from "../ui/Button.svelte";
@@ -44,21 +47,21 @@
 
   let exporting = $state(false);
   let exportError = $state<string | null>(null);
-  /** §12.2's fifth advisory. **E16**: it never blocks the export. */
-  let exportedEmpty = $state(false);
   let reporting = $state(false);
 
   async function runExport(): Promise<void> {
     exporting = true;
     exportError = null;
-    exportedEmpty = drawsNothing(file);
+    const empty = drawsNothing(file);
     try {
       await exportZip(file);
+      // §12.2's fifth advisory. **E16**: it never blocks the export.
+      if (empty) notices.push(exportedEmpty);
     } catch (cause) {
       exportError = String(cause instanceof Error ? cause.message : cause);
     } finally {
       exporting = false;
-      reporting = exportError !== null || exportedEmpty;
+      reporting = exportError !== null;
     }
   }
 </script>
@@ -93,23 +96,8 @@
   </div>
 </div>
 
-<Popup
-  title={exportError !== null ? "Export failed" : "Exported"}
-  bind:open={reporting}
-  onClose={() => {
-    exportError = null;
-    exportedEmpty = false;
-  }}
->
-  {#if exportError !== null}
-    <p class="t-body">{exportError}</p>
-  {/if}
-  {#if exportedEmpty}
-    <p class="t-body">
-      This document is legal but draws nothing: no tiles, no operations, or every palette entry
-      empty. The file was exported anyway.
-    </p>
-  {/if}
+<Popup title="Export failed" bind:open={reporting} onClose={() => (exportError = null)}>
+  <p class="t-body">{exportError}</p>
 </Popup>
 
 <style>
