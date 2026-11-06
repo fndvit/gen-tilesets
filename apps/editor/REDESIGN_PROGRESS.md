@@ -15,8 +15,9 @@ Warnings and dialogs is **closed** (W0–W5: `8364d4e`, `3034fc1`, `3a8ca84`, `f
 group (item 7) and Tile and pattern (item 11) are **closed** (K0–K3, T0–T4: `71fd0c1`,
 `bf60a0d`, `855d6ad`). Explain Noise (item 12) is **in progress**: N0 and N1 are answered (see "N0 answers" and
 "N1 picks" under "Next session plan: Explain Noise (item 12)"). N2 docs are committed (`30116cb`).
-N3 is implemented, uncommitted (see "N3 · Done" under the N3 plan). **Next: Pol reviews N3**, then
-commit, then N4 (sweep).
+N3 is committed (`4f1129b`, after three review rounds). The N4 sweep found nothing to fix (see
+"N4 · Sweep" below). **Next: Pol closes item 12** and picks the next group (recommended: 1, the
+export menu).
 
 ## Stage 1 blocks
 
@@ -1862,6 +1863,32 @@ No throttle was needed. The dev-only extra on Cells per feature is Svelte's dev 
 comes from the Selection overlay re-rendering every cell when the draft's Pattern changes,
 because App's overlay shadow carries the Pattern. That predates N3. N4 could give the overlay
 a shadow without the Pattern if Pol wants it faster in dev.
+
+### N4 · Sweep (2026-11-06)
+
+There are no code changes. The probe is `n4/probe.mjs` in session `e5333bf0`'s scratchpad, built
+on T4's helpers, and it passes 40/40. With N3's 46/46 probe it covers every N4 item in the plan:
+
+- **Targets, text size and capitals**: no control under 24×24, no text under 12px and no
+  capitals, in the Noise well, the popover and the draft tag.
+- **Contrast** (≥ 4.5:1 with the new accent): the options caption, "How noise works", the field
+  labels, the 0 / 1 scale, the active step's name on its wash, the white number on the accent,
+  the popover's heading, body and muted text, the draft tag, and the Noise caption.
+- **Keyboard**: Tab goes from the Pattern glyphs to "How noise works", then to Cells per
+  feature, Octaves, Reseed on load and the next steps. In the popover, Tab reaches ✕ and Tab
+  out closes it. Changing step closes it too.
+- **Assistive tech**: the popover is named by its heading, each bar row has a hidden text
+  line, and the draft tag is not a live region.
+- **The cue**: a 2px frame and a 28px tag.
+- **The overlay**: a 1px berry line at 60%, no halo.
+- **Focus ring**: #cd1957.
+- **Reflow**: no sideways scroll at 1728, 1024, 600 and 320, and the page itself does not
+  scroll at 1024 and above.
+- **From N3's probe**: the live picture equals the picture after Save, the cue goes on Save and
+  on Discard, and the production cost on 61×120 is the same as a re-seed.
+
+Open, for later: in dev only, a Cells per feature change on 61×120 costs ~145–170 ms, because
+App's overlay shadow carries the Pattern (see "N3 · Done"). Production is fine.
 
 ## Known issues / notes
 
