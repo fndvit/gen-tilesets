@@ -1204,6 +1204,122 @@ For T3, beyond the file list in "Blocks":
   Save. Test this in `draft` (switch to Constant and back: the list is restored; Save: one
   entry).
 
+## Next session plan: T3 · Implement (written 2026-11-06)
+
+Read the **Palette**, **Operation stepper** and **Operation card** rows in `DESIGN_SYSTEM.md`
+first, then "T0 answers", "T1 answers" and "T2" above. The mock is
+`t1/mock.html` in session `097a483f`'s scratchpad; if it is gone, the T1 answers describe it.
+T3 is one block and stops for Pol's review before committing, but it runs in four steps, each
+with green tests before the next.
+
+### Step 1 · Step order and the "Pattern" name (logic, then UI)
+- `src/draft.svelte.ts`: `STEPS = ["selection", "source", "attribute", "blend"]`. The internal
+  key stays `source` (it matches `op.source`, `sourceType` and the file). Update the comment
+  above `STEPS`: it cites §7.4's constant collapse and the advisory about a reordered palette,
+  and the advisory part goes.
+- `src/lib/operations/labels.ts`: the step label. `labelFor(step)` renders step names
+  (`OperationBody.svelte:282`, `OperationCard.svelte:140`), and `labelFor("source")` gives
+  "Source". Add a `STEP_LABELS: Record<Step, string>` (`source` → "Pattern") and use it at both
+  sites. Do not add `source` to `NAMED`, because that map is for registry names and a Source
+  type named `source` would then be mislabelled. `summaryCells` / `summaryText` follow `STEPS`,
+  so the summary becomes `Selection * Pattern * Attribute * Blend`: check
+  `operation-labels` tests and docs.
+- `OperationBody.svelte`: `QUESTIONS.source` = "How should the tiles spread?" when
+  `isTileTarget(draft.target)`, or when no target is chosen yet (the default walk reaches
+  Pattern before Attribute, and Tile is the common case). Otherwise it is "How should the values
+  spread?". "Next" and the open-step walk (lines ~237–251) already follow `STEPS`.
+- `OperationCard.svelte:79`: `chips = ["selection", "source", "blend"]` keeps that order, and
+  the label comes from `STEP_LABELS`.
+- `newDraft`: check which step a new draft opens on, and that "Next" from Selection goes to
+  Pattern.
+- Tests: `src/draft.test.ts` and the labels tests rely on the order. Update them, and add one:
+  the default walk is selection → source → attribute → blend.
+
+### Step 2 · Pattern glyph artwork
+- `OperationBody.svelte`: the Source glyph grid (the `{:else if draft.step === "source"}` branch,
+  ~line 376) gets an `artwork` snippet per Source, using the T1 mock's 4×4 tint grids
+  (`ART` in the mock), as inline SVG with tokens: paper + 1px ink stroke, `--grey-300`,
+  `--grey-500`, ink. Selection's glyphs are SVG files from Figma, but these are written by hand
+  like All and Checkered, so inline is fine. A Source registered later with no artwork keeps a
+  label-only cell (E9).
+
+### Step 3 · `coverage()` and the palette's three modes
+- **`coverage` in `src/controls/palette.ts`** (pure and tested). Signature, roughly:
+  `coverage(config, operationId, seed, loadSalt): number[]`, giving the share of selected cells
+  per **entry index**. It counts by index, not tile id, because two entries can share a tile, so
+  it cannot just tally `applyTileMapping`'s return value. It is built only from the package's
+  exports:
+  - `selection(config, id, seed, loadSalt)` gives the predicate;
+  - `operationCtx(config, op, effectiveSeeds(seed, loadSalt))` with `sources.get(type)` and
+    `evalSource(...)` gives `t` per cell;
+  - the band rule copied from `applyTileMapping` (`packages/tileset/src/mapping.ts:124`) gives
+    the entry index. Add a **parity test**: for every cell of a fixture, the tile at
+    `palette[index]` equals `applyTileMapping(m, t)`. If the copy drifts, the test fails.
+  - Feed it the **shadow config** App already builds (`shadow`, `App.svelte` ~296). Then the
+    measured % describes exactly what the preview draws, with the same `config.defaultSeed` and
+    `loadSalt`. This needs a prop path from App to `PaletteList`: look at how `OperationBody`
+    gets its context today and pick the smallest path.
+  - **Grid size:** use the grid the preview is showing (the active breakpoint's rows and
+    columns), if `PaletteList` can reach it cheaply. Otherwise use the base grid, and **ask
+    Pol**.
+  - **Speed:** time it on the readme grid (29×14) during a weight drag. If it stutters, split it
+    into `fieldOf(...)`, which holds the selected cells' `t` values and is recomputed only when
+    the pattern, params, seed, selection or grid change, and `coverageOf(field, palette)`, which
+    is cheap per drag. Do not throttle the readout.
+  - Tests: Random's coverage is near the weight shares on a large grid; with Constant, all cells
+    go to the first non-zero entry; a zero weight gives 0; an empty selection gives all zeros
+    (and the UI shows "—", not NaN); and the parity test.
+- **`PaletteList.svelte`**, with its modes switched on `sourceType`:
+  - **random:** no grip, no number, and no Move items in the Menu. The strip and the % come
+    from `percents()` (the chances). The header label is "chance". The caption is from the T1
+    mock.
+  - **noise, gradient, and any other Source:** ordered rows. The strip widths and "≈N%" come
+    from `coverage()`. The header label is "≈ painted". The captions are from the mock.
+    **Delete `thresholds()`**, its tests and the tick markup, which lose their last caller.
+  - **constant:** see Step 4.
+  - **Retire advisory 8:** remove `reorderedUnder`, `orderMeaningless`, `showReorderAdvisory`
+    and the advisory markup, and check `advisories.ts` and docs for any mention of 8.
+  - At the narrowest widths, the container query from the mock: under 250px, the gaps go to
+    `--space-2` and the header label is hidden.
+- Tokens: `--thumb-lg: 48px` in `tokens.css` and in DESIGN_SYSTEM.md's Size row.
+
+### Step 4 · Constant with Tile
+- **What is shown:** the entry the engine paints under `constant`. That is the first entry with
+  a non-zero weight (the engine maps `t = 0`), so not necessarily `palette[0]`. A pure helper
+  `constantEntry(palette)` in `palette.ts`, tested.
+- **UI:** the "Tile" label, a 48px thumb button that opens `TilePicker` (picking replaces that
+  entry's tile), the name, and "every selected cell". The kept-entries info line lists the
+  other tiles' names and shows only when they exist.
+- **Save:** `mappingOf(draft)` (`draft.svelte.ts:216`) writes `{ palette: [constantEntry with
+  weight 1] }` when `sourceType === "constant"` and the target is Tile. The draft's `palette`
+  stays whole, so switching the Pattern back restores the list. `toShadowOperation` uses the
+  same rule, so the preview matches. `draftDiffers` must treat a saved Constant operation
+  opened again as unchanged.
+- Tests in `draft.test.ts`: Constant gives a one-entry mapping; switching to Noise and back
+  before Save restores the list; reopening a saved Constant op is not dirty; a file with a
+  multi-entry palette under constant opens showing its first non-zero entry.
+- `NumericMapping`'s constant collapse is unchanged; just check that it still renders under the
+  new order.
+
+### Docs (Starlight, `apps/docs/src/content/docs/editor/`)
+`draft.md`, `operation-body.md`, `operation-card.md`, `operation-labels.md` and
+`palette-list.mdx` (with `apps/docs/src/stories/PaletteListStory.svelte`: give it the three modes),
+and `tile-picker.md` (Constant uses it). Run the docs build and the docs coverage check.
+
+### Verify
+- `pnpm test` and `pnpm typecheck` from the root, both green; the docs build passes.
+- The browser smoke, rebuilt from K3's `k3/smoke.mjs` (session `c5a97149`'s scratchpad, with
+  `k3/readme.zip`; rebuild with `os.walk` over `tiles/` if gone), dev server on **5175**:
+  - a new Tile operation's walk: Selection → Pattern → Attribute → Blend via "Next";
+  - each Pattern: the Random rows are unnumbered with chances; under Noise, "≈%" sums to about
+    100 and matches a pixel count of the preview's cells; Gradient likewise;
+  - Constant: one picker, the line about kept entries, Save, and the file holds one entry;
+    switching back before Save restores the list; one undo after Save;
+  - no advisory 8 anywhere;
+  - no sideways scroll at 1728, 1024, 600 and 320, no text under 12px, targets of 24px or more.
+- Stop for Pol's review. The **T4 sweep** (with K4's accessibility probes) follows, as planned in
+  "Blocks".
+
 Side note: the notes untracked by 9e9590c had also been deleted from disk. `CLAUDE.md` and
 `ARCHITECTURE.md` were restored from `9e9590c^` (Pol's choice: these two only).
 
