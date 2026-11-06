@@ -12,9 +12,9 @@ iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into th
 (P1–P4) are complete. Their functionality is unchanged, but their *look* in the sections below
 is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. Stage 2 ·
 Warnings and dialogs is **closed** (W0–W5: `8364d4e`, `3034fc1`, `3a8ca84`, `feafa9a`). The palette
-group (item 7) reached K3 (`71fd0c1`) and paused before K4, whose sweep folds into the Tile and
-pattern group's T4. Tile and pattern (item 11): T0–T2 done, **T3 committed (`bf60a0d`)**.
-**Next session: follow "Next session plan: T4 · Sweep" below**, which closes both groups.
+group (item 7) and Tile and pattern (item 11) are **closed** (K0–K3, T0–T4: `71fd0c1`,
+`bf60a0d`, `855d6ad`). **Next session: follow "Next session plan: Explain Noise (item 12)"
+below**, starting with N0's questions for Pol (no code).
 
 ## Stage 1 blocks
 
@@ -1492,8 +1492,96 @@ Notes, no change made:
   surprise someone; item 12 (explain Noise) is the place to say so.
 - At 1024 the palette is 280px wide, so the 250px container query only applies at 320.
 
-Next: Pol reviews T4, then commit and close items 7 and 11, then pick the next group
-(recommended 12, explain Noise).
+Committed as `855d6ad` (2026-11-06), with Pol's go-ahead. Items 7 and 11 are closed.
+
+## Next session plan: Explain Noise (item 12) (written 2026-11-06)
+
+Read `DESIGN_SYSTEM.md` (Operation stepper, Palette, Glyph grid, Field row, Advisory) and "T4"
+above first. Blocks are named N. Stop for Pol after each. This changes the editor only: the
+file keeps `valueNoise`, `cellsPerFeature` and `octaves`, and the engine is untouched.
+
+### The problem (Pol, T1 review)
+
+The user needs Noise itself explained: why the middle entries cover more, and what *Octaves*
+and *Cells per feature* do.
+
+### Analysis (2026-11-06, measured against the engine)
+
+**How it works** (`valueNoise`, `packages/tileset/src/registry/sources.ts`). The grid is
+covered by a coarser lattice whose points are `cellsPerFeature` cells apart. Each lattice point
+gets a random number, and each cell blends its four nearest points (bilinear, smoothstep). Each
+extra octave adds a lattice twice as fine at half the weight, and the result is the weighted
+average. Blending and averaging pull values toward 0.5, so the middle of 0–1 is common and the
+ends are rare.
+
+**Measured** on a 40×40 grid over 40 seeds, with three equal entries (as three equal bands):
+
+| Octaves | Cells per feature | Share of each third | Neighbours in the same band | Spread (sd) |
+|---|---|---|---|---|
+| 1 | 2 / 5 / 10 | 27/47/26, 26/51/23, 25/51/24 | 65%, 84%, 92% | 0.21 |
+| 2 | 2 / 5 / 10 | 16/69/15, 17/68/15, 17/69/14 | 71%, 83%, 91% | 0.15 |
+| 3 | 2 / 5 / 10 | 12/76/12, 14/75/11, 13/76/11 | 71%, 84%, 91% | 0.14 |
+
+So the two parameters do separate jobs, which is the explanation the author needs:
+- **Octaves sets the bias toward the middle.** With 1, the end entries get about a quarter each.
+  With 3, they get about an eighth. It also adds fine detail on top of the big patches.
+- **Cells per feature sets the patch size, and nothing else.** It is roughly how many cells
+  across one patch is. Small values give speckle, large values give broad areas. It does not
+  change the shares.
+- **Values below 0.1 and above 0.9 almost never happen** (0–2% of cells). An end entry needs a
+  larger weight to show up at all.
+- The ≈% belongs to the **position** in the list, not the tile (T4 note): swapping two
+  equal-weight entries swaps the tiles and keeps the shares.
+
+**What the editor shows today.** The Pattern step's Noise well has two field rows,
+"Cells Per Feature" (a number field; `labelFor` title-cases it, unlike every other label) and
+"Octaves" (segmented 1/2/3), each with only a range hint ("Accepts …"). The palette caption
+says that middle entries cover more, but not why or what to do about it. Hints open only on
+hover (backlog 9), so anything essential cannot live only in a hint.
+
+### Recommended direction (to confirm at N0)
+
+1. **Editor-only names**, in sentence case: *Cells per feature* → **Patch size** (in cells), and
+   *Octaves* → **Detail** (1 / 2 / 3). Through `labelFor`'s fixed names, like `valueNoise` →
+   "Noise". The docs give the file name next to each.
+2. **A short caption in the Noise well**, always visible (not a hint): "Noise paints patches.
+   Patch size is about how many cells across a patch is. More detail adds smaller patches on
+   top and makes middle entries more common." Plus a hint on each label for the extra detail.
+3. **A live field preview** in the Pattern well: a small greyscale map of the pattern's values
+   on the grid the preview shows (`fieldOf` already computes them for the selected cells). It
+   changes as Patch size and Detail change, so the effect is visible before any tile is chosen.
+   Possibly for Gradient and Random too, for consistency.
+4. **The palette caption says why and what to do.** Under Noise: "Middle entries cover more
+   because noise rarely reaches its ends. Give the first and last entries more weight to even it
+   out." Optional, for Pol: an **"Even out"** action that sets the weights so each entry paints
+   about the same share with this seed (band edges at the field's quantiles). One undo.
+
+### Blocks
+
+- **N0 · Questions (talk, no code).** For Pol:
+  1. Rename the params in the editor only (Patch size, Detail)? Or keep the names and only explain?
+  2. Where the explanation lives: an always-visible caption in the well (recommended, since hints
+     need a mouse), hints only, or a "How noise works" popover?
+  3. The field preview: yes or no? For Noise only, or every pattern? Above or below the fields?
+  4. "Even out" weights: build it, or only say what to do in the caption? It depends on the
+     seed, like the ≈% does.
+  5. Say in the caption that the ≈% follows the position, not the tile?
+  6. Fix `labelFor`'s title case for every unnamed param (sentence case), or only these two?
+- **N1 · Mocks.** A scratch page (not in the repo) with the Noise well in two or three variants:
+  caption + preview + renamed fields, at 400px and at the narrowest sidebar. Pol picks.
+- **N2 · Pattern and docs.** `DESIGN_SYSTEM.md` (Operation stepper's Pattern well, Palette
+  caption, any new Field preview pattern) before any code.
+- **N3 · Implement.** Likely files: `lib/operations/labels.ts` (`labelFor` names, tests);
+  `controls/ParamFields.svelte` / `ParamControl.svelte` (per-param hints); `OperationBody.svelte`
+  (the caption, the preview); a new `controls/field-preview.ts` (pure, tested: field → grey
+  levels) and its component; `controls/palette.ts` (`evenOut`, with a test against `coverageOf`)
+  if Pol wants it; `PaletteList.svelte` (caption); the docs pages.
+- **N4 · Sweep.** Rebuild the probe from `t4/probe.mjs` (session `06ac963b`'s scratchpad):
+  targets, text, capitals, contrast, keyboard, reflow at 1728/1024/600/320, the preview's cost
+  on a 61×120 grid while dragging Patch size, and the measured shares after "Even out" against
+  `generate()`. Close the group with Pol.
+
+After 12, the recommended order is 1 (export menu), 6 (Attribute and Blend glyphs), 8, 9 and 10.
 
 ## Known issues / notes
 
@@ -1606,8 +1694,7 @@ design are not done here (Stage 2, items 1–2).
    only when the value really changed. Redesigned dialog.
 5. *(Done in P1.)* Remove the "The file" debug view.
 6. Glyphs for Attribute, Source and Blend.
-7. *(Stack, header and body redesigned by the adopted design: cards plus a stepper. The palette
-   widget is still to do.)* Operations stack design (Pol, Block E review): it should be obvious which action comes next.
+7. *(Done: cards plus a stepper in the adopted design; the palette widget in K0–K3 and T4.)* Operations stack design (Pol, Block E review): it should be obvious which action comes next.
    Block E added a Next button only; the stack, header and body need a design pass in Figma.
    The palette widget is hard to grasp (Pol, Block F review round 2) and belongs here.
 8. Space between field labels and their values across the sidebar (Pol, Block F review round 2:
@@ -1619,7 +1706,7 @@ design are not done here (Stage 2, items 1–2).
 10. The open operation card's 3px accent edge may become subtler, like the failure notice's
     red edge, which was removed in W1 (Pol, 2026-11-06: "we will handle the one in operation
     section later").
-11. Tile and pattern (Pol, reviewing K3, 2026-11-06): the Tile attribute and the Source
+11. *(Done, T0–T4.)* Tile and pattern (Pol, reviewing K3, 2026-11-06): the Tile attribute and the Source
     contradict each other. Palette weights read as chances, but the Source, chosen afterwards,
     decides what they mean. The editor's % is false under noise, a diagonal gradient and
     constant. Planned in "Next session plan: Tile and pattern (item 11)".
