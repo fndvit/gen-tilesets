@@ -14,8 +14,8 @@ is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter 
 Warnings and dialogs is **closed** (W0–W5: `8364d4e`, `3034fc1`, `3a8ca84`, `feafa9a`). The palette
 group (item 7) and Tile and pattern (item 11) are **closed** (K0–K3, T0–T4: `71fd0c1`,
 `bf60a0d`, `855d6ad`). Explain Noise (item 12) is **in progress**: N0 and N1 are answered (see "N0 answers" and
-"N1 picks" under "Next session plan: Explain Noise (item 12)"). N2 docs are written.
-**Next: Pol reviews N2**, then N3 code.
+"N1 picks" under "Next session plan: Explain Noise (item 12)"). N2 docs are committed (`30116cb`).
+**Next session: follow "Next session plan: N3 · Implement" below.**
 
 ## Stage 1 blocks
 
@@ -1673,6 +1673,105 @@ Measured for the popover (engine, `fieldOf` + `coverageOf`, Cells per feature 5,
   feature (if regenerating `<Tileset>` on every tick is too slow, throttle to animation
   frames). Check that the live picture matches the picture after Save, cell for cell, and that
   the cue goes away on Save and on Discard. Close the group with Pol.
+
+## Next session plan: N3 · Implement (written 2026-11-06)
+
+Read first: `DESIGN_SYSTEM.md` (Layout: **Live draft**, **Draft cue**; Component patterns: the
+**Operation stepper**'s Pattern well, **Explainer popover**, **Palette**'s Noise caption, **Field
+row**), then "N0 answers" and "N1 picks" above. The N1 mock is session `47d2af55`'s scratchpad
+`n1/mock.html` (copy, sizes, popover text). The engine is untouched; the file format is
+untouched. Stop for Pol after step 0 if it needs an answer, and at the end.
+
+### Step 0 · One question for Pol (before step 1)
+
+`labelFor`'s fallback serves **registry names too**, not only params: `everyNth` → "Every Nth"
+and `scaleX` → "Scale X" (`labels.test.ts` lines 29–30). Plain sentence case would give "Every
+nth" and "Scale x". Recommendation: sentence case, but keep a **single-letter word** uppercase
+(an axis: "Scale X") and give `everyNth` a fixed name in `NAMED` ("Every Nth"). Ask Pol, then
+apply.
+
+### Step 1 · Labels (`lib/operations/labels.ts`)
+
+- `labelFor` fallback: sentence case per step 0. Update `labels.test.ts` (add
+  `cellsPerFeature` → "Cells per feature") and grep the docs pages and other tests for
+  title-cased labels ("Cells Per Feature", "Every Nth", …).
+
+### Step 2 · Pure logic, tested
+
+- `controls/palette.ts`: `fieldCells(config, operationId, seed, loadSalt)` → `{ x, y, t }[]`
+  (selected cells, reading order); `fieldOf` becomes `fieldCells(...).map((c) => c.t)`. Test:
+  same values as before for random/noise/gradient/constant (the existing parity test keeps
+  passing).
+- New `controls/field-preview.ts`: from the grid size and `fieldCells`, the preview's cell
+  greys: `t` → a grey between paper and ink, unselected → `null` (drawn `--grey-200`). Tests:
+  ends map to paper and ink, unselected cells stay `null`, length = rows × columns.
+- `draft.svelte.ts`: factor `shadowConfig`'s replace-or-append into one helper, then
+  `draftFile(file, draft)`: `null` unless `isComplete(draft)`, else the file with
+  `toOperation(draft)` in it. Tests in `draft.test.ts`: create appends, edit replaces in place
+  (index kept), incomplete → `null`, Constant saves one entry (as `toOperation` does).
+- Param hints: a map in the editor, keyed by `"<sourceType>.<param>"` (e.g.
+  `valueNoise.cellsPerFeature`), its text from the N1 mock. `ParamControl` today builds
+  `Accepts <range>.`; join the two ("About how many cells across … Accepts 1–64."). Keep the
+  map in a `.ts` (e.g. `controls/param-hints.ts`) with a test that every key names a real
+  registered param, so a renamed param fails loudly.
+
+### Step 3 · The Pattern well (`lib/operations/OperationBody.svelte`)
+
+- **`field` is split.** Today it is `null` unless the Target is a tile target, because only the
+  palette read it. The well's preview is shown on the Pattern step, **before** the Attribute
+  is chosen, so derive the field cells whenever a Selection and a Pattern exist; `measured`
+  (coverage) keeps its tile-target condition. Same grid (active breakpoint at
+  `preview.width`), seed and `preview.loadSalt`.
+- A new `controls/FieldPreview.svelte`: a `<canvas>` (one pixel per cell, scaled with
+  `image-rendering: pixelated`, keeping the grid's ratio, `aria-hidden`), then the 6px 0–1
+  scale. Drawn at the top of the Pattern well for Random, Noise, Gradient; not for Constant.
+  The well currently renders only when the source has fields or is stochastic (line ~419):
+  Random has no fields but is stochastic, so it shows; check Gradient/Random still reach it.
+- The `options` snippet (line ~498) gets an optional action slot at the right of the
+  options bar for Noise's tertiary "ⓘ How noise works" button.
+- New `lib/ui/Explainer.svelte`: the non-modal popover. Take its placement and close logic
+  from `controls/TilePicker.svelte` (fixed against the anchor, Esc / click outside / ✕,
+  focus back to the trigger). If that logic is inline there, move it to a small tested
+  `.ts` both use, rather than copying it. Content for Noise: the mock's text and the
+  measured bars (23/52/26, 15/68/17, 12/75/14), as data in a `.ts`, not hard-coded markup.
+- Each new `.svelte`/`.ts` gets its docs page (docs coverage checks this).
+
+### Step 4 · Live draft (`App.svelte`)
+
+- `const drawn = $derived(drafting.draft === null ? null : draftFile(file, drafting.draft))`;
+  `<Tileset file={drawn ?? file}>`. **`shapedAt` must use the same file** (`drawn ?? file`),
+  so the frame height and overlays agree with the picture. The editing controls keep reading
+  `session.file`.
+- Rewrite the **S2** header comment at the point of use: what changed, why (Pol, N0), what
+  still holds (one component, same code, the picture Save produces), what was rejected (a
+  second renderer), and that **E3** is untouched.
+- Draft cue: the 1px accent frame inside the picture area (`.canvas`), and the "Draft · not
+  saved" tag at the top of `NoticeStack` (a prop, or a sibling in the same stack container,
+  so it sits above notices and shares their placement and reflow). Both only while
+  `drawn !== null`. Not dismissible.
+- Check the asset error path: a draft palette's picture that fails to load reports through
+  `onAssetError` like any other; make sure discarding the draft clears that notice.
+
+### Step 5 · Palette caption (`controls/PaletteList.svelte`)
+
+Line ~253: the Noise caption becomes "Order matters: neighbours in this list meet on the
+canvas. Middle entries cover more because noise rarely reaches its ends. Give the first and
+last entries more weight to even it out."
+
+### Step 6 · Checks
+
+- `pnpm test`, `pnpm typecheck` (root), docs coverage and docs build.
+- Browser (dev server on 5175; Playwright headless shell as in `t4/probe.mjs`, session
+  `06ac963b`): the field preview changes with Cells per feature and Octaves; Constant shows
+  none; the popover opens by keyboard, Esc returns focus; the live picture **equals the
+  picture after Save**, cell for cell (compare the rendered box before and after Save); the
+  cue shows only when the draft is complete, and goes on Save and on Discard; an edit-draft
+  of an existing operation replaces it (no doubled operation); **cost**: time a weight drag
+  and a Cells per feature change on a 61×120 grid. If a redraw per input tick is too slow,
+  throttle `drawn` to animation frames and note it.
+- No sideways scroll at 1728/1024/600/320.
+
+Then stop for Pol's review; N4 is the sweep.
 
 ## Known issues / notes
 
