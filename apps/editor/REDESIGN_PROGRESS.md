@@ -5,8 +5,14 @@
 
 ## Current position
 
-**Stage 2 · Preview: P1–P4 done and committed; waiting for Pol to close the group.** Stage 1
-is complete (closed by Pol, 2026-11-05). **Next session: see "Next session plan" below.**
+**New visual design adopted (2026-11-06).** After a design exploration (three directions, then an
+iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into this branch as
+`37a2726` from `exploration/design-direction-3`. `DESIGN_SYSTEM.md` now describes it, and
+`DESIGN_DIRECTION.md` records why each choice was made. Stage 1 and the Stage 2 preview group
+(P1–P4) are complete. Their functionality is unchanged, but their *look* in the sections below
+is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. **Next
+session: Pol picks the next Stage 2 group** (see the backlog; items 1 and 7 were partly answered
+by the new design).
 
 ## Stage 1 blocks
 
@@ -22,6 +28,19 @@ Each block is implemented, then reviewed with Pol, then tested, before the next 
 | F. Sweep + review | Accessibility sizing, hover / press feedback, animated folding, preview `ScrollArea`, colour sweep, leftovers, Figma review, docs | Done, approved (two review rounds) |
 
 ## Decisions
+
+- **Visual direction (2026-11-06).** Pol adopted "Ink on paper" (exploration iteration 2):
+  - It is built on direction 1 (Tonal layers), with 5202's ink rules and mono data.
+  - Ultramarine is the one accent, meaning "editing now"; magenta is retired.
+  - Icons are one outline family (Lucide paths).
+  - The sidebar has a top bar (Undo, New, Import, Export) that shares a grid row with the preview
+    bar.
+  - The footer is "Randomness".
+  - Operations are cards (what it writes, step chips, re-seed plus a ⋯ menu) with a vertical
+    stepper when open.
+
+  The explorations are recorded in the untracked root `DESIGN_EXPLORATIONS.md` and
+  `design-explorations/`. The branches `exploration/design-direction-{1,2,3}` are kept.
 
 - **Mapping to the code.** Figma *Tile Group* = `Tile`, and *Tile asset* = `TileAsset` (a variant).
   "Finder" = the OS file picker. "Resulting File" = App's `<details class="debug">` view.
@@ -510,13 +529,16 @@ design are not done here (Stage 2, items 1–2).
 ## Stage 2 backlog (one design group each, discussed before implementing)
 
 1. Sidebar footer: seed and re-seed, an export menu (image export does not exist yet), import, undo.
+   *(Partly done by the adopted design: Undo, New, Import and Export moved to the sidebar top
+   bar, and the footer holds only randomness. The export menu is still to do.)*
 2. *(Done, Stage 2 · Preview P1–P4.)* Preview: top UI (sizes, colour, current size), minimal corner handles, a full-viewport grid
    tied to the tileset grid, breakpoint buttons, removal of the reference image.
 3. Warnings as dismissible pop-ups (one reusable notification component).
 4. Destructive params confirm **on blur**, and only when the value really changed. Redesigned dialog.
 5. *(Done in P1.)* Remove the "The file" debug view.
 6. Glyphs for Attribute, Source and Blend.
-7. Operations stack design (Pol, Block E review): it should be obvious which action comes next.
+7. *(Stack, header and body redesigned by the adopted design: cards plus a stepper. The palette
+   widget is still to do.)* Operations stack design (Pol, Block E review): it should be obvious which action comes next.
    Block E added a Next button only; the stack, header and body need a design pass in Figma.
    The palette widget is hard to grasp (Pol, Block F review round 2) and belongs here.
 8. Space between field labels and their values across the sidebar (Pol, Block F review round 2:

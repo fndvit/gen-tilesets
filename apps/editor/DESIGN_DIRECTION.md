@@ -1,9 +1,9 @@
 # Design direction 4 — Ink on paper (iteration 2)
 
-Branch `exploration/design-direction-3`, which reuses the worktree of the discarded Inspector
-direction. Its commits stay in the history. Iteration 2 starts from direction 1's tree in
-`a8b4b45` and builds on it. Run it with
-`cd apps/editor && pnpm exec vite --port 5203 --strictPort`.
+**Adopted** on `editor-redesign` on 2026-11-06, merged as `37a2726` from
+`exploration/design-direction-3`. That branch reused the worktree of the discarded Inspector
+direction, and its iteration 2 work starts from direction 1's tree in `a8b4b45`. This file is the
+rationale; the working reference is `DESIGN_SYSTEM.md`.
 
 ## The brief, in one line
 

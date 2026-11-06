@@ -1,175 +1,171 @@
-> Exploration branch: this file describes the pre-exploration system; see /DESIGN_DIRECTION.md for this direction.
-
 # Editor design system
 
-The visual language of the tileset editor. It was extracted from the Figma file
-**Tileset Creator Editor** (`VCp0HyxbLOBq0vOkpDWmIL`, page *Editor*), and its tokens live in
-`src/styles/tokens.css`. Read this before building or restyling any editor component.
+The visual language of the tileset editor: **"Ink on paper, with one live accent"**, adopted on
+2026-11-06 from the design exploration (iteration 2). Its tokens live in `src/styles/tokens.css`.
+For why each choice was made, and what it replaced, see `DESIGN_DIRECTION.md` next to this file.
+Read this file before building or restyling any editor component.
+
+Layout and the Selection artwork still come from the Figma file **Tileset Creator Editor**
+(`VCp0HyxbLOBq0vOkpDWmIL`, page *Editor*). The look no longer follows Figma's black bars.
 
 ## Principles
 
-1. **Black on white, with inversion as hierarchy.** Structure comes from solid black bars carrying
-   white uppercase text, set on paper or on the pale aqua sidebar surface. Emphasis and selection
-   are shown by inverting colours. There are no radii, shadows or gradients.
-2. **One accent with one meaning.** Magenta (`--color-seed`) marks anything non-deterministic:
-   re-seed, reroll, or a stochastic source. Do not use it for anything else.
-3. **Tokens only.** Components never contain raw hex values, px sizes for type, or ad-hoc spacing.
-   If a value is missing, add a token here first.
-4. **Reuse before inventing.** Every new control is a composition of the patterns below. A new
-   pattern should only be added here after it is agreed.
+1. **Paper cards on a grey table.** The sidebar is a grey ground. Every section is a white card
+   on it, open or closed. A nested group (breakpoint rule, tile group, operation) is a faint grey
+   well inside a card. A field is one step darker than whatever it sits on. Surface value carries
+   hierarchy, and there are almost no borders.
+2. **Ink is structure, sparingly.** Ink fills only what is primary (one per area) or selected.
+   Ink draws only three lines: the 2px rule under an open section's header, the hairline under
+   the two top bars, and the ring of a selected glyph.
+3. **One accent with one meaning.** Ultramarine (`--color-accent`) means **"what you are editing
+   now"**: the open operation's edge and index square, its active step, the focus ring, and the
+   cells it selects in the preview. Do not use it for anything else. There is no colour for
+   "random": the re-seed icon's shape says "draw again".
+4. **Two voices of type, never caps.** Helvetica carries words; Roboto Mono carries data (what a
+   field holds, the seed, summaries, chips, captions). Size, weight and colour make the steps.
+   No style uppercases.
+5. **The square is the motif.** It is the tile the product makes. It appears in index squares,
+   thumbnails, icon buttons and the section chevron's box. A square is always a control or data,
+   never decoration.
+6. **Tokens only.** Components never contain raw hex values, px sizes for type, or ad-hoc
+   spacing. If a value is missing, add a token first.
+7. **Reuse before inventing.** Every new control is a composition of the patterns below.
 
 ## Tokens (`src/styles/tokens.css`)
 
 | Group | Tokens | Notes |
 |---|---|---|
-| Colour, primitive | `--black` `--white` `--black-10` `--grey-200` `--grey-500` `--grey-600` `--grey-700` `--aqua-50` `--aqua-200` `--magenta` `--blue-500` `--red-600` | Only `tokens.css` reads these |
-| Colour, semantic | `--color-ink` `--color-paper` `--color-surface` `--color-section` `--color-bar` `--color-on-bar` `--color-inactive` `--color-rule` `--color-grid` `--color-seed` `--color-scrollbar` `--color-pressed` `--color-on-pressed` | Components read these. Declared on `:root, .theme-default`; `.theme-inverted` swaps ink/paper and bar/on-bar, and sets `--color-inactive` to `--grey-700` so disabled dims on black (see Layout) |
-| Colour, preview chrome | `--color-muted` (secondary text, 7:1) · `--color-selection` (selected / painted cells) · `--color-erase` (a stroke that removes) | Overlays mix them with `color-mix(… transparent)`. Colours that belong to the picture (the white backdrop) stay named constants |
+| Colour, primitive | `--white` · `--grey-50 100 200 300 400 450 500 600 800` · `--black` (#111) · `--black-6/10/12` washes · `--ultramarine` (#3340ff) · `--ultramarine-10` · `--red-600` | Only `tokens.css` reads these |
+| Colour, surfaces | `--color-ground` (grey-100) · `--color-card` and `--color-panel` (white) · `--color-well` (grey-50) · `--color-field` / `--color-field-hover` · `--color-edge` (grey-500, a field's bottom edge) | A container can reset `--color-field` (white fields in a grey well) |
+| Colour, text | `--color-ink` · `--color-muted` (grey-600, 6.5:1 on white) · `--color-disabled` (grey-450) · `--color-paper` | |
+| Colour, actions | `--color-primary` / `-hover` / `--color-on-primary` · `--color-secondary` / `-hover` / `-pressed` · `--color-hover` / `--color-pressed` (washes for tertiary, icons and headers) · `--color-selected` / `--color-on-selected` (ink) | |
+| Colour, accent | `--color-accent` · `--color-accent-wash` (the active step's row) · `--color-selection` (= accent, the preview's selected and painted cells) · `--color-erase` | |
+| Colour, lines | `--color-bar-rule` (ink, under both top bars) · `--color-track` (slider tracks, the stepper line, hairlines) · `--color-grid` · `--color-scrollbar` | |
 | Status | `--color-danger` `--color-warn` | Placeholders until Stage 2 (warnings) |
-| Font | `--font-ui` (Helvetica, standing in for Neue Haas Grotesk Display) · `--font-mono` (Roboto Mono, self-hosted via `@fontsource`) | |
-| Space | `--space-1…6` = 2 / 4 / 6 / 8 / 10 / 12 px | 2px base |
-| Size | `--target-min` 24 · `--icon-seed` 18 (re-seed, in a `--control-h` box) · `--control-h` 28 · `--bar-h-section` 32 · `--bar-h-group` 32 · `--bar-h-add` 32 · `--op-header-h` 56 · `--thumb` 32 · `--thumb-sm` 14 · `--icon` 12 · `--icon-add` 18 · `--field-w` 106 · `--slider-thumb-*` 12×24 · `--glyph-w/h` 75×60 (75 = narrowest cell) · `--glyph-cell` 10 · `--glyph-gap` 1 · `--glyph-slot` 43 · `--chip-gap` 9 · `--console-pad-y` 3 · `--badge` 16 · `--handle-w` 24 · handles: `--handle-square` 6, `--handle-cap` 16, `--handle-cap-w` 2, `--handle-reach` 19, `--handle-hit-reach` 28, `--handle-dot` 1, `--handle-dot-gap` 2 · preview bars: `--preview-bar-h` 56, `--width-chip-w/h` 60×44 (presets and breakpoints), `--swatch-w` 80, `--swatch-rule-w` 2 · `--asset-gap` 10 · `--share-w` 46 · `--sidebar-w` clamp(400, 30vw, 560) | Block F sizes; see Accessibility |
-| Border | `--rule` (1px in `--color-rule`, declared with each theme) · `--radius` 0 · `--radius-xs` 1px (glyph cells only) · `--radius-round` 50% (delete badge only) | |
-| Focus | `--focus-w` 2 · `--focus-offset` 1 | |
-| Motion | `--dur-fast` 120ms · `--ease` · `--marquee-speed` 40px/s | Respects `prefers-reduced-motion` |
+| Font | `--font-ui` (Helvetica, standing in for Neue Haas Grotesk) · `--font-mono` (Roboto Mono 400 and 500, self-hosted via `@fontsource`) | |
+| Space | `--space-1…7` = 2 / 4 / 6 / 8 / 10 / 12 / 16 px | 2px base |
+| Size | `--control-h` 30 · `--header-h` 52 (a section header) · `--preview-bar-h` 52 (both top bars) · `--group-h` 34 · `--add-h` 32 · `--icon` 16 · `--icon-button` 28 · `--op-index` 24 · `--step-dot` 20 · `--menu-w` 200 · `--thumb` 32 · `--thumb-sm` 16 · `--slider-thumb` 16 · `--glyph-w` 72 · `--glyph-slot` 43 · `--badge` 16 · `--field-label-w` 38% (`-compact` 116px in an operation) · `--width-chip-w` 48 · `--swatch-w` 30 · `--sidebar-w` clamp(400, 30vw, 560) · the preview handle sizes | |
+| Shape | `--radius-xs` 3 (thumbnails, index squares) · `--radius-sm` 6 (fields, buttons, segments, icon buttons) · `--radius` 8 (cards, wells) · `--radius-lg` 12 (popups) · `--radius-round` · `--rule-w` 1 · `--rule-strong` 2 · `--accent-edge` 3 | |
+| Elevation | `--shadow-raised` (a raised control on a track) · `--shadow-float` (popups, menus, notices) | |
+| Focus | `--focus-w` 2 · `--focus-offset` 2, in `--color-accent` | |
+| Motion | `--dur-fast` 120ms · `--ease` · `--marquee-speed` | Respects `prefers-reduced-motion` |
 
 ## Typography (`src/styles/type.css`)
 
-Each Figma text style becomes one class. `type.css` holds only these classes and the font, so a
-page outside the editor (the docs stories) can load it without `base.css`'s global focus ring.
-`base.css` imports it. Every class trims the text box to cap height, as
-Figma does (`text-box: trim-both cap alphabetic`, with `line-height: 1` as the fallback).
+`type.css` holds only these classes and the fonts, so the docs stories can load it without
+`base.css`. Single-line classes trim the box to cap height (`text-box: trim-both cap
+alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-title`.
 
-| Class | Figma style | Spec | Used for |
-|---|---|---|---|
-| `.t-section` | Section Header | 20 · Medium · UPPER (Figma 24) | Section bar titles, operation index |
-| `.t-label` | UI small UC | 16 · Roman · UPPER (Figma 20) | Field labels, group titles, weight % |
-| `.t-body` | UI regular | 14 · Light | Step questions, running text |
-| `.t-xs` | UI XS Bold | 12 · Medium · UPPER (Figma 10) | Chips, tabs, small buttons |
-| `.t-console` | Console | Roboto Mono 12 · Medium · +2% (Figma 10) | Operation summary, glyph labels |
+| Class | Spec | Used for |
+|---|---|---|
+| `.t-section` | Helvetica 17 / 600 | Section titles, popup titles |
+| `.t-title` | Helvetica 14 / 600 | Group titles (rule, tile group), an operation's attribute, a step's name, the footer's heading |
+| `.t-label` | Helvetica 13 / 400, muted | Field labels, questions |
+| `.t-value` | Roboto Mono 13 / 400, tabular | What a field holds, the seed, % shares, readouts |
+| `.t-body` | Helvetica 13 / 400 | Running text, hints |
+| `.t-xs` | Helvetica 13 / 500 | Buttons, segments, menu items |
+| `.t-console` | Roboto Mono 12 / 400 | Section summaries, chip answers, captions, glyph labels |
 
 ## Layout
 
-- **Page:** two columns at full viewport height (`100dvh`), sidebar (`--sidebar-w`) and preview
-  (`minmax(0, 1fr)`). No header. The page never scrolls; each column scrolls its own content.
-- **Sidebar:** a 1px ink frame on `--color-surface` (`--aqua-200`, the ground), split into
-  `.scrollable` (the sections, touching, with 12px under the last) and `.fixed` (a black
-  footer that never scrolls or collapses, with `--footer-pad-bottom` 36px of black under its last
-  row). An open section's content is on `--color-section` (`--aqua-50`, Figma's sidebar colour)
-  and ends in a 1px ink rule, so the darker ground under the last one shows where it ends (Pol,
-  Block F review).
-- **Section:** a bar (`--bar-h-section`, 2px padding and a 1px frame inside it, `border-box`) followed by
-  content. Content has 6px padding plus a 4px inner slot (`Section.svelte`); each body sets its
-  own row gap.
-- **Inverted block:** `.theme-inverted` on a container makes every primitive inside render white
-  on black with no style of its own (the sidebar footer). `.theme-default` restores the page
-  inside one (a popup opened from the footer).
-- **Reports after an action** (a refused import, a failed export) open in a `Popup` and never
-  take space in the layout.
-- **Rows:** 8px apart in a field list, 4px apart in lists of bars.
-- **Reflow:** below `40rem` of viewport width (a 320px window, or 1280px at 200% zoom) the two
-  columns stack: the sidebar fills the screen and scrolls on its own, the preview follows, and
-  only then does the page scroll.
-- **Preview column** (Stage 2): one top bar, then the picture area. The breakpoints sit in the top
-  bar, after the readout (Pol: "So there is only the top UI"). The bar is paper and stays put; only
-  the picture area scrolls (`ScrollArea`). The background colour fills the picture area, never the
-  bar, so their text keeps its contrast whatever colour is chosen.
-- **Every grid in the sidebar** names its column (`minmax(0, 1fr)`), the aside and the footer
-  included.
+- **Page:** two columns at full viewport height, sidebar (`--sidebar-w`) and preview. The page
+  never scrolls; each column scrolls its own content (`ScrollArea`).
+- **Top row:** both columns start with a top bar on the grey ground, in **one grid row** (CSS
+  subgrid on `main`). They are always the same height, even when the preview bar wraps, and one
+  ink hairline (`--color-bar-rule`) runs under both.
+  - The sidebar bar (`SidebarTopBar`) holds the document: Undo on the left; New, Import and
+    Export (the primary) on the right. It also takes dropped zips.
+  - The preview bar holds the width readout, the breakpoints, the grid toggle, the sizes and the
+    background swatch.
+- **Sidebar body:** the scrolling sections (8px padding, cards 6px apart), then the fixed
+  **Randomness** footer card, which never scrolls.
+- **Section:** the card header (title, summary while closed, "+" for a list, chevron), then
+  content with 12px above and 16px at the sides and below. Each body sets its own row gap.
+- **Reports after an action** (a refused import, a failed export) open in a `Popup` and never take
+  space in the layout.
+- **Reflow:** below `40rem` the columns stack; only then does the page scroll.
+- **Every grid in the sidebar** names its column (`minmax(0, 1fr)`).
 
 ## Component patterns
 
 | Pattern | Anatomy | Where it appears |
 |---|---|---|
-| **Bar** | Black, white text and icons, 4px padding. A section or group bar has the chevron first, then the title; any action (trash) sits at the right end with an extra 8px margin, clear of the overlay scroll handle (Pol, Block E review) | Section header, tile group header, add bar, step tabs |
-| **Field row** | `.t-label` label on the left, control on the right, aligned to the bottom. No explanatory text in the row: an explanation is a `hint`, shown on hovering the label | Numeric and boolean inputs, operation params |
-| **Numeric input** | Field row whose control is a `--field-w` underline (1px ink bottom rule) as long as the input. Half-typed text looks the same as committed text | Cell size, rows, Y offset |
-| **Boolean / choice input** | Field row whose control is a set of chips: 1px ink border, `--control-h` tall with 8px side padding, `.t-xs`, `--chip-gap` apart. Selected = filled ink | Alignment, enum params |
-| **Button** | A text action in the chip look: 1px border, `--control-h` tall, 8px side padding, `.t-xs`, hover inverts. Never stays filled. `wide` fills its container | Undo, Import, New, Download, Close, Change it / Cancel |
-| **Popup** | Native modal `<dialog>`: black `.t-section` title bar, paper body, Close button, 1px ink frame. Esc closes | Import and export reports |
-| **Add bar** | Full-width black bar (`--bar-h-add`, 32px) with a centred 18px "+". The square variant is 32×32 | Add tile group, add operation, add tile |
-| **Tile group** | Group bar (chevron, title editable on click, up to 4 thumbnails at 14px, then trash at the right end) above a white body with a 1px ink border holding tile asset rows | Tiles section |
-| **Tile asset** | 32px thumbnail · slider (1px track, 12×24 block thumb) · `.t-label` % (46px wide, right-aligned), 6px gap. Rows 10px apart, body padding 4px inside the frame | Group body |
-| **Delete badge** | A `--badge` (16px) ink circle with a white 6px cross and a 24px hit area (`::before`), 4px out from a thumbnail's top-right corner. Shown on row hover or focus-within, focusable while hidden; disabled = `--color-inactive`. The one round shape and the one control hidden at rest (Pol, Block D) | Tile asset |
-| **Operation header** | Black index cell · icon column (delete, re-seed in seed colour) · four console cells above the tab row, one per step and as wide as its tab, each showing that step's answer · icon column (up/down). 56px tall, two 24px icon targets per column. Each tab's accessible name carries its answer; the cells are `aria-hidden` | Operations section |
-| **Console strip** | `.t-console` on `--color-inactive` with a 1px ink border and 3px vertical padding. `scroll="always"` loops right to left when it overflows; `scroll="hover"` ends in an ellipsis and loops only under the pointer (the header's per-step cells). Still under reduced motion | Operation summary |
-| **Tab row** | Equal-width black tabs in `.t-xs`. Active = paper with ink text | Operation steps |
-| **Glyph grid** | As many cells per row as fit at `--glyph-w` or wider (`auto-fill`), 4px apart: a `.t-console` label above a `--glyph-slot` artwork slot (any iconography; see below). Selected and hover = `--color-inactive` fill with a 1px border | Operation step options |
-| **Operation body** | Paper, `--rule` frame without a top border, 6px padding, 12px between blocks: the step's question in `.t-label` (14 Regular, sentence case, like the field labels), a glyph grid, then the **options block**: a small black bar in `.t-xs` naming the chosen option ("TILE", "NOISE") over a 1px-framed block with its fields 8px apart. No block for an option with no fields (Blend never has one). Ends in a right-aligned row of `Button`s: Discard, then **Next: <step>** while a step is unanswered (it goes to the first unanswered step after this one), then Save (Add for a new one). A disabled Save has a hint naming the unanswered steps. **Fields are compact** inside it: the body sets `--label-size: var(--text-body-size)`, `--label-case: none`, `--field-label-w: var(--field-label-w-compact)` (128px) and `--field-justify: flex-start`, so labels are 14px sentence case in a column and each control sits right after its label | Operations section, under the open header |
-| **Width choices** | A framed row of `.t-body` (14 Light) buttons, `aria-pressed`, no gap. Presets and breakpoints 60×44; the breakpoints have 1px rules between them, the presets none. The matching one is ink; others invert on hover and go pressed; the focus ring sits inside the cell | Preview top bar: breakpoints, sizes and Fill |
-| **Colour swatch** | An 80px square as tall as the top bar, framed in 2px ink and painted the colour; a transparent native colour input covers it. No reset button (Pol, P2 review) | Preview top bar |
-| **Question popup** | A `Popup` whose `actions` replace Close with the choices (Keep editing, Discard) | Switching away from an open operation with unsaved changes |
+| **Section** (`Section` + `Collapsible variant="section"`) | A white card. Its 52px header has the title in `.t-section`, and under it, while closed, a one-line `.t-console` summary. On the right sit an optional "+" (`onAdd`, which also opens the section) and the chevron in a grey 28px square. Open, a 2px ink rule runs under the header. The whole header washes on hover. Section selectors are scoped to the section's own heading, so they never leak into nested groups | Grid & size, Breakpoints, Derived, Tiles, Operations |
+| **Group** (`Collapsible variant="group"`) | A grey well. A 34px header with the title in `.t-title`, the summary on the same line, actions, then the chevron | Breakpoint rule, tile group |
+| **Field row** | A muted `.t-label` in a fixed label column (`--field-label-w`), then the control. An explanation is a hint on the label, never text in the row | Numeric and boolean inputs, operation params, the seed |
+| **Input** | A filled box (`--color-field`), radius 6, with a 1px `--color-edge` bottom edge. The value is in `.t-value` (mono). Hover darkens the fill a step | Numeric inputs, the seed, the palette's select |
+| **Segmented control** (`Toggle`) | A grey track with equal segments. The chosen one is ink with white text | Alignment, Assets on load, enum params, the preview's sizes |
+| **Button** | `primary` (ink, one per area), `secondary` (grey fill), `tertiary` (text, a wash on hover). 30px tall, radius 6, `.t-xs`. An optional leading `icon` | Export, Save/Add, Undo, New, Import, Reroll assets, Discard |
+| **Icon button** | A 28px square, with a 16px icon muted at rest. It turns ink on a wash under the pointer. `strong` keeps it ink at rest (re-seed) | Re-seed, trash, close, reorder |
+| **Menu** | An icon button (`more`) that opens a floating list (`--shadow-float`) of icon plus label items. It follows the WAI-ARIA menu button pattern. Focus returns to the button after an action | An operation's Move earlier, Move later and Delete |
+| **Add row** | `+` and a label, tertiary. The square variant is a 32px grey "+" | Add breakpoint, tile group, operation; add a tile |
+| **Tile group / tile asset** | A well with up to four 16px thumbnails in the header. Each row is a 32px thumbnail, a slider (4px track, 16px round ink thumb) and the % in mono. "+" and Reset weights at the foot | Tiles |
+| **Operation card** (`OperationCard`) | A grey well, collapsed:<br>1. a 24px ink index square;<br>2. the title, which is what it writes: the attribute in `.t-title`, then palette thumbnails and names, or the range in mono;<br>3. re-seed and a menu;<br>4. a row of step chips (Selection, Source, Blend), each a muted step name and a mono answer, on white, wrapping. Each chip opens its step; the title opens Attribute.<br>Open, the card is white with a 3px accent edge and an accent index, and holds the stepper | Operations |
+| **Operation stepper** (`OperationBody`) | Four rows joined by a vertical line. Each row is a 20px number, the step name in `.t-title`, and the answer in mono. The number is hollow when unanswered, ink when answered, and accent while active (the active row also gets the accent wash). The active step unfolds under its row: the question, a glyph grid, then the chosen option's fields in a grey well under a muted caption. The card ends, under a hairline, with Discard, **Next: <step>** and Save/Add | Operations, open |
+| **Glyph grid** | Cells at `--glyph-w` or wider (`auto-fill`): a mono label over a 43px artwork slot. Hover washes; selected is a white tile with a 2px ink ring | Operation step options |
+| **Popup** | A white panel, radius 12, `--shadow-float`, with no frame or black title bar | Reports, unsaved-changes question |
+| **Width choices, swatch** | Segments on a white track in the preview bar; the chosen one is ink. The swatch is a 30px rounded square with an edge | Preview top bar |
+| **Footer: Randomness** | A white card with a `.t-title` heading. It holds the seed field and a strong re-seed button; Assets on load; then Reroll assets and Preview a fresh load as two secondary buttons with the re-seed icon | Sidebar foot |
+
+### Icons (`src/lib/ui/icons.ts`)
+
+There is one outline family, made of Lucide paths (ISC licence). They are drawn on a 24-unit
+grid, rendered at 16px with a 1.5px stroke and round caps and joins, in `currentColor`.
+- The set: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`, `export`,
+  `new`, `more`, `check`.
+- An icon names an action, sits beside a word or inside a named control, and is never
+  decorative.
+- Add an icon only in the same family and grid.
 
 ### Operation glyphs
 
-A glyph cell has a fixed frame: a `.t-console` label above a **43×43 artwork slot**, with the
-selected, hover and focus states listed above. **What goes in the slot is not fixed.** Each step
-can use whatever iconography suits its options, as long as it keeps the shared language: ink and
-paper only, 1px strokes, a 1px radius at most, and no other colours. The one exception is
-`--color-seed` for something non-deterministic.
+A glyph cell has a fixed frame: a mono label over a **43×43 artwork slot**. What fills the slot
+is supplied per option, as an image (`src`) or as markup (an `artwork` snippet). Artwork uses ink
+and paper only, with 1px strokes.
 
-The artwork is supplied per option, as an image (`src`) or as markup (an `artwork` snippet), so a
-new kind of glyph needs no change to the cell.
-
-#### Selection: SVG artwork from Figma
-
-Selection glyphs are **SVG files exported from Figma**, in `src/assets/glyphs/selection/`
-(`all`, `checkered`, `every-nth`, `random`, `rect`, `handpick`). They are 43×43 and draw 4×4
-cells: 10px cells at an 11px pitch, a 1px ink stroke, a 1px radius, and filled ink or paper.
-Handpick adds a cursor at the bottom right. Every Nth, Random, Rect and Handpick are the Figma
-exports unchanged. All and Checkered are frames, not vectors, in Figma, so they were written by
-hand in the same geometry. The cell shows them with `<img>` (`OperationGlyph src`).
-
-Attribute, Source and Blend glyphs are **not designed yet**, and they may use a different kind of
-iconography. Until they are designed, their grids show label-only cells.
+**Selection** glyphs are SVG files exported from Figma, in `src/assets/glyphs/selection/` (`all`,
+`checkered`, `every-nth`, `random`, `rect`, `handpick`): 4×4 cells, with 10px cells at an 11px
+pitch. All and Checkered were written by hand in the same geometry. Attribute, Source and Blend
+glyphs are **not designed yet**, and show label-only cells.
 
 ## Interaction conventions
 
 | State | Rule |
 |---|---|
-| Hover, on a black bar that acts | **Invert**: the bar turns paper with ink content and a 1px ink frame (add bars, square "+", step tabs) |
-| Hover, on a header bar | **No inversion** (Pol, Block F review). Section and tile group bars stay black; the chevron and title dim to `--color-inactive`, an editable title underlines, the trash shows its frame |
-| Hover, on a paper chip or button | Invert (ink fill, paper text) |
-| Pressed (`:active`) | Add bars, tabs, chips, buttons, the delete badge: `--color-pressed` fill with `--color-on-pressed` text. Glyph cells and palette segments: the frame thickens to `--focus-w`, drawn inside. Icon buttons: their hover frame thickens. Sliders and palette segments: `grabbing` |
-| Hover, on an icon button | A 1px frame in the icon's own colour round its 24px box, so a seed button keeps its magenta |
-| Hover, on an editable title | Underline (it would vanish if dimmed on the inverted bar) |
-| Already chosen | A selected chip or glyph and the active tab do not change on hover and have `cursor: default`: choosing them again does nothing |
-| Cursors | `pointer` for actions, `text` for fields and editable titles, `grab` / `grabbing` for sliders and palette segments, `help` for hint anchors, `default` for disabled and already chosen |
-| Hover, on a glyph cell | Same as selected: `--color-inactive` fill and a 1px ink border. Never inverted, which would sink ink artwork into an ink fill |
-| Hover, on an underline field or a slider | The underline (or track) thickens to `--focus-w`, as on focus. Numeric inputs, the seed field, the palette's tile select, sliders and the numeric mapping track |
-| Hover, on a palette segment | Same as selected: `--color-inactive` fill |
-| Explanations | A hint (`ui/Hint`; `--hint-top/bottom/left/right` place the bubble) on the label, thumbnail or title: an ink bubble with paper `.t-body` text (`--hint-w` at most) under the label, shown at once on hovering the label, and the control's `aria-describedby`. Never as text in the layout, never a native `title`. The anchor has `cursor: help`, so the pointer says a hint is there |
-| Selected | Invert (chips, tabs), or `--color-inactive` fill with a border (glyphs) |
-| Focus | 2px outline in `--color-ink`, 1px offset. Inside `.on-bar` the outline is `--color-on-bar`. Underline fields (numeric input, inline edit) never get the ring: their underline thickens to `--focus-w` instead |
-| Disabled | `--color-inactive` and `cursor: default`. Stays in place (never hidden) |
-| Scrolling | The sidebar and the preview column scroll in a `ScrollArea`: the native scrollbar is hidden and a `--scrollbar-w` mid-grey handle (`--color-scrollbar`) is drawn over the content, shown while hovered, scrolling or dragged. A scrollbar never takes width (Pol, Block E review) |
-| Width | Nothing in the sidebar may set its width from its content. A grid that stacks rows uses `grid-template-columns: minmax(0, 1fr)`, never the implicit `auto` column, which grows to the widest content (a long summary pushed the sidebar 413px wide). `Marquee` has `contain: inline-size` |
-| Seed / random | `--color-seed`, always |
-| Motion | `--dur-fast` with `--ease`. Sections and tile groups slide open and closed (`Collapsible`, `slide`). Nothing animates under `prefers-reduced-motion`: CSS through `base.css`, JavaScript transitions through `ui/motion.ts` |
+| Hover | A wash (`--color-hover`) on tertiary buttons, icon buttons, headers, step rows, glyph cells and menu items. Secondary and primary buttons, fields and chips step one grey darker. An icon turns from muted to ink |
+| Pressed | One step further: `--color-pressed`, `--color-secondary-pressed`, or an inset ring on primary |
+| Selected | Ink fill with white text (segments, width choices, the edited palette entry), or a white tile with a 2px ink ring (glyph cells, whose artwork is ink). Already chosen items do not react to hover and have `cursor: default` |
+| Editing now | The accent: the open operation (edge and index), the active step (number, name and wash), and the preview's selected cells |
+| Focus | A 2px `--color-accent` ring, offset 2px; inset on full-width rows |
+| Disabled | `--color-disabled`, `cursor: default`, kept in place (never hidden) |
+| Explanations | A hint (`ui/Hint`) on the label or control: an ink bubble shown on hover, with `aria-describedby` on the control. Never text in the layout |
+| Secondary actions | They live in a menu when showing them on every row would crowd it (operation reorder and delete). An action used often stays visible (re-seed) |
+| Scrolling | `ScrollArea`: the native scrollbar is hidden, and an overlay handle shows while hovered or scrolling. A scrollbar never takes width |
+| Width | Nothing in the sidebar sets its width from its content (`minmax(0, 1fr)` columns; long text ellipsizes or wraps) |
+| Motion | `--dur-fast` with `--ease`. Sections and groups slide open. Nothing animates under `prefers-reduced-motion` |
 
-## Accessibility (WCAG 2.2 AA, Block F)
-
-Pol delegated the sizes to accessibility (2026-11-04). Where these override Figma, the Figma value
-is in brackets.
+## Accessibility (WCAG 2.2 AA)
 
 | Decision | WCAG | Notes |
 |---|---|---|
-| Every pointer target at least `--target-min` (24px) square: icon buttons, the chevron, the editable title, underline fields (padding above the digits), slider thumbs (12×24 [10×20]), the delete badge's hit area | 2.5.8 Target size (minimum) | Chips and buttons go further, to `--control-h` 28px [≈17], because Pol found them too small. The preview's width handles have a 24px hit area wholly outside the box edge, squares included (Stage 2 P4), and arrow keys |
-| Bars 32px [25 / 24 / 28], operation header 56px [40] | 2.5.8 | Room for 24px targets inside the bar's padding. Re-seed is larger still: a 28px box with an 18px icon [12] (Pol) |
-| Bar titles are untrimmed with `--leading-title` 1.2 | 1.4.12 Text spacing | A cap-trimmed box with `overflow: hidden` (for the ellipsis) clipped the tops of letters (Pol) |
-| Type: section 20 [24], label 16 [20], body 14, chips and tabs 12 [10], console 12 [10] | 1.4.4 Resize text, 1.4.12 | No content text below 12px; steps 20/16/14/12 stay distinct by size, case and weight. Pol found some text too big and some too small |
-| Sidebar `clamp(400px, 30vw, 560px)` [477 at 1728] | 1.4.10 Reflow | The glyph grid reflows (`auto-fill`); below 40rem the page stacks into one column, so nothing scrolls sideways at 320px |
-| Text contrast: ink on paper, aqua and `--color-inactive` ≥ 15:1; paper on ink 21:1; `--color-muted` 7:1; `--color-on-pressed` on `--color-pressed` 8.5:1 | 1.4.3 Contrast (minimum) | `--color-inactive` (1.3:1 on paper) only marks disabled controls, which are exempt, never information |
-| Non-text contrast: magenta on paper 3.5:1, on aqua 3.1:1, on black 6:1; the preview frame grey 3.9:1; focus ring ink on paper / paper on bars | 1.4.11 Non-text contrast | Magenta is never used for text |
-| In `.theme-inverted`, `--color-inactive` is `--grey-700` | 1.4.11 / clarity | Light grey on black looked enabled |
-| Focus: 2px ring everywhere; underline fields thicken instead | 2.4.7, 2.4.11 | The 6px overlay scroll handle can cover only part of a ring. The sticky preview notices go away with Stage 2's pop-ups |
+| Every enabled pointer target at least `--target-min` (24px). Icon buttons are 28, controls 30 | 2.5.8 | The tile asset delete badge keeps a 16px circle with a 24px hit area. The preview handles have a 24px hit area outside the edge |
+| No text under 12px; no uppercase anywhere | 1.4.4, 1.4.12 | Steps 17 / 14 / 13 / 12 |
+| Text contrast: ink 18.9:1 on white; muted 6.5:1 on white and 5.5:1 on the ground; accent 6.3:1 on white and 5.4:1 on the ground | 1.4.3 | Disabled (grey-450) is exempt and never carries information |
+| Non-text: a field's edge 4.3:1 on white; ink lines; accent rings | 1.4.11 | The fill alone would be too faint to say "type here", so the edge carries it |
+| Reflow: one column below 40rem, no sideways scroll at 320 | 1.4.10 | Chips and actions wrap |
+| Focus visible everywhere; the menu returns focus to its button after an action | 2.4.7, 2.4.11 | |
 
 ## Naming
 
-Components are PascalCase nouns that match the Figma component names (`SectionHeader`,
-`NumericInput`, `TileGroup`, `TileAsset`, `OperationHeader`, `OperationBody`, `OperationGlyph`, `GlyphGrid`).
-Generic primitives live in `src/lib/ui/`: `Icon`, `IconButton`, `AddBar`, `Collapsible`,
-`FieldRow`, `Hint`, `InlineEdit`, `Toggle`, `Button`, `Popup`, `Slider`, `Marquee`, `TabBar`, `OperationGlyph`, `GlyphGrid`, `ScrollArea`, with icon
-path data in `icons.ts`, keyboard arithmetic in `keys.ts` and transition durations in `motion.ts`. Sidebar sections built from them
-live in `src/lib/sections/`, the tile group and tile asset rows in `src/lib/tiles/`, and the operation header, body and display labels (`labels.ts`) in `src/lib/operations/`. Every new `.ts` or `.svelte` file under `src/` needs a
-page in `apps/docs/src/content/docs/editor/`, or the docs coverage check fails.
+Components are PascalCase nouns (`Section`, `TileGroup`, `TileAsset`, `OperationCard`,
+`OperationBody`, `OperationGlyph`, `GlyphGrid`).
+- Generic primitives live in `src/lib/ui/`: `Icon`, `IconButton`, `AddBar`, `Collapsible`,
+  `FieldRow`, `Hint`, `InlineEdit`, `Toggle`, `Button`, `Menu`, `Popup`, `Slider`, `Marquee`,
+  `OperationGlyph`, `GlyphGrid`, `ScrollArea`. Alongside them: `icons.ts`, `keys.ts` and
+  `motion.ts`.
+- Sidebar sections, the top bar and the footer live in `src/lib/sections/`.
+- Tile rows live in `src/lib/tiles/`.
+- The operation card, body and labels live in `src/lib/operations/`.
+
+Every new `.ts` or `.svelte` file under `src/` needs a page in
+`apps/docs/src/content/docs/editor/`, or the docs coverage check fails.

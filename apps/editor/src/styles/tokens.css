@@ -5,7 +5,7 @@
   a job ("the ground the sidebar sits on"). Components read semantic tokens
   only, so re-skinning is an edit here and nowhere else.
 
-  Iteration 2, "Ink on paper" (`/DESIGN_DIRECTION.md`). Every section is a
+  "Ink on paper" (`DESIGN_SYSTEM.md`, rationale in `DESIGN_DIRECTION.md`). Every section is a
   white card on a grey table, open or closed; a nested group is a faint well
   inside a card; a field is one step darker than whatever it sits on. Ink does
   three jobs: text, the primary action of an area, and what is selected; it
