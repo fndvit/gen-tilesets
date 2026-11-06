@@ -89,14 +89,15 @@
 </script>
 
 <!--
-  The row is `ui/FieldRow`; this component adds only the underline field, the
-  Figma *Numeric input*: `.t-label` text, right-aligned, on a 1px ink rule.
+  The row is `ui/FieldRow`; this component adds only the field: a filled box one
+  step darker than the panel, with the value in ink, left-aligned so it sits
+  next to its label.
 -->
 <FieldRow {label} for={inputId} {...hint ? { hint } : {}}>
   {#snippet children(describedBy)}
     <input
       id={inputId}
-      class="t-label"
+      class="field t-value"
       aria-describedby={describedBy}
       type="number"
       {step}
@@ -109,35 +110,41 @@
 </FieldRow>
 
 <style>
-  input {
-    width: var(--field-w);
-    /* Room above the digits makes the field a 24px target (WCAG 2.2, 2.5.8) with the text still on the rule. */
-    padding: calc(var(--target-min) - 1em - var(--rule-w)) var(--space-2) 0;
-    border: 0;
-    border-bottom: var(--rule);
-    border-radius: var(--radius);
-    background: transparent;
-    color: var(--color-ink);
-    /* One em, not `normal`: the digits keep their full height and sit just above the rule. */
-    line-height: 1;
-    text-align: right;
-    appearance: textfield;
-  }
-
   /*
-    Hover and focus thicken the underline instead of drawing the global ring: a
-    box around an underline field reads as a different control.
+    A filled box. Its 1px bottom edge (`--color-edge`, 3:1 or more on every
+    surface) is the boundary that says "type here" (WCAG 1.4.11); the fill alone
+    would be too faint to carry it.
   */
-  input:hover,
-  input:focus-visible {
-    outline: none;
-    border-bottom-width: var(--focus-w);
-    margin-bottom: calc(var(--rule-w) - var(--focus-w));
+  .field {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: var(--control-h);
+    padding: 0 var(--space-4);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--color-field);
+    box-shadow: inset 0 calc(-1 * var(--rule-w)) 0 var(--color-edge);
+    color: var(--color-ink);
+    line-height: normal;
+    text-box: none;
+    appearance: textfield;
+    cursor: text;
+    transition: background-color var(--dur-fast) var(--ease);
   }
 
-  /* No spinners: the field is a typed value, as in Figma. */
-  input::-webkit-inner-spin-button,
-  input::-webkit-outer-spin-button {
+  .field:hover {
+    background: var(--color-field-hover);
+  }
+
+  /* Focus: the ink ring, drawn tight so it reads as the box itself. */
+  .field:focus-visible {
+    outline-offset: 0;
+  }
+
+  /* No spinners: the field is a typed value. */
+  .field::-webkit-inner-spin-button,
+  .field::-webkit-outer-spin-button {
     appearance: none;
     margin: 0;
   }

@@ -55,12 +55,14 @@
     z-index: 2;
     width: max-content;
     max-width: var(--hint-w);
-    padding: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-sm);
     background: var(--color-ink);
     color: var(--color-paper);
     line-height: var(--leading-hint);
     text-box: none;
     text-transform: none;
+    font-weight: var(--weight-regular);
     white-space: normal;
     display: none;
     pointer-events: none;

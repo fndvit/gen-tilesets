@@ -1,7 +1,7 @@
 <!--
-  The Figma *Tile Group*: one Tile. A group bar (trash, the title, editable on
-  click, then up to four thumbnails, open or closed, and the chevron) over a paper
-  body holding its variants and a square "+" to add more.
+  One Tile, as a grey well inside the Tiles panel: a header (the title,
+  editable on click, up to four thumbnails, the trash and the chevron) over
+  its variants, a square "+" to add more and Reset weights.
 
   **The variants are listed by id, with no drag affordance** (**D3**, `09`
   §10.1). `03` §4.2 sorted assets precisely so that dragging a list entry could
@@ -126,7 +126,7 @@
       {/each}
       <div class="add">
         <AddBar label="Add variants to {tile.name}" variant="square" onclick={onAdd} />
-        <Button label="Reset weights" disabled={equal} onclick={onResetWeights} />
+        <Button label="Reset weights" variant="tertiary" disabled={equal} onclick={onResetWeights} />
       </div>
     </div>
   </Collapsible>
@@ -144,6 +144,7 @@
 
 <style>
   .group {
+    border-radius: var(--radius);
     outline: var(--focus-w) solid transparent;
     outline-offset: var(--focus-offset);
     transition: outline-color var(--dur-fast) var(--ease);
@@ -154,17 +155,15 @@
     outline-color: var(--color-ink);
   }
 
-  /* Figma: 5px from the frame's outer edge, so 4px inside its 1px border. */
+  /* Inside the well: the thumbnails line up with the title above them. */
   .body {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--asset-gap);
-    padding: var(--space-2);
-    border: var(--rule);
-    border-top: 0;
-    background: var(--color-paper);
+    padding: var(--space-2) var(--space-4) var(--space-4) var(--space-5);
   }
 
-  /* The square "+" on the left, Reset weights at the far right (not in Figma). */
+  /* The square "+" on the left, Reset weights at the far right. */
   .add {
     display: flex;
     align-items: center;
@@ -176,10 +175,11 @@
     box-sizing: border-box;
     width: var(--thumb-sm);
     height: var(--thumb-sm);
+    border-radius: var(--radius-xs);
     object-fit: cover;
   }
 
   span.mini {
-    border: var(--rule-w) solid var(--color-on-bar);
+    background: var(--color-field);
   }
 </style>

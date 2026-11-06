@@ -42,7 +42,7 @@
           hint="Paint on the preview. Drag to continue a stroke; start on a painted cell to erase."
         >
           {#snippet children()}
-            <span class="t-label">{Array.isArray(values[name]) ? (values[name] as unknown[]).length : 0}</span>
+            <span class="t-value">{Array.isArray(values[name]) ? (values[name] as unknown[]).length : 0}</span>
           {/snippet}
         </FieldRow>
       {:else}
@@ -63,6 +63,6 @@
   .params {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-4);
+    gap: var(--space-3);
   }
 </style>

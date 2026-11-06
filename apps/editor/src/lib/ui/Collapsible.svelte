@@ -1,32 +1,32 @@
 <!--
-  A black bar that shows and hides what follows it: the Figma *Section Header*
-  and *Tile Group Header*.
+  A header that shows and hides what follows it: a sidebar section, or a
+  nested group inside one (a breakpoint rule, a tile group).
 
-  The fold chevron first, then the title, then an optional `extras` snippet (a
-  tile group's thumbnails) at the right. The chevron points down when
-  closed and up when open. It is on the left so `ScrollArea`'s overlay handle,
-  which sits over the right edge, never covers it (Pol, Block E review).
+  The title first, then (while closed) a muted one-line `summary` of what is
+  inside, then optional `extras` (a tile group's thumbnails), the `actions`
+  (trash, reorder) and the chevron at the right end. The chevron points down
+  when closed and up when open. Everything right of the title sits inside the
+  panel's padding, clear of `ScrollArea`'s overlay handle.
 
-  For a tile group the bar also edits: `onRename` makes the title an
-  `InlineEdit` (click to rename), and `actions` puts controls such as the trash
-  `IconButton` at the right end, with a wider right margin that keeps it clear
-  of the scroll handle. Those sit outside the disclosure button. The chevron is
-  then a button of its own, and the empty space after the title toggles too,
-  so clicking anywhere but the title or an action still opens and closes it. `note` is text shown after the title but
-  not edited with it (a duplicate name's ` (t3)`), and `hint` explains the
-  title on hover (`ui/Hint`).
+  **Surface says what level it is.** `variant="section"` is a section: a white
+  card on the grey sidebar ground, open or closed, so a folded section keeps
+  its presence (iteration 2). Its header is `--header-h` tall, the title in the
+  section style over a mono one-line summary of what is inside; open, an ink
+  rule under the header separates it from the body. `variant="group"` is a
+  nested group: a faint grey well inside its section's card, with the summary
+  on the title's line.
 
-  `variant` picks the size: `section` is the sidebar section bar in
-  `.t-section`, `group` the tile group bar in `.t-label`. Both are 32px, taller
-  than Figma's 25 and 24, so the chevron and the trash are 24px targets
-  (WCAG 2.2, 2.5.8; Block F).
+  For a tile group the header also edits: `onRename` makes the title an
+  `InlineEdit` (click to rename), and the chevron is then a button of its own
+  at the right end. The empty space between title and actions toggles too,
+  for the pointer, so clicking anywhere but the title or an action opens and
+  closes it. `note` is text shown after the title but not edited with it (a
+  duplicate name's ` (t3)`), and `hint` explains the title on hover
+  (`ui/Hint`).
 
-  Header bars do not invert on hover (Pol, Block F review): the chevron and the
-  title dim, the trash shows its frame, and the title has a real line height
-  rather than a cap-trimmed box, which clipped the tops of letters. The body slides
-  open and closed over `--dur-fast`, and appears at once under reduced motion. The body is
-  rendered bare; its padding and frame belong to the caller (Section, TileGroup),
-  because the two Figma bodies differ.
+  Hover washes the whole header one step darker; the chevron turns ink. The
+  body slides open and closed over `--dur-fast`, and appears at once under
+  reduced motion. Its padding belongs to the caller (Section, TileGroup).
 
   **Open state is transient.** It is bindable so a caller can open a group it
   just created, but it is never written to the file (`09` §12, **E4**), the same
@@ -44,7 +44,7 @@
     title: string;
     open?: boolean;
     variant?: "section" | "group";
-    /** Heading level of the bar, so the sidebar keeps a real outline. */
+    /** Heading level of the header, so the sidebar keeps a real outline. */
     level?: 2 | 3 | 4;
     /** Makes the title editable on click. Receives the trimmed, changed name. */
     onRename?: (title: string) => void;
@@ -52,9 +52,11 @@
     note?: string | undefined;
     /** Explanation shown on hovering the title. */
     hint?: string | undefined;
-    /** Controls before the title (the trash button). Outside the disclosure button. */
-    actions?: Snippet;
-    /** Decorative content beside the chevron. It sits inside the button, so nothing in it may be interactive. */
+    /** One muted line shown after the title while closed: what is inside, from existing values. */
+    summary?: string | undefined;
+    /** Controls at the right end, before the chevron (trash, reorder). Outside the disclosure button. */
+    actions?: Snippet | undefined;
+    /** Decorative content after the title. It sits inside the button, so nothing in it may be interactive. */
     extras?: Snippet | undefined;
     children: Snippet;
   }
@@ -67,13 +69,15 @@
     onRename,
     note,
     hint,
+    summary,
     actions,
     extras,
     children,
   }: Props = $props();
 
   const bodyId = $props.id();
-  const textClass = $derived(variant === "section" ? "t-section" : "t-label");
+  const textClass = $derived(variant === "section" ? "t-section" : "t-title");
+  const summaryClass = $derived(variant === "section" ? "t-console" : "t-body");
 
   let root: HTMLElement | undefined = $state();
 
@@ -86,24 +90,14 @@
   }
 </script>
 
-<div class="collapsible {variant}" bind:this={root}>
+<div class="collapsible {variant}" class:open bind:this={root}>
   <!--
     The heading wraps the controls, not the other way round: the heading stays a
     heading for the outline, and the button carries the disclosure semantics.
   -->
-  <svelte:element this={`h${level}`} class="heading on-bar">
+  <svelte:element this={`h${level}`} class="heading">
     <div class="bar">
       {#if onRename}
-        <button
-          type="button"
-          class="chev-button"
-          aria-expanded={open}
-          aria-controls={bodyId}
-          aria-label="{open ? 'Collapse' : 'Expand'} {title}"
-          onclick={toggle}
-        >
-          <span class="chev" class:open><Icon name="fold" /></span>
-        </button>
         <Hint text={hint}>
           {#snippet children(hintId)}
             <span class="named">
@@ -119,14 +113,26 @@
           {/snippet}
         </Hint>
         <!--
-          The rest of the bar toggles for the pointer only; the chevron button is
-          the control for the keyboard and for assistive technology.
+          The rest of the header toggles for the pointer only; the chevron button
+          is the control for the keyboard and for assistive technology.
         -->
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span class="fill" onclick={toggle}>
+          {#if !open && summary}<span class="summary t-body">{summary}</span>{/if}
           {#if extras}<span class="extras">{@render extras()}</span>{/if}
         </span>
+        {#if actions}<span class="actions">{@render actions()}</span>{/if}
+        <button
+          type="button"
+          class="chev-button"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          aria-label="{open ? 'Collapse' : 'Expand'} {title}"
+          onclick={toggle}
+        >
+          <span class="chev" class:open><Icon name="fold" /></span>
+        </button>
       {:else}
         <button
           type="button"
@@ -135,12 +141,25 @@
           aria-controls={bodyId}
           onclick={toggle}
         >
-          <span class="chev" class:open><Icon name="fold" /></span>
-          <span class="title {textClass}">{title}{#if note}&nbsp;{note}{/if}</span>
+          <span class="text">
+            <span class="title {textClass}">{title}{#if note}&nbsp;{note}{/if}</span>
+            {#if !open && summary}<span class="summary {summaryClass}">{summary}</span>{/if}
+          </span>
           {#if extras}<span class="extras">{@render extras()}</span>{/if}
+          {#if !actions}<span class="chev" class:open><Icon name="fold" /></span>{/if}
         </button>
+        {#if actions}
+          <span class="actions">{@render actions()}</span>
+          <!--
+            With actions, the chevron sits after them at the right end, like every
+            other header's. It toggles for the pointer; the title button is the
+            disclosure control for the keyboard.
+          -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <span class="chev end" class:open onclick={toggle}><Icon name="fold" /></span>
+        {/if}
       {/if}
-      {#if actions}<span class="actions">{@render actions()}</span>{/if}
     </div>
   </svelte:element>
 
@@ -152,44 +171,73 @@
 </div>
 
 <style>
+  .collapsible {
+    border-radius: var(--radius);
+    transition: background-color var(--dur-fast) var(--ease);
+  }
+
+  /* A section is a white card on the ground, open or closed. */
+  .section {
+    background: var(--color-card);
+  }
+
+  /* A nested group is a well inside its section's panel, open or closed. */
+  .group {
+    background: var(--color-well);
+  }
+
   .heading {
     margin: 0;
     font: inherit;
   }
 
-  /* Border-box, so `min-height` is the bar height with its padding inside. */
   .bar {
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    gap: var(--space-4);
-    padding: var(--space-2);
-    background: var(--color-bar);
-    color: var(--color-on-bar);
+    gap: var(--space-2);
+    border-radius: var(--radius);
+    color: var(--color-ink);
+    transition: background-color var(--dur-fast) var(--ease);
   }
 
-  .group .bar {
-    border: var(--rule-w) solid var(--color-bar);
+  .section > .heading .bar {
+    min-height: var(--header-h);
+    padding: 0 var(--space-5) 0 var(--space-7);
   }
 
-  /* A 1px separator under every section bar, inside its 32px (Pol, Block F review). */
-  .section .bar {
-    min-height: var(--bar-h-section);
-    border-bottom: var(--rule-w) solid var(--color-separator);
+  /* Open: an ink rule under the header, the card's one line. */
+  .section.open > .heading .bar {
+    box-shadow: inset 0 calc(-1 * var(--rule-strong)) 0 var(--color-ink);
   }
 
-  .group .bar {
-    min-height: var(--bar-h-group);
+  .group > .heading .bar {
+    min-height: var(--group-h);
+    padding: 0 var(--space-2) 0 var(--space-5);
   }
 
-  /* The right end, clear of `ScrollArea`'s overlay handle. */
+  /*
+    Hover washes the whole header, whichever part of it is under the pointer,
+    except the actions, which answer on their own.
+  */
+  .bar:has(.toggle:hover, .fill:hover, .chev-button:hover, .chev.end:hover) {
+    background: var(--color-hover);
+  }
+
+  .bar:has(.toggle:active, .fill:active, .chev-button:active, .chev.end:active) {
+    background: var(--color-pressed);
+  }
+
+  /* An open section's header is part of its card: the wash keeps only the top corners round. */
+  .section.open > .heading .bar {
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
   .actions {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    gap: var(--space-1);
     flex: none;
-    margin-left: auto;
-    margin-right: var(--space-4);
   }
 
   .named {
@@ -202,6 +250,7 @@
   .note {
     flex: none;
     white-space: nowrap;
+    color: var(--color-muted);
   }
 
   .toggle,
@@ -216,13 +265,6 @@
     font: inherit;
     text-align: left;
     cursor: pointer;
-    transition: color var(--dur-fast) var(--ease);
-  }
-
-  /* The header's hover: its content dims. The bar itself never changes. */
-  .toggle:hover,
-  .chev-button:hover {
-    color: var(--color-inactive);
   }
 
   .toggle {
@@ -231,19 +273,52 @@
     align-self: stretch;
   }
 
+  .toggle:focus-visible,
+  .chev-button:focus-visible {
+    outline-offset: calc(-1 * var(--focus-w));
+    border-radius: var(--radius-sm);
+  }
+
   .chev-button {
     flex: none;
   }
 
-  /* The chevron gets the 24px target box; the icon stays 12×6. */
+  /* The chevron gets an icon button's square; the icon is muted until the header is hovered. */
   .chev {
     display: flex;
     flex: none;
     align-items: center;
     justify-content: center;
-    width: var(--target-min);
-    height: var(--target-min);
-    transition: transform var(--dur-fast) var(--ease);
+    width: var(--icon-button);
+    height: var(--icon-button);
+    border-radius: var(--radius-sm);
+    margin-left: auto;
+    color: var(--color-muted);
+    transition:
+      transform var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
+  }
+
+  .chev.end {
+    margin-left: 0;
+    cursor: pointer;
+  }
+
+  .bar:hover .chev {
+    color: var(--color-ink);
+  }
+
+  /* A section's chevron sits in a square of its own, so the fold reads as a control. */
+  .section > .heading .chev {
+    background: var(--color-field);
+  }
+
+  .section > .heading .bar:hover .chev {
+    background: var(--color-field-hover);
+  }
+
+  .chev.open {
+    transform: rotate(180deg);
   }
 
   /*
@@ -251,24 +326,62 @@
     on a box trimmed to cap height cut off whatever rises above it.
   */
   .title,
-  .note {
+  .note,
+  .summary {
     line-height: var(--leading-title);
     text-box: none;
   }
 
+  /* Title and summary: stacked in a section, on one line in a group. */
+  .text {
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .section > .heading .text {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-1);
+  }
+
   .title {
+    flex: none;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  /* After the title: the empty bar (it toggles) with the extras at its right. */
+  /* What a closed group holds, quiet and on one line, after its title. */
+  .summary {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--color-muted);
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* A closed section's summary: mono, under its title, as long as the card allows. */
+  .section > .heading .summary {
+    flex: none;
+    text-align: left;
+  }
+
+  /* After the title: the empty header (it toggles) with the extras at its right. */
   .fill {
     display: flex;
     flex: 1;
     align-self: stretch;
     align-items: center;
     justify-content: flex-end;
+    gap: var(--space-4);
     min-width: 0;
     cursor: pointer;
   }
@@ -278,9 +391,5 @@
     align-items: center;
     gap: var(--space-1);
     margin-left: auto;
-  }
-
-  .chev.open {
-    transform: rotate(180deg);
   }
 </style>

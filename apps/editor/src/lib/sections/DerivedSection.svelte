@@ -1,6 +1,7 @@
 <!--
   What the file implies but the author does not type. Not in Figma; read-only
-  rows in the field-row shape, the value in `.t-console` on the right.
+  rows in the field-row shape: the muted label in the label column, the value
+  in `.t-console` right after it.
 
   `columns` is **displayed, never edited** (§9.1). The author needs to know it,
   because a `rect` is authored in column indices, and editing it would break
@@ -64,7 +65,7 @@
   ]);
 </script>
 
-<Section title="Derived" open={false}>
+<Section title="Derived" open={false} summary="{config.columns} columns · {config.columns * layout.cellSize} × {config.rows * layout.cellSize} px">
   <dl>
     {#each rows as [term, value] (term)}
       <div class="row">
@@ -78,20 +79,21 @@
 <style>
   dl {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
     margin: 0;
     color: var(--color-ink);
   }
 
   .row {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: var(--field-label-w) minmax(0, 1fr);
+    align-items: baseline;
     gap: var(--space-4);
   }
 
   dd {
     margin: 0;
-    text-align: right;
+    padding-left: var(--space-4);
   }
 </style>

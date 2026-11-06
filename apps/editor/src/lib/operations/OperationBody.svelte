@@ -1,15 +1,19 @@
 <!--
-  The open operation's body — the Figma *Operation header* (Opened), under the
-  active tab. It edits a draft, never the file (`09-editor.md` §7).
+  The open operation's body: a vertical stepper inside its card
+  (`OperationCard`). It edits a draft, never the file (`09-editor.md` §7).
 
   Four steps, in the order the author walks them: **Selection → attribute →
   Source → Blend**, with the mapping folded into the attribute step per §7.4.
-  Each is a question, in the field labels' style, a glyph grid of the options,
-  then the chosen option's fields
-  in a framed block under a small black bar naming the choice, so it is plain
-  that the fields belong to that choice and where they end (Pol, Block F
-  review). An option with no fields gets no block. Blocks are 12px apart, rows
-  inside a block 8px.
+  Iteration 2 lays them out as a numbered list joined by a line, each row the
+  step's name and its current answer, instead of a row of tabs: how the steps
+  follow one another is visible, and every answer stays in view while one is
+  edited. A step's number is filled once it is answered, hollow while it is
+  not, and the accent marks the open one.
+
+  The open step unfolds under its row: a question, a glyph grid of the
+  options, then the chosen option's fields in a grey well under a caption
+  naming the choice, so it is plain that the fields belong to that choice and
+  where they end (Pol, Block F review). An option with no fields gets no well.
 
   | Step      | Options from                                  |
   | --------- | --------------------------------------------- |
@@ -69,7 +73,7 @@
   import GlyphGrid from "../ui/GlyphGrid.svelte";
   import Hint from "../ui/Hint.svelte";
   import Toggle from "../ui/Toggle.svelte";
-  import { labelFor } from "./labels.js";
+  import { draftParts, labelFor, summaryCells, writesOf, writesText } from "./labels.js";
 
   interface Props {
     /**
@@ -81,11 +85,14 @@
     /** Whether Save replaces an Operation in the stack rather than appending one. */
     editing: boolean;
     onClose: () => void;
-    /** The id the active tab's `aria-controls` names. */
+    /** The id the card's title `aria-controls` names. */
     id?: string;
   }
 
   let { draft, editing, onClose, id }: Props = $props();
+
+  const ownId = $props.id();
+  const base = $derived(id ?? ownId);
 
   /**
    * Selection artwork, by registry name, in Figma's order. A name missing here
@@ -206,6 +213,13 @@
     draft.sourceParams = defaultParams(sources.get(name).params);
   }
 
+  /** Each step's answer for its row; the Attribute's as `writesText` gives it. */
+  const answers = $derived.by(() => {
+    const parts = draftParts(draft);
+    const tiles = session.file.config.tiles;
+    return { ...summaryCells(parts, tiles), attribute: writesText(writesOf(parts, tiles)) };
+  });
+
   /** What each step has settled. */
   function chosen(step: Step): string | null {
     if (step === "selection") return draft.selectionType;
@@ -252,7 +266,52 @@
   }
 </script>
 
-<div class="body" role="tabpanel" {id}>
+<div class="body" role="region" aria-label="Steps" id={base}>
+  <ol class="steps">
+    {#each STEPS as step, i (step)}
+      {@const active = draft.step === step}
+      <li class="step" class:active class:done={chosen(step) !== null}>
+        <button
+          type="button"
+          class="step-head"
+          aria-expanded={active}
+          aria-controls="{base}-{step}"
+          onclick={() => (draft.step = step)}
+        >
+          <span class="dot t-console" aria-hidden="true">{i + 1}</span>
+          <span class="name t-title">{labelFor(step)}</span>
+          <span class="answer t-console" class:unset={chosen(step) === null}>
+            {chosen(step) === null ? "Not set" : answers[step]}
+          </span>
+        </button>
+        {#if active}
+          <div class="step-body" id="{base}-{step}">
+            {@render content()}
+          </div>
+        {/if}
+      </li>
+    {/each}
+  </ol>
+
+  <div class="actions">
+    <Button label="Discard" variant="tertiary" onclick={onClose} />
+    {#if next !== null}
+      <Button label="Next: {labelFor(next)}" onclick={() => (draft.step = next)} />
+    {/if}
+    <Hint text={unanswered.length > 0 ? `Still open: ${unanswered.join(", ")}.` : undefined}>
+      {#snippet children()}
+        <Button
+          label={editing ? "Save" : "Add"}
+          variant="primary"
+          disabled={unanswered.length > 0}
+          onclick={commit}
+        />
+      {/snippet}
+    </Hint>
+  </div>
+</div>
+
+{#snippet content()}
   <Hint text={draft.step === "selection" ? selectionHint : undefined}>
     {#snippet children()}
       <p class="question t-label">{QUESTIONS[draft.step]}</p>
@@ -360,23 +419,12 @@
     />
   {/if}
 
-  <div class="actions">
-    <Button label="Discard" onclick={onClose} />
-    {#if next !== null}
-      <Button label="Next: {labelFor(next)}" onclick={() => (draft.step = next)} />
-    {/if}
-    <Hint text={unanswered.length > 0 ? `Still open: ${unanswered.join(", ")}.` : undefined}>
-      {#snippet children()}
-        <Button label={editing ? "Save" : "Add"} disabled={unanswered.length > 0} onclick={commit} />
-      {/snippet}
-    </Hint>
-  </div>
-</div>
+{/snippet}
 
-<!-- The chosen option's fields: a black bar naming the choice over a framed block. -->
+<!-- The chosen option's fields: a caption naming the choice over a white panel. -->
 {#snippet options(choice: string, fields: Snippet)}
   <section class="options" aria-label="{labelFor(choice)} settings">
-    <p class="options-bar t-xs on-bar">{labelFor(choice)}</p>
+    <p class="options-bar t-xs">{labelFor(choice)}</p>
     <div class="options-body">
       {@render fields()}
     </div>
@@ -388,43 +436,159 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
-    padding: var(--space-3);
-    border: var(--rule);
-    border-top: 0;
-    background: var(--color-paper);
+    padding: 0 var(--space-5) var(--space-5);
     color: var(--color-ink);
-    /* Compact fields: smaller sentence-case labels in a column, each control right after its label. */
-    --label-size: var(--text-body-size);
-    --label-case: none;
+    /* Labels in a fixed column, each control right after its label. */
     --field-label-w: var(--field-label-w-compact);
-    --field-justify: flex-start;
   }
 
-  /* The question wears the field labels' style (14 Regular, sentence case), not `.t-body`'s Light. */
+  /* The steps: a numbered list, the numbers joined by a line. */
+  .steps {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .step {
+    position: relative;
+  }
+
+  /* The line from this step's number down to the next one's. */
+  .step:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    top: calc(var(--space-6) + var(--step-dot));
+    bottom: calc(-1 * var(--space-6));
+    left: calc(var(--space-3) + var(--step-dot) / 2 - var(--rule-w) / 2);
+    width: var(--rule-w);
+    background: var(--color-track);
+  }
+
+  .step-head {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    width: 100%;
+    min-height: calc(var(--step-dot) + 2 * var(--space-6));
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--color-ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease);
+  }
+
+  .step:not(.active) .step-head:hover {
+    background: var(--color-hover);
+  }
+
+  .active .step-head {
+    background: var(--color-accent-wash);
+    cursor: default;
+  }
+
+  /* Hollow while unanswered, ink once answered, the accent while open. */
+  .dot {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: var(--step-dot);
+    height: var(--step-dot);
+    border: var(--rule-w) solid var(--color-edge);
+    border-radius: var(--radius-round);
+    background: var(--color-panel);
+    color: var(--color-muted);
+    text-box: none;
+  }
+
+  .done .dot {
+    border-color: var(--color-ink);
+    background: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  .active .dot {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-paper);
+  }
+
+  .name {
+    flex: none;
+    width: 76px;
+    line-height: var(--leading-title);
+    text-box: none;
+  }
+
+  .active .name {
+    color: var(--color-accent);
+  }
+
+  .answer {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    line-height: var(--leading-title);
+    text-box: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .answer.unset {
+    color: var(--color-muted);
+  }
+
+  /* The open step's content, indented to the names, so the line runs beside it. */
+  .step-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    padding: var(--space-6) 0 var(--space-7) calc(var(--space-3) + var(--step-dot) + var(--space-5));
+  }
+
   .question {
     margin: 0;
+    color: var(--color-ink);
+  }
+
+  .options {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
   }
 
   .options-bar {
     margin: 0;
-    padding: var(--space-2);
-    background: var(--color-bar);
-    color: var(--color-on-bar);
+    padding-left: var(--space-1);
+    color: var(--color-muted);
   }
 
+  /* The chosen option's fields: a grey well in the white card, its fields white. */
   .options-body {
+    --color-field: var(--color-panel);
+    --color-field-hover: var(--grey-200);
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-4);
-    padding: var(--space-3);
-    border: var(--rule);
-    border-top: 0;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius);
+    background: var(--color-well);
   }
 
   .actions {
     display: flex;
     justify-content: flex-end;
-    gap: var(--chip-gap);
+    gap: var(--space-2);
+    padding-top: var(--space-4);
+    border-top: var(--rule-w) solid var(--color-track);
     /* Save's hint opens upward and right-aligned, so it stays inside the sidebar. */
     --hint-top: auto;
     --hint-bottom: calc(100% + var(--space-2));

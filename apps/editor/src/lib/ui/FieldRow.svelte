@@ -1,18 +1,21 @@
 <!--
-  A label on the left and a control on the right: the row shape every Figma
-  input shares (Numeric input, Boolean input, operation params).
+  A label on the left and a control beside it: the row shape every input
+  shares (numbers, choices, operation params).
+
+  The label sits in a column (`--field-label-w`, 38% by default) and the
+  control starts right after it and fills the rest, so every value in a panel
+  starts at one tab stop, close to its own label, instead of at the far edge.
 
   Two ways to name the control:
   - `for` set: the label is a `<label for>`, for a single native input.
   - `for` unset: the row is a `role="group"` named by the label, for a set of
     controls such as `Toggle`'s chips.
 
-  `align="end"` (default) sits the control on the label's baseline, as an
-  underline field does in Figma. `align="center"` centres it, for chips.
+  `align` is kept for callers; both values centre the label on the control,
+  because every control is now a box of the same height.
 
-  A container can set `--field-label-w` and `--field-justify: flex-start` to put
-  every label in a column of that width with the control right after it,
-  instead of at the far end of the row (an operation body does).
+  A container can set `--field-label-w` to change the label column (an
+  operation body uses a fixed width; the footer's half-width rows use `auto`).
 
   **Explanations never sit in the row.** A `hint` appears in a small ink
   bubble under the label as soon as the pointer is over the label, and screen
@@ -34,7 +37,7 @@
     children: Snippet<[string | undefined]>;
   }
 
-  let { label, for: htmlFor, align = "end", hint, children }: Props = $props();
+  let { label, for: htmlFor, hint, children }: Props = $props();
 
   const id = $props.id();
   const labelId = `${id}-label`;
@@ -43,7 +46,6 @@
 
 <div
   class="row"
-  class:center={align === "center"}
   role={htmlFor ? undefined : "group"}
   aria-labelledby={htmlFor ? undefined : labelId}
   aria-describedby={htmlFor ? undefined : hintId}
@@ -66,26 +68,22 @@
 
 <style>
   .row {
-    display: flex;
-    align-items: flex-end;
-    justify-content: var(--field-justify, space-between);
+    display: grid;
+    grid-template-columns: var(--field-label-w) minmax(0, 1fr);
+    align-items: center;
     gap: var(--space-4);
+    min-height: var(--control-h);
     color: var(--color-ink);
   }
 
-  .center {
-    align-items: center;
-  }
-
   .name {
-    flex: 0 0 var(--field-label-w, auto);
     min-width: 0;
   }
 
-  /* Shrinks rather than pushing the row wider than the sidebar. */
+  /* Fills the rest of the row, and shrinks rather than pushing it wider than the sidebar. */
   .control {
     display: flex;
-    flex: 0 1 auto;
+    align-items: center;
     min-width: 0;
   }
 </style>

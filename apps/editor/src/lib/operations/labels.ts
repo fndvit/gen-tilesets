@@ -72,6 +72,48 @@ export function summarize(parts: SummaryParts, tiles: readonly Tile[]): string {
   return STEPS.map((step) => cells[step]).join(" * ");
 }
 
+/**
+ * What an operation writes, for the title line of its card: the Target, and
+ * the mapping's detail beside it. The card leads with this because it is what
+ * the operation *does*; where and how come second (iteration 2).
+ *
+ * - A tile mapping: `detail` lists the palette's tile names (`"Pink, clear"`),
+ *   and `tileIds` the entries in order, for thumbnails (`null` is clear).
+ * - A numeric mapping: `detail` is the range, `"0.5 – 1"`, with its steps
+ *   (`"0 – 270 · 4 steps"`), and `tileIds` is empty.
+ *
+ * `null` while no Target is chosen.
+ */
+export interface Writes {
+  target: string;
+  detail: string;
+  tileIds: (string | null)[];
+}
+
+export function writesOf(parts: SummaryParts, tiles: readonly Tile[]): Writes | null {
+  if (parts.target === null) return null;
+  const target = labelFor(parts.target);
+  const mapping = parts.mapping;
+  if (mapping === null) return { target, detail: "", tileIds: [] };
+  if (isTileMapping(mapping)) {
+    return {
+      target,
+      detail: mapping.palette.map((e) => tileName(e.tileId, tiles)).join(", "),
+      tileIds: mapping.palette.map((e) => e.tileId),
+    };
+  }
+  const [min, max] = mapping.range;
+  const range = min === max ? `${min}` : `${min} – ${max}`;
+  const steps = mapping.steps === undefined ? "" : ` · ${mapping.steps} steps`;
+  return { target, detail: `${range}${steps}`, tileIds: [] };
+}
+
+/** The Attribute step's answer as one line: `"Tile · Pink, Blue"`, `"Opacity · 0.5 – 1"`. */
+export function writesText(writes: Writes | null): string {
+  if (writes === null) return UNANSWERED;
+  return writes.detail === "" ? writes.target : `${writes.target} · ${writes.detail}`;
+}
+
 function mappingText(mapping: Operation["mapping"], tiles: readonly Tile[]): string {
   if (isTileMapping(mapping)) {
     return `[${mapping.palette.map((e) => tileName(e.tileId, tiles)).join(", ")}]`;

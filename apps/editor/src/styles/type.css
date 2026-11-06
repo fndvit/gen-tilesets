@@ -1,22 +1,30 @@
 /*
-  The five text styles and the font they need, and nothing else.
+  The text styles and the font they need, and nothing else.
 
   Split out of `base.css` so a page outside the editor (the docs stories) can
   wear the editor's type without also taking its global focus ring and
   reduced-motion rule. Text styles are classes rather than element rules so a
   <button>, a <label> and an <h2> can all wear "label" without fighting a
   cascade.
+
+  Everything is sentence case: no style uppercases. Two voices: Helvetica for
+  words, Roboto Mono for data (what a field holds, summaries, captions). The
+  steps between styles are size, weight and colour: a label is small and
+  muted, the value beside it is ink in mono, a header is the one large line on
+  its card.
 */
 
+@import "@fontsource/roboto-mono/400.css";
 @import "@fontsource/roboto-mono/500.css";
 
 /*
-  Figma trims every text box to cap height ("text-box-trim: both, cap /
-  alphabetic"), which is what makes 4px of padding look like 4px around an
-  uppercase word. Browsers without `text-box` fall back to line-height 1.
+  Single-line styles trim to cap height, so padding around a word measures
+  from the letters. Browsers without `text-box` fall back to line-height 1.
 */
 .t-section,
+.t-title,
 .t-label,
+.t-value,
 .t-body,
 .t-xs,
 .t-console {
@@ -25,45 +33,57 @@
   text-box: trim-both cap alphabetic;
 }
 
-/* "Section Header" — 24 Medium, uppercase. */
+/* Section header: the one large line on a card. */
 .t-section {
   font-family: var(--font-ui);
   font-size: var(--text-section-size);
-  font-weight: var(--weight-medium);
-  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+}
+
+/* A nested group's title (a rule, a tile group, an operation), one step below a section. */
+.t-title {
+  font-family: var(--font-ui);
+  font-size: var(--text-title-size);
+  font-weight: var(--weight-semibold);
 }
 
 /*
-  "UI small UC" — 20 Roman, uppercase. Field labels, group titles, weights.
-  A container can set `--label-size` and `--label-case` to make every field
-  inside it compact (an operation body does).
+  A field label: small and muted, so the value beside it is what reads first.
+  A container can set `--label-size` (an operation body keeps the default).
 */
 .t-label {
   font-family: var(--font-ui);
   font-size: var(--label-size, var(--text-label-size));
   font-weight: var(--weight-regular);
-  text-transform: var(--label-case, uppercase);
+  color: var(--color-muted);
 }
 
-/* "UI regular" — 14 Light. Questions and running text. */
+/* What a field holds: data, so mono. */
+.t-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-data-size);
+  font-weight: var(--weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Running text, questions and hints. */
 .t-body {
   font-family: var(--font-ui);
   font-size: var(--text-body-size);
-  font-weight: var(--weight-light);
+  font-weight: var(--weight-regular);
 }
 
-/* "UI XS Bold" — 10 Medium, uppercase. Chips, tabs, small buttons. */
+/* Buttons, segments and tabs: medium weight instead of capitals. */
 .t-xs {
   font-family: var(--font-ui);
   font-size: var(--text-xs-size);
   font-weight: var(--weight-medium);
-  text-transform: uppercase;
 }
 
-/* "Console" — Roboto Mono 10 Medium. Summaries and glyph labels. */
+/* Mono: summaries, ids and captions. */
 .t-console {
   font-family: var(--font-mono);
   font-size: var(--text-console-size);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-regular);
   letter-spacing: var(--text-console-tracking);
 }

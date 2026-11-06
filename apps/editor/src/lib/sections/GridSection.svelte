@@ -56,13 +56,18 @@
       : "Changes the column count. Every selection here survives a resize, so it applies at once.",
   );
 
+  /** What the header says while the section is closed: the values below, in one line. */
+  const summary = $derived(
+    `${layout.cellSize} px · ${config.rows} rows · ${layout.referenceWidth} wide · ${layout.horizontalAlignment}`,
+  );
+
   const alignments = [
     { value: "column", label: "Column" },
     { value: "gutter", label: "Gutter" },
   ] as const;
 </script>
 
-<Section title="Grid & Size">
+<Section title="Grid & size" {summary}>
   <div class="fields">
     <NumericInput
       label="Cell size"
@@ -120,6 +125,7 @@
 <style>
   .fields {
     display: grid;
-    gap: var(--space-4);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
   }
 </style>

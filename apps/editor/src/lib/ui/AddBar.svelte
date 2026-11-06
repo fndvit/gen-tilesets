@@ -1,10 +1,12 @@
 <!--
-  The black "+" button that adds something: a tile group, an operation, a tile.
+  The "+" control that adds something: a breakpoint, a tile group, an
+  operation, a variant.
 
-  Two shapes from Figma. `bar` spans its container at `--bar-h-add` (Add tile
-  group, Add operation). `square` is a `--thumb` square that lines up with the
-  thumbnails in a tile group (Add tile). The plus is drawn, not typed, so it
-  needs `label` for its accessible name.
+  Two shapes. `bar` spans its container at `--add-h` and shows its `label` as
+  text after the plus ("+ Add breakpoint"), so what it adds is read, not
+  guessed. It is a tertiary action: text on the panel, a grey wash under the
+  pointer. `square` is a grey `--thumb` square with the plus alone, lined up
+  with a tile group's thumbnails; its `label` is then its accessible name.
 -->
 <script lang="ts">
   import Icon from "./Icon.svelte";
@@ -19,76 +21,69 @@
   let { label, onclick, variant = "bar", disabled = false }: Props = $props();
 </script>
 
-<span class="on-bar" class:wide={variant === "bar"}>
-  <button
-    type="button"
-    class="add {variant}"
-    aria-label={label}
-    title={label}
-    {disabled}
-    {onclick}
-  >
+{#if variant === "bar"}
+  <button type="button" class="add bar t-xs" {disabled} {onclick}>
+    <Icon name="plus" />
+    <span>{label}</span>
+  </button>
+{:else}
+  <button type="button" class="add square" aria-label={label} title={label} {disabled} {onclick}>
     <Icon name="plus" />
   </button>
-</span>
+{/if}
 
 <style>
-  .on-bar {
-    display: inline-flex;
-  }
-
-  .wide {
-    display: flex;
-    width: 100%;
-  }
-
-  /* The frame is the bar's colour at rest and ink on hover, so the inverted bar keeps its edge. */
   .add {
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    justify-content: center;
     padding: 0;
-    border: var(--rule-w) solid var(--color-bar);
-    background: var(--color-bar);
-    color: var(--color-on-bar);
+    border: 0;
+    border-radius: var(--radius-sm);
+    color: var(--color-ink);
     cursor: pointer;
-    transition:
-      background-color var(--dur-fast) var(--ease),
-      border-color var(--dur-fast) var(--ease),
-      color var(--dur-fast) var(--ease);
+    transition: background-color var(--dur-fast) var(--ease);
   }
 
   .bar {
+    gap: var(--space-4);
     width: 100%;
-    height: var(--bar-h-add);
+    height: var(--add-h);
+    padding: 0 var(--space-5);
+    background: transparent;
+    line-height: normal;
+    text-box: none;
   }
 
   .square {
+    justify-content: center;
     width: var(--thumb);
     height: var(--thumb);
+    background: var(--color-secondary);
   }
 
-  /* Hover inverts the bar; pressing darkens it. */
-  .add:hover:not(:disabled) {
-    border-color: var(--color-ink);
-    background: var(--color-paper);
-    color: var(--color-ink);
+  .bar:hover:not(:disabled) {
+    background: var(--color-hover);
   }
 
-  .add:active:not(:disabled) {
-    border-color: var(--color-pressed);
+  .square:hover:not(:disabled) {
+    background: var(--color-secondary-hover);
+  }
+
+  .bar:active:not(:disabled) {
     background: var(--color-pressed);
-    color: var(--color-on-pressed);
   }
 
-  /* On the paper bar the ring has to be ink, not the bar's paper. */
-  .add:hover:focus-visible {
-    outline-color: var(--color-ink);
+  .square:active:not(:disabled) {
+    background: var(--color-secondary-pressed);
+  }
+
+  .add:focus-visible {
+    outline-offset: 0;
   }
 
   .add:disabled {
-    color: var(--color-inactive);
+    color: var(--color-disabled);
     cursor: default;
   }
 </style>

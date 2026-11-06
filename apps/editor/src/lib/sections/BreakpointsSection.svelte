@@ -50,14 +50,33 @@
   /** `minWidth` → "min width": the field's name in words, for its label. */
   const words = (field: RuleField): string => field.replace(/[A-Z]/g, (c) => ` ${c.toLowerCase()}`);
 
+  /** "max width" → "Max width": a label in sentence case. */
+  const sentence = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
+  /** A closed rule's header: its fields and values, in one line. */
+  const ruleSummary = (rule: (typeof rules)[number]): string =>
+    RULE_FIELDS.filter((f) => rule[f] !== undefined)
+      .map((f) => `${words(f)} ${rule[f]}`)
+      .join(" · ");
+
+  const summary = $derived(
+    rules.length === 0 ? "None" : `${rules.length} ${rules.length === 1 ? "rule" : "rules"}`,
+  );
+
   const pinned = (field: RuleField): boolean =>
     (field === "rows" || field === "columns") && risked.length > 0;
 </script>
 
-<Section title="Breakpoints" open={rules.length > 0}>
+<Section
+  title="Breakpoints"
+  open={rules.length > 0}
+  {summary}
+  addLabel="Add breakpoint"
+  onAdd={() => session.apply(addRule())}
+>
   <div class="rules">
     {#each rules as rule, i (i)}
-      <Collapsible title="Rule {i + 1}" variant="group">
+      <Collapsible title="Rule {i + 1}" variant="group" summary={ruleSummary(rule)}>
         {#snippet actions()}
           <IconButton icon="trash" label="Remove rule {i + 1}" onclick={() => session.apply(removeRule(i))} />
           <IconButton
@@ -79,7 +98,7 @@
             <div class="field">
               <div class="input">
                 <NumericInput
-                  label={words(field)}
+                  label={sentence(words(field))}
                   value={rule[field]!}
                   parse={RULE_PARSERS[field]}
                   onCommit={(t) => session.apply(setRuleField(i, field, t))}
@@ -121,23 +140,22 @@
 <style>
   .rules {
     display: grid;
-    gap: var(--space-2);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
   }
 
-  /* The tile group body: paper, framed in ink. */
+  /* Inside the rule's well: the fields line up with the title above them. */
   .body {
     display: grid;
-    gap: var(--space-4);
-    padding: var(--space-3);
-    border: var(--rule);
-    border-top: 0;
-    background: var(--color-paper);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-2) var(--space-5) var(--space-5);
   }
 
   .field {
     display: flex;
-    align-items: flex-end;
-    gap: var(--space-4);
+    align-items: center;
+    gap: var(--space-2);
     color: var(--color-ink);
   }
 
@@ -146,14 +164,25 @@
     min-width: 0;
   }
 
+  /* A secondary button that opens a menu. */
   .add-field {
     justify-self: start;
-    padding: var(--space-2);
-    border: var(--rule);
-    border-radius: var(--radius);
-    background: var(--color-paper);
+    min-height: var(--control-h);
+    padding: 0 var(--space-4);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--color-secondary);
     color: var(--color-ink);
     font-family: var(--font-ui);
     cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease);
+  }
+
+  .add-field:hover {
+    background: var(--color-secondary-hover);
+  }
+
+  .add-field:active {
+    background: var(--color-secondary-pressed);
   }
 </style>

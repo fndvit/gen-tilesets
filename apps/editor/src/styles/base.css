@@ -17,16 +17,13 @@ body {
 }
 
 /*
-  One focus ring for the whole editor: ink on light surfaces, paper on bars.
-  A component on a bar opts in with `.on-bar` on any ancestor.
+  One focus ring for the whole editor: the accent, 2px, clear of the control.
+  Focus is "what you are working on now", the accent's one meaning; the offset
+  keeps the ring on the surface behind an ink control.
 */
 :focus-visible {
-  outline: var(--focus-w) solid var(--color-ink);
+  outline: var(--focus-w) solid var(--color-accent);
   outline-offset: var(--focus-offset);
-}
-
-.on-bar :focus-visible {
-  outline-color: var(--color-on-bar);
 }
 
 @media (prefers-reduced-motion: reduce) {

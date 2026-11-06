@@ -1,82 +1,78 @@
 /**
- * The editor's icon set, as path data copied from the Figma file
- * (`VCp0HyxbLOBq0vOkpDWmIL`, page *Editor*).
+ * The editor's icon set: one family, one grid, one stroke.
  *
- * Paths are kept rather than the exported `.svg` files because an icon has to
- * take its colour from the text around it: white on a bar, ink on paper, seed
- * magenta on re-seed. `Icon.svelte` draws every entry with `currentColor`, so
- * no icon carries a colour of its own.
+ * Iteration 2 replaces the Figma mix (a filled triangle for reorder, an outline
+ * trash, a filled re-seed) with a single outline family, so every icon reads as
+ * one voice. The paths are Lucide's (lucide.dev, ISC licence), drawn on its
+ * 24-unit grid and rendered at 16px. A 2.25-unit stroke on that grid is 1.5px on
+ * screen, with round caps and joins throughout.
  *
- * Coordinates are in the icon's Figma frame (`w` × `h`). Strokes that Figma
- * lets overflow the frame (the 2px chevron, the trash outline) overflow here
- * too: `Icon.svelte` sets `overflow: visible`.
+ * Paths are kept rather than files because an icon takes its colour from the
+ * text around it: `Icon.svelte` draws every entry with `currentColor`, so no
+ * icon carries a colour of its own.
+ *
+ * An icon names an action, never a decoration. Each one sits beside a word or
+ * inside a control with an accessible name (`IconButton`'s `label`).
  */
 
 export interface IconDef {
-  /** Native size in px. Icons are drawn at this size and never scaled. */
+  /** Rendered size in px. */
   w: number;
   h: number;
+  /** The path's coordinate frame, a square `box` units wide. */
+  box: number;
   d: string;
-  mode: "stroke" | "fill";
-  /** Stroke width in px; `stroke` icons only. */
-  strokeWidth?: number;
-  /** Round caps and joins; Figma draws the trash outline this way. */
-  round?: boolean;
-  /** Top-left of the frame in path coordinates, when the path is not drawn from 0,0. */
-  origin?: readonly [number, number];
+  /** Stroke width in `box` units. */
+  strokeWidth: number;
 }
 
+/** 1.5px at 16px on a 24-unit grid. */
+const STROKE = 2.25;
+
+const icon = (d: string): IconDef => ({ w: 16, h: 16, box: 24, d, strokeWidth: STROKE });
+
 export const ICONS = {
-  /** Section and group disclosure. Points down; `Collapsible` turns it up when open. */
-  fold: { w: 12, h: 6, d: "M0 0L6 6L12 0", mode: "stroke", strokeWidth: 2 },
-  /** Move an operation up / down. */
-  up: { w: 12, h: 6, d: "M6 0L0 6H12Z", mode: "fill" },
-  down: { w: 12, h: 6, d: "M6 6L0 0H12Z", mode: "fill" },
-  /** Add bars. */
-  plus: { w: 18, h: 18, d: "M9 0V18M18 9H0", mode: "stroke", strokeWidth: 1 },
-  /** The cross in a tile asset's delete badge. Not in Figma (Pol, Block D). */
-  close: { w: 6, h: 6, d: "M0 0L6 6M6 0L0 6", mode: "stroke", strokeWidth: 1 },
+  /** Disclosure. Points down; `Collapsible` turns it up when open. */
+  fold: icon("m6 9 6 6 6-6"),
+  /** Move an item earlier / later in a list. */
+  up: icon("m5 12 7-7 7 7M12 19V5"),
+  down: icon("M12 5v14m7-7-7 7-7-7"),
+  /** Add. */
+  plus: icon("M5 12h14M12 5v14"),
+  /** Close a panel, remove a tile asset. */
+  close: icon("M18 6 6 18M6 6l12 12"),
   /** Delete. */
-  trash: {
-    w: 12,
-    h: 12,
-    // Figma's export is 13×13 with a 0.5px margin; `origin` puts it back on the 12px frame.
-    origin: [0.5, 0.5],
-    d:
-      "M1.7 2.9H2.9M1.7 2.9L2.648 11.432C2.6805 11.7256 2.82016 11.9969 3.04025 12.194" +
-      "C3.26034 12.3911 3.54538 12.5 3.8408 12.5H9.1592" +
-      "C9.45462 12.5 9.73966 12.3911 9.95975 12.194" +
-      "C10.1798 11.9969 10.3195 11.7256 10.352 11.432L11.3 2.9M1.7 2.9H0.5M2.9 2.9H10.1" +
-      "M2.9 2.9L3.707 1.1882C3.80405 0.982381 3.95762 0.808398 4.1498 0.686547" +
-      "C4.34198 0.564695 4.56485 0.499997 4.7924 0.5H8.2076" +
-      "C8.43526 0.499884 8.65825 0.564528 8.85054 0.686386" +
-      "C9.04284 0.808244 9.19651 0.982288 9.2936 1.1882L10.1 2.9M10.1 2.9H11.3M11.3 2.9" +
-      "H12.5M5.3 5.9V8.9M7.7 5.9V8.9",
-    mode: "stroke",
-    strokeWidth: 1,
-    round: true,
-  },
-  /** Re-seed. Always drawn in `--color-seed` by its caller (`IconButton tone="seed"`). */
-  reseed: {
-    w: 12,
-    h: 10,
-    d:
-      "M11.8352 7.29976C12.0549 7.50898 12.0549 7.84817 11.8352 8.05737L9.96024 9.84273" +
-      "C9.60845 10.1778 8.99999 9.94295 8.99999 9.46391V8.57143H7.62222C7.58365 8.57143 " +
-      "7.54549 8.56388 7.51012 8.54924C7.47475 8.5346 7.44291 8.51319 7.4166 8.48634L5.76294 " +
-      "6.79893L7.01294 5.52342L8.24999 6.78572H8.99999V5.89328C8.99999 5.41476 9.60803 " +
-      "5.17904 9.96024 5.51447L11.8352 7.29976ZM0.28125 3.21429H2.25L3.48705 4.47659L4.73704 " +
-      "3.20107L3.08339 1.51366C3.05707 1.48681 3.02524 1.4654 2.98986 1.45076C2.95449 1.43612 " +
-      "2.91634 1.42857 2.87777 1.42857H0.28125C0.12593 1.42857 0 1.5485 0 1.69643V2.94643" +
-      "C0 3.09435 0.12593 3.21429 0.28125 3.21429ZM8.99999 3.21429V4.10679C8.99999 4.5858 " +
-      "9.60845 4.82063 9.96024 4.4856L11.8352 2.70025C12.0549 2.49103 12.0549 2.15183 " +
-      "11.8352 1.94263L9.96024 0.157343C9.60803 -0.178104 8.99999 0.0576328 8.99999 " +
-      "0.536138V1.42857H7.62222C7.58365 1.42857 7.54549 1.43612 7.51012 1.45076C7.47475 " +
-      "1.4654 7.44291 1.48681 7.4166 1.51366L2.25 6.78572H0.28125C0.12593 6.78572 0 6.90565 " +
-      "0 7.05357V8.30357C0 8.4515 0.12593 8.57143 0.28125 8.57143H2.87777C2.95572 8.57143 " +
-      "3.03018 8.54061 3.08339 8.48634L8.24999 3.21429H8.99999Z",
-    mode: "fill",
-  },
+  trash: icon(
+    "M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6",
+  ),
+  /**
+   * Re-seed: anything that draws its randomness again (the seed, an operation's
+   * salt, the asset channel, a fresh load). The shape, not a colour, says it.
+   */
+  reseed: icon(
+    "M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22m-4-4 4 4-4 4" +
+      "M2 6h1.9c1.5 0 2.9.9 3.6 2.2M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8m5.7 6.6 4-4-4-4",
+  ),
+  /** Undo the last edit. */
+  undo: icon("M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"),
+  /** Open a tileset from a file. */
+  import: icon(
+    "m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4" +
+      "a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2",
+  ),
+  /** Save the tileset out as a file. */
+  export: icon("M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"),
+  /** Start a new tileset. */
+  new: icon(
+    "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7ZM14 2v4a2 2 0 0 0 2 2h4M9 15h6M12 18v-6",
+  ),
+  /** More actions, in a menu. */
+  more: icon(
+    "M11 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0M18 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0" +
+      "M4 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0",
+  ),
+  /** Done. */
+  check: icon("M20 6 9 17l-5-5"),
 } as const satisfies Record<string, IconDef>;
 
 export type IconName = keyof typeof ICONS;

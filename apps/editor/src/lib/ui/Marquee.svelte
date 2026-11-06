@@ -1,6 +1,6 @@
 <!--
-  The Figma *console strip*: one line of `.t-console` on `--color-inactive`
-  inside a 1px ink frame, used for an operation's summary.
+  One line of `.t-console` in the muted colour, with no frame: an operation's
+  summary, read as a caption over its step tabs.
 
   Text that fits stays still. Text that overflows scrolls right to left in a
   seamless loop, at the constant speed `--marquee-speed`, and pauses under the
@@ -68,9 +68,7 @@
     overflow: hidden;
     contain: inline-size;
     padding-block: var(--console-pad-y);
-    border: var(--rule);
-    background: var(--color-inactive);
-    color: var(--color-ink);
+    color: var(--color-muted);
     white-space: nowrap;
   }
 
@@ -79,9 +77,20 @@
     flex: none;
   }
 
+  /* Text that fits can be centred by the caller (an operation's captions, over centred tabs). */
+  .strip:not(.clip) {
+    justify-content: var(--marquee-align, flex-start);
+  }
+
+  .strip:not(.clip) .copy {
+    padding-inline: var(--space-2);
+  }
+
   .copy {
     flex: none;
     padding-inline: var(--space-2) var(--space-6);
+    line-height: var(--leading-title);
+    text-box: none;
   }
 
   .always .run,
@@ -102,7 +111,7 @@
     display: flex;
     align-items: center;
     padding-inline: var(--space-1) var(--space-2);
-    background: var(--color-inactive);
+    background: var(--marquee-ground, var(--color-panel));
   }
 
   @media (prefers-reduced-motion: no-preference) {

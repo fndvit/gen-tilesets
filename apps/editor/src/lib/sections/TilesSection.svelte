@@ -168,6 +168,13 @@
     }
   }
 
+  /** The closed header's line: how many groups and variants. */
+  const summary = $derived.by(() => {
+    const variants = tiles.reduce((n, t) => n + t.assets.length, 0);
+    if (tiles.length === 0) return "None";
+    return `${tiles.length} ${tiles.length === 1 ? "group" : "groups"} · ${variants} ${variants === 1 ? "variant" : "variants"}`;
+  });
+
   /** Only an imported file can hold these: the editor refuses to make one. */
   const isDuplicate = (tile: Tile) => tileNameTaken(session.file, tile.name, tile.id);
 
@@ -179,7 +186,7 @@
   }
 </script>
 
-<Section title="Tiles">
+<Section title="Tiles" {summary} addLabel="Add tile group" onAdd={() => pick(null)}>
   <div
     class="library"
     class:armed
@@ -233,7 +240,9 @@
 <style>
   .library {
     display: grid;
-    gap: var(--space-2);
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+    border-radius: var(--radius);
     outline: var(--focus-w) solid transparent;
     outline-offset: var(--focus-offset);
     transition: outline-color var(--dur-fast) var(--ease);

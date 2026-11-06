@@ -258,53 +258,63 @@
   .palette {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-4);
+    gap: var(--space-3);
     color: var(--color-ink);
   }
 
+  /* The segments sit on a track like a segmented control's, and are their weights wide. */
   .bar {
     display: flex;
+    gap: var(--space-1);
     height: var(--thumb);
-    border: var(--rule);
-    background: var(--color-paper);
+    padding: var(--space-1);
+    border-radius: var(--radius-sm);
+    background: var(--color-field);
     touch-action: none;
   }
 
+  /* An entry is a grey block; the one being edited is ink, the selected state. */
   .segment {
     flex-basis: 0;
     min-width: 0;
     padding: 0 var(--space-2);
     border: 0;
-    border-right: var(--rule-w) solid var(--color-paper);
-    background: var(--color-ink);
-    color: var(--color-paper);
+    border-radius: calc(var(--radius-sm) - var(--space-1));
+    background: var(--color-secondary-hover);
+    color: var(--color-ink);
     overflow: hidden;
     white-space: nowrap;
+    line-height: normal;
+    text-box: none;
     cursor: grab;
+    transition:
+      background-color var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
   }
 
-  .segment:last-child {
-    border-right: 0;
+  /* An empty entry clears cells, so it reads as the panel showing through. */
+  .segment.null {
+    background: var(--color-panel);
+    box-shadow: inset 0 0 0 var(--rule-w) var(--color-edge);
   }
 
-  /* Pressed: grabbing, and the frame thickens inside, as a pressed glyph's does. */
+  .segment:hover:not(.on) {
+    background: var(--color-secondary-pressed);
+  }
+
+  .segment.on {
+    background: var(--color-selected);
+    color: var(--color-on-selected);
+  }
+
+  /* Pressed: grabbing, and a ring drawn inside, so nothing moves. */
   .segment:active {
     cursor: grabbing;
-    box-shadow: inset 0 0 0 var(--focus-w) var(--color-ink);
+    box-shadow: inset 0 0 0 var(--focus-w) var(--color-muted);
   }
 
-  /* An empty entry clears cells, so it reads as paper, not as a tile. */
-  .segment.null {
-    background: var(--color-paper);
-    color: var(--color-ink);
-    border-right-color: var(--color-ink);
-  }
-
-  /* Selected and hover = the glyph look: inactive fill, ink text. */
-  .segment:hover,
-  .segment.on {
-    background: var(--color-inactive);
-    color: var(--color-ink);
+  .segment:focus-visible {
+    outline-offset: 0;
   }
 
   /* A zero-weight entry is legal and must stay visible (§7.6). */
@@ -319,36 +329,42 @@
     flex-wrap: wrap;
     gap: var(--space-4);
     margin: 0;
+    color: var(--color-muted);
   }
 
-  /* Inactive grey is unreadable on paper, so the selected share is underlined instead. */
+  /* The edited entry's share is ink and underlined, so it pairs with the ink segment. */
   .thresholds .on {
+    color: var(--color-ink);
     text-decoration: underline;
   }
 
+  /* A field like the numeric ones: filled, its bottom edge the boundary. */
   .select {
     box-sizing: border-box;
-    width: var(--field-w);
-    min-height: var(--target-min);
-    padding: 0;
+    width: 100%;
+    min-width: 0;
+    height: var(--control-h);
+    padding: 0 var(--space-3);
     border: 0;
-    border-bottom: var(--rule);
-    border-radius: var(--radius);
-    background: transparent;
+    border-radius: var(--radius-sm);
+    background: var(--color-field);
+    box-shadow: inset 0 calc(-1 * var(--rule-w)) 0 var(--color-edge);
     color: var(--color-ink);
     cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease);
   }
 
-  /* As the numeric fields: hover and focus thicken the underline. */
-  .select:hover,
+  .select:hover {
+    background: var(--color-field-hover);
+  }
+
   .select:focus-visible {
-    outline: none;
-    border-bottom-width: var(--focus-w);
-    margin-bottom: calc(var(--rule-w) - var(--focus-w));
+    outline-offset: 0;
   }
 
   .actions {
     display: flex;
-    gap: var(--chip-gap);
+    flex-wrap: wrap;
+    gap: var(--space-2);
   }
 </style>

@@ -87,7 +87,7 @@
           onInput={slide}
           onCommit={slide}
         />
-        <span class="readout t-label">{readout(value, affordance.step)}</span>
+        <span class="readout t-value">{readout(value, affordance.step)}</span>
       </span>
     {/snippet}
   </FieldRow>
@@ -113,8 +113,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    width: calc(var(--field-w) * 2);
-    max-width: 100%;
+    width: 100%;
   }
 
   .readout {

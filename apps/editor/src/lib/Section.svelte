@@ -1,14 +1,22 @@
 <!--
-  A sidebar section: the Figma *Section Header* bar over its content.
+  A sidebar section: a header over its content, folding.
 
   `09` §2 sends "visual design, layout of panels" to *nowhere*, and §3.1 repeats
   it: "Panel layout is not specified anywhere and deliberately so." So this
   component carries no obligation. The bar, the chevron and the disclosure
-  semantics are `ui/Collapsible`'s; this adds only the Figma content padding
-  (6px, then a 4px slot).
+  semantics are `ui/Collapsible`'s, and so is the white panel an open section
+  becomes; this adds only the content padding, which lines the fields up with
+  the header's title.
 
-  It sets no gap between rows, because the bodies differ: fields are 8px apart
-  (Grid & Size), lists of bars 4px (Tiles). Each body sets its own.
+  It sets no gap between rows; each body sets its own (6px between fields and
+  between nested groups).
+
+  `summary` is the line a closed section shows under its title, built by the
+  section from values it already holds ("25 px · 14 rows · 720 wide").
+
+  `onAdd` puts a "+" in the header for a section that holds a list
+  (breakpoints, tiles, operations), so adding never needs a scroll to the end of
+  the list; it opens the section too, so the new item is in view.
 
   **The collapsed state is transient.** `09` §12 lists persisted editor state,
   collapsed panels among them, as `[POSTPONED]`, and **E4** forbids `meta` as
@@ -21,15 +29,22 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import Collapsible from "./ui/Collapsible.svelte";
+  import IconButton from "./ui/IconButton.svelte";
 
   interface Props {
     title: string;
     /** The *initial* state only. Nothing writes back to it (see above). */
     open?: boolean;
+    /** A muted line shown while closed, from values the section already holds. */
+    summary?: string | undefined;
+    /** Adds an item to the section's list, from a "+" in the header. */
+    onAdd?: (() => void) | undefined;
+    /** The "+" button's name: "Add breakpoint". */
+    addLabel?: string | undefined;
     children: Snippet;
   }
 
-  let { title, open = true, children }: Props = $props();
+  let { title, open = true, summary, onAdd, addLabel, children }: Props = $props();
 
   // `open` seeds the state once. A later change to the prop would reopen a
   // section the author had just closed.
@@ -37,20 +52,26 @@
   let expanded = $state(open);
 </script>
 
-<Collapsible {title} variant="section" bind:open={expanded}>
+{#snippet add()}
+  <IconButton
+    icon="plus"
+    label={addLabel ?? `Add to ${title}`}
+    onclick={() => {
+      expanded = true;
+      onAdd?.();
+    }}
+  />
+{/snippet}
+
+<Collapsible {title} {summary} variant="section" bind:open={expanded} actions={onAdd ? add : undefined}>
   <div class="content">
     {@render children()}
   </div>
 </Collapsible>
 
 <style>
-  /*
-    Lighter than the sidebar ground, closed by a rule, so where an open
-    section ends is visible even for the last one (Pol, Block F review).
-  */
+  /* Under the header's ink rule: room on every side, the fields lined up with the title. */
   .content {
-    padding: calc(var(--space-3) + var(--space-2));
-    border-bottom: var(--rule-w) solid var(--color-separator);
-    background: var(--color-section);
+    padding: var(--space-6) var(--space-7) var(--space-7);
   }
 </style>

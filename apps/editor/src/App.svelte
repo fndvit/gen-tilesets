@@ -34,6 +34,7 @@
   import DerivedSection from "./lib/sections/DerivedSection.svelte";
   import GridSection from "./lib/sections/GridSection.svelte";
   import SidebarFooter from "./lib/sections/SidebarFooter.svelte";
+  import SidebarTopBar from "./lib/sections/SidebarTopBar.svelte";
   import OperationsSection from "./lib/sections/OperationsSection.svelte";
   import TilesSection from "./lib/sections/TilesSection.svelte";
   import Button from "./lib/ui/Button.svelte";
@@ -274,12 +275,16 @@
 <main>
   <aside>
     <!--
-      The sidebar is two parts. `.scrollable` holds the sections and scrolls;
+      The sidebar is three parts. The top bar (the document's actions) lines up
+      with the preview's top bar. `.scrollable` holds the sections and scrolls;
       the preview beside it does not move, so every control is reachable
       without the picture it changes leaving the screen, which is the whole
       point of **S2**'s single live preview. `.fixed` (the footer) never
       scrolls.
     -->
+    <SidebarTopBar onNew={newTileset} />
+
+    <div class="sidebar-body">
     <div class="scrollable">
       <ScrollArea>
         <div class="sections">
@@ -294,7 +299,8 @@
       </ScrollArea>
     </div>
 
-    <SidebarFooter bind:loadSalt onNew={newTileset} />
+    <SidebarFooter bind:loadSalt />
+    </div>
   </aside>
 
   <section class="preview" aria-label="Preview">
@@ -330,7 +336,7 @@
                   {/each}
                 </ul>
                 <div class="actions">
-                  <Button label="Change it" onclick={confirmPending} />
+                  <Button label="Change it" variant="primary" onclick={confirmPending} />
                   <Button label="Cancel" onclick={() => (pending = null)} />
                 </div>
               </div>
@@ -471,7 +477,21 @@
   main {
     display: grid;
     grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     height: 100dvh;
+  }
+
+  /*
+    The two top bars share the first row (subgrid), so they are always the same
+    height and their hairline is one line across the window, even when the
+    preview's bar wraps in a narrow column.
+  */
+  aside,
+  .preview {
+    grid-row: 1 / -1;
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   main > * {
@@ -488,22 +508,31 @@
   @media (max-width: 40rem) {
     main {
       grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: none;
       height: auto;
     }
 
     aside,
     .preview {
+      grid-row: auto;
+      grid-template-rows: auto minmax(0, 1fr);
       height: 100dvh;
     }
   }
 
-  /* The Figma *Sidebar*: a 1px ink frame, the scrolling sections over the fixed footer. */
+  /*
+    The sidebar: the grey ground; the top bar, the scrolling sections, the fixed
+    footer. No frame: the ground's value against the preview's white is the edge.
+  */
   aside {
+    background: var(--color-ground);
+  }
+
+  .sidebar-body {
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
     grid-template-columns: minmax(0, 1fr);
-    border: var(--rule);
-    background: var(--color-surface);
+    min-height: 0;
   }
 
   /* `ScrollArea` scrolls; its handle sits on the content, so the sidebar never narrows. */
@@ -512,13 +541,14 @@
   }
 
   /*
-    Sections touch; the darker ground shows only under the last one, so where
-    it ends is visible above the footer (Pol, Block F review).
+    Sections float on the ground with a little of it between them, so an open
+    section's white panel has an edge on every side, the last one included.
   */
   .sections {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    padding-bottom: var(--space-6);
+    gap: var(--space-3);
+    padding: var(--space-4);
   }
 
   /*
@@ -527,12 +557,6 @@
     sidebar, so a scrollbar never takes width from the frame and the sidebar
     never moves.
   */
-  .preview {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .canvas {
     min-height: 0;
   }
@@ -570,17 +594,29 @@
     margin-bottom: var(--space-6);
   }
 
+  /* A white panel lifted over the picture, like a popup but pinned. */
   .notice {
     display: grid;
     gap: var(--space-4);
-    padding: calc(var(--space-3) + var(--space-2));
-    border: var(--rule);
-    background: var(--color-paper);
+    max-width: 560px;
+    padding: var(--space-6) var(--space-7);
+    border-radius: var(--radius);
+    background: var(--color-panel);
+    box-shadow: var(--shadow-float);
     color: var(--color-warn);
   }
 
   .notice h2 {
     margin: 0;
+    color: var(--color-ink);
+    font-size: var(--text-section-size);
+    font-weight: var(--weight-semibold);
+  }
+
+  .notice p {
+    margin: 0;
+    line-height: var(--leading-hint);
+    text-box: none;
   }
 
   .notice ul {
@@ -595,7 +631,7 @@
 
   .notice .actions {
     display: flex;
-    gap: var(--chip-gap);
+    gap: var(--space-2);
   }
 
   .failures {

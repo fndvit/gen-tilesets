@@ -1,5 +1,5 @@
 <!--
-  One icon from `icons.ts`, drawn at its native Figma size in `currentColor`.
+  One icon from `icons.ts`, drawn at 16px in `currentColor`, outline only.
 
   Icons are decorative by default (`aria-hidden`), because almost every icon
   sits inside a control that names itself (`IconButton`'s `label`). Pass
@@ -17,38 +17,31 @@
   let { name, label }: Props = $props();
 
   const icon = $derived(ICONS[name]);
-  const origin = $derived("origin" in icon ? icon.origin : ([0, 0] as const));
 </script>
 
 <svg
   class="icon"
   width={icon.w}
   height={icon.h}
-  viewBox="{origin[0]} {origin[1]} {icon.w} {icon.h}"
+  viewBox="0 0 {icon.box} {icon.box}"
   role={label ? "img" : undefined}
   aria-label={label}
   aria-hidden={label ? undefined : "true"}
   focusable="false"
 >
-  {#if icon.mode === "fill"}
-    <path d={icon.d} fill="currentColor" />
-  {:else}
-    <path
-      d={icon.d}
-      fill="none"
-      stroke="currentColor"
-      stroke-width={"strokeWidth" in icon ? icon.strokeWidth : 1}
-      stroke-linecap={"round" in icon ? "round" : undefined}
-      stroke-linejoin={"round" in icon ? "round" : undefined}
-    />
-  {/if}
+  <path
+    d={icon.d}
+    fill="none"
+    stroke="currentColor"
+    stroke-width={icon.strokeWidth}
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
 </svg>
 
 <style>
   .icon {
     display: block;
     flex: none;
-    /* Figma lets the 2px chevron and the trash outline overflow their frame. */
-    overflow: visible;
   }
 </style>

@@ -1,3 +1,5 @@
+> Exploration branch: this file describes the pre-exploration system; see /DESIGN_DIRECTION.md for this direction.
+
 # Editor design system
 
 The visual language of the tileset editor. It was extracted from the Figma file

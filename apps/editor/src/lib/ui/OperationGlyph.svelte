@@ -9,9 +9,10 @@
 
   It is a radio, and is meant to live in `GlyphGrid`, which owns the keyboard.
 
-  States: selected and hover look the same, a `--color-inactive` fill with a
-  1px ink frame (Figma node 2034:658). Hover does not invert as chips do,
-  because inverting would sink the ink artwork into an ink fill.
+  States, by surface: idle is the well itself; hover washes one step darker;
+  selected is a white tile raised off the well with a 2px ink ring, the
+  selected state of a control that cannot be filled with ink (the artwork is
+  ink, so an ink fill would sink it).
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
@@ -72,15 +73,17 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--space-2);
     min-width: 0;
-    padding: var(--space-1) var(--glyph-gap);
-    /* Always framed, transparent when idle, so selecting never shifts the layout. */
-    border: var(--rule-w) solid transparent;
-    border-radius: var(--radius-xs);
-    background: var(--color-paper);
+    padding: var(--space-3) var(--glyph-gap) var(--space-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
     color: var(--color-ink);
     cursor: pointer;
+    transition:
+      background-color var(--dur-fast) var(--ease),
+      box-shadow var(--dur-fast) var(--ease);
   }
 
   .label-only {
@@ -113,23 +116,28 @@
     height: var(--glyph-slot);
   }
 
-  .glyph:hover:not(:disabled),
-  .glyph[aria-checked="true"] {
-    border-color: var(--color-ink);
-    background: var(--color-inactive);
-  }
-
-  /* Pressed: the frame thickens. A stroke drawn inside, so nothing moves. */
-  .glyph[aria-checked="true"] {
-    cursor: default;
+  .glyph:hover:not(:disabled):not([aria-checked="true"]) {
+    background: var(--color-hover);
   }
 
   .glyph:active:not(:disabled):not([aria-checked="true"]) {
-    box-shadow: inset 0 0 0 var(--focus-w) var(--color-rule);
+    background: var(--color-pressed);
+  }
+
+  .glyph[aria-checked="true"] {
+    background: var(--color-panel);
+    box-shadow:
+      inset 0 0 0 var(--focus-w) var(--color-selected),
+      var(--shadow-raised);
+    cursor: default;
+  }
+
+  .glyph:focus-visible {
+    outline-offset: var(--rule-w);
   }
 
   .glyph:disabled {
-    color: var(--color-inactive);
+    color: var(--color-disabled);
     cursor: default;
   }
 </style>

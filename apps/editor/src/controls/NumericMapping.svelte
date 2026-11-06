@@ -195,16 +195,16 @@
   .mapping {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-4);
+    gap: var(--space-3);
     color: var(--color-ink);
   }
 
-  /* One track, two thumbs. The inputs are stacked and made transparent so the
-     span below shows through; only the thumbs take pointer events. The thumbs
-     are `Slider`'s ink blocks. */
+  /* One track carrying both handles, drawn as `Slider`'s: a soft grey track, the
+     span between the handles in ink, round thumbs. The inputs are stacked and
+     transparent so the span shows through; only the thumbs take pointer events. */
   .track {
     position: relative;
-    height: var(--slider-thumb-h);
+    height: var(--target-min);
   }
 
   .track::before {
@@ -213,19 +213,16 @@
     left: 0;
     right: 0;
     top: 50%;
-    height: var(--rule-w);
-    background: var(--color-ink);
-  }
-
-  /* Hover thickens the track, as on `Slider`. */
-  .track:hover::before {
-    height: var(--focus-w);
+    height: var(--slider-track-h);
+    border-radius: var(--slider-track-h);
+    transform: translateY(-50%);
+    background: var(--color-track);
   }
 
   .span {
     position: absolute;
     top: 50%;
-    height: var(--space-2);
+    height: var(--slider-track-h);
     transform: translateY(-50%);
     background: var(--color-ink);
   }
@@ -244,23 +241,36 @@
 
   .handle::-webkit-slider-thumb {
     appearance: none;
+    box-sizing: border-box;
     pointer-events: auto;
-    width: var(--slider-thumb-w);
-    height: var(--slider-thumb-h);
-    border: 0;
-    border-radius: var(--radius);
+    width: var(--slider-thumb);
+    height: var(--slider-thumb);
+    border: var(--focus-w) solid var(--color-paper);
+    border-radius: var(--radius-round);
     background: var(--color-ink);
+    box-shadow: var(--shadow-raised);
     cursor: ew-resize;
+    transition: transform var(--dur-fast) var(--ease);
   }
 
   .handle::-moz-range-thumb {
+    box-sizing: border-box;
     pointer-events: auto;
-    width: var(--slider-thumb-w);
-    height: var(--slider-thumb-h);
-    border: 0;
-    border-radius: var(--radius);
+    width: var(--slider-thumb);
+    height: var(--slider-thumb);
+    border: var(--focus-w) solid var(--color-paper);
+    border-radius: var(--radius-round);
     background: var(--color-ink);
+    box-shadow: var(--shadow-raised);
     cursor: ew-resize;
+  }
+
+  .handle::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+
+  .handle::-moz-range-thumb:hover {
+    transform: scale(1.2);
   }
 
   .handle:focus-visible {
@@ -269,11 +279,11 @@
 
   .handle:focus-visible::-webkit-slider-thumb {
     outline: var(--focus-w) solid var(--color-ink);
-    outline-offset: var(--focus-offset);
+    outline-offset: var(--rule-w);
   }
 
   .handle:focus-visible::-moz-range-thumb {
     outline: var(--focus-w) solid var(--color-ink);
-    outline-offset: var(--focus-offset);
+    outline-offset: var(--rule-w);
   }
 </style>

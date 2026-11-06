@@ -4,7 +4,12 @@
   button per bound the file's breakpoints name. At the right, what to show: the
   Grid toggle, the size presets with Fill, and the background swatch.
 
-  The black breakpoint is the range the width is in, the smallest bound at or
+  It wears the sidebar's vocabulary: the same grey ground, so the two read as
+  one L of chrome around the white picture area, and the same segmented
+  controls (white tracks here, one step lighter than the ground they sit on;
+  the chosen segment in ink).
+
+  The ink breakpoint is the range the width is in, the smallest bound at or
   above it (`activeBound`), so dragging across a bound moves the black along
   with the rule taking over. Pressing one shows the preview at exactly that
   bound; bounds are inclusive, so the rule it names applies there.
@@ -52,8 +57,8 @@
     <Hint text={hint}>
       {#snippet children(id)}
         <p class="readout" aria-describedby={id}>
-          <span class="t-body">Current preview size:</span>
-          <span class="value">{Math.round(preview.width)} px</span>
+          <span class="t-label">Preview size</span>
+          <span class="value t-value">{Math.round(preview.width)} px</span>
         </p>
       {/snippet}
     </Hint>
@@ -61,7 +66,7 @@
     <!-- Not drawn when the file has no breakpoints. -->
     {#if bounds.length > 0}
       <div class="breakpoints">
-        <span class="t-body" aria-hidden="true">Breakpoints</span>
+        <span class="t-label" aria-hidden="true">Breakpoints</span>
         <WidthChoices
           choices={breakpoints}
           chosen={activeBreakpoint}
@@ -76,7 +81,7 @@
   <div class="tools">
     <button
       type="button"
-      class="grid-toggle t-body"
+      class="grid-toggle t-xs"
       aria-pressed={preview.showGrid}
       onclick={() => (preview.showGrid = !preview.showGrid)}
     >
@@ -101,15 +106,20 @@
 
 <style>
   .top-bar {
+    /* Fields and tracks are white on the ground: one step lighter, as they are one step darker on a panel. */
+    --color-field: var(--color-panel);
+
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     justify-content: space-between;
-    gap: var(--space-6);
-    /* At least Figma's height; on a narrow column the tools wrap under the readout (1.4.10). */
+    gap: var(--space-4) var(--space-6);
+    /* On a narrow column the tools wrap under the readout (1.4.10). */
     min-height: var(--preview-bar-h);
-    padding-left: var(--space-5);
-    background: var(--color-paper);
+    padding: var(--space-3) var(--space-6) var(--space-3) var(--space-7);
+    box-sizing: border-box;
+    border-bottom: var(--rule-w) solid var(--color-bar-rule);
+    background: var(--color-ground);
     color: var(--color-ink);
   }
 
@@ -118,21 +128,13 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-6);
-    align-self: stretch;
+    gap: var(--space-4) var(--space-7);
   }
 
-  /* The label sits on the bar's centre line beside the readout; the buttons
-     hang from the top edge, like the presets. */
   .breakpoints {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--space-4);
-    align-self: stretch;
-  }
-
-  .breakpoints > span {
-    align-self: center;
   }
 
   .readout {
@@ -143,72 +145,76 @@
     white-space: nowrap;
   }
 
-  /* Figma's 65 Medium at the xs size, in lower case ("860 px"). */
   .value {
-    font-family: var(--font-ui);
-    font-size: var(--text-xs-size);
     font-weight: var(--weight-medium);
   }
 
-  /* The presets hang from the top edge and the swatch fills the bar, as in Figma. */
   .tools {
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--space-4);
-    align-self: stretch;
   }
 
   .sizes {
     display: flex;
-    align-items: flex-start;
-    align-self: stretch;
+    align-items: center;
+    gap: var(--space-4);
   }
 
+  /* A one-segment toggle: white like a track at rest, ink while the grid shows. */
   .grid-toggle {
     box-sizing: border-box;
     min-width: var(--width-chip-w);
-    height: var(--width-chip-h);
-    border: var(--rule);
-    background: var(--color-paper);
+    height: var(--control-h);
+    padding: 0 var(--space-5);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--color-field);
     color: var(--color-ink);
+    line-height: normal;
+    text-box: none;
     cursor: pointer;
     transition:
       background-color var(--dur-fast) var(--ease),
       color var(--dur-fast) var(--ease);
   }
 
-  .grid-toggle:hover:not(:disabled),
-  .grid-toggle[aria-pressed="true"]:not(:disabled) {
-    background: var(--color-ink);
-    color: var(--color-paper);
+  .grid-toggle:hover {
+    background: var(--color-secondary);
   }
 
-  .grid-toggle:active:not(:disabled) {
-    background: var(--color-pressed);
-    color: var(--color-on-pressed);
+  .grid-toggle:active {
+    background: var(--color-secondary-hover);
   }
 
-  .grid-toggle:disabled {
-    border-color: var(--color-inactive);
-    color: var(--color-inactive);
-    cursor: default;
+  .grid-toggle[aria-pressed="true"] {
+    background: var(--color-selected);
+    color: var(--color-on-selected);
   }
 
-  /* The swatch is the colour it holds, in a heavy frame. */
+  .grid-toggle[aria-pressed="true"]:hover {
+    background: var(--color-primary-hover);
+  }
+
+  /* The swatch is the colour it holds, edged so white still shows (1.4.11). */
   .swatch {
     box-sizing: border-box;
     width: var(--swatch-w);
-    min-height: var(--preview-bar-h);
-    align-self: stretch;
-    border: var(--swatch-rule-w) solid var(--color-rule);
+    height: var(--control-h);
+    border-radius: var(--radius-sm);
     background: var(--swatch);
+    box-shadow: inset 0 0 0 var(--rule-w) var(--color-edge);
     cursor: pointer;
+    transition: box-shadow var(--dur-fast) var(--ease);
   }
 
   .swatch:hover {
-    outline: var(--rule-w) solid var(--color-rule);
-    outline-offset: calc(-1 * var(--swatch-rule-w) - var(--rule-w));
+    box-shadow: inset 0 0 0 var(--focus-w) var(--color-ink);
+  }
+
+  .swatch:active {
+    box-shadow: inset 0 0 0 calc(var(--focus-w) + var(--rule-w)) var(--color-ink);
   }
 
   .swatch:focus-within {

@@ -302,7 +302,7 @@
   }
 
   .handle:active {
-    --mark-color: var(--color-pressed);
+    --mark-color: var(--color-muted);
   }
 
   /*

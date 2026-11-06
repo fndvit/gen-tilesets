@@ -1,6 +1,6 @@
 ---
 title: sections/SidebarFooter.svelte
-description: The sidebar's fixed black footer. Seed, asset rerolls, the load preview, undo, import, new document and download, until Stage 2 designs it.
+description: The sidebar's fixed "Randomness" card. The seed, assets on load, reroll assets and a fresh-load preview.
 sidebar:
   order: 45
 ---
@@ -10,19 +10,18 @@ sidebar:
 
 ## Overview
 
-The black block at the bottom of the sidebar, Figma's *Fixed*. It never scrolls or collapses.
-Figma does not design its contents yet (Stage 2), so for now it holds the session controls built
-from existing primitives:
+A white card at the bottom of the sidebar, titled "Randomness". It never scrolls or collapses.
+Since iteration 2 it holds only what decides the picture's randomness:
 
-- **Seed:** the text field and a magenta re-seed button.
-- **Assets:** reroll which variant each cell shows.
+- **Seed:** the text field (mono, so the case shows as typed) and a re-seed button.
 - **Assets on load:** Fixed or Reseed.
-- **Fresh load:** preview another visitor's load. It is disabled when nothing reseeds on load.
-- **Undo, Import, New, Download tileset.zip.**
+- **Reroll assets:** reroll which variant each cell shows.
+- **Preview a fresh load:** preview another visitor's load. It is disabled when nothing reseeds
+  on load.
 
-The footer is also where a dropped `tileset.zip` or folder goes. Reports never take footer space:
-an export error, or the note that the document draws nothing, appears in a
-[`Popup`](/editor/ui-popup/) after the download.
+The two actions wear the re-seed icon: the shape, not a colour, says "draw again". Undo, New,
+Import and Export moved to the [sidebar top bar](/editor/sidebar-top-bar/), and so did dropping a
+zip.
 
 ## In detail
 
@@ -31,33 +30,25 @@ an export error, or the note that the document draws nothing, appears in a
 | Prop | Type | Meaning |
 | --- | --- | --- |
 | `loadSalt` | `number` (bindable) | §8.5's load-preview value. App holds it because `<Tileset>` reads it. |
-| `onNew` | `() => void` | App's `newTileset` (confirmed, not undoable). |
 
 ### Inputs → outputs
 
 | Control | Writes |
 | --- | --- |
-| Seed field (`.t-body`, so the case shows as typed) | `setDefaultSeed(value)` on every `input` |
-| Re-seed `IconButton` (seed tone) | `rerollSeed()` |
-| Assets `IconButton` (seed tone) | `rerollAssets()` |
+| Seed field (`.t-value`, mono, so the case shows as typed) | `setDefaultSeed(value)` on every `input` |
+| New seed `IconButton` (`strong`) | `rerollSeed()` |
 | Assets on load `Toggle` | `setReseedAssetsOnLoad(on)` |
-| Fresh load `IconButton` (seed tone, disabled unless `loadVaries`) | `loadSalt = drawLoadSalt()`; writes no field |
-| Undo | `session.undo()`, disabled unless `canUndo` |
-| Import | [`ImportPanel`](/editor/import-panel/), with the footer as its drop `target` |
-| New | `onNew()` |
-| Download tileset.zip | `exportZip(file)`; "Building…" while it runs |
+| Reroll assets `Button` | `rerollAssets()` |
+| Preview a fresh load `Button` (disabled unless `loadVaries`) | `loadSalt = drawLoadSalt()`; writes no field |
 
-The Fresh load hint carries the inert-flags advisory: Operations that reseed on load over a
+The fresh-load hint carries the inert-flags advisory: Operations that reseed on load over a
 source that is not random (`inertFlags`).
 
-### Theme
+### Look
 
-The root has `.theme-inverted` (`tokens.css`): ink becomes white, paper black, and the bar colours
-swap. Every primitive inside renders inverted with no style of its own. The drag-over state draws
-a 2px ink (white) outline inside the block.
-
-Padding is 12px above and 10px at the sides, and `--footer-pad-bottom` (36px) below, so a band of
-black sits under the last row (Pol, Block F review).
+A white card on the sidebar ground (`--color-card`), 8px from the edges, with 12px of padding
+above and 16px at the sides and below. Its heading is a `.t-title`. The two actions share a row,
+and stack in a narrow sidebar.
 
 ### Invariants
 

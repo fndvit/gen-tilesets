@@ -2,7 +2,7 @@
   The Figma *Tile asset*: one variant of a tile group. A 32px thumbnail, the
   weight slider and the variant's share as a %.
 
-  **Delete is a badge on the thumbnail** (Pol, Block D; not in Figma): a black
+  **Delete is a badge on the thumbnail** (Pol, Block D; not in Figma): an ink
   circle with a white cross at its top-right corner, shown while the row is
   hovered or has focus. It is focusable while hidden, so Tab reaches it and
   shows it. With one variant left it stays, disabled, because a Tile with no
@@ -79,7 +79,7 @@
     {onInput}
     {onCommit}
   />
-  <span class="share t-label">{percent}%</span>
+  <span class="share t-value">{percent}%</span>
 </div>
 
 <style>
@@ -102,12 +102,12 @@
     display: block;
     width: var(--thumb);
     height: var(--thumb);
+    border-radius: var(--radius-xs);
     object-fit: cover;
   }
 
   .missing {
-    box-sizing: border-box;
-    border: var(--rule);
+    background: var(--color-field);
   }
 
   .badge {
@@ -123,15 +123,16 @@
     padding: 0;
     border: 0;
     border-radius: var(--radius-round);
-    background: var(--color-bar);
-    color: var(--color-on-bar);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    box-shadow: 0 0 0 var(--rule-w) var(--color-paper);
     cursor: pointer;
     opacity: 0;
     pointer-events: none;
     transition:
       opacity var(--dur-fast) var(--ease),
       background-color var(--dur-fast) var(--ease),
-      color var(--dur-fast) var(--ease);
+      transform var(--dur-fast) var(--ease);
   }
 
   /* The pointer target is `--target-min` square around the smaller circle (WCAG 2.2, 2.5.8). */
@@ -141,17 +142,15 @@
     inset: calc((var(--badge) - var(--target-min)) / 2);
   }
 
-  /* Hover inverts the circle; a ring drawn inside keeps its edge on the thumbnail. */
+  /* Hover lifts the circle to the primary's hover grey and grows it a little. */
   .badge:hover:not(:disabled) {
-    background: var(--color-paper);
-    color: var(--color-ink);
-    box-shadow: inset 0 0 0 var(--rule-w) var(--color-ink);
+    background: var(--color-primary-hover);
+    transform: scale(1.15);
   }
 
   .badge:active:not(:disabled) {
-    background: var(--color-pressed);
-    color: var(--color-on-pressed);
-    box-shadow: none;
+    background: var(--color-ink);
+    transform: scale(1);
   }
 
   /* The ring around a circle: the outline follows the radius. */
@@ -167,7 +166,7 @@
   }
 
   .badge:disabled {
-    background: var(--color-inactive);
+    background: var(--color-disabled);
     cursor: default;
   }
 
