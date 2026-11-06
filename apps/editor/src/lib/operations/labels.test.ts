@@ -25,9 +25,10 @@ describe("labelFor", () => {
     expect(labelFor("valueNoise")).toBe("Noise");
   });
 
-  it("title-cases any other name, so a later registration still reads", () => {
-    expect(labelFor("everyNth")).toBe("Every Nth");
-    expect(labelFor("scaleX")).toBe("Scale X");
+  it("puts any other name in sentence case, so a later registration still reads", () => {
+    expect(labelFor("cellsPerFeature")).toBe("Cells per feature");
+    expect(labelFor("everyNth")).toBe("Every nth");
+    expect(labelFor("scaleX")).toBe("Scale x");
     expect(labelFor("rect")).toBe("Rect");
   });
 });

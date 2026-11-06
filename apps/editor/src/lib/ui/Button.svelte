@@ -24,6 +24,9 @@
     variant?: "primary" | "secondary" | "tertiary";
     /** The id of a hint that explains it. */
     describedby?: string | undefined;
+    /** For a popover trigger ("How noise works"), as on `IconButton`. */
+    expanded?: boolean | undefined;
+    element?: HTMLButtonElement | undefined;
   }
 
   let {
@@ -34,10 +37,22 @@
     wide = false,
     variant = "secondary",
     describedby,
+    expanded,
+    element = $bindable(),
   }: Props = $props();
 </script>
 
-<button type="button" class="button t-xs {variant}" class:wide class:with-icon={icon} aria-describedby={describedby} {disabled} {onclick}>
+<button
+  bind:this={element}
+  type="button"
+  class="button t-xs {variant}"
+  class:wide
+  class:with-icon={icon}
+  aria-describedby={describedby}
+  aria-expanded={expanded}
+  {disabled}
+  {onclick}
+>
   {#if icon}<Icon name={icon} />{/if}{label}
 </button>
 

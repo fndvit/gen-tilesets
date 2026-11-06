@@ -9,9 +9,10 @@
   white card on a grey table, open or closed; a nested group is a faint well
   inside a card; a field is one step darker than whatever it sits on. Ink does
   three jobs: text, the primary action of an area, and what is selected; it
-  also draws the rule under an open section's header. One accent, ultramarine,
+  also draws the rule under an open section's header. One accent, pink,
   means only "what you are editing now": the open operation, its active step,
-  the focus ring, and the cells it selects in the preview.
+  the focus ring and the draft cue. The cells it selects in the preview have
+  their own neutral colour (`--color-selection`).
 */
 
 :root {
@@ -31,8 +32,16 @@
   --black-6: rgb(0 0 0 / 0.06); /* hover wash: darkens whatever surface it is on by one step */
   --black-12: rgb(0 0 0 / 0.12); /* pressed wash */
   --black-10: rgb(0 0 0 / 0.1); /* the preview grid, so it reads on any backdrop */
-  --ultramarine: #3340ff; /* the accent: 6.3:1 on white, 5.4:1 on the ground */
-  --ultramarine-10: rgb(51 64 255 / 0.1); /* the accent as a wash: the active step's row */
+  /*
+    The accent (Pol, N3; was ultramarine #3340ff). Pol's #e94b82 darkened at the
+    same hue and saturation to the lightest shade that passes AA for text on
+    every surface the accent's text sits on: 5.4:1 on white, 4.6:1 on the
+    ground, 4.9:1 on a well, 4.6:1 on its own wash. White on it is 5.4:1 (the
+    active step's number). #e94b82 itself was 3.6:1 on white.
+  */
+  --pink: #cd1957;
+  --pink-10: rgb(205 25 87 / 0.1); /* the accent as a wash: the active step's row */
+  --berry: #8e294c; /* the accent's hue, darker and less saturated: the selection overlay. 8.2:1 on white */
   --red-600: #c53030; /* a stroke that erases; a failure notice's icon (5.9:1 on white) */
 
   /* ── Type ──────────────────────────────────────────────────────────── */
@@ -122,6 +131,9 @@
   --picker-w: 300px;
   --picker-cell: 64px;
   --picker-thumb: 36px;
+  --explainer-w: 340px; /* the Explainer popover's widest */
+  --field-scale-h: 6px; /* the field preview's 0–1 scale */
+  --field-preview-max-h: 240px; /* a tall grid's field preview, so the fields stay in view */
 
   /* ── Border and radius ─────────────────────────────────────────────── */
   --rule-w: 1px;
@@ -187,9 +199,16 @@
   --color-bar-rule: var(--color-ink); /* the hairline under both top bars: one line across the window */
   --color-grid: var(--black-10);
   --color-scrollbar: var(--grey-500);
-  --color-accent: var(--ultramarine); /* "editing now": open operation, active step, focus */
-  --color-accent-wash: var(--ultramarine-10);
-  --color-selection: var(--color-accent); /* cells the open operation selects or a stroke adds */
+  --color-accent: var(--pink); /* "editing now": open operation, active step, focus */
+  --color-accent-wash: var(--pink-10);
+  /*
+    Cells the open operation selects, or a stroke adds: their own colour, kin to
+    the accent but not it (Pol, N3). The accent itself tinted pink tiles pink; a
+    neutral two-tone ink-and-paper edge was tried and rejected as too heavy. The
+    accent's hue, darker and less saturated, reads as part of "editing now"
+    without washing the picture, and a thin line of it holds 8.2:1 on white.
+  */
+  --color-selection: var(--berry);
   --color-erase: var(--red-600); /* cells a stroke removes */
   /* A failure notice's icon, and nothing else. An advisory has no colour: it is ink (E16). */
   --color-danger: var(--red-600);

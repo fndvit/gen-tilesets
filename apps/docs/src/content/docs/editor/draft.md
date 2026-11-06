@@ -58,6 +58,7 @@ returns non-`null`.
 | `mappingOf(draft)` | `(Draft) → Operation["mapping"]` | `{ palette }` for a tile Target, else `numeric`. Under `constant`, a one-entry palette. |
 | `toShadowOperation(draft)` | `(Draft) → Operation \| null` | An Operation that `selection()` can resolve, for the overlay, carrying the draft's Pattern for the palette's coverage. |
 | `shadowConfig(config, draft)` | `(TilesetConfig, Draft) → { operationId, config } \| null` | The config with the shadow Operation in it, replaced by id or appended. Shared by the overlay and the coverage. |
+| `draftFile(file, draft)` | `(TilesetFile, Draft) → TilesetFile \| null` | The file with `toOperation(draft)` in it, replaced by id or appended; `null` while incomplete. What the preview draws while a draft is open (item 12). |
 | `fromOperation(op)` | `(Operation) → Draft` | Reopens an Operation as an edit-draft. |
 | `toOperation(draft)` | `(Draft) → Operation \| null` | The committed Operation, or `null` if incomplete. |
 | `draftDiffers(draft, op)` | `(Draft, Operation \| null) → boolean` | Whether discarding the draft would lose anything. `op` is the stored Operation for an edit-draft, `null` for a create-draft. |
@@ -107,6 +108,11 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 - **`shadowConfig(config, draft)`.** `null` when `toShadowOperation` is. Otherwise the config with
   the shadow Operation replacing the one with its id (an edit-draft) or appended (a create-draft).
   Replacing matters: `selection()` resolves by id and would find the unedited Operation first.
+  The replace-or-append rule is one private function, `withOperation`, shared with `draftFile`.
+- **`draftFile(file, draft)`.** `null` unless `isComplete(draft)`; otherwise a new file whose
+  config has `toOperation(draft)` in it by the same rule. Built from `toOperation`, not from the
+  shadow, so the live picture is exactly what Save commits (Constant's one entry included). It
+  never writes to `file` (**E3**).
 - **`fromOperation(op)`.** It un-spreads `type` from `selection` and `source`. It copies
   `salt ?? 0` and `reseedOnLoad === true`. For a tile mapping it deep-copies each palette entry and
   seeds `numeric` from `newDraft`. For a numeric mapping it copies `range` and seeds `palette` from
@@ -155,7 +161,7 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 | `lib/operations/OperationBody.svelte` | `shadowConfig(file.config, draft)` for the palette's measured coverage |
 | `opening.svelte.ts:40` | `draftDiffers` before switching away from an open draft |
 | `lib/operations/labels.ts:176` | `mappingOf(draft)` for the header's summary |
-| `App.svelte` | `shadowConfig(config, draft)` for the overlay |
+| `App.svelte` | `shadowConfig(config, draft)` for the overlay; `draftFile(file, draft)` for the live preview |
 
 `mappingOf` is also used internally (`:350`) and by `controls/mapping.test.ts`.
 
@@ -171,7 +177,9 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
   switching to Noise before Save restores the list; a saved Constant operation reopens unchanged;
   a file's multi-entry palette under `constant` saves its first non-zero entry; a numeric mapping
   is left alone. `shadowConfig` appends a create-draft, replaces an edit-draft by id, carries the
-  draft's Pattern, and is `null` before a Selection type.
+  draft's Pattern, and is `null` before a Selection type. `draftFile` appends a create-draft,
+  replaces an edit-draft in place (index kept), is `null` while incomplete, saves one entry under
+  Constant, and leaves the file it is given unchanged.
   `draftDiffers`: a fresh create-draft is unchanged until a step is answered; a reopened
   Operation is unchanged whatever step is open; an edited parameter, a new Blend and a new salt
   are changes; retargeting there and back is not, since the unused mapping never commits; an edit

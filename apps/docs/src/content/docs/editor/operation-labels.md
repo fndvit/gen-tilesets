@@ -12,7 +12,7 @@ sidebar:
 `labels.ts` turns the registry's names into words for the author, and builds the summary on
 each [operation header](/editor/operation-header/): one answer per step, each shown above that
 step's tab. The file and the code keep the registry names (`everyNth`, `cellList`, `scaleX`). The
-UI shows "Every Nth", "Handpick", "Scale X". Joined in step order by ` * `, the answers read as one
+UI shows "Every nth", "Handpick", "Scale x". Joined in step order by ` * `, the answers read as one
 line:
 
 ```text
@@ -28,7 +28,7 @@ All * Random * Tile [sand, clear] * Set
 | Export | Signature | Meaning |
 | --- | --- | --- |
 | `labelFor` | `(name: string) => string` | Figma's name for a registry name. |
-| `STEP_LABELS` | `Record<Step, string>` | What each step is called: `source` → "Pattern", the others title-cased. |
+| `STEP_LABELS` | `Record<Step, string>` | What each step is called: `source` → "Pattern"; the others are the step's name with a capital. |
 | `SummaryParts` | interface | `selection`, `target`, `mapping`, `source`, `blend`, each `null` while unanswered. |
 | `UNANSWERED` | `"—"` | Shown for a step with no answer. |
 | `summaryCells` | `(parts, tiles: readonly Tile[]) => Record<Step, string>` | Each step's answer, for the header's cell above that step's tab. |
@@ -42,8 +42,9 @@ All * Random * Tile [sand, clear] * Set
 
 - **`labelFor`.** Four names are fixed: `cellList` → "Handpick", `checkerboard` → "Checkered",
   `tileId` → "Tile", `valueNoise` → "Noise". Any other name is split before each capital that
-  follows a lower-case letter or digit, and its first letter is capitalized: `everyNth` →
-  "Every Nth", `scaleX` → "Scale X", `rect` → "Rect".
+  follows a lower-case letter or digit and put in sentence case, with no exceptions (Pol, N3):
+  `cellsPerFeature` → "Cells per feature", `everyNth` → "Every nth", `scaleX` → "Scale x",
+  `rect` → "Rect".
 - **`STEP_LABELS`.** Kept apart from `labelFor`'s fixed names on purpose: those map registry
   names, and a Source registered under the name `source` would otherwise read "Pattern".
 - **`summaryCells`.** `{ selection, source, attribute, blend }`, each through `labelFor` or
@@ -65,8 +66,8 @@ All * Random * Tile [sand, clear] * Set
 
 ### Invariants
 
-- **A name with no entry still reads** (**E9**). A Selection or Source registered later gets a
-  title-cased label with no change here.
+- **A name with no entry still reads** (**E9**). A Selection, Source or param registered later
+  gets a sentence-case label with no change here.
 - **Tile ids never reach the summary** while the Tile exists.
 - **Pure.** No state, no Svelte runes. It imports only `isTileMapping` and types from the package,
   `mappingOf`, `STEPS`, `Draft` and `Step` from `draft.svelte.ts`, and `constantEntry` from
@@ -87,7 +88,7 @@ Callees: `isTileMapping` (package), `mappingOf`, `STEPS` (`draft.svelte.ts`), `c
 
 ### Tests
 
-`lib/operations/labels.test.ts`: Figma's names where they differ from the registry's; title case
+`lib/operations/labels.test.ts`: Figma's names where they differ from the registry's; sentence case
 for any other name; `STEP_LABELS.source` is "Pattern" while `labelFor("source")` stays "Source"; `summaryCells` giving each step its own answer, and `—` for every step of a
 new draft; a numeric operation read in step order; `steps` shown only when present;
 palette tiles named, never by id, with an empty entry called "clear"; under Constant, only the

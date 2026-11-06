@@ -14,8 +14,8 @@ and the call sites in `lib/operations/OperationBody.svelte`.
 ## Overview
 
 `ParamFields` is the block of settings that appears under the glyph grid in the Selection and
-Source steps of an open operation. Pick Every Nth, for example, and it shows fields for Axis, N
-and Offset; pick Noise (`valueNoise`) and it shows Cells Per Feature and Octaves.
+Source steps of an open operation. Pick Every nth, for example, and it shows fields for Axis, N
+and Offset; pick Noise (`valueNoise`) and it shows Cells per feature and Octaves.
 
 It knows nothing about any particular type. It reads the type's declared list of parameters and
 draws one control per parameter, choosing a slider, a number box or a row of buttons from what
@@ -47,6 +47,7 @@ header comment: "There is no code here that knows what `everyNth` or `valueNoise
 | `schema` | [`ParamSchema`](/api/index/type-aliases/paramschema/) | required | The registered type's parameter schema. |
 | `values` | `Record<string, unknown>` | required | The draft's current parameters, by name. |
 | `onChange` | `(name: string, value: unknown) => void` | required | Called with one parameter's new value. |
+| `hints` | `Record<string, string>` | `{}` | What each param does, by name, passed to its control as `about`. Given by the caller ([param-hints.ts](/editor/param-hints/)), so this file still knows no registered type. |
 
 ### Inputs → outputs
 

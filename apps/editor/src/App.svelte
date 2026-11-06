@@ -10,6 +10,18 @@
   a production page produce the same picture, because they run the same code on
   the same input. Not by convention, and with no second implementation to drift.
 
+  **Amended for the live draft (item 12, Pol N0–N1).** While an open
+  operation's draft is complete, the preview draws `draftFile(file, draft)`:
+  the file with the draft's Operation in it, replaced by id or appended, built
+  by `toOperation`, which is exactly what Save commits. So every change to the
+  draft shows at once. What S2 guarantees still holds: one `<Tileset>`, the same
+  code, and the picture is the one Save will produce. Only its input is no
+  longer always the saved file. Rejected: a separate preview renderer for the
+  draft, which could drift from what Save produces, the failure S2 exists to
+  prevent. While the draft is incomplete, the saved file is drawn as before;
+  there is no half-painted state (Pol, N1). **E3** is untouched: nothing here
+  writes to `session.file`, and the editing controls keep reading it.
+
   **`09` §3.1 — this document specifies affordances, not appearance.** Panel
   layout, colour, and shortcuts are specified nowhere in the package, on purpose.
   What is load-bearing below is which control writes which field, and that is
@@ -25,7 +37,8 @@
   import type { Notice } from "./notices.js";
   import { editorProvider, replaceAll, stored } from "./assets.js";
   import type { Transition } from "./document.js";
-  import { shadowConfig } from "./draft.svelte.js";
+  import { paintedTiles } from "./controls/palette.js";
+  import { draftFile, shadowConfig } from "./draft.svelte.js";
   import { drafting } from "./drafting.svelte.js";
   import { opening } from "./opening.svelte.js";
   import { atRisk, needsConfirmation, orphans } from "./orphans.js";
@@ -56,6 +69,28 @@
   const rules = $derived(file.responsive ?? []);
 
   /**
+   * The file **with the open draft in it**, while the draft can paint, else
+   * `null` (`draftFile`; the S2 amendment above). `null` is what tells the
+   * draft cue to hide: the cue marks a picture that is not saved, not an
+   * operation that is open (Pol, N1).
+   *
+   * **Built from a snapshot of the draft, not the draft.** The draft is a
+   * `$state` proxy, and `mappingOf` hands its palette over as is, so the engine
+   * would read a proxy once per cell: on a 61×120 grid a weight drag took about
+   * 180 ms a change, most of it Svelte's dev-mode read tracking, against 80 ms
+   * for a re-seed that redraws as much (N3, measured). The same cost T4 found
+   * in `coverageOf`. A plain copy also keeps `<Tileset>` from holding live
+   * proxies of the draft. Done here and not in `draftFile`, because that file
+   * is plain TypeScript the tests load without the Svelte transform.
+   */
+  const drawn = $derived(
+    drafting.draft === null ? null : draftFile(file, $state.snapshot(drafting.draft)),
+  );
+
+  /** What `<Tileset>` draws: the draft's file while there is one, else the saved file. */
+  const shown = $derived(drawn ?? file);
+
+  /**
    * The file **as `<Tileset>` draws it at a preview width** — its rules' cascade
    * applied by the package's own functions, never re-derived here (**R1**).
    *
@@ -63,6 +98,14 @@
    * the picture to the cell, and at a width where a rule changes `columns` the
    * picture is not the base file's grid. The editing controls keep reading the
    * base, because the base is what they edit.
+   *
+   * Shaped from the saved `file` even while `<Tileset>` draws a draft, and
+   * that is the same shape: `draftFile` replaces `config.operations` and
+   * nothing else, so rows, columns, layout and breakpoints are the file's own
+   * objects (`draft.test.ts` holds it to that). Reshaping `shown` instead was
+   * tried in N3 and rejected: `shown` is a new object on every draft change, so
+   * both overlays rebuilt their geometry each time, and on 61×120 the Selection
+   * overlay's per-cell re-render was most of a weight drag's cost.
    */
   function shapedAt(Wpx: number): TilesetFile {
     return reshape(file, ruleOverride(activeRules(rules, Wpx)));
@@ -80,19 +123,26 @@
    * `loadSalt` is §8.5's load-preview value, held below. `provider` is the
    * editor's own, bridging `meta.src` to the session `Blob` a drop created.
    */
-  let failures = $state<{ ref: AssetRef; meta: unknown; text: string }[]>([]);
+  let failures = $state<{ ref: AssetRef; meta: unknown; text: string; drafted: boolean }[]>([]);
 
   /**
    * The failures whose asset is still the one that failed: the same `meta`
    * object. An import, or attaching the file again, writes a new `meta`, so
    * the failure goes; a deleted asset's goes too. Either way it would describe
    * a picture the author can no longer see or fix.
+   *
+   * A failure reported while a draft was drawn (`drafted`) also goes once no
+   * palette in the drawn file names its tile: a draft's picture that failed
+   * and was then discarded is not in the preview any more (item 12). Only those
+   * are filtered, so a failure from the saved file is kept exactly as before.
    */
-  const liveFailures = $derived(
-    failures
+  const liveFailures = $derived.by(() => {
+    const painted = paintedTiles(shown.config);
+    return failures
       .filter(({ ref, meta }) => metaOf(ref) === meta)
-      .map((f) => f.text),
-  );
+      .filter(({ ref, drafted }) => !drafted || painted.has(ref.tileId))
+      .map((f) => f.text);
+  });
 
   function metaOf(ref: AssetRef): unknown {
     const tile = config.tiles.find((t) => t.id === ref.tileId);
@@ -124,7 +174,7 @@
     // per resolution (`provider.ts` `DrawableCache`), but it resolves again when
     // an asset's `meta` changes, and the same picture can then fail the same way.
     if (failures.some((f) => f.text === failure)) return;
-    failures = [...failures, { ref, meta: metaOf(ref), text: failure }];
+    failures = [...failures, { ref, meta: metaOf(ref), text: failure, drafted: drawn !== null }];
   }
 
   /**
@@ -345,7 +395,8 @@
   <section class="preview" aria-label="Preview">
     <PreviewTopBar {rules} />
     <!-- The backdrop is the whole picture area's, between the bars (Pol, Stage 2). -->
-    <div class="canvas" style="background: {preview.background};">
+    <!-- `.drafting` is the draft cue's frame (`DESIGN_SYSTEM.md` *Draft cue*); the tag is in NoticeStack. -->
+    <div class="canvas" class:drafting={drawn !== null} style="background: {preview.background};">
     <ScrollArea fill>
       <div class="preview-body">
         <!--
@@ -376,10 +427,11 @@
             <!--
               **S2** — one component, drawing the complete stack. The brush layer
               is drawn *over* this output and never in place of it, and the picture
-              underneath is the same one a production page gets.
+              underneath is the same one a production page gets. While a complete
+              draft is open, `shown` is the file with it in: what Save will draw.
             -->
             <Tileset
-              {file}
+              file={shown}
               options={{ loadSalt, provider: editorProvider, onAssetError }}
               bind:box={renderBox}
             />
@@ -424,7 +476,11 @@
       §12.2's advisories and §12.3's failures — "reported beside the preview,
       not inside it": floating over the picture area, never drawn into a cell.
     -->
-    <NoticeStack notices={notices.shown(conditions)} onDismiss={(n) => notices.dismiss(n)} />
+    <NoticeStack
+      notices={notices.shown(conditions)}
+      onDismiss={(n) => notices.dismiss(n)}
+      draft={drawn !== null}
+    />
     </div>
   </section>
 
@@ -563,6 +619,20 @@
   .canvas {
     position: relative;
     min-height: 0;
+  }
+
+  /*
+    The draft cue's frame: a 2px accent line inside the picture area (Pol, N3;
+    1px in N1 read as missing where it met the window's edge),
+    over the scrolling picture and under the notices, letting the pointer through.
+  */
+  .canvas.drafting::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    box-shadow: inset 0 0 0 var(--rule-strong) var(--color-accent);
+    pointer-events: none;
   }
 
   /*

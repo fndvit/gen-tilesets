@@ -97,10 +97,12 @@ or a refusal reason.
 | `sliderMax(palette)` | 2, or the largest weight if that is more | |
 | `constantEntry(palette)` | the index Constant paints: the first entry with a weight above zero | |
 | `entryIndex(palette, t)` | the index `t` lands on: `applyTileMapping`'s walk, copied to answer with an index | |
-| `fieldOf(config, operationId, seed, loadSalt)` | the Pattern's `t` at every selected cell, in reading order | |
+| `fieldCells(config, operationId, seed, loadSalt)` | `{ x, y, t }` for every selected cell, in reading order: the Pattern's value and where it is | also the Pattern well's [field preview](/editor/field-preview/) |
+| `fieldOf(config, operationId, seed, loadSalt)` | `fieldCells(…)`'s `t`s alone | |
 | `coverageOf(field, palette)` | each entry's share of the field, 0–1; all zeros for an empty field | |
 | `coverage(config, operationId, seed, loadSalt)` | `coverageOf(fieldOf(…))` for an Operation with a palette | |
 | `keptText(palette, tiles, shown)` | Constant's line naming the other entries, or `null` | |
+| `paintedTiles(config)` | the tile ids any palette names (clear skipped) | App's asset-failure filter for a discarded draft |
 | `thumbOf(tiles, tileId)`, `nameOf(tiles, tileId)` | the thumbnail (also used by [OperationCard](/editor/operation-card/)) and the name | |
 
 `REFUSALS` holds the Popup's words for each reason.
@@ -148,11 +150,13 @@ seed and load. The field does not read the palette, so a weight drag only recoun
 - **Add and change:** both open the [tile picker](/editor/tile-picker/). After a pick, focus goes
   to that entry's thumbnail (Constant's one button under Constant).
 - **Caption:** Random: "Each cell picks a tile at random. The % is each tile's chance." Noise:
-  "Order matters: neighbours in this list meet on the canvas. Under Noise the middle entries cover
-  more, so ≈ is what each one paints with this seed." Gradient: "Order matters: the bands follow
-  this list from one side to the other. ≈ is what each one paints with this seed." Any other
-  Pattern gets the Noise line without its middle sentence, and no Pattern yet: "Choose a pattern
-  to see what each entry paints."
+  "Order matters: neighbours in this list meet on the canvas. Middle entries cover more because
+  noise rarely reaches its ends. Give the first and last entries more weight to even it out."
+  (item 12; the longer why is the "How noise works" popover on the Pattern step.) Gradient: "Order
+  matters: the bands follow this list from one side to the other. ≈ is what each one paints with
+  this seed." Any other Pattern: "Order matters: neighbours in this list meet on the canvas. ≈ is
+  what each one paints with this seed." No Pattern yet: "Choose a pattern to see what each entry
+  paints."
 - **Narrow:** the root is an inline-size container. Under 250px the rows' gaps go to `--space-2`
   and the header's right-hand label is hidden.
 

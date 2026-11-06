@@ -39,6 +39,7 @@ import {
   type ParamSchema,
   type TargetName,
   type TilesetConfig,
+  type TilesetFile,
 } from "@vit-foundation/gen-tilesets";
 import { defaultFor } from "./controls/affordance.js";
 import { constantEntry } from "./controls/palette.js";
@@ -318,11 +319,42 @@ export function shadowConfig(
 ): { operationId: string; config: TilesetConfig } | null {
   const operation = toShadowOperation(draft);
   if (operation === null) return null;
+  return { operationId: operation.id, config: withOperation(config, operation) };
+}
+
+/**
+ * `config` with `operation` in it: in place of the one with its id, or at the
+ * end when there is none. The one rule `shadowConfig` and `draftFile` share, so
+ * the overlay, the coverage and the live picture can never disagree about where
+ * a draft sits in the stack.
+ */
+function withOperation(config: TilesetConfig, operation: Operation): TilesetConfig {
   const present = config.operations.some((op) => op.id === operation.id);
   const operations = present
     ? config.operations.map((op) => (op.id === operation.id ? operation : op))
     : [...config.operations, operation];
-  return { operationId: operation.id, config: { ...config, operations } };
+  return { ...config, operations };
+}
+
+/**
+ * The file the preview draws while a draft is open (item 12, the **live
+ * draft**): `file` with `toOperation(draft)` in it, by `withOperation`'s rule,
+ * or `null` while the draft cannot paint (`isComplete`).
+ *
+ * Built from `toOperation`, not from the shadow, on purpose: the shadow carries
+ * placeholders for the steps not answered yet, and `toOperation` is exactly
+ * what Save commits, so the live picture is the saved one (Constant's one
+ * entry included). `null` rather than the unchanged file while incomplete, so
+ * App can tell "drawing a draft" apart and show the cue only then (Pol, N1).
+ *
+ * Nothing here writes to `file` (**E3**): it is a new object every time. Only
+ * `config.operations` differs; every other part is the file's own object, which
+ * lets App measure the preview's shape from the saved file (`shapedAt`).
+ */
+export function draftFile(file: TilesetFile, draft: Draft): TilesetFile | null {
+  const operation = toOperation(draft);
+  if (operation === null) return null;
+  return { ...file, config: withOperation(file.config, operation) };
 }
 
 /**

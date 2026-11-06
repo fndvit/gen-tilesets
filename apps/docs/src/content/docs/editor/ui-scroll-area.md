@@ -26,6 +26,8 @@ the area, while it scrolls and while it is dragged, then fades out.
 
 ### Inputs → outputs
 
+- `.viewport` is `position: relative`, so anything absolutely positioned inside it is clipped by
+  it and never makes the page scroll (an N3 fix: OperationCard's visually hidden text did).
 - `.viewport` scrolls natively (`overflow-y: auto`) with its own scrollbar hidden
   (`scrollbar-width: none`, `::-webkit-scrollbar { display: none }`). Wheel, trackpad, keyboard
   and focus scrolling are the browser's.

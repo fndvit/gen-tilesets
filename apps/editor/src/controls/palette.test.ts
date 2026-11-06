@@ -7,10 +7,12 @@ import {
   coverage,
   coverageOf,
   entryIndex,
+  fieldCells,
   fieldOf,
   keptText,
   move,
   nameOf,
+  paintedTiles,
   percents,
   remove,
   setTile,
@@ -179,6 +181,16 @@ describe("coverage", () => {
     }
   });
 
+  it("fieldCells gives each selected cell's position, in reading order, with fieldOf's values", () => {
+    const checkered = config(op(NOISE, three, { type: "checkerboard", parity: 0 }));
+    const cells = fieldCells(checkered, "op1", SEED, 0);
+    expect(cells.map((c) => c.t)).toEqual(fieldOf(checkered, "op1", SEED, 0));
+    expect(cells).toHaveLength(Math.ceil((14 * 29) / 2));
+    for (const c of cells) expect((c.x + c.y) % 2).toBe(0);
+    const order = cells.map((c) => c.y * 29 + c.x);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
   it("counts what the engine paints (coverageOf reads the palette once, not per cell)", () => {
     const palette: PaletteEntry[] = [
       { tileId: "a", weight: 0 },
@@ -235,5 +247,41 @@ describe("coverage", () => {
   it("only counts selected cells", () => {
     const checkered = op({ type: "random" }, three, { type: "checkerboard", parity: 0 });
     expect(fieldOf(config(checkered, 4, 4), "op1", SEED, 0)).toHaveLength(8);
+  });
+});
+
+describe("paintedTiles", () => {
+  it("collects every palette's tiles, skipping clear and numeric operations", () => {
+    const base = newDocument().config;
+    const config: TilesetConfig = {
+      ...base,
+      operations: [
+        {
+          id: "op1",
+          selection: { type: "all" },
+          source: { type: "random" },
+          target: "tileId",
+          mapping: { palette: [{ tileId: "a", weight: 1 }, { tileId: null, weight: 1 }] },
+          blend: "set",
+        },
+        {
+          id: "op2",
+          selection: { type: "all" },
+          source: { type: "random" },
+          target: "opacity",
+          mapping: { range: [0, 1] },
+          blend: "set",
+        },
+        {
+          id: "op3",
+          selection: { type: "all" },
+          source: { type: "random" },
+          target: "tileId",
+          mapping: { palette: [{ tileId: "b", weight: 0 }] },
+          blend: "set",
+        },
+      ],
+    };
+    expect([...paintedTiles(config)].sort()).toEqual(["a", "b"]);
   });
 });

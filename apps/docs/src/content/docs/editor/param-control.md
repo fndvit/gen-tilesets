@@ -42,6 +42,7 @@ editor's primitives: [FieldRow](/editor/ui-field-row/), [NumericInput](/editor/n
 | `affordance` | `Affordance` | required | Which control to draw, from `affordanceFor(spec)`. |
 | `value` | `unknown` | required | The draft's current value. |
 | `onChange` | `(value: unknown) => void` | required | Called with a new value. |
+| `about` | `string \| undefined` | `undefined` | What the param does. The label's hint is `about`, then "Accepts *range*." when there is a range (item 12). |
 
 ### Inputs → outputs
 

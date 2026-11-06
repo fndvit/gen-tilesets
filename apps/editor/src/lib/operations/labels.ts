@@ -3,10 +3,10 @@
  * operation header shows, one cell per step.
  *
  * The registry names (`everyNth`, `cellList`, `scaleX`) stay in the file and in
- * code. The author sees words: Figma names the glyphs "Every Nth", "Handpick",
- * "Checkered". A name with no entry here is title-cased, so a Selection or
- * Source registered later still gets a readable label with no change here
- * (**E9**).
+ * code. The author sees words: Figma names the glyphs "Handpick" and
+ * "Checkered". A name with no entry here is put in sentence case, so a Selection,
+ * Source or param registered later still gets a readable label with no change
+ * here (**E9**).
  */
 
 import { isTileMapping, type Operation, type Tile } from "@vit-foundation/gen-tilesets";
@@ -20,11 +20,18 @@ const NAMED: Record<string, string> = {
   valueNoise: "Noise",
 };
 
-/** `everyNth` → `Every Nth`, `scaleX` → `Scale X`, with the overrides above. */
+/**
+ * `cellsPerFeature` → `Cells per feature`, with the overrides above.
+ *
+ * Plain sentence case, with no exceptions (Pol, N3): `everyNth` → `Every nth`
+ * and `scaleX` → `Scale x`. Keeping a one-letter word or "Nth" uppercase was
+ * offered and turned down, because one rule is easier to predict than a rule
+ * with cases.
+ */
 export function labelFor(name: string): string {
   const named = NAMED[name];
   if (named !== undefined) return named;
-  const words = name.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  const words = name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 

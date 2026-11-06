@@ -32,7 +32,7 @@ It does not block the page. A click outside, Esc or Tab closes it.
 
 ### Inputs → outputs
 
-- **Placement:** `position: fixed` against the anchor's box, like [Menu](/editor/ui-menu/), so the
+- **Placement:** [`placeAt`](/editor/ui-popover-ts/) (shared with the Explainer), `position: fixed` against the anchor's box, like [Menu](/editor/ui-menu/), so the
   sidebar's scroll area cannot clip it. It opens upward when there is less than 200px below the
   anchor. A window resize closes it.
 - **Cells:** a `role="dialog"` panel, "Choose a tile", holding one button per cell: a

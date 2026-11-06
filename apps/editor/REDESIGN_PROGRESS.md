@@ -15,7 +15,8 @@ Warnings and dialogs is **closed** (W0–W5: `8364d4e`, `3034fc1`, `3a8ca84`, `f
 group (item 7) and Tile and pattern (item 11) are **closed** (K0–K3, T0–T4: `71fd0c1`,
 `bf60a0d`, `855d6ad`). Explain Noise (item 12) is **in progress**: N0 and N1 are answered (see "N0 answers" and
 "N1 picks" under "Next session plan: Explain Noise (item 12)"). N2 docs are committed (`30116cb`).
-**Next session: follow "Next session plan: N3 · Implement" below.**
+N3 is implemented, uncommitted (see "N3 · Done" under the N3 plan). **Next: Pol reviews N3**, then
+commit, then N4 (sweep).
 
 ## Stage 1 blocks
 
@@ -1772,6 +1773,95 @@ last entries more weight to even it out."
 - No sideways scroll at 1728/1024/600/320.
 
 Then stop for Pol's review; N4 is the sweep.
+
+### N3 · Done (2026-11-06, uncommitted)
+
+**Step 0 (Pol): plain sentence case, no exceptions.** `everyNth` → "Every nth", `scaleX` →
+"Scale x", `cellsPerFeature` → "Cells per feature". `NAMED` still wins (Handpick, Checkered,
+Tile, Noise). Keeping one-letter words or "Nth" uppercase was offered and turned down.
+
+What was built, by step:
+
+1. `labelFor` is sentence case; tests, comments and docs pages updated (also the docs story's
+   "Every nth"). The `scaleX` / `scaleY` targets now read "Scale x" / "Scale y" everywhere.
+2. `fieldCells` (`fieldOf` is its `t`s), `field-preview.ts` (`fieldPixels`, RGBA bytes),
+   `draftFile` + a shared private `withOperation` in `draft.svelte.ts`, `param-hints.ts`
+   (`SOURCE_PARAM_HINTS`, Noise's two params, test against the registry). `ParamFields` takes
+   `hints`; `ParamControl` takes `about` and says it before "Accepts …".
+3. `FieldPreview.svelte` at the top of the Pattern well for every Pattern but Constant; the
+   well now also shows for a Pattern with only a preview. `field` in `OperationBody` is
+   `{ rows, columns, cells }`, computed on the Pattern step (before an Attribute) and on the
+   Attribute step under Tile. `lib/ui/popover.ts` (`placeAt`, `pressedOutside`) is shared by
+   `TilePicker` and the new `lib/ui/Explainer.svelte`; content is data (`ui/explainer.ts`
+   types, `operations/noise-explainer.ts`). `Button` gained `expanded` and a bindable
+   `element`. The `options` snippet takes an optional action at the bar's right.
+4. App draws `shown = drawn ?? file`, `drawn = draftFile(file, $state.snapshot(draft))`. The S2
+   header comment is rewritten. Cue: `.canvas.drafting::after` (1px accent inset) and
+   `NoticeStack`'s `draft` prop (the tag; not a live region). A failure reported while a draft
+   was drawn goes once no palette in `shown` names its tile (`paintedTiles`), so Discard takes
+   it away; saved-file failures behave as before.
+5. The Noise caption is the N1 text.
+6. Tokens: `--explainer-w` 340px, `--field-scale-h` 6px, `--field-preview-max-h` 240px.
+
+**Pol's review of N3 (round 1):** the draft frame is **2px** (`--rule-strong`), not 1px; the
+**accent is pink #E94B82** (`--pink`, replacing `--ultramarine` #3340ff everywhere: focus,
+the open operation, the active step, the selection overlay, the draft cue). And "I don't see
+the bottom of the preview container": the **page itself scrolled**. OperationCard's visually
+hidden spans were absolutely positioned against ScrollArea's `.area`, outside the scroller,
+and added ~1,200px below the window. A wheel over the preview scrolled the page and moved the
+top bar and the frame's bottom out of view. This predates N3. Fixed in `ScrollArea`
+(`.viewport { position: relative }`).
+
+**Round 2:** the **pink is darkened to #CD1957**, the same hue and saturation as #E94B82. It
+is the lightest shade that passes 4.5:1 for text on white, the ground, a well and its own wash.
+**The selection overlay has its own colour**: neutral and two-tone (`--color-selection` ink,
+`--color-selection-halo` paper). That is a 75% ink edge with a 75% paper line inside it and a
+10% ink wash, so one of the two lines stands out on any tile and no hue is added. The
+`PaintLayer` brush cursor got the same paper line inside its dashes.
+
+**Round 3:** Pol rejected the two-tone edge as too thick and wanted the colour closer to the
+accent. The overlay is now `--berry` #8E294C, the accent's hue darker and muted (8.2:1 on
+white): a 1px line at 60% and a 12% wash. `--color-selection-halo` and the brush's paper line
+are gone.
+
+**Decisions made in N3 (for Pol to check):**
+
+- **A tall grid's field preview is capped at 240px high** and drawn narrower, centred. At full
+  well width a 61×120 grid was ~590px tall and pushed the fields off screen.
+  `DESIGN_SYSTEM.md` says so.
+- **`shapedAt` keeps reading the saved file**, not the drawn one (the plan said the drawn one).
+  `draftFile` changes only `config.operations`, so the shape is the same, and
+  `draft.test.ts` now holds it to that. Reshaping the drawn file, which is a new object on
+  every change, made both overlays rebuild on every tick: most of a weight drag's cost.
+- **The drawn file is built from `$state.snapshot(draft)`.** Without it, the engine read the
+  palette proxy once per cell.
+- The popover takes focus itself (not the ✕), and focus leaving it closes it (no trap), like
+  the tile picker. Its bars carry a hidden text line each ("Octaves 2: 15%, 68%, 17%").
+
+**Checks.** Tests 655 + 420, typecheck, docs coverage (129/129), docs build: all green.
+Browser probe: 46/46 (`n3/probe.mjs` in session `e5333bf0`'s scratchpad, with `readme.zip`).
+It covers:
+- the field preview follows Cells per feature and Octaves; Constant has none
+- sentence-case labels, and a hint that says what the param does, then its range
+- the popover: opens by keyboard, Esc / ✕ / a press outside close it, focus returns, inside
+  the window at 320
+- the live picture equals the picture after Save; Add equals too
+- the cue: only for a complete draft, gone on Save and on Discard; Discard brings back the
+  saved picture
+- an edit-draft's Save keeps the operation count
+- no sideways scroll at 1728, 1024, 600 and 320
+
+**Cost on 61×120** (`n3/timing.mjs`: in-page, median of 15, one change and two frames):
+
+| Build | Re-seed (baseline) | Weight drag | Cells per feature |
+|---|---|---|---|
+| Production | 67 ms | 59 ms | 67 ms |
+| Dev | 80 ms | 67 ms | 168 ms |
+
+No throttle was needed. The dev-only extra on Cells per feature is Svelte's dev tracking. It
+comes from the Selection overlay re-rendering every cell when the draft's Pattern changes,
+because App's overlay shadow carries the Pattern. That predates N3. N4 could give the overlay
+a shadow without the Pattern if Pol wants it faster in dev.
 
 ## Known issues / notes
 

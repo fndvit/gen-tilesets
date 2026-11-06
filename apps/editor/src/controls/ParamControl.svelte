@@ -8,7 +8,8 @@
 
   Each affordance is a field row (Block E): a `NumericInput` for a number, a
   `Toggle` for a segmented choice, and a `Slider` with a value readout for a
-  bounded number. The range is a hint on the label, never text in the row.
+  bounded number. The range is a hint on the label, never text in the row,
+  after what the param does when the caller knows (`about`, item 12).
 -->
 <script lang="ts">
   import type { ParamSpec } from "@vit-foundation/gen-tilesets";
@@ -25,13 +26,18 @@
     affordance: Affordance;
     value: unknown;
     onChange: (value: unknown) => void;
+    /** What the param does, said before its range in the hint. */
+    about?: string | undefined;
   }
 
-  let { name, spec, affordance, value, onChange }: Props = $props();
+  let { name, spec, affordance, value, onChange, about }: Props = $props();
 
   const label = $derived(labelFor(name));
   const range = $derived(rangeLabel(spec));
-  const hint = $derived(range === "" ? undefined : `Accepts ${range}.`);
+  const hint = $derived(
+    [about, range === "" ? undefined : `Accepts ${range}.`].filter((s) => s !== undefined).join(" ") ||
+      undefined,
+  );
 
   /** `null` refuses the text, so a half-typed or out-of-range number never reaches the draft. */
   function parse(text: string): number | null {

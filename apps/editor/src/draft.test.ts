@@ -17,6 +17,7 @@ import { describe, expect, it } from "vitest";
 import { newDocument } from "./document.js";
 import {
   draftDiffers,
+  draftFile,
   fromOperation,
   isComplete,
   newDraft,
@@ -25,6 +26,7 @@ import {
   STEPS,
   toOperation,
   toShadowOperation,
+  type Draft,
 } from "./draft.svelte.js";
 
 const numeric: Operation = {
@@ -262,5 +264,59 @@ describe("shadowConfig", () => {
 
   it("is null before a Selection type is chosen", () => {
     expect(shadowConfig(config, newDraft("op1"))).toBeNull();
+  });
+});
+
+describe("draftFile", () => {
+  const file = { ...newDocument(), config: { ...newDocument().config, operations: [numeric, tileTargeted] } };
+
+  /** A complete create-draft: what "Add" would append. */
+  const created = (): Draft => fromOperation({ ...tileTargeted, id: "op1" });
+
+  it("appends a create-draft, as Add does", () => {
+    const drawn = draftFile(file, created())!;
+    expect(drawn.config.operations.map((o) => o.id)).toEqual([numeric.id, "op9", "op1"]);
+  });
+
+  it("replaces an edit-draft in place, keeping its index", () => {
+    const edited = fromOperation(numeric);
+    edited.blend = "set";
+    const ops = draftFile(file, edited)!.config.operations;
+    expect(ops.map((o) => o.id)).toEqual([numeric.id, "op9"]);
+    expect(ops[0]).toEqual(toOperation(edited));
+  });
+
+  it("is null while the draft cannot paint", () => {
+    const draft = created();
+    draft.palette = [];
+    expect(draftFile(file, draft)).toBeNull();
+    expect(draftFile(file, newDraft("op1"))).toBeNull();
+  });
+
+  it("draws what Save writes: one entry under Constant", () => {
+    const draft = created();
+    draft.sourceType = "constant";
+    draft.sourceParams = {};
+    expect(draftFile(file, draft)!.config.operations.at(-1)!.mapping).toEqual({
+      palette: [{ tileId: "t1", weight: 1 }],
+    });
+  });
+
+  it("changes only the operations, so the preview's shape is the saved file's", () => {
+    // App measures the frame and overlays from the saved file while a draft is
+    // drawn; that is right only while nothing but `operations` differs.
+    const drawn = draftFile(file, created())!;
+    for (const key of Object.keys(file) as (keyof typeof file)[]) {
+      if (key !== "config") expect(drawn[key]).toBe(file[key]);
+    }
+    for (const key of Object.keys(file.config) as (keyof typeof file.config)[]) {
+      if (key !== "operations") expect(drawn.config[key]).toBe(file.config[key]);
+    }
+  });
+
+  it("never writes to the file it is given (E3)", () => {
+    const before = JSON.stringify(file);
+    draftFile(file, created());
+    expect(JSON.stringify(file)).toBe(before);
   });
 });

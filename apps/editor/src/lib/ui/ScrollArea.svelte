@@ -123,8 +123,19 @@
     height: 100%;
   }
 
-  /* The native bar is hidden, so it never takes width. */
+  /*
+    The native bar is hidden, so it never takes width.
+
+    `position: relative` makes the viewport the containing block of everything
+    absolutely positioned inside it, so the scroller clips it. Without it, such
+    an element with no positioned ancestor of its own (OperationCard's
+    visually hidden "Operation N:") was placed against `.area`, outside the
+    scroller, hung below the window and made the whole page scroll: a wheel
+    over the preview moved the top bar off screen and hid the bottom of the
+    picture area (found in N3).
+  */
   .viewport {
+    position: relative;
     height: 100%;
     overflow-y: auto;
     scrollbar-width: none;

@@ -60,8 +60,9 @@ Selection step only, why an option is disabled (below).
 
 #### The options block
 
-The `options(choice, fields)` snippet: a `<section aria-label="{labelFor(choice)} settings">`
-holding a `.t-xs` bar on `--color-bar` with `labelFor(choice)`, over a body framed by `--rule`
+The `options(choice, fields, action?)` snippet: a `<section aria-label="{labelFor(choice)} settings">`
+holding a bar with `labelFor(choice)` in muted `.t-xs` and, at its right, the optional `action`
+snippet (Noise's "How noise works"), over a body framed by `--rule`
 without a top border, `--space-3` padding and `--space-4` between rows. Each step renders it only
 when there is something to put in it: `hasFields(schema)` is a non-null schema with at least one
 key. The body's own gap is `--space-6` (12px).
@@ -97,17 +98,30 @@ resets `sourceParams` to defaults. When the registry marks the Source `stochasti
 [FieldRow](/editor/ui-field-row/) "Reseed on load" holds an Off / On [Toggle](/editor/ui-toggle/)
 bound to `draft.reseedOnLoad`, with the hint "Each page load draws this operation with a new
 seed. Saved with the operation." The parameters and the toggle share one options block, shown
-when the Source has parameters or is stochastic.
+when the Source has parameters, is stochastic, or has a field preview.
 
-#### The measured coverage
+The well opens with the [field preview](/editor/field-preview/) (`previewed`: every Pattern but
+Constant) from `field` (below). The Source's [ParamFields](/editor/param-fields/) get
+`hints={sourceParamHints(draft.sourceType)}` ([param-hints.ts](/editor/param-hints/)), so Noise's
+labels say what Cells per feature and Octaves do. Under Noise, the options bar's action is a
+tertiary [Button](/editor/ui-button/) "How noise works" with the `info` icon and `aria-expanded`,
+which opens the [Explainer](/editor/ui-explainer/) with `NOISE_EXPLAINER`. `explaining` holds the
+trigger while it is open; an effect closes it when the step or the Pattern changes, and Esc or ✕
+returns focus to the trigger.
 
-Under a Tile Target, `field` is `fieldOf(...)` ([palette.ts](/editor/palette-list/#the-rules-palettets))
-over `shadowConfig(session.file.config, draft)`, the same shadow config the Selection overlay
-draws, with its rows and columns replaced by the active breakpoint's at `preview.width`
-(`activeRules`, `ruleOverride`), and `config.defaultSeed` and `preview.loadSalt`. `null` without a
-Selection, a Pattern or a Tile Target. `measured` is `coverageOf(field, draft.palette)`, or
-`null` when there is no field or no cell is selected, which the list shows as "—". The shadow
-carries no palette, so a weight drag recounts `field` and does not re-evaluate the Pattern.
+#### The field and the measured coverage
+
+`field` is `{ rows, columns, cells }`: `cells` is `fieldCells(...)`
+([palette.ts](/editor/palette-list/#the-rules-palettets)) over
+`shadowConfig(session.file.config, draft)`, the same shadow config the Selection overlay draws,
+with its rows and columns replaced by the active breakpoint's at `preview.width` (`activeRules`,
+`ruleOverride`), and `config.defaultSeed` and `preview.loadSalt`. It has two readers, so it is
+computed on the Pattern step (for the field preview, before an Attribute is chosen) and on the
+Attribute step under a Tile Target (for the palette), and is `null` elsewhere and before a
+Selection and a Pattern. `measured` is `coverageOf` of the cells' values and `draft.palette`
+under a Tile Target, or `null` when there is no field or no cell is selected, which the list
+shows as "—". The shadow carries no palette, so a weight drag recounts `field` and does not
+re-evaluate the Pattern.
 
 #### Blend
 

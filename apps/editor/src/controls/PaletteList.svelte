@@ -243,14 +243,18 @@
     apply(setWeight(palette, index, weight));
   }
 
-  /** The T1 mock's captions: what the % means, and what order does, under this Pattern. */
+  /**
+   * The T1 mock's captions: what the % means, and what order does, under this
+   * Pattern. Noise's says why the middle wins and what to do about it (N1); the
+   * longer why is in the "How noise works" popover on the Pattern step.
+   */
   const caption = $derived(
     mode === "chance"
       ? "Each cell picks a tile at random. The % is each tile's chance."
       : sourceType === null
         ? "Choose a pattern to see what each entry paints."
         : sourceType === "valueNoise"
-          ? "Order matters: neighbours in this list meet on the canvas. Under Noise the middle entries cover more, so ≈ is what each one paints with this seed."
+          ? "Order matters: neighbours in this list meet on the canvas. Middle entries cover more because noise rarely reaches its ends. Give the first and last entries more weight to even it out."
           : sourceType === "gradient"
             ? "Order matters: the bands follow this list from one side to the other. ≈ is what each one paints with this seed."
             : "Order matters: neighbours in this list meet on the canvas. ≈ is what each one paints with this seed.",

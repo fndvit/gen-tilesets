@@ -7,11 +7,12 @@
   it is offered here and not in Tiles.
 
   It is placed `fixed` against its anchor, like `Menu`, so the sidebar's scroll
-  area cannot clip it. Arrow keys move between cells, Enter or a click picks,
+  area cannot clip it (`placeAt`, shared with `Explainer`). Arrow keys move between cells, Enter or a click picks,
   Esc or a click outside closes, and focus returns to the anchor.
 -->
 <script lang="ts">
   import type { Tile } from "@vit-foundation/gen-tilesets";
+  import { placeAt, pressedOutside } from "../lib/ui/popover.js";
   import { nameOf, thumbOf } from "./palette.js";
 
   interface Props {
@@ -31,15 +32,9 @@
   let panel = $state<HTMLElement | undefined>(undefined);
   let place = $state({ top: 0, left: 0, up: false });
 
-  function measure(): void {
-    const r = anchor.getBoundingClientRect();
-    // Room for two rows of cells before it opens upward instead.
-    const up = window.innerHeight - r.bottom < 200;
-    place = { top: up ? r.top : r.bottom, left: r.left, up };
-  }
-
   $effect(() => {
-    measure();
+    // Room for two rows of cells before it opens upward instead.
+    place = placeAt(anchor.getBoundingClientRect(), { width: window.innerWidth, height: window.innerHeight }, 200);
     // After the opener's own focus handling (Menu returns focus to its button on the next tick).
     const frame = requestAnimationFrame(() => {
       const at = Math.max(ids.indexOf(current ?? null), 0);
@@ -77,8 +72,7 @@
   }
 
   function onpointerdown(event: PointerEvent): void {
-    const target = event.target as Node;
-    if (!panel?.contains(target) && !anchor.contains(target)) onClose(false);
+    if (pressedOutside(event.target as Node, [panel, anchor])) onClose(false);
   }
 </script>
 

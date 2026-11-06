@@ -103,10 +103,12 @@ Which component renders which, in source order. Conditional children are marked.
 | Name | From | Used by |
 | --- | --- | --- |
 | `file`, `config`, `rules` | `session.file` (`rules` is `file.responsive ?? []`) | everything |
-| `shapedAt(Wpx)` | [`reshape`](/api/index/functions/reshape/)`(file, `[`ruleOverride`](/api/index/functions/ruleoverride/)`(`[`activeRules`](/api/index/functions/activerules/)`(rules, Wpx)))` | the frame's ratio and both overlays' geometry |
+| `drawn` | `draftFile(file, drafting.draft)` ([draft.svelte.ts](/editor/draft/)), or `null` with no draft | `shown`, the draft cue, `failures`' `drafted` |
+| `shown` | `drawn ?? file` | `<Tileset>`, `liveFailures` |
+| `shapedAt(Wpx)` | [`reshape`](/api/index/functions/reshape/)`(file, `[`ruleOverride`](/api/index/functions/ruleoverride/)`(`[`activeRules`](/api/index/functions/activerules/)`(rules, Wpx)))` | the frame's ratio and both overlays' geometry; from the saved file even while a draft is drawn, which has the same shape (`draftFile` changes only `config.operations`) |
 | `risked` | `atRisk(config)` from [orphans.ts](/editor/orphans/) | confirmation, Grid & Size hints, Breakpoints' pinned fields |
 | `orphaned` | `orphans(config, config.defaultSeed, loadSalt)` | `current` |
-| `liveFailures` | the `failures` whose asset still has the same `meta` object, as text | `current` |
+| `liveFailures` | the `failures` whose asset still has the same `meta` object, and, for one reported while a draft was drawn, whose tile a palette in `shown` still names (`paintedTiles`), as text | `current` |
 | `current` | `documentNotices(file, orphaned, liveFailures, openOperation)` from `advisories.ts` | `conditions` |
 | `painting` | the draft's Selection schema, looked up via [`selections`](/api/index/variables/selections/), searched for a param of type `cellList` | `PaintLayer`, `PreviewFrame`'s `painting` |
 | `loadSalt` | `preview.loadSalt` ([view.svelte.ts](/editor/preview-width/)) | `<Tileset>`, `SelectionOverlay`, `orphaned` |
@@ -114,7 +116,19 @@ Which component renders which, in source order. Conditional children are marked.
 
 #### The preview's props
 
-`<Tileset {file} options={{ loadSalt, provider: editorProvider, onAssetError }} bind:box={renderBox} />`.
+`<Tileset file={shown} options={{ loadSalt, provider: editorProvider, onAssetError }} bind:box={renderBox} />`.
+
+- **The live draft** (item 12, the **S2** amendment in the header comment). While the open draft
+  is complete, `shown` is `draftFile(file, $state.snapshot(draft))` (a plain copy, so the engine
+  never reads the draft's proxies per cell): the file with the draft's Operation in it,
+  which is what Save will commit, so every change to the draft shows at once. While it is
+  incomplete, or with no draft, `shown` is the saved file. A separate preview renderer was
+  rejected because it could drift from what Save produces. **E3** is untouched. `shapedAt` keeps
+  reading the saved file: reshaping `shown`, a new object on every change, rebuilt both overlays
+  each time (N3 measured it as most of a weight drag's cost on 61×120).
+- **The draft cue.** While `drawn !== null`, `.canvas` gets `.drafting` (a 2px `--color-accent`
+  inset frame on an `::after` over the picture, under the notices, letting the pointer through),
+  and [NoticeStack](/editor/notice-stack/) gets `draft`, which shows the "Draft · not saved" tag.
 
 - **No `seed`.** The comment says the seed field writes `config.defaultSeed` and the component
   falls back to it, so the preview always shows what a visitor with no host seed would see. A
@@ -122,14 +136,16 @@ Which component renders which, in source order. Conditional children are marked.
 - **`onAssetError` is always wired.** Each failure appends `{ ref, meta, text }` to `failures`.
   `text` is `"<tile name> · <assetId>: <reason>"`. The reason is "no file attached" when the
   store has no file for the asset (`stored()` from `assets.ts`), and the cause otherwise. `meta`
-  is the asset's `meta` object at the time. A failure whose text is already in the list is
+  is the asset's `meta` object at the time, and `drafted` whether a draft was being drawn. A failure whose text is already in the list is
   dropped: the notice's signature is the list, so a repeat would bring back a dismissed notice
   for nothing. The renderer reports a failure once per resolution (`provider.ts`
   `DrawableCache`), but it resolves again when an asset's `meta` changes, and the same picture
   can then fail the same way. The empty cell is not filled and no placeholder is drawn.
 - **`liveFailures`** keeps only failures whose asset still has the same `meta` object. An import,
   or attaching the file again, writes a new `meta`, so the failure goes. A deleted asset's goes
-  too.
+  too. A failure reported while a draft was drawn also goes once no palette in `shown` names its
+  tile, so discarding a draft takes its pictures' failures with it. A failure from the saved file
+  is kept as before.
 - **`renderBox`** is bound out so `PaintLayer` can convert pointer events into render space.
   Since the canvas substrate became the default, the box is the canvas's wrapper `<div>`, which
   is why it is typed `HTMLElement`.
@@ -194,6 +210,7 @@ failures.
 ### Invariants
 
 - **One preview, the real component** (**S2**). No preview mode and no second implementation.
+  While a complete draft is open its input is the file with the draft in it (item 12).
 - **Every edit is a transition through `session.apply`** and therefore undoable (**E6**). Undo,
   reset and import are the only other writes, and all three go through `session`. Reset (New
   document) is the one deliberate exception to undoability, and is confirmed first.

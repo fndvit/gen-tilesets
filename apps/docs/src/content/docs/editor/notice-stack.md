@@ -22,6 +22,7 @@ space in the layout. Failures come first, then advisories.
 | --- | --- | --- |
 | `notices` | `readonly Notice[]` | What to show, already ordered and filtered (`notices.shown`). |
 | `onDismiss` | `(notice) => void` | A notice's ✕. App passes `notices.dismiss`. |
+| `draft` | `boolean` (default `false`) | Shows the draft cue's "Draft · not saved" tag at the top, above every notice (item 12). It is not a notice and not a live region, and nothing dismisses it. |
 
 ### Inputs → outputs
 

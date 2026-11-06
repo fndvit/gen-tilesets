@@ -58,7 +58,9 @@
   import randomGlyph from "../../assets/glyphs/selection/random.svg";
   import rectGlyph from "../../assets/glyphs/selection/rect.svg";
   import { isTileTarget } from "../../controls/mapping.js";
-  import { coverageOf, fieldOf } from "../../controls/palette.js";
+  import FieldPreview from "../../controls/FieldPreview.svelte";
+  import { coverageOf, fieldCells } from "../../controls/palette.js";
+  import { sourceParamHints } from "../../controls/param-hints.js";
   import NumericMappingControl from "../../controls/NumericMapping.svelte";
   import PaletteList from "../../controls/PaletteList.svelte";
   import ParamFields from "../../controls/ParamFields.svelte";
@@ -76,6 +78,7 @@
   import { session } from "../../session.svelte.js";
   import { preview } from "../preview/view.svelte.js";
   import Button from "../ui/Button.svelte";
+  import Explainer from "../ui/Explainer.svelte";
   import FieldRow from "../ui/FieldRow.svelte";
   import GlyphGrid from "../ui/GlyphGrid.svelte";
   import Hint from "../ui/Hint.svelte";
@@ -88,6 +91,7 @@
     writesOf,
     writesText,
   } from "./labels.js";
+  import { NOISE_EXPLAINER } from "./noise-explainer.js";
   import { PATTERN_ORDER, patternSvg } from "./pattern-art.js";
 
   interface Props {
@@ -240,21 +244,26 @@
   const collapsed = $derived(draft.sourceType === "constant");
 
   /**
-   * The pattern's `t` at every selected cell, for the palette's measured "≈
-   * painted" share (T3). `null` while there is nothing to measure: no Selection
-   * or Pattern yet, or no Tile Target.
+   * The pattern's `t` at every selected cell, with the cell, on the grid the
+   * preview is showing — the active breakpoint's rows and columns at
+   * `preview.width` — with the file's seed and the preview's load salt, the
+   * same three inputs `<Tileset>` draws with, against the same shadow config as
+   * the Selection overlay. So it is what Save will paint here.
    *
-   * Counted on the grid the preview is showing — the active breakpoint's rows
-   * and columns at `preview.width` — with the file's seed and the preview's load
-   * salt, the same three inputs `<Tileset>` draws with, against the same shadow
-   * config as the Selection overlay. So the figure is what Save will paint here.
+   * Two readers, so it is not tied to either: the Pattern well's **field
+   * preview** (item 12), shown on the Pattern step **before** an Attribute is
+   * chosen, and the palette's measured "≈ painted" share (T3). It was `null`
+   * without a Tile Target while only the palette read it. Computed only where
+   * one of them is on screen, and `null` before a Selection and a Pattern.
    *
    * It does not read the palette (`toShadowOperation` carries none), so a
    * weight drag re-counts this list in `coverageOf` and never re-evaluates the
    * pattern.
    */
   const field = $derived.by(() => {
-    if (draft.sourceType === null || draft.target === null || !isTileTarget(draft.target)) return null;
+    if (draft.sourceType === null) return null;
+    const tiles = draft.target !== null && isTileTarget(draft.target);
+    if (draft.step !== "source" && !(draft.step === "attribute" && tiles)) return null;
     const file = session.file;
     const shadow = shadowConfig(file.config, draft);
     if (shadow === null) return null;
@@ -264,13 +273,38 @@
       rows: shape.rows ?? shadow.config.rows,
       columns: shape.columns ?? shadow.config.columns,
     };
-    return fieldOf(grid, shadow.operationId, file.config.defaultSeed, preview.loadSalt);
+    return {
+      rows: grid.rows,
+      columns: grid.columns,
+      cells: fieldCells(grid, shadow.operationId, file.config.defaultSeed, preview.loadSalt),
+    };
   });
 
   /** Each entry's measured share, or `null` for "—" (nothing measured, or no cell selected). */
-  const measured = $derived(
-    field === null || field.length === 0 ? null : coverageOf(field, draft.palette),
-  );
+  const measured = $derived.by(() => {
+    if (field === null || field.cells.length === 0) return null;
+    if (draft.target === null || !isTileTarget(draft.target)) return null;
+    return coverageOf(
+      field.cells.map((c) => c.t),
+      draft.palette,
+    );
+  });
+
+  /**
+   * The field preview is drawn for every Pattern but Constant, whose field is
+   * one flat value and would be a grey rectangle (Pol, N0.3).
+   */
+  const previewed = $derived(draft.sourceType !== null && draft.sourceType !== "constant");
+
+  /** The "How noise works" trigger while its popover is open, else `undefined`. */
+  let explaining = $state<HTMLButtonElement | undefined>(undefined);
+  let explainTrigger = $state<HTMLButtonElement | undefined>(undefined);
+
+  // The popover belongs to Noise's Pattern step: leaving either unmounts its
+  // trigger, so it closes rather than hang from a detached button.
+  $effect(() => {
+    if (draft.step !== "source" || draft.sourceType !== "valueNoise") explaining = undefined;
+  });
 
   /**
    * Choosing a type materializes every parameter at its schema default (§7.1,
@@ -416,12 +450,16 @@
   {:else if draft.step === "source"}
     <!-- Every Source emits a value in [0, 1); the mapping gives it units. -->
     <GlyphGrid items={sourceItems} value={draft.sourceType} onChange={chooseSource} label="Pattern" />
-    {#if draft.sourceType !== null && (hasFields(sourceSchema) || stochastic)}
+    {#if draft.sourceType !== null && (hasFields(sourceSchema) || stochastic || previewed)}
       {#snippet fields()}
+        {#if previewed && field !== null}
+          <FieldPreview columns={field.columns} rows={field.rows} cells={field.cells} />
+        {/if}
         {#if sourceSchema}
           <ParamFields
             schema={sourceSchema}
             values={draft.sourceParams}
+            hints={sourceParamHints(draft.sourceType)}
             onChange={(name, value) => (draft.sourceParams[name] = value)}
           />
         {/if}
@@ -445,7 +483,19 @@
           </FieldRow>
         {/if}
       {/snippet}
-      {@render options(draft.sourceType, fields)}
+      {#snippet action()}
+        {#if draft.sourceType === "valueNoise"}
+          <Button
+            label="How noise works"
+            icon="info"
+            variant="tertiary"
+            expanded={explaining !== undefined}
+            bind:element={explainTrigger}
+            onclick={() => (explaining = explaining === undefined ? explainTrigger : undefined)}
+          />
+        {/if}
+      {/snippet}
+      {@render options(draft.sourceType, fields, action)}
     {/if}
   {:else if draft.step === "attribute"}
     <!--
@@ -495,10 +545,28 @@
 
 {/snippet}
 
-<!-- The chosen option's fields: a caption naming the choice over a white panel. -->
-{#snippet options(choice: string, fields: Snippet)}
+{#if explaining !== undefined}
+  <Explainer
+    anchor={explaining}
+    content={NOISE_EXPLAINER}
+    onClose={(refocus) => {
+      const trigger = explaining;
+      explaining = undefined;
+      if (refocus) trigger?.focus();
+    }}
+  />
+{/if}
+
+<!--
+  The chosen option's fields: a caption naming the choice over a grey well. An
+  optional action sits at the caption's right ("How noise works").
+-->
+{#snippet options(choice: string, fields: Snippet, action?: Snippet)}
   <section class="options" aria-label="{labelFor(choice)} settings">
-    <p class="options-bar t-xs">{labelFor(choice)}</p>
+    <div class="options-bar">
+      <p class="t-xs">{labelFor(choice)}</p>
+      {@render action?.()}
+    </div>
     <div class="options-body">
       {@render fields()}
     </div>
@@ -640,8 +708,15 @@
   }
 
   .options-bar {
-    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
     padding-left: var(--space-1);
+  }
+
+  .options-bar p {
+    margin: 0;
     color: var(--color-muted);
   }
 

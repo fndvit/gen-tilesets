@@ -18,9 +18,14 @@
     /** The draft's current parameters, keyed by name. */
     values: Record<string, unknown>;
     onChange: (name: string, value: unknown) => void;
+    /**
+     * What each param does, by name, for its label's hint. Passed in rather
+     * than looked up here, so this file still knows no registered type.
+     */
+    hints?: Readonly<Record<string, string>>;
   }
 
-  let { schema, values, onChange }: Props = $props();
+  let { schema, values, onChange, hints = {} }: Props = $props();
 
   const entries = $derived(Object.entries(schema));
 </script>
@@ -50,6 +55,7 @@
           {name}
           {spec}
           {affordance}
+          about={hints[name]}
           value={values[name]}
           onChange={(v) => onChange(name, v)}
         />

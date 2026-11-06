@@ -144,31 +144,49 @@ function entryWalk(palette: PaletteEntry[]): (t: number) => number {
   };
 }
 
+/** One selected cell and the pattern's value there. */
+export interface FieldCell {
+  x: number;
+  y: number;
+  t: number;
+}
+
 /**
- * The pattern's value `t` at every cell the Operation selects, in reading order.
+ * The pattern's value `t` at every cell the Operation selects, in reading
+ * order, with the cell it belongs to.
  *
  * Built only from the package's exports, the way `generate()` builds it: the
  * Selection's predicate from `selection()`, and the Source evaluated against
  * `operationCtx` with the same effective seeds. So a share measured from this
  * is what Save would paint with this seed and load salt, cell for cell.
  *
- * Split from `coverageOf` because it does not read the palette: a weight drag
- * re-counts this list, and never re-evaluates the pattern.
+ * The positions are for the Pattern well's field preview (item 12), which
+ * draws the whole grid; the palette needs only the values (`fieldOf`).
  */
-export function fieldOf(config: TilesetConfig, operationId: string, seed: string, loadSalt: number): number[] {
+export function fieldCells(config: TilesetConfig, operationId: string, seed: string, loadSalt: number): FieldCell[] {
   const op = config.operations.find((o) => o.id === operationId);
   if (op === undefined) return [];
   const selected = selection(config, operationId, seed, loadSalt);
   const source = sources.get(op.source.type);
   const ctx = operationCtx(config, op, effectiveSeeds(seed, loadSalt));
   const params = op.source as Record<string, unknown>;
-  const field: number[] = [];
+  const cells: FieldCell[] = [];
   for (let y = 0; y < config.rows; y++) {
     for (let x = 0; x < config.columns; x++) {
-      if (selected(x, y)) field.push(evalSource(source, params, x, y, ctx));
+      if (selected(x, y)) cells.push({ x, y, t: evalSource(source, params, x, y, ctx) });
     }
   }
-  return field;
+  return cells;
+}
+
+/**
+ * `fieldCells`' values alone, which is all the coverage reads.
+ *
+ * Split from `coverageOf` because it does not read the palette: a weight drag
+ * re-counts this list, and never re-evaluates the pattern.
+ */
+export function fieldOf(config: TilesetConfig, operationId: string, seed: string, loadSalt: number): number[] {
+  return fieldCells(config, operationId, seed, loadSalt).map((c) => c.t);
 }
 
 /**
@@ -191,6 +209,22 @@ export function coverage(config: TilesetConfig, operationId: string, seed: strin
   const op = config.operations.find((o) => o.id === operationId);
   if (op === undefined || !isTileMapping(op.mapping)) return [];
   return coverageOf(fieldOf(config, operationId, seed, loadSalt), op.mapping.palette);
+}
+
+/**
+ * The Tiles some Operation's palette names, so the preview can draw them.
+ *
+ * App's asset-failure notice reads it for a failure reported while a draft was
+ * drawn (item 12, the live draft): once Discard takes the draft away, a picture
+ * only the draft painted is no longer in the picture, and its failure goes.
+ */
+export function paintedTiles(config: TilesetConfig): Set<string> {
+  const ids = new Set<string>();
+  for (const op of config.operations) {
+    if (!isTileMapping(op.mapping)) continue;
+    for (const entry of op.mapping.palette) if (entry.tileId !== null) ids.add(entry.tileId);
+  }
+  return ids;
 }
 
 /** A thumbnail for an entry: the tile's first asset, or `null` for clear or a missing picture. */
