@@ -11,9 +11,8 @@ iteration 2), Pol adopted iteration 2, **"Ink on paper"**. It was merged into th
 `DESIGN_DIRECTION.md` records why each choice was made. Stage 1 and the Stage 2 preview group
 (P1–P4) are complete. Their functionality is unchanged, but their *look* in the sections below
 is history: where a section below disagrees with `DESIGN_SYSTEM.md`, the latter wins. **Next
-session: Pol reviews W4 (see "W4: dialogs" below), then W5, the sweep.** Stage 2 · Warnings
-and dialogs is in progress: W0–W3 are done (`8364d4e`, `3034fc1`), W4 is implemented and
-uncommitted, and W5 remains.
+session: follow "Next session plan: W5 · Sweep" below.** Stage 2 · Warnings and dialogs is in
+progress: W0–W4 are done (`8364d4e`, `3034fc1`, `3a8ca84`), and W5 closes the group.
 
 ## Stage 1 blocks
 
@@ -662,7 +661,7 @@ the tileset draws to `canvas[data-tileset-canvas]`, so hash its pixels to see a 
 sections start folded (open "Breakpoints" before "Add breakpoint"). A destructive edit (for
 example the Gutter radio) asks for "Change it" first.
 
-### W4: dialogs (2026-11-06), waiting for Pol's review
+### W4: dialogs (2026-11-06), approved and committed `3a8ca84`
 
 Pol's answers at the start of W4: breakpoint `rows` / `columns` overrides keep **hint only** (no
 dialog), and the orphan notice gets **one "Open op-N" per orphaned operation, at most 3**.
@@ -711,6 +710,66 @@ dialog), and the orphan notice gets **one "Open op-N" per orphaned operation, at
   `FieldRow`'s flex control); fixed with `flex: 1`. Rows now commits on blur too, with the cue.
 - **Not done:** breakpoints (Pol: hint only). W5 is next: the probes (24px targets, 12px text, no
   caps, focus order, `aria-live`), the smoke test, and closing the group.
+
+### Next session plan: W5 · Sweep (written 2026-11-06)
+
+Read `DESIGN_SYSTEM.md` ("Notice", "Inline advisory", "Dialog", and "Warnings and confirmations"
+under Interaction conventions) and the W1–W4 notes above first. W5 changes little code: it checks
+the whole group, tidies, and closes it with Pol. Stop for Pol at the end.
+
+**0. Questions for Pol first (talk, no code):**
+- **Breakpoint rule fields** (`BreakpointsSection`, `rows` / `columns` / `cellSize` overrides):
+  should they use `commit="blur"` + the Enter cue, like Grid & size? They still commit per
+  keystroke. Recommendation: yes for `rows` / `columns` (a "14" builds a 1-row grid first), so
+  the sidebar has one rule for grid-shaping fields.
+- **Y offset** is the last Grid & size field that follows typing. Keep it live (its change is
+  harmless and a live preview helps), or make it blur too for consistency? Recommendation: keep
+  it live.
+- **The three remaining report Popups** ("Import refused" in `ImportPanel`, "Export failed" in
+  `SidebarTopBar`, the "Tiles" attach report in `TilesSection`). The first two block on purpose,
+  because nothing happened. Should the Tiles attach report become a pushed failure notice instead
+  (some files attached, some didn't)? Recommendation: yes, it matches §12.3's failures.
+
+**1. Probes** (a headless browser on 5175; see "How to test" above). Run them with notices and each
+dialog showing, not only on a clean editor:
+- every enabled target is at least 24×24 (the notice's Dismiss and actions, the dialog buttons);
+- no text under 12px, and no capitals (`text-transform`) anywhere new;
+- contrast: the muted Enter cue (`--color-muted` on `--color-field` and on `--color-field-hover`)
+  is at least 4.5:1; the notice's muted body on white;
+- focus order: a dialog starts on Cancel and returns focus to the trigger (a blur-commit field
+  returns to the field); the notice stack's actions and Dismiss are reachable by Tab in reading
+  order;
+- `aria-live`: advisories are polite and failures assertive, and a notice held during an entry
+  (`entry.svelte.ts`) is announced only once it shows;
+- no sideways scroll at 1728, 1024, 600 and 320, with the stack showing.
+
+**2. Smoke test.** No smoke test is checked in. The iteration-2 one (`DESIGN_DIRECTION.md`,
+"Verification") was a scratch Playwright script. Rebuild it in the scratchpad from that list
+(the unsaved-changes popup is now the "Discard your changes?" Dialog), and add the W3/W4 flows:
+- an import with advisories;
+- a resize that asks, then Cancel and Change;
+- "Open op-N" through the guard;
+- New through its Dialog.
+
+The W4 test zip is the readme zip (`apps/demo/public/readme`) plus a `cellList` operation, for
+example `{"id":"op9","salt":0,"reseedOnLoad":false,"selection":{"type":"cellList","cells":[[27,3],[28,4],[2,2]]},"source":{"type":"random"},"target":"opacity","mapping":{"range":[0,1]},"blend":"set"}`,
+with `responsive` removed, because a rows / columns override beside a `cellList` is refused.
+
+**3. Leftovers:**
+- grep for stale comments and docs: "sticky", "Unsaved changes" popup, "until Stage 2 W4/W5",
+  `confirm(`, "Change it";
+- the Notice docs story's data line still says "Orphaned by a resize", but the app's title is "An
+  operation lost cells in a resize". Make them agree;
+- apply Pol's answers to the questions in step 0.
+
+**4. Docs.**
+- In `DESIGN_SYSTEM.md`, add the field's "waiting" state (the Enter cue) to the component table,
+  beside `NumericInput`'s row.
+- In this file, mark backlog items 3 and 4 done, and write the group's closing note.
+- Update the memory file.
+
+**5. Close the group with Pol.** The recommended next group is 7 (the palette widget), then 1 (the
+export menu), 6 (glyphs), 8, 9 and 10.
 
 ## Known issues / notes
 
@@ -817,8 +876,10 @@ design are not done here (Stage 2, items 1–2).
    bar, and the footer holds only randomness. The export menu is still to do.)*
 2. *(Done, Stage 2 · Preview P1–P4.)* Preview: top UI (sizes, colour, current size), minimal corner handles, a full-viewport grid
    tied to the tileset grid, breakpoint buttons, removal of the reference image.
-3. Warnings as dismissible pop-ups (one reusable notification component).
+3. Warnings as dismissible pop-ups (one reusable notification component). *(Done in W1–W3;
+   closed in W5.)*
 4. Destructive params confirm **on blur**, and only when the value really changed. Redesigned dialog.
+   *(Done in W4; closed in W5.)*
 5. *(Done in P1.)* Remove the "The file" debug view.
 6. Glyphs for Attribute, Source and Blend.
 7. *(Stack, header and body redesigned by the adopted design: cards plus a stepper. The palette
