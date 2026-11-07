@@ -2243,25 +2243,75 @@ above are left as they were decided; the steps below are updated.
 
 ### X3b-2 · Editor primitives (then stop)
 
-1. **`ui/SplitButton.svelte`:** the anatomy in DESIGN_SYSTEM.md. It reuses `Menu`'s list rather
-   than a copy. Recommended: give `Menu` a `trigger` snippet (or an `anchor` element) and an
-   `align: "left" | "right"` prop (default `right`), so the ⋯ menus are unchanged. The left
-   alignment sets `--left` from the split control's rect, not the chevron's.
-2. **`ui/RadioList.svelte`:** native `<input type="radio">` in a `fieldset`, styled as in the
-   row: 30px rows, a 12px ring, the chosen row ink. Any logic goes in a `.ts` with a test.
-3. **Icons:** `archive` and `image` (Lucide paths) in `icons.ts`, and `icons.test.ts` stays
-   green.
-4. **`image-export.ts`, pure and tested:**
-   - `sizeRows(rules, designWidth)`: Design width first (`layout.referenceWidth` of the saved
-     file, not `preview.width`), then each `boundsOf(rules)` bound. Each bound is labelled
-     with the numbers of the rules that name it as min or max, so the min-and-max rule appears on
-     two rows and a shared bound reads "Breakpoint 2 + 3".
-   - `fileName(W, d)` → `tileset-<W>px@<d>x.png`.
-   - `pixelSize(file, W, d)`, via the package's `imageSize` or `naturalRatio`. It must agree with
-     what `renderImage` produces; test that once in the probe.
-5. Docs pages for each new file in `apps/docs/src/content/docs/editor/`. Add `SplitButton` and
-   `RadioList` to DESIGN_SYSTEM.md's Naming list. `pnpm test` and `pnpm typecheck`, then stop
-   for Pol.
+**Next session starts here** (X3b-1 committed 9b2d73a). Plan written 2026-11-07, after reading
+`ui/Menu.svelte`, `ui/Button.svelte`, `ui/icons.ts`, `preview/width.ts` and `SidebarTopBar.svelte`.
+
+**Read first:** "X3b-1 · Done" above; DESIGN_SYSTEM.md rows Split button (121), Menu (123),
+Radio list (137), Export image (138), Icons (147), Accessibility (211–212);
+`packages/tileset/src/render/image.ts` (`imageSize`, `ImageOptions`).
+
+**Step 0 · One question for Pol before code.** DESIGN_SYSTEM.md says "A Split button's chevron
+reuses `down`", but `down` in `icons.ts` is an **arrow** (`M12 5v14m7-7-7 7-7-7`, Move later).
+The chevron is `fold` (`m6 9 6 6 6-6`, the Collapsible disclosure). Recommendation: use `fold`
+and correct the doc line. An arrow reads as "download", which the main part already does.
+
+1. **`Menu` gets a trigger option and an alignment, with the ⋯ menus unchanged.** Today `Menu`
+   renders its own `IconButton icon="more"` and positions with `--top`/`--right` from that
+   button's rect. Its users are `lib/operations/OperationCard.svelte:119` and
+   `controls/PaletteList.svelte`, and both must look and behave exactly as before.
+   - Add `align?: "left" | "right"` (default `"right"`) and `anchor?: HTMLElement` (the element
+     whose rect places the list; default the trigger). Under `"left"`, set `--left: r.left`
+     and use `left: var(--left)` instead of `right`.
+   - Add a `trigger?: Snippet<[{ open: boolean; toggle: () => void; bind: (el) => void }]>`, or
+     simpler: export `show`/`close` and accept `trigger` as an element bound by the parent.
+     Pick whichever keeps the open, close and refocus logic in one place. Esc and focus return
+     must go to the **chevron** (the trigger), while the position follows the **anchor** (the
+     whole split control).
+   - Move the placement maths (`up` when there's no room below, top/left/right) into a tiny
+     `ui/menu.ts` with a test, per CLAUDE.md (logic in `.ts`).
+2. **`ui/SplitButton.svelte`:** props `label`, `icon`, `onclick`, `menuLabel` ("More export
+   options"), `items: MenuItem[]`, `disabled?`, `busy?` (for "Exporting…"). Markup: a wrapper
+   `div.split` (the anchor) holding the main `Button variant="primary"` with its right corners
+   squared, and the 28×30 chevron `<button>` (`aria-haspopup="menu"`, `aria-expanded`, the
+   `fold` icon, white hairline `box-shadow: inset 1px 0 0 rgb(255 255 255 / .32)`, left
+   corners squared). Hover and focus states as on primary Button. Check that the main part keeps
+   `Button`'s styling with a `class`/`squared` prop rather than copying its CSS.
+3. **`ui/RadioList.svelte`:** `fieldset` + `legend` (`.t-label`), native `<input type="radio">`
+   visually replaced by a 12px ring (`appearance: none`), each row a `<label>` 30px tall: dot,
+   label, mono value at the right. Props `legend`, `name`, `options: { value, label, detail }[]`,
+   `bind:value`. The chosen row is ink with white text and a filled white dot. Hover darkens one
+   step. Native radios give Tab-in-on-chosen and arrow keys for free, so no key handling is
+   needed. Focus ring: `:focus-visible` on the input draws on the row (`:has(:focus-visible)`).
+4. **Icons:** `archive` (Lucide archive) and `image` (Lucide image) in `icons.ts`, as 24-box
+   paths like the others. `icons.test.ts` must stay green (it checks every path parses, so run
+   it).
+5. **`src/image-export.ts`, pure and tested (`image-export.test.ts`):**
+   - `sizeRows(rules, designWidth): { value, label, detail }[]`. The first row is
+     `{ value: designWidth, label: "Design width", detail: "1000 px" }`. Then one row per
+     `boundsOf(rules)` bound, ascending. Its label is "Breakpoint " + the 1-based numbers of every
+     rule whose `minWidth` or `maxWidth` equals it, joined " + ". The numbers match
+     BreakpointsSection's `Rule {i + 1}`.
+     - Rows are **not** de-duplicated against the design width (Pol, X3b), so `value` alone is
+       not unique. Give each row a `key` (`"design"`, `"bound:768"`) and have the RadioList bind
+       the key.
+   - Tests: no rules → one row; a min+max rule gives two rows with the same number; a shared
+     bound → "Breakpoint 2 + 3"; a bound equal to the design width gives two rows; ascending order.
+   - `fileName(W, d)` → `tileset-${W}px@${d}x.png`. Is W ever fractional? A bound and
+     `referenceWidth` are integers by validation, but check `fields.ts` `parseReferenceWidth`.
+     Round only if they aren't.
+   - `pixelSize(file, W, d)` is a thin wrapper over the package's `imageSize(file, { width: W,
+     density: d })`. Don't restate the arithmetic. Test once against a fixture
+     (600 px design, 4 rows of 60 → `{1200, 480}` at 2×), and memoise in the component, not here.
+   - `rememberedSize(rows, lastKey)` → that key if it is still in `rows`, else `"design"`.
+     The session memory itself (a module `let`) lives in X3b-3's component.
+6. **Docs:** pages in `apps/docs/src/content/docs/editor/` for `split-button`, `radio-list`,
+   `image-export` and `menu` if the page doesn't exist yet (`ls` first; the coverage script
+   names any file that's missing). Add `SplitButton` and `RadioList` to DESIGN_SYSTEM.md's
+   Naming list, and fix the chevron line after Step 0.
+7. **Check without wiring:** `pnpm test`, `pnpm typecheck` (svelte-check `--fail-on-warnings`),
+   and the docs coverage (`node apps/docs/scripts/coverage.ts`). Optionally, mount SplitButton
+   in place of Export temporarily to eyeball it on 5175, but revert: the swap is X3b-3. Then
+   update "X3b-2 · Done" and the memory file, and **stop for Pol**.
 
 ### X3b-3 · Wiring (then stop)
 
