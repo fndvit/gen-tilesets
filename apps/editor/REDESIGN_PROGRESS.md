@@ -2158,48 +2158,116 @@ no page around it.
 
 ## Next session plan: X3b · Implement (written 2026-11-07)
 
-**Read first:** "X2 · Done" and "X3a · Analysis and Pol's answers" above; `DESIGN_SYSTEM.md`
-rows Split button, Menu, Form popup, Radio list, Export image, and the "Export" subsection.
+Three blocks. **Stop for Pol after each.** Commit each block once Pol has reviewed it.
 
-1. **Package** (`packages/tileset/src/render/`):
-   - Factor `#paint`'s per-item loop into one shared function (e.g. `paint.ts`
-     `drawItems(ctx, items, ready, mask)`). `TilesetRenderer` calls it, with no change in
-     behaviour; `renderer.test.ts` must stay green unchanged.
-   - Give `ImageBank` an option `crossOrigin?: "anonymous"`, off by default.
-   - Add `image.ts`, `renderImage`:
-     1. a `TilesetModel` with `{ width: W, height: natural, rects: null, dpr: d }`;
-     2. await the model's `drawables`, sync a private `ImageBank` (with crossOrigin), and wait
-        until every key is ready or failed;
-     3. reject, listing the failures, if any key failed;
-     4. otherwise paint the presented canvas, compose it into a box canvas (fill the
-        background, then draw at `leftCss·d`, `topCss·d`, clipped), and call `toBlob("image/png")`.
-   - Keep the size maths pure and tested (`imageSize`). Test the settle wait with a fake provider
-     and a fake bank. Export from `render/index.ts`.
-   - Bump to **0.11.0**, add a CHANGELOG line, and a docs page for `image.ts` (and `paint.ts`).
-     Don't tag until Pol says so.
-2. **Editor:** `ui/SplitButton.svelte`; a left alignment for `Menu`; `ui/RadioList.svelte`;
-   `image-export.ts` (tested: the rows from the rules with rule numbers, including "2 + 3" and
-   the min-and-max case, the file name, the pixel size); the `ExportImage` Form popup; the
-   `SidebarTopBar` swap, its wiring and its header comment; the `archive` and `image` icons; the
-   Naming list in DESIGN_SYSTEM.md; and a docs page for each new file.
-3. **Checks:** `pnpm test` and `pnpm typecheck` from the root; a probe that downloads PNGs at
-   1×/2× and at a breakpoint and checks their pixel size and that they have opaque pixels.
+**Read first:**
+- "X2 · Done" and "X3a · Analysis and Pol's answers" above.
+- `DESIGN_SYSTEM.md`: the Split button, Menu, Form popup, Radio list and Export image rows, and
+  the "Export" subsection.
+- `packages/tileset/src/render/renderer.ts` (`#paint`, `#settle`), `model.ts` (`ModelInputs`,
+  `presentation`, `fixedHeight`, `ratio`, `drawables`), `images.ts` (`ImageBank`),
+  `uniform.ts` (`CanvasPresentation`), and `render/index.ts`.
+- `apps/editor/src/App.svelte`, around line 433. The preview passes only
+  `{ loadSalt, provider: editorProvider, onAssetError }`, so the image passes the same
+  `loadSalt` and `provider`, and no seed (the file's `defaultSeed` holds).
 
-X4 (the sweep) is unchanged.
+### X3b-1 · The package: `renderImage` (then stop)
 
-The original X3b list, kept for reference:
-- the package addition;
-- `ui/SplitButton.svelte`;
-- the `Menu` left alignment;
-- `image-export.ts` (tested: rows from rules with rule numbers, the file name, the pixel size);
-- the `ExportImage` dialog;
-- the `SidebarTopBar` swap and wiring;
-- the docs pages.
+1. **`render/paint.ts`, `drawItems(ctx, items, ready, mask)`:** the per-item loop moved out of
+   `#paint`. It covers the mask skip, R3's missing drawable, `coverRect`, alpha, the matrix, and
+   the DEV `assetTooSmall` warning, passed in as a callback so `paint.ts` holds no `WarnOnce`.
+   `#paint` calls it. **No behaviour change:** `renderer.test.ts` must pass untouched.
+2. **`ImageBank`:** a constructor option `{ crossOrigin?: "anonymous" }`, off by default. Change
+   its comment ("Nothing here ever reads the canvas back") to say the image path is the one that
+   does, and why it opts in.
+3. **`render/image.ts`:**
+   - `imageSize(model or geometry, W, d)` is pure and tested. It returns the box's height at W
+     (fluid: `W / ratio`; fixed: `fixedHeight`), the output pixels `round(W·d) × round(H·d)`,
+     and where the presented canvas goes (`leftCss·d`, `topCss·d`, `widthCss·d`).
+   - `renderImage(file, opts): Promise<Blob>`, where `opts` is `{ width, density, background?,
+     seed?, loadSalt?, provider?, sizing?, align?, responsive? }`. The steps:
+     1. Build a `TilesetModel` with `{ width: W, height: H, rects: null, dpr: d }`.
+     2. Await every drawable. A rejection is a failure.
+     3. Sync a private `ImageBank({ crossOrigin: "anonymous" })` and wait until every key has
+        called back, ready or failed. Do this as a promise over `onChange`/`onError` counts, or
+        add a `whenSettled()` to the bank, whichever tests cleaner.
+     4. If anything failed, reject with one `Error` that lists `tileId/assetId` for each.
+     5. Otherwise paint a raster canvas (`rasterWidthDev × rasterHeightDev`) with `drawItems`.
+     6. Compose into a `round(W·d) × round(H·d)` canvas: fill `background` if one is given, then
+        `drawImage(raster, leftCss·d, topCss·d, widthCss·d, …)`. Pixels outside the canvas
+        are simply not drawn, which is the clip.
+     7. Return `toBlob("image/png")`; a `null` blob rejects.
+   - The model needs an id. It's never written to the DOM here, so a fixed `"gts-image"` is fine;
+     say why at the point of use.
+   - Tests (Node, so no real canvas): `imageSize` for fluid and fixed sizing, with bleed (a
+     negative `leftCss`), and with a rule active at W; the settle wait with a fake provider (a
+     promise that resolves, one that rejects, one that is late); and the failure message listing
+     every asset.
+4. Export `renderImage` (and `imageSize` only if the editor needs it) from `render/index.ts`.
+5. Bump to **0.11.0**, add a CHANGELOG entry, and add docs pages `renderer/image.md` and
+   `renderer/paint.md` in `apps/docs/src/content/docs/renderer/` (the coverage check needs them).
+   **Don't tag.**
+6. `pnpm test` and `pnpm typecheck` from the root, then stop for Pol.
 
-X4 (sweep) is unchanged.
+### X3b-2 · Editor primitives (then stop)
 
-**How to test:** the dev server runs on 5175. The Playwright headless shell path is in
-`x1/check.mjs` (session `312c3a1c`) and in `n4/probe.mjs` (session `e5333bf0`).
+1. **`ui/SplitButton.svelte`:** the anatomy in DESIGN_SYSTEM.md. It reuses `Menu`'s list rather
+   than a copy. Recommended: give `Menu` a `trigger` snippet (or an `anchor` element) and an
+   `align: "left" | "right"` prop (default `right`), so the ⋯ menus are unchanged. The left
+   alignment sets `--left` from the split control's rect, not the chevron's.
+2. **`ui/RadioList.svelte`:** native `<input type="radio">` in a `fieldset`, styled as in the
+   row: 30px rows, a 12px ring, the chosen row ink. Any logic goes in a `.ts` with a test.
+3. **Icons:** `archive` and `image` (Lucide paths) in `icons.ts`, and `icons.test.ts` stays
+   green.
+4. **`image-export.ts`, pure and tested:**
+   - `sizeRows(rules, previewWidth)`: Current preview first (`preview.width`, the design
+     width, **not** the zoomed one), then each `boundsOf(rules)` bound. Each bound is labelled
+     with the numbers of the rules that name it as min or max, so the min-and-max rule appears on
+     two rows and a shared bound reads "Breakpoint 2 + 3".
+   - `fileName(W, d)` → `tileset-<W>px@<d>x.png`.
+   - `pixelSize(file, W, d)`, via the package's `imageSize` or `naturalRatio`. It must agree with
+     what `renderImage` produces; test that once in the probe.
+5. Docs pages for each new file in `apps/docs/src/content/docs/editor/`. Add `SplitButton` and
+   `RadioList` to DESIGN_SYSTEM.md's Naming list. `pnpm test` and `pnpm typecheck`, then stop
+   for Pol.
+
+### X3b-3 · Wiring (then stop)
+
+1. **`lib/sections/ExportImage.svelte`** (a Form popup built on `Popup` with `role="dialog"`):
+   - Size (RadioList), Background (a `Toggle` with the swatch in the "Preview colour" segment,
+     which keeps its real colour when chosen), and Density (a `Toggle`, 2× by default).
+   - The draft Advisory while `drawn !== null`, the File line, and Cancel / Download PNG.
+   - The size used last lives in module state (for the session), falling back to Current preview
+     if that bound no longer exists.
+   - Download: `renderImage(session.file, { width, density, background, loadSalt:
+     preview.loadSalt, provider: editorProvider })`, then the same download helper the zip uses
+     (`download.ts`).
+   - Show "Exporting…" on the primary button while it runs. A rejection closes the form and
+     opens "Export failed" with the message.
+2. **`SidebarTopBar.svelte`:** New / Import / Export (SplitButton) on the left and Undo on the
+   right. The menu has Tileset (.zip) → `runExport` and Image (.png)… → open ExportImage. Rewrite
+   the header comment ("Left, the edit history: Undo" is stale), and keep the **E14**
+   paragraph. ExportImage needs to know whether a draft is drawn: pass it as a prop from App, or
+   read `drafting`.
+3. **Checks:**
+   - `pnpm test` and `pnpm typecheck`.
+   - A Playwright probe on the dev server (5175), starting from `n4/probe.mjs`:
+     - the split button: one-click zip, chevron keyboard, Esc back to the chevron, left-aligned
+       menu;
+     - Export image: arrow keys in the radio list, Esc, focus returning to the trigger;
+     - download PNGs at Current preview 1× and 2× and at a breakpoint bound, then read their
+       pixel size against `pixelSize` and check for opaque pixels. Check a transparent export
+       has alpha 0 at a gap, and a preview-colour export doesn't;
+     - with a draft open: the advisory shows, and the PNG equals the saved file's;
+     - the zip is unchanged, including the `tiles/*/*` check.
+   - Then stop for Pol. X4 (the sweep) follows.
+
+**How to test:**
+- The dev server runs on 5175.
+- The Playwright headless shell path is in `x1/check.mjs` (session `312c3a1c`) and in
+  `n4/probe.mjs` (session `e5333bf0`), with `readme.zip`.
+- A download in Playwright: `page.waitForEvent("download")`. Read the PNG size from the IHDR
+  bytes (width at offset 16, height at 20, big-endian).
 
 After 1, the remaining backlog is 6 (Attribute and Blend glyphs), 8 (label spacing), 9 (hints
 for keyboard users) and 10 (the open card's accent edge).
