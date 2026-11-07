@@ -2013,6 +2013,117 @@ output changes. Recommendation: `renderImage`. Rendering at a width to an image 
 consumer, and it keeps a DPR override out of the live renderer's options. X3 opens with this
 analysis for Pol.
 
+### X1 picks (Pol, 2026-11-07)
+
+The mock is in session `312c3a1c`'s scratchpad, `x1/mock.html`, not in the repo.
+
+1. **Split button A:** one ink control. A white hairline at 32% splits off a 28px chevron segment
+   (`box-shadow: inset 1px 0 0 rgb(255 255 255 / .32)`), with outer corners only. The chevron is
+   its own `<button>` with `aria-haspopup="menu"` and the name "More export options". The menu
+   holds Tileset (.zip) and Image (.png)…. The muted "Export" aside on the zip item was optional
+   in the mock, and Pol did not ask for it, so leave it out.
+2. **Size control 1, the radio list, amended:** each breakpoint row's label **includes its rule
+   number**, and the muted "rule 2 + 3" label at the right goes (and with it the "base" on
+   Current preview). A row is then `● Breakpoint 2 · 768 px`; Current preview is
+   `● Current preview · 1180 px`. The number is the sidebar's "Rule N" (`BreakpointsSection`:
+   `Rule {i + 1}`), so the author can find it. Settle two edge cases in X2:
+   - A rule with both `minWidth` and `maxWidth` names two bounds. Both rows carry its number,
+     and the px tells them apart.
+   - A bound that two rules name gets both numbers: "Breakpoint 2 + 3".
+3. **The top bar is swapped:** New, Import and Export go to the **left**, and Undo goes to the
+   **right**. The menu then opens under a split button near the bar's left edge, so it
+   left-aligns with the button instead of right-aligning like the ⋯ menus. The `Menu` row in
+   `DESIGN_SYSTEM.md` and its `--right` positioning need a left option.
+4. **Kept from the mock with no objection:**
+   - The dialog uses the Popup panel with actions and `role="dialog"`, titled "Export image".
+     It is not the `Dialog` component, which is an alertdialog whose title is a question.
+   - Background and density are two Toggles side by side.
+   - The muted info line "Draft not included: this is the saved tileset" shows only while a draft is drawn.
+   - A "File" line gives the name and pixel size: `tileset-<W>px@<d>x.png · W×d × H×d px`.
+   - The buttons are Cancel / Download PNG.
+   - With no breakpoints, the one "Current preview" row is still shown.
+   - It opens on the size used last in the session, else Current preview.
+   - New icons `archive` and `image` (Lucide).
+   - Mock bug to fix in the real thing: the white swatch inside the chosen (ink) "Preview"
+     segment rendered dark.
+
+## Next session plan: X2 · Docs, then the X3 package analysis (written 2026-11-07)
+
+Two short blocks, stopping for Pol after each. **No editor code before X2 is reviewed.**
+
+**Read first:** "X0 answers" and "X1 picks" above; `DESIGN_SYSTEM.md` Layout (top bar), the
+Button, Menu, Popup, Dialog, Segmented control and Inline advisory rows, Icons;
+`lib/sections/SidebarTopBar.svelte`; `lib/ui/Menu.svelte` (how `--top`/`--right` are set);
+`lib/preview/width.ts` (`boundsOf`, `holdingLabel`).
+
+### X2 · Docs (`DESIGN_SYSTEM.md` only, then commit and stop)
+
+1. **Layout → Top row:** the sidebar bar is now New, Import and Export (primary, split) on the
+   left, and Undo on the right. Say why in a line (Pol, X1: the document's actions come first).
+2. **A new Split button row:** anatomy as in "X1 picks" 1. Keyboard: Enter/Space on the main
+   part runs the default action; on the chevron it opens the menu on its first item; arrows
+   move; Esc closes and focus returns to the chevron. Targets: 28×30 chevron (2.5.8). It is used
+   by Export.
+3. **Menu row:** add the split button's menu: it is anchored to the chevron's control and
+   **left-aligned** when the control sits at the bar's left. The items are an icon plus a label,
+   and "…" marks one that opens a dialog.
+4. **A new Export image dialog row** (or a "Form popup" row, if it is worth a general pattern:
+   Popup + `role="dialog"`, a noun title, fieldsets with `.t-label` legends, Cancel + a verb
+   primary): the size radio list (a new **Radio list** anatomy: a field-grey well, 30px rows, a
+   12px ring dot, the chosen row ink with white text, label + mono px, arrow keys move within
+   the radiogroup), the two Toggles, the draft line (Inline advisory), the File line (`.t-label`
+   + mono), the default size, and no breakpoints.
+5. **Image export rules** (Interaction conventions, or a short "Export" subsection):
+   - The saved file, never the draft.
+   - The file's `defaultSeed` and the current `loadSalt`.
+   - The width is the chosen bound, or the current preview width. The density is 1× or 2×.
+   - The image is the box (W × natural height), with the bleed clipped.
+   - The background is the preview colour or transparent.
+   - The file name is `tileset-<W>px@<d>x.png`.
+   - A failure opens the existing "Export failed" Popup.
+   - The zip is unchanged (**E14**).
+6. **Icons:** add `archive` and `image` to the set list.
+7. **Accessibility table:** the radio list's ring and chosen row; the split parts have separate
+   accessible names.
+8. **Leave the code alone:** `SidebarTopBar`'s header comment ("Left, the edit history: Undo")
+   becomes stale with the swap. Change it in X3, together with the markup.
+
+### X3a · The package analysis (talk, no code; after X2 is reviewed)
+
+Read `packages/tileset/src/render/renderer.ts` (constructor, `#settle`, `pending`, the paint
+path), `render/measure.ts` (`currentDpr`, `observeDpr`, `track`), `render/model.ts` (`dpr` input)
+and `packages/tileset/RELEASING.md`. Bring Pol:
+- **Shape A:** `TilesetRendererInit.dpr?` plus `renderer.settled(): Promise<void>`. **Shape B:**
+  `renderImage(file, { width, density, seed, loadSalt, provider }) → Promise<HTMLCanvasElement>`
+  built on A internally, but with only B exported. Recommendation: B.
+- How B gets a laid-out box: a hidden host in `document.body`
+  (`position: fixed; left: -99999px; width: Wpx`). Measurement needs layout, so it can't be
+  detached. Then destroy it.
+- What "settled" means: every drawable the grid needs is loaded or failed, and the canvas is
+  painted. A failure rejects, or resolves with the failures listed, and B's caller decides. (Pol
+  picks. "Failure is loud" suggests reject.)
+- Composing the PNG: a W·d × H·d canvas, fill or not, then draw the presented canvas at
+  `leftCss·d`, clipped to the box.
+- Release: bump `packages/tileset/package.json` (0.x minor), add a CHANGELOG line, and add a
+  docs page. No output change for existing calls (`generate()` is untouched), so no
+  regression-table work.
+- Tests: what `renderer.test.ts` can cover (settled timing with a fake provider, `dpr` override →
+  `uniformGeometry`), and what only the editor probe can (real PNG pixels).
+
+Then X3b (implement, a later session):
+- the package addition;
+- `ui/SplitButton.svelte`;
+- the `Menu` left alignment;
+- `image-export.ts` (tested: rows from rules with rule numbers, the file name, the pixel size);
+- the `ExportImage` dialog;
+- the `SidebarTopBar` swap and wiring;
+- the docs pages.
+
+X4 (sweep) is unchanged.
+
+**How to test:** the dev server runs on 5175. The Playwright headless shell path is in
+`x1/check.mjs` (session `312c3a1c`) and in `n4/probe.mjs` (session `e5333bf0`).
+
 After 1, the remaining backlog is 6 (Attribute and Blend glyphs), 8 (label spacing), 9 (hints
 for keyboard users) and 10 (the open card's accent edge).
 
