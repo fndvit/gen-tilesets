@@ -43,6 +43,19 @@ export function placeAt(anchor: Box, viewport: { width: number; height: number }
   };
 }
 
+/**
+ * An edge offset (a CSS `left`, or `right` measured from the window's right
+ * edge) moved just enough that a panel `size` px wide stays `margin` px inside
+ * a window `room` px wide. A panel wider than the room keeps the near margin.
+ *
+ * For a menu aligned with its trigger's far edge: Export's left-aligned menu,
+ * on a 320px screen where the top bar has wrapped, would otherwise run off the
+ * right edge (X4, WCAG 1.4.10).
+ */
+export function keepInside(offset: number, size: number, room: number, margin: number): number {
+  return Math.max(margin, Math.min(offset, room - margin - size));
+}
+
 /** Whether a press on `target` is outside every one of `inside` (the panel, its trigger). */
 export function pressedOutside(target: Node, inside: readonly ({ contains(node: Node): boolean } | undefined)[]): boolean {
   return !inside.some((el) => el?.contains(target) === true);

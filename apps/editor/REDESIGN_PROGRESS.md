@@ -2407,6 +2407,30 @@ X3b-2 committed f3427b4 (Pol: "continue").
   remembered; with an operation open the advisory shows and the PNG is byte-identical to the
   saved one's. Not checked yet: the form at 320px wide (X4).
 
+### X4 · Sweep (2026-11-07), item 1 closed
+
+X3b-3 committed 7b640c8 (Pol approved). Probe `x4/probe.mjs` (session `ddbd1c91` scratchpad),
+34/34; `x3b3/probe.mjs` 32/32 and `x3b2/more.mjs` 4/4 still pass.
+
+- **Audit:** top bar, menu and form: targets ≥ 24px (radio rows 30px; the 12px dot is not the
+  target), no text under 12px, no capitals, text ≥ 4.5:1, the unchosen ring is ink.
+- **Reflow at 1728 / 1024 / 600 / 320:** form inside the window, no sideways scroll, no
+  truncated label. **Fixed:** at 320 the top bar wraps and Export's left-aligned menu ran off the
+  right edge (x 162 + 208 > 320). `popover.ts` has a tested `keepInside`, and Menu keeps the list
+  8px inside the window once it has a width. **Fixed:** at 320 the File line broke inside the
+  size ("px" alone); name and size are now two unbreakable parts.
+- **PNG against the screen:** preview at 500 (Breakpoint 1), DPR 2, export 500 @2× with the
+  preview colour: same width, height within the capture's outward rounding, mean Δ 0.58/255. Flat
+  pixels are identical. The only differences are at vertical seams: Chrome snaps the presented
+  canvas to the device grid, while `renderImage` draws at the exact fractional bleed offset, so the
+  seam's anti-aliased pixel sits about 0.6 device px to the right. **For Pol:** snapping the
+  offset to a whole device px in `image.ts` would match the screen, but it changes package output
+  (0.x bump). Left as is; recorded in `export-image.md`.
+- **Pol (2026-11-07): keep the seam offset as it is for now. Item 1 closed.**
+- **Zip:** entries, asset bytes and `tileset.json` (engineVersion aside) equal the imported
+  `readme.zip`; every non-JSON entry is `tiles/*/*`.
+- Tests 671 + 433, typecheck green, docs coverage 135/135.
+
 **How to test:**
 - The dev server runs on 5175.
 - The Playwright headless shell path is in `x1/check.mjs` (session `312c3a1c`) and in

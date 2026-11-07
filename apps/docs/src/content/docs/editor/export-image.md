@@ -39,7 +39,8 @@ A [Popup](/editor/ui-popup/) with `closable` (a ✕) and `initialFocus` (the cho
    row 3:2 and wrapping to one column on a narrow screen.
 3. While `draft`, the inline advisory "Draft not included: this is the saved tileset".
 4. **File**: the name and the PNG's pixel size, from `pixelSize` (computed only while open: it
-   builds a model, and the file changes on every edit).
+   builds a model, and the file changes on every edit). They are two unbreakable parts, so a
+   narrow screen wraps between them, never inside the size.
 5. Cancel, and Download PNG, which reads "Exporting…" and is disabled while the PNG is drawn.
 
 ### Behaviour
@@ -60,4 +61,11 @@ Caller: `lib/sections/SidebarTopBar.svelte`. Callees: `renderImage`, `editorProv
 (`assets.ts`), `saveBlob` (`download.ts`), `image-export.ts`, `preview` (`view.svelte.ts`),
 `Popup`, `RadioList`, `Toggle`, `Advisory`, `Button`.
 
-No unit test (a `.svelte` file); the X3b-3 browser probe covers it.
+No unit test (a `.svelte` file); the X3b-3 and X4 browser probes cover it.
+
+### Against the screen
+
+At the preview's width and the screen's DPR, the PNG has the on-screen box's size and its pixels
+(mean difference under 1/255). The one difference is at vertical seams: Chrome snaps the
+presented canvas to the device grid, while `renderImage` draws it at the exact fractional bleed
+offset, so a seam's anti-aliased pixel sits about 0.6 device px to the right in the PNG (X4).

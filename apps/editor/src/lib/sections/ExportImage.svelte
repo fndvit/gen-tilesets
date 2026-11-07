@@ -146,7 +146,9 @@
 
     <p class="file">
       <span class="t-label">File</span>
-      <span class="t-console">{name}{pixels ? ` · ${pixels.width} × ${pixels.height} px` : ""}</span>
+      <!-- Two unbreakable parts: a narrow screen wraps between them, never inside the size. -->
+      <span class="t-console part">{name}</span>
+      {#if pixels}<span class="t-console part">· {pixels.width} × {pixels.height} px</span>{/if}
     </p>
   </div>
 
@@ -195,5 +197,9 @@
     align-items: baseline;
     gap: var(--space-4);
     margin: 0;
+  }
+
+  .file .part {
+    white-space: nowrap;
   }
 </style>

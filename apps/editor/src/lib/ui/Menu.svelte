@@ -45,7 +45,7 @@
   import { tick, type Snippet } from "svelte";
   import Icon from "./Icon.svelte";
   import IconButton from "./IconButton.svelte";
-  import { placeAt, pressedOutside, type Placement } from "./popover.js";
+  import { keepInside, placeAt, pressedOutside, type Placement } from "./popover.js";
 
   interface Props {
     /** The button's accessible name: "More actions for operation 2". */
@@ -66,6 +66,8 @@
   let list = $state<HTMLElement | undefined>(undefined);
   let place = $state<Placement>({ top: 0, left: 0, right: 0, up: false });
   const id = $props.id();
+  /** The least gap between the list and the window's side, in px. */
+  const MARGIN = 8;
 
   const attach: Attachment<HTMLButtonElement> = (el) => {
     trigger = el;
@@ -86,7 +88,18 @@
     // Room for every item at about 40px, plus the list's padding.
     place = placeAt(at.getBoundingClientRect(), viewport, 40 * items.length + 16);
     open = true;
-    queueMicrotask(() => enabled()[0]?.focus());
+    queueMicrotask(() => {
+      fit(viewport.width);
+      enabled()[0]?.focus();
+    });
+  }
+
+  /** Once the list has a width: keep it inside the window (a narrow screen). */
+  function fit(room: number): void {
+    const w = list?.getBoundingClientRect().width;
+    if (w === undefined) return;
+    if (align === "left") place.left = keepInside(place.left, w, room, MARGIN);
+    else place.right = keepInside(place.right, w, room, MARGIN);
   }
 
   function close(refocus: boolean): void {

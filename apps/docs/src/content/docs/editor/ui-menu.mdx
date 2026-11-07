@@ -51,7 +51,9 @@ The real component from `apps/editor`, rendered alone. Its second item is disabl
 - The list is `position: fixed`, measured from the anchor, so the scrolling sidebar never clips
   it. It opens upward when there is too little room below. The placement and the outside-press
   test are [`popover.ts`](/editor/ui-popover-ts/)'s `placeAt` and `pressedOutside`, shared with
-  the tile picker and the Explainer.
+  the tile picker and the Explainer. Once the list has a width it is kept 8px inside the window
+  (`keepInside`): on a 320px screen Export's left-aligned menu would otherwise run off the right
+  edge.
 - A row's ⋯ menu right-aligns with its button. A [Split button](/editor/ui-split-button/)
   passes its chevron as `trigger`, its whole control as `anchor` and `align="left"`: the list
   opens under the control and lines up with its left edge, while Escape and the refocus after an
