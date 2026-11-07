@@ -27,6 +27,8 @@
   import Advisory from "../../../editor/src/lib/ui/Advisory.svelte";
   import Slider from "../../../editor/src/lib/ui/Slider.svelte";
   import Menu from "../../../editor/src/lib/ui/Menu.svelte";
+  import RadioList from "../../../editor/src/lib/ui/RadioList.svelte";
+  import SplitButton from "../../../editor/src/lib/ui/SplitButton.svelte";
   import Toggle from "../../../editor/src/lib/ui/Toggle.svelte";
   import { ICONS, type IconName } from "../../../editor/src/lib/ui/icons.js";
   import all from "../../../editor/src/assets/glyphs/selection/all.svg?url";
@@ -52,6 +54,8 @@
     | "slider"
     | "marquee"
     | "menu"
+    | "split-button"
+    | "radio-list"
     | "operation-glyph"
     | "glyph-grid"
     | "hint";
@@ -72,6 +76,12 @@
   let weight = $state(1);
   let live = $state(1);
   let summary = $state("Checkerbox * opacity [0.5 - 1] * random source * set");
+  let size = $state<string>("design");
+  const sizes = [
+    { key: "design", label: "Design width", detail: "1000 px" },
+    { key: "bound:768", label: "Breakpoint 1", detail: "768 px" },
+    { key: "bound:1024", label: "Breakpoint 2 + 3", detail: "1024 px" },
+  ];
   let glyph = $state<string>("everyNth");
   const selection = [
     { value: "all", label: "All", src: all },
@@ -105,6 +115,8 @@
         return `value: ${groupName}`;
       case "toggle":
         return `value: ${alignment}`;
+      case "radio-list":
+        return `value: ${size}`;
       case "glyph-grid":
         return `selection: ${glyph}, attribute: ${attribute}`;
       default:
@@ -284,6 +296,23 @@
           { label: "Delete", icon: "trash", onSelect: () => (log = "delete") },
         ]}
       />
+    </div>
+  {:else if show === "split-button"}
+    <div class="row">
+      <SplitButton
+        label="Export"
+        icon="export"
+        onclick={() => (log = "export zip")}
+        menuLabel="More export options"
+        items={[
+          { label: "Tileset (.zip)", icon: "archive", onSelect: () => (log = "menu: zip") },
+          { label: "Image (.png)…", icon: "image", onSelect: () => (log = "menu: image") },
+        ]}
+      />
+    </div>
+  {:else if show === "radio-list"}
+    <div class="stack narrow">
+      <RadioList legend="Size" name="story-size" options={sizes} bind:value={size} />
     </div>
   {:else if show === "operation-glyph"}
     <div class="row paper" role="radiogroup" aria-label="Examples">

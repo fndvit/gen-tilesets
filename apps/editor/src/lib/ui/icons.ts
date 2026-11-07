@@ -78,6 +78,13 @@ export const ICONS = {
   ),
   /** Change one thing for another: a palette entry's tile (Lucide arrow-right-left). */
   swap: icon("m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"),
+  /** The tileset as a zip (Lucide archive). */
+  archive: icon("M3 3h18a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1ZM4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"),
+  /** The tileset as a picture: a PNG (Lucide image). */
+  image: icon(
+    "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2ZM7 9a2 2 0 1 0 4 0a2 2 0 1 0-4 0" +
+      "M21 15l-3.086-3.086a2 2 0 0 0-2.828 0L6 21",
+  ),
   /** Done. */
   check: icon("M20 6 9 17l-5-5"),
   /** An advisory: something worth knowing that blocks nothing (a notice, an inline advisory). */

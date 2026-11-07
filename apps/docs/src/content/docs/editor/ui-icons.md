@@ -13,8 +13,8 @@ sidebar:
 paper" (2026-11-06) they are one outline family, Lucide's paths (ISC licence), on a 24-unit grid,
 drawn at 16px with a 1.5px stroke and round caps and joins.
 
-There are seventeen: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`,
-`export`, `new`, `more`, `grip`, `swap`, `check`, `info` and `alert`.
+There are nineteen: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`,
+`export`, `new`, `more`, `grip`, `swap`, `archive`, `image`, `check`, `info` and `alert`.
 
 ## In detail
 
@@ -28,7 +28,7 @@ There are seventeen: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `
 
 | Name | Meaning |
 | --- | --- |
-| `fold` | Disclosure, pointing down. `Collapsible` turns it up when open |
+| `fold` | Disclosure, pointing down. `Collapsible` turns it up when open; a Split button's chevron |
 | `up` / `down` | Move an item earlier or later |
 | `plus` | Add |
 | `close` | Close a panel, dismiss a notice, remove a tile asset |
@@ -38,6 +38,8 @@ There are seventeen: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `
 | `more` | More actions, in a menu |
 | `grip` | Drag to reorder: a palette entry's grip |
 | `swap` | Change a palette entry's tile, in its menu |
+| `archive` | The tileset as a zip: Export's Tileset (.zip) |
+| `image` | The tileset as a PNG: Export's Image (.png)… |
 | `check` | Done |
 | `info` | An advisory: a `Notice` of kind `advisory`, and an inline advisory |
 | `alert` | A failure: a `Notice` of kind `failure`, drawn in `--color-danger` |

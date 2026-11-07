@@ -12,9 +12,26 @@
   closes. The list is `position: fixed` under the button, so a scrolling,
   clipping sidebar never cuts it off; it opens upward when there is no room
   below.
+
+  By default the trigger is the ⋯ icon button and the list right-aligns with
+  it, as a row's menu does. A Split button passes its own chevron as `trigger`
+  and its whole control as `anchor`, with `align="left"`: the list then opens
+  under the control and lines up with its left edge, while Escape and the
+  refocus after an action still go to the chevron, the thing that was pressed
+  (`DESIGN_SYSTEM.md` *Menu*, *Split button*). The trigger is a snippet rather
+  than an exported `show`/`close` so that opening, closing and refocusing stay
+  in this one file.
 -->
 <script lang="ts" module>
+  import type { Attachment } from "svelte/attachments";
   import type { IconName } from "./icons.js";
+
+  /** What a custom `trigger` gets: wire `attach` to the button, `toggle` to its click. */
+  export interface MenuTrigger {
+    open: boolean;
+    toggle: () => void;
+    attach: Attachment<HTMLButtonElement>;
+  }
 
   export interface MenuItem {
     label: string;
@@ -25,23 +42,37 @@
 </script>
 
 <script lang="ts">
-  import { tick } from "svelte";
+  import { tick, type Snippet } from "svelte";
   import Icon from "./Icon.svelte";
   import IconButton from "./IconButton.svelte";
+  import { placeAt, pressedOutside, type Placement } from "./popover.js";
 
   interface Props {
     /** The button's accessible name: "More actions for operation 2". */
     label: string;
     items: MenuItem[];
+    /** Which edge of the anchor the list lines up with. */
+    align?: "left" | "right";
+    /** The element the list is placed against. Defaults to the trigger. */
+    anchor?: HTMLElement | undefined;
+    /** A button of the caller's own in place of the ⋯ icon button. */
+    trigger?: Snippet<[MenuTrigger]>;
   }
 
-  let { label, items }: Props = $props();
+  let { label, items, align = "right", anchor, trigger: custom }: Props = $props();
 
   let open = $state(false);
   let trigger = $state<HTMLButtonElement | undefined>(undefined);
   let list = $state<HTMLElement | undefined>(undefined);
-  let place = $state({ top: 0, right: 0, up: false });
+  let place = $state<Placement>({ top: 0, left: 0, right: 0, up: false });
   const id = $props.id();
+
+  const attach: Attachment<HTMLButtonElement> = (el) => {
+    trigger = el;
+    return () => {
+      if (trigger === el) trigger = undefined;
+    };
+  };
 
   function enabled(): HTMLButtonElement[] {
     if (!list) return [];
@@ -49,11 +80,11 @@
   }
 
   function show(): void {
-    if (!trigger) return;
-    const r = trigger.getBoundingClientRect();
-    const room = window.innerHeight - r.bottom;
-    const up = room < 40 * items.length + 16;
-    place = { top: up ? r.top : r.bottom, right: window.innerWidth - r.right, up };
+    const at = anchor ?? trigger;
+    if (!at) return;
+    const viewport = { width: window.innerWidth, height: window.innerHeight };
+    // Room for every item at about 40px, plus the list's padding.
+    place = placeAt(at.getBoundingClientRect(), viewport, 40 * items.length + 16);
     open = true;
     queueMicrotask(() => enabled()[0]?.focus());
   }
@@ -89,33 +120,35 @@
     if (event.key !== "Tab") event.preventDefault();
   }
 
+  function toggle(): void {
+    if (open) close(true);
+    else show();
+  }
+
   function onpointerdown(event: PointerEvent): void {
-    const target = event.target as Node;
-    if (open && !list?.contains(target) && !trigger?.contains(target)) close(false);
+    if (open && pressedOutside(event.target as Node, [list, trigger])) close(false);
   }
 </script>
 
 <svelte:window {onpointerdown} onresize={() => close(false)} />
 
-<IconButton
-  icon="more"
-  {label}
-  haspopup="menu"
-  expanded={open}
-  bind:element={trigger}
-  onclick={() => (open ? close(true) : show())}
-/>
+{#if custom}
+  {@render custom({ open, toggle, attach })}
+{:else}
+  <IconButton icon="more" {label} haspopup="menu" expanded={open} bind:element={trigger} onclick={toggle} />
+{/if}
 
 {#if open}
   <div
     class="menu"
     class:up={place.up}
+    class:left={align === "left"}
     role="menu"
     tabindex="-1"
     aria-label={label}
     {id}
     bind:this={list}
-    style="--top: {place.top}px; --right: {place.right}px;"
+    style="--top: {place.top}px; --left: {place.left}px; --right: {place.right}px;"
     {onkeydown}
   >
     {#each items as item (item.label)}
@@ -146,6 +179,11 @@
     border-radius: var(--radius);
     background: var(--color-panel);
     box-shadow: var(--shadow-float);
+  }
+
+  .menu.left {
+    right: auto;
+    left: var(--left);
   }
 
   .menu.up {

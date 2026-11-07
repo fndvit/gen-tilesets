@@ -31,7 +31,8 @@ with less than 420px, and aligns its right side.
 
 ### Callers
 
-`controls/TilePicker.svelte`, `lib/ui/Explainer.svelte`.
+`controls/TilePicker.svelte`, `lib/ui/Explainer.svelte`, `lib/ui/Menu.svelte` (which opens upward
+with less than about 40px per item left below, and aligns either side).
 
 ### Tests
 

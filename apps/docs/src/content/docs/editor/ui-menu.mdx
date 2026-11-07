@@ -31,6 +31,9 @@ The real component from `apps/editor`, rendered alone. Its second item is disabl
 |---|---|---|
 | `label` | `string` | The button's accessible name, also the list's. |
 | `items` | `MenuItem[]` | `{ label, icon, onSelect, disabled? }`, in order. |
+| `align` | `"left" \| "right"` | Default `"right"`. Which edge of the anchor the list lines up with. |
+| `anchor` | `HTMLElement` | What the list is placed against. Defaults to the trigger. |
+| `trigger` | `Snippet<[MenuTrigger]>` | A button of the caller's own in place of the ⋯ icon button. It gets `{ open, toggle, attach }`: `{@attach attach}` on the button, `toggle` on its click, `open` for `aria-expanded`. |
 
 ### Behaviour
 
@@ -41,5 +44,12 @@ The real component from `apps/editor`, rendered alone. Its second item is disabl
   pointer press outside, closes.
 - After an action, focus returns to the button once the DOM has settled. A move reinserts the
   row, which would otherwise drop focus. After a delete the button is gone.
-- The list is `position: fixed`, measured from the button, so the scrolling sidebar never clips
-  it. It opens upward when there is too little room below.
+- The list is `position: fixed`, measured from the anchor, so the scrolling sidebar never clips
+  it. It opens upward when there is too little room below. The placement and the outside-press
+  test are [`popover.ts`](/editor/ui-popover-ts/)'s `placeAt` and `pressedOutside`, shared with
+  the tile picker and the Explainer.
+- A row's ⋯ menu right-aligns with its button. A [Split button](/editor/ui-split-button/)
+  passes its chevron as `trigger`, its whole control as `anchor` and `align="left"`: the list
+  opens under the control and lines up with its left edge, while Escape and the refocus after an
+  action still go to the chevron. The trigger is a snippet rather than an exported `show`/`close`
+  so that opening, closing and refocusing stay in `Menu`.

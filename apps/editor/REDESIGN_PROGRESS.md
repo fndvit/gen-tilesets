@@ -2313,6 +2313,36 @@ and correct the doc line. An arrow reads as "download", which the main part alre
    in place of Export temporarily to eyeball it on 5175, but revert: the swap is X3b-3. Then
    update "X3b-2 · Done" and the memory file, and **stop for Pol**.
 
+### X3b-2 · Done (2026-11-07), uncommitted, waiting for Pol's review
+
+- **Step 0 (Pol):** the chevron is `fold`, not `down`. DESIGN_SYSTEM.md's Split button and Icons
+  lines are corrected.
+- **`Menu`:** `align` (default right), `anchor` (default the trigger) and an optional `trigger`
+  snippet (`MenuTrigger`: `{ open, toggle, attach }`, wired with `{@attach}`), so open, close and
+  refocus stay in Menu. **Differs from the plan:** no `ui/menu.ts`. The placement and the
+  outside-press test are `popover.ts`'s `placeAt` and `pressedOutside`, which already do exactly
+  this and are tested; Menu now calls them (`ui-popover-ts.md` lists Menu as a caller).
+- **`Button`:** a `squared?: "left" | "right"` prop, so SplitButton's main part is the real primary
+  Button.
+- **`SplitButton`:** `label, icon, onclick, menuLabel, items, disabled`. **No `busy` prop**: the
+  zip export is async and the bar already shows "Exporting…" by swapping `label` and setting
+  `disabled`, which SplitButton takes as is; `disabled` turns off both parts.
+- **`RadioList`:** generic over the key, native radios, focus ring on the row. The input needed
+  `color: inherit` (form controls don't inherit it), or the chosen dot drew black on ink.
+- **Icons:** `archive`, `image`.
+- **`src/image-export.ts`:** `sizeRows` (rows are `{ key, width, label, detail }`; `width`, not
+  the plan's `value`), `rememberedSize`, `fileName` (a fractional `referenceWidth` is written as
+  it is: `parseReferenceWidth` accepts any positive number), `pixelSize`. 10 tests.
+- **Docs:** new `ui-split-button.mdx`, `ui-radio-list.mdx` (both with a story demo in
+  `UiPrimitivesStory`), `image-export.md`; `ui-menu.mdx`, `ui-button.mdx`, `ui-icons.md` and
+  `ui-popover-ts.md` updated; DESIGN_SYSTEM.md's Naming list and Menu row.
+- **Checks:** tests 671 + 430, typecheck green, docs coverage 134/134. On 5175, SplitButton and a
+  RadioList were mounted for a moment (then reverted; `SidebarTopBar.svelte` is unchanged):
+  chevron 28×30, Enter opens on the first item, the menu's left edge equals the control's,
+  arrows, Esc back to the chevron, outside click closes; radio arrows and click choose, rows 30px.
+  The readme fixture's ⋯ menu still right-aligns and refocuses. Scripts: `x3b2/check.mjs` and
+  `x3b2/more.mjs` in session `ddbd1c91`'s scratchpad (with `readme.zip`).
+
 ### X3b-3 · Wiring (then stop)
 
 1. **`lib/sections/ExportImage.svelte`** (a Form popup built on `Popup` with `role="dialog"`):

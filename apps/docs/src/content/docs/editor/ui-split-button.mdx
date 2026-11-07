@@ -1,0 +1,61 @@
+---
+title: ui/SplitButton.svelte
+description: One primary control in two parts, a default action and a chevron that opens a menu of every action.
+sidebar:
+  order: 79
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/SplitButton.svelte`.
+
+## Overview
+
+A primary (ink) Button for the default action, with a 28px chevron at its right that opens a
+[Menu](/editor/ui-menu/) of every action, the default one included. It is the top bar's Export:
+the main part downloads the zip in one click (**E14**), and the menu adds the image (item 1, X1).
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The main part and each menu item report
+what they would run.
+
+<UiPrimitivesStory show="split-button" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `label` | `string` | required | The main part's text and name: "Export". |
+| `icon` | `IconName` | none | An icon before the label. |
+| `onclick` | `(event) => void` | required | The default action. It must also be one of `items`, so the menu is a complete list on its own. |
+| `menuLabel` | `string` | required | The chevron's name, which says what it opens: "More export options". |
+| `items` | `MenuItem[]` | required | The menu, as on `Menu`. |
+| `disabled` | `boolean` | `false` | Disables both parts, so nothing starts from the menu while the default action runs. |
+
+### Behaviour
+
+- Two `<button>`s with their own accessible names (4.1.2). The chevron has
+  `aria-haspopup="menu"` and `aria-expanded`.
+- Enter or Space on the main part runs the default action; on the chevron it opens the menu on
+  its first item. The menu then works as every Menu does, and Escape returns focus to the
+  chevron.
+- The menu opens under the whole control and lines up with its left edge (`Menu`'s
+  `anchor` and `align="left"`), because Export sits at the bar's left.
+- There is no busy prop. While the zip is written the caller passes "Exporting…" as `label` and
+  sets `disabled`, as it does for a plain Button.
+
+### Look
+
+- The main part is `Button variant="primary" squared="right"`, so its hover, pressed and disabled
+  states are the primary Button's.
+- The chevron is 28×30 (above the 24px floor, 2.5.8), the `fold` icon, the primary fill and
+  hover (held while the menu is open), split off by a white hairline at 32%
+  (`box-shadow: inset 1px 0 0 rgb(255 255 255 / .32)`). Only the control's outer corners are
+  rounded.
+
+### Callers
+
+None yet: X3b-3 puts it in `lib/sections/SidebarTopBar.svelte`.
