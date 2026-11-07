@@ -146,6 +146,16 @@ export class NaturalSizeChecks {
   }
 }
 
+/** {@link ImageBank}'s options. */
+export interface ImageBankOptions {
+  /**
+   * `"anonymous"` requests every picture with CORS, so a canvas drawn from them
+   * can be read back. Off by default; only `renderImage` turns it on (see the
+   * comment in {@link ImageBank.sync}).
+   */
+  crossOrigin?: "anonymous" | undefined;
+}
+
 export class ImageBank {
   /** Decoded and ready to draw. A missing key is not-yet-loaded or failed. */
   readonly ready = new Map<string, HTMLImageElement>();
@@ -156,9 +166,11 @@ export class ImageBank {
   #failed = new Map<string, string>();
 
   readonly #checks: NaturalSizeChecks;
+  readonly #crossOrigin: "anonymous" | undefined;
 
-  constructor(checks = new NaturalSizeChecks()) {
+  constructor(checks = new NaturalSizeChecks(), options: ImageBankOptions = {}) {
     this.#checks = checks;
+    this.#crossOrigin = options.crossOrigin;
   }
 
   /**
@@ -198,11 +210,18 @@ export class ImageBank {
       this.#current.set(key, src);
 
       const img = new Image();
-      // No `crossOrigin`. Nothing here ever reads the canvas back — no
-      // `getImageData`, no `toDataURL` — so a tainted canvas costs nothing,
-      // whereas requesting CORS would make every asset on a server that does not
-      // send the header fail outright. The DOM substrate's `<img>` carries no
-      // such requirement and this path must not be stricter than it.
+      // No `crossOrigin` by default. The live renderer never reads its canvas
+      // back -- no `getImageData`, no `toDataURL` -- so a tainted canvas costs
+      // nothing, whereas requesting CORS would make every asset on a server that
+      // does not send the header fail outright. The DOM substrate's `<img>`
+      // carries no such requirement and this path must not be stricter than it.
+      //
+      // `renderImage` is the one path that does read back (`toBlob`), and it opts
+      // in. A tainted canvas would throw a `SecurityError` from `toBlob` that
+      // names no picture; with CORS requested, a server without the header fails
+      // *that picture's* load instead, and the failure names it (Pol, X3a).
+      // Set before `src`, which starts the request.
+      if (this.#crossOrigin !== undefined) img.crossOrigin = this.#crossOrigin;
       img.decoding = "async";
       img.src = src;
 

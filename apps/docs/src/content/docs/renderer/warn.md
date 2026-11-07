@@ -2,7 +2,7 @@
 title: warn.ts
 description: The two asset-quality rules, an asset-to-cell pixel ratio and an absolute cell size, as development-build warnings said once each.
 sidebar:
-  order: 15
+  order: 17
 ---
 
 **Written from:** `packages/tileset/src/render/warn.ts`, and the call sites in

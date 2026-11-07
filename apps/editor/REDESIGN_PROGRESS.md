@@ -2160,6 +2160,14 @@ no page around it.
 
 Three blocks. **Stop for Pol after each.** Commit each block once Pol has reviewed it.
 
+**Pol's change (2026-11-07, at the start of X3b):** "Current preview" becomes **"Design
+width"**. The first size row exports at the saved file's design width (`layout.referenceWidth`,
+the Grid & size field), **not** at the preview's current width, so dragging the handles never
+changes the image. The row reads `Design width · 1000 px`; it is the only row with no
+breakpoints and the fallback when the size used last is gone. A bound equal to the design width
+keeps its own breakpoint row (the rule number is what the author looks for). The X0 and X1 notes
+above are left as they were decided; the steps below are updated.
+
 **Read first:**
 - "X2 · Done" and "X3a · Analysis and Pol's answers" above.
 - `DESIGN_SYSTEM.md`: the Split button, Menu, Form popup, Radio list and Export image rows, and
@@ -2209,6 +2217,30 @@ Three blocks. **Stop for Pol after each.** Commit each block once Pol has review
    **Don't tag.**
 6. `pnpm test` and `pnpm typecheck` from the root, then stop for Pol.
 
+### X3b-1 · Done (2026-11-07), uncommitted, waiting for Pol's review
+
+- **`render/paint.ts` `drawItems`:** the tile loop moved out of `TilesetRenderer.#paint`; the
+  DEV `assetTooSmall` warning is an `onDraw` callback. `renderer.test.ts` passes untouched.
+- **`ImageBank(checks?, { crossOrigin? })`:** off by default; the comment now says only the
+  image path reads back, and why it opts in.
+- **`render/image.ts`:** `renderImage(file, ImageOptions) → Promise<Blob>` and
+  `imageSize(file, ImageOptions) → { width, height }`, both from one model, exported from
+  `render/index.ts`. Helpers `settleDrawables` and `loadAll` (a promise over `sync`'s callbacks;
+  no new bank method) are exported from the module for tests only.
+- **Two choices that differ from the plan's wording, for Pol:**
+  - The height is the **presented canvas's** height (`height: auto` from the raster's ratio),
+    not `W / ratio` or `fixedHeight`. It is what the live box takes once measured, and it
+    includes `yOffset`'s rounding to a device px, so no hairline under the last row or shaved
+    sliver. It differs from `W / ratio` by under a device px (test: 26 vs 25.9).
+  - A non-top `alignY` is pushed back to the grid's own height, so the grid sits at the top: an
+    image's box is exactly as tall as its grid.
+  - Wholly hidden bleed columns are culled from the raster, as on the live canvas.
+- **0.11.0**, CHANGELOG entry, docs pages `renderer/paint.md` and `renderer/image.md`;
+  `images.md`, `render-index.md` and `renderer.md` updated. Not tagged.
+- `pnpm test` 671 + 420, `pnpm typecheck` green, docs coverage 131/131. `image.test.ts`: 16
+  tests (sizes fluid/fixed/rule/yOffset/invalid, compose, half-column bleed, bottom align,
+  background, CORS, the failure message, encode failure, settle and load waits).
+
 ### X3b-2 · Editor primitives (then stop)
 
 1. **`ui/SplitButton.svelte`:** the anatomy in DESIGN_SYSTEM.md. It reuses `Menu`'s list rather
@@ -2220,8 +2252,8 @@ Three blocks. **Stop for Pol after each.** Commit each block once Pol has review
 3. **Icons:** `archive` and `image` (Lucide paths) in `icons.ts`, and `icons.test.ts` stays
    green.
 4. **`image-export.ts`, pure and tested:**
-   - `sizeRows(rules, previewWidth)`: Current preview first (`preview.width`, the design
-     width, **not** the zoomed one), then each `boundsOf(rules)` bound. Each bound is labelled
+   - `sizeRows(rules, designWidth)`: Design width first (`layout.referenceWidth` of the saved
+     file, not `preview.width`), then each `boundsOf(rules)` bound. Each bound is labelled
      with the numbers of the rules that name it as min or max, so the min-and-max rule appears on
      two rows and a shared bound reads "Breakpoint 2 + 3".
    - `fileName(W, d)` → `tileset-<W>px@<d>x.png`.
@@ -2237,7 +2269,7 @@ Three blocks. **Stop for Pol after each.** Commit each block once Pol has review
    - Size (RadioList), Background (a `Toggle` with the swatch in the "Preview colour" segment,
      which keeps its real colour when chosen), and Density (a `Toggle`, 2× by default).
    - The draft Advisory while `drawn !== null`, the File line, and Cancel / Download PNG.
-   - The size used last lives in module state (for the session), falling back to Current preview
+   - The size used last lives in module state (for the session), falling back to Design width
      if that bound no longer exists.
    - Download: `renderImage(session.file, { width, density, background, loadSalt:
      preview.loadSalt, provider: editorProvider })`, then the same download helper the zip uses
@@ -2255,7 +2287,7 @@ Three blocks. **Stop for Pol after each.** Commit each block once Pol has review
      - the split button: one-click zip, chevron keyboard, Esc back to the chevron, left-aligned
        menu;
      - Export image: arrow keys in the radio list, Esc, focus returning to the trigger;
-     - download PNGs at Current preview 1× and 2× and at a breakpoint bound, then read their
+     - download PNGs at Design width 1× and 2× and at a breakpoint bound, then read their
        pixel size against `pixelSize` and check for opaque pixels. Check a transparent export
        has alpha 0 at a gap, and a preview-colour export doesn't;
      - with a draft open: the advisory shows, and the PNG equals the saved file's;

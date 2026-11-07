@@ -2,7 +2,7 @@
 title: styles.ts
 description: The renderer's one stylesheet, tileset.css, and injectStyles, which puts it wherever a tileset mounts unless the exact rules are already there.
 sidebar:
-  order: 16
+  order: 18
 ---
 
 **Written from:** `packages/tileset/src/render/styles.ts`, `packages/tileset/src/render/tileset.css`,
