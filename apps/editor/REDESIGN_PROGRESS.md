@@ -2126,7 +2126,68 @@ and `packages/tileset/RELEASING.md`. Bring Pol:
 - Tests: what `renderer.test.ts` can cover (settled timing with a fake provider, `dpr` override →
   `uniformGeometry`), and what only the editor probe can (real PNG pixels).
 
-Then X3b (implement, a later session):
+### X3a · Analysis and Pol's answers (2026-11-07)
+
+**Finding: no hidden host is needed.** `TilesetModel` reads only four inputs from the page
+(`ModelInputs` in `render/model.ts`): `width`, `height` (only for a non-top `alignY`), `rects`
+(only with `avoid`) and `dpr`. For an image all four are known: W, the natural height, `null`,
+and the chosen density. So the image is rendered by **driving the model directly**, with no
+element in `document.body`, no `ResizeObserver` and no wait for layout. Shape A (a `dpr`
+override and `settled()` on the live `TilesetRenderer`) is not needed.
+
+Pol's answers:
+1. **Shape: `renderImage`, from the model.** It is one new export from `./render`.
+   `TilesetRenderer`'s public API is unchanged. The tile loop in `TilesetRenderer.#paint` (the
+   mask, the `ready` lookup, `coverRect`, alpha and the matrix) moves into one shared function
+   used by both, so the image and the live canvas draw with the same code (the S2 spirit).
+2. **An asset failure rejects**, naming every asset that failed (`tileId/assetId`), and no PNG
+   is written. The editor shows that message in its existing "Export failed" Popup.
+3. **Cross-origin: `renderImage` loads with `crossOrigin = "anonymous"`.** A server without CORS
+   headers makes that picture fail, and the failure names it (2), instead of `toBlob` throwing a
+   `SecurityError` that names nothing. The live renderer stays as it is: `ImageBank` gets an
+   option for this, and it defaults to off. The editor's `blob:` URLs are unaffected.
+4. **It returns a PNG `Blob`, the simpler way** (Pol: "the option that gives a png the simpler
+   way"), with a `background?` option (a CSS colour; transparent when it is left out).
+
+So: `renderImage(file, { width, density, background?, seed?, loadSalt?, provider?, sizing?,
+align?, responsive? }) → Promise<Blob>`. The output is `round(W·d) × round(H·d)` px, where H is
+the box's natural height at W (`aspect-ratio`, or `fixedHeight` under `"fixed"`). The presented
+canvas is drawn at `leftCss·d` and `topCss·d` and clipped to the box. `substrate`, `avoid`,
+`overflow` and `onAssetError` are not accepted: an image is always the canvas, clipped, with
+no page around it.
+
+## Next session plan: X3b · Implement (written 2026-11-07)
+
+**Read first:** "X2 · Done" and "X3a · Analysis and Pol's answers" above; `DESIGN_SYSTEM.md`
+rows Split button, Menu, Form popup, Radio list, Export image, and the "Export" subsection.
+
+1. **Package** (`packages/tileset/src/render/`):
+   - Factor `#paint`'s per-item loop into one shared function (e.g. `paint.ts`
+     `drawItems(ctx, items, ready, mask)`). `TilesetRenderer` calls it, with no change in
+     behaviour; `renderer.test.ts` must stay green unchanged.
+   - Give `ImageBank` an option `crossOrigin?: "anonymous"`, off by default.
+   - Add `image.ts`, `renderImage`:
+     1. a `TilesetModel` with `{ width: W, height: natural, rects: null, dpr: d }`;
+     2. await the model's `drawables`, sync a private `ImageBank` (with crossOrigin), and wait
+        until every key is ready or failed;
+     3. reject, listing the failures, if any key failed;
+     4. otherwise paint the presented canvas, compose it into a box canvas (fill the
+        background, then draw at `leftCss·d`, `topCss·d`, clipped), and call `toBlob("image/png")`.
+   - Keep the size maths pure and tested (`imageSize`). Test the settle wait with a fake provider
+     and a fake bank. Export from `render/index.ts`.
+   - Bump to **0.11.0**, add a CHANGELOG line, and a docs page for `image.ts` (and `paint.ts`).
+     Don't tag until Pol says so.
+2. **Editor:** `ui/SplitButton.svelte`; a left alignment for `Menu`; `ui/RadioList.svelte`;
+   `image-export.ts` (tested: the rows from the rules with rule numbers, including "2 + 3" and
+   the min-and-max case, the file name, the pixel size); the `ExportImage` Form popup; the
+   `SidebarTopBar` swap, its wiring and its header comment; the `archive` and `image` icons; the
+   Naming list in DESIGN_SYSTEM.md; and a docs page for each new file.
+3. **Checks:** `pnpm test` and `pnpm typecheck` from the root; a probe that downloads PNGs at
+   1×/2× and at a breakpoint and checks their pixel size and that they have opaque pixels.
+
+X4 (the sweep) is unchanged.
+
+The original X3b list, kept for reference:
 - the package addition;
 - `ui/SplitButton.svelte`;
 - the `Menu` left alignment;
