@@ -2088,6 +2088,22 @@ Button, Menu, Popup, Dialog, Segmented control and Inline advisory rows, Icons;
 8. **Leave the code alone:** `SidebarTopBar`'s header comment ("Left, the edit history: Undo")
    becomes stale with the swap. Change it in X3, together with the markup.
 
+### X2 · Done (2026-11-07), waiting for Pol's review
+
+Written in `DESIGN_SYSTEM.md` only; no code changed:
+- **Layout → Top row:** New, Import, Export (split) on the left; Undo on the right.
+- New rows: **Split button**, **Form popup** (Popup + `role="dialog"`, noun title; a general
+  pattern, set against Dialog's question-and-alertdialog), **Radio list**, **Export image**.
+- **Menu** row: "…" opens a dialog, and the alignment rule (⋯ menus right-align; the split
+  button's menu left-aligns under the whole control).
+- A new **Export** subsection under Interaction conventions with the image rules (saved file,
+  `defaultSeed` + current `loadSalt`, W × natural height clipped, density not DPR, name, failure
+  Popup, offscreen render and why).
+- Icons: `archive`, `image`; the chevron reuses `down` (no new icon).
+- Accessibility: rows for the split button and the radio list. "Selected" lists the radio row.
+- Left for X3: the `SidebarTopBar` header comment and the Naming list (`SplitButton`,
+  `RadioList` get named when they exist, with their docs pages).
+
 ### X3a · The package analysis (talk, no code; after X2 is reviewed)
 
 Read `packages/tileset/src/render/renderer.ts` (constructor, `#settle`, `pending`, the paint

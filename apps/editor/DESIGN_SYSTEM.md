@@ -75,8 +75,9 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
 - **Top row:** both columns start with a top bar on the grey ground, in **one grid row** (CSS
   subgrid on `main`). They are always the same height, even when the preview bar wraps, and one
   ink hairline (`--color-bar-rule`) runs under both.
-  - The sidebar bar (`SidebarTopBar`) holds the document: Undo on the left; New, Import and
-    Export (the primary) on the right. It also takes dropped zips.
+  - The sidebar bar (`SidebarTopBar`) holds the document: New, Import and Export (the primary,
+    a **Split button**) on the left; Undo on the right. The document's actions come first, and
+    Export's menu then opens left-aligned under it (Pol, X1). It also takes dropped zips.
   - The preview bar holds the width readout, the breakpoints, the grid toggle, the sizes and the
     background swatch.
 - **Sidebar body:** the scrolling sections (8px padding, cards 6px apart), then the fixed
@@ -117,8 +118,9 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
 | **Input, waiting** (`NumericInput commit="blur"`) | A field holding a changed value that is not applied yet: "↵ Enter to apply" in muted mono at its right edge, also in the field's `aria-describedby`. The field keeps room for it, so the digits never run under it. It is not shown for the same value, for an invalid one, or after Esc or Enter | Fields that shape the grid: Grid & size's cell size, rows and design width; a breakpoint's rows, columns and cell size |
 | **Segmented control** (`Toggle`) | A grey track with equal segments. The chosen one is ink with white text | Alignment, Assets on load, enum params, the preview's sizes |
 | **Button** | `primary` (ink, one per area), `secondary` (grey fill), `tertiary` (text, a wash on hover). 30px tall, radius 6, `.t-xs`. An optional leading `icon` | Export, Save/Add, Undo, New, Import, Reroll assets, Discard |
+| **Split button** | One primary (ink) control in two parts. The main part is a Button that runs the default action. At its right, a 28px chevron segment (the `down` icon) is split off by a white hairline at 32% (`box-shadow: inset 1px 0 0 rgb(255 255 255 / .32)`); only the control's outer corners are rounded. The parts are two `<button>`s with their own accessible names: the main part says what it does ("Export"), the chevron has `aria-haspopup="menu"` and says what it opens ("More export options"). Enter or Space on the main part runs the default action; on the chevron it opens the **Menu** on its first item. The menu then works as every Menu does, and Esc returns focus to the chevron. The chevron is 28×30 (2.5.8). The default action must also be in the menu, so the menu is a complete list on its own | Export: the main part downloads the zip in one click (**E14**); the menu adds the image |
 | **Icon button** | A 28px square, with a 16px icon muted at rest. It turns ink on a wash under the pointer. `strong` keeps it ink at rest (re-seed) | Re-seed, trash, close, reorder |
-| **Menu** | An icon button (`more`) that opens a floating list (`--shadow-float`) of icon plus label items. It follows the WAI-ARIA menu button pattern. Focus returns to the button after an action | An operation's Move earlier, Move later and Delete; a palette entry's Change tile, Move earlier, Move later (only under Noise and Gradient) and Remove |
+| **Menu** | An icon button (`more`) that opens a floating list (`--shadow-float`) of icon plus label items. It follows the WAI-ARIA menu button pattern. Focus returns to the button after an action. A label ending in "…" opens a dialog rather than acting at once.<br>**Alignment:** the list is anchored under its trigger and aligns with the trigger's edge nearest the bar's edge: the ⋯ menus sit at a row's right and right-align; a **Split button**'s menu opens under the whole control and left-aligns with it, because Export sits at the bar's left | An operation's Move earlier, Move later and Delete; a palette entry's Change tile, Move earlier, Move later (only under Noise and Gradient) and Remove; Export's Tileset (.zip) (`archive`) and Image (.png)… (`image`) |
 | **Add row** | `+` and a label, tertiary. The square variant is a 32px grey "+" | Add breakpoint, tile group, operation; add a tile |
 | **Tile group / tile asset** | A well with up to four 16px thumbnails in the header. Each row is a 32px thumbnail, a slider (4px track, 16px round ink thumb) and the % in mono. "+" and Reset weights at the foot | Tiles |
 | **Palette** (`PaletteList`) | Its shape follows the operation's **Pattern** (Tile and pattern, T0–T1).<br>**Shared:** a `.t-label` "Palette" with a muted mono label at the right ("chance" or "≈ painted"). Under it is a 12px **proportion strip**, read-only and hidden from assistive tech: one segment per entry, filled with the tile's picture (clear is the slashed square, a missing picture is field grey; a zero weight is a 2px ink tick). Then the **entry rows**, each 32px: the thumbnail (a button that opens the tile picker), the name, the tile group's slider (0 to the larger of 2 and the largest weight), the % in mono, and a Menu. Hovering or focusing a row rings its segment in the accent. Under the rows is a muted `.t-body` caption, then "+ Entry" (Add row), which opens the picker and adds the chosen tile at the end with weight 1.<br>**Random:** order means nothing, so there is no number, no grip and no threshold, and the Menu has no Move items. The strip segments are as wide as the weights, and the % is each entry's **chance**. Caption: "Each cell picks a tile at random. The % is each tile's chance."<br>**Noise, Gradient:** an ordered list. Each row adds a grip (pointer only) and a mono number before the thumbnail. The % is the **measured coverage**, written "≈68%": the share of the selected cells the entry actually paints with the current seed (`coverage`, `controls/palette.ts`). The strip draws the same measured shares, so the two always agree; there are no threshold labels. The caption says that neighbours in the list meet on the canvas. Under Noise it adds why the middle entries cover more and what to do: "Middle entries cover more because noise rarely reaches its ends. Give the first and last entries more weight to even it out." There is no "Even out" action (Pol, N0): the right weights depend on the seed. Under Gradient it adds that the bands follow the list. Dragging the grip reorders live, and the Menu's Move earlier / Move later is the keyboard path (WCAG 2.5.7).<br>**Constant:** one tile, not a palette. The label is "Tile", then a 48px thumbnail button (opens the picker), the name, and "every selected cell" in muted mono. A muted `info` line, "… are kept until you save, in case you switch back to a pattern that uses a palette.", shows only while the draft holds other entries. Save writes only the shown entry.<br>At the narrowest widths (a container under 250px), the rows' gaps tighten to `--space-2` and the right-hand label is hidden | An open operation that writes Tile |
@@ -131,6 +133,9 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
 | **Notice** (`Notice`, `NoticeStack`, `notices` store, `advisories.ts`) | A 360px white card, radius 8, `--shadow-float`, never blocking. It holds a 16px icon, then the title in `.t-title`, data (file names, numbers) in ink `.t-console`, a muted `.t-body` explanation, optional tertiary actions, and a 28px ✕. An advisory has the `info` icon in ink. A failure has the `alert` icon in `--color-danger`, which is its only colour: no edge, no fill. ✕ dismisses it until its condition changes. A notice goes away by itself when its condition does | Asset load failures (one notice for all), files that did not attach in Tiles (one notice per drop), advisories 1, 2, 3, 4, 5 and 7, an import's upgrade and unreadable pictures |
 | **Inline advisory** (`Advisory`) | A muted `info` icon and a muted `.t-body` line under the control it is about. No box, no colour, no ✕. It shows only while its condition holds. Constant's kept-entries line in the palette uses it too | Advisories about one control: duplicate tile names (6) and rotation ends (9). Advisory 8 (palette reordered under random) is retired: under Random the palette has no order to change |
 | **Dialog** (`Dialog`) | The Popup panel asking one question. The title is the question ("Change columns to 8?"), and the body says what changes and how to undo it, with any affected operations listed in a well. Buttons: Cancel (secondary), then the verb that names the action (primary, at the far right: "Change columns", not "OK"). Danger is in the words, never in red. Focus starts on Cancel, Esc cancels, and focus returns to the trigger | Destructive resize (E12), New tileset, unsaved changes |
+| **Form popup** | The Popup panel holding a few choices before an action. Unlike a Dialog it asks no question: it is a `role="dialog"` (not alertdialog) with a noun title ("Export image") and a ✕. The body is fieldsets, each with a `.t-label` legend, then an optional Inline advisory and a summary line, then Cancel (secondary) and the verb that names the action (primary, at the far right: "Download PNG"). Focus starts on the first field, Esc or Cancel closes it, and focus returns to the trigger | Export image |
+| **Radio list** | One choice from a short list whose options need more than a word. A field-grey well (`--color-field`, radius 6) of 30px rows, each a 12px ring dot, the label, and a mono value at the right. The chosen row is ink with white text and a filled white dot. Hover darkens a row one step. It is a `radiogroup` of native radios: Tab enters on the chosen row, the arrow keys move and choose | Export image's size |
+| **Export image** (a Form popup) | **Size** (a Radio list): first `Current preview · 1180 px` (the preview's width now), then one row per breakpoint bound (`boundsOf(rules)`, ascending), named by the rule that sets it, using the sidebar's "Rule N" number: `Breakpoint 2 · 768 px`. A rule with both a min and a max width names two bounds; both rows carry its number and the px tells them apart. A bound that two rules name lists both: `Breakpoint 2 + 3 · 1024 px`. There is no "base" or "rule N" label at the right. With no breakpoints, Current preview is the one row, still shown. It opens on the size used last in the session, else Current preview.<br>**Background** (Preview colour / Transparent) and **Density** (1× / 2×, 2× by default): two segmented controls side by side. The Preview colour segment carries a small swatch of `preview.background`, which keeps its own colour on the chosen ink segment.<br>While the preview draws a draft, an Inline advisory: "Draft not included: this is the saved tileset".<br>A **File** line: `.t-label` "File", then in mono the name and pixel size, for example `tileset-1180px@2x.png · 2360 × 1408 px`.<br>Buttons: Cancel, Download PNG. The rules for the image itself are under **Export** below | Export's Image (.png)… |
 | **Width choices, swatch** | Segments on a white track in the preview bar; the chosen one is ink. The swatch is a 30px rounded square with an edge | Preview top bar |
 | **Footer: Randomness** | A white card with a `.t-title` heading. It holds the seed field and a strong re-seed button; Assets on load; then Reroll assets and Preview a fresh load as two secondary buttons with the re-seed icon | Sidebar foot |
 
@@ -139,7 +144,7 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
 There is one outline family, made of Lucide paths (ISC licence). They are drawn on a 24-unit
 grid, rendered at 16px with a 1.5px stroke and round caps and joins, in `currentColor`.
 - The set: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`, `export`,
-  `new`, `more`, `check`, `info` (an advisory), `alert` (a failure), `grip` (drag to reorder, Lucide grip-vertical), `swap` (change a palette entry's tile, Lucide arrow-right-left).
+  `new`, `more`, `check`, `info` (an advisory), `alert` (a failure), `grip` (drag to reorder, Lucide grip-vertical), `swap` (change a palette entry's tile, Lucide arrow-right-left), `archive` (the zip, Lucide archive), `image` (a PNG, Lucide image). A Split button's chevron reuses `down`.
 - An icon names an action, sits beside a word or inside a named control, and is never
   decorative.
 - Add an icon only in the same family and grid.
@@ -165,7 +170,7 @@ and Blend glyphs are **not designed yet**, and show label-only cells.
 |---|---|
 | Hover | A wash (`--color-hover`) on tertiary buttons, icon buttons, headers, step rows, glyph cells and menu items. Secondary and primary buttons, fields and chips step one grey darker. An icon turns from muted to ink |
 | Pressed | One step further: `--color-pressed`, `--color-secondary-pressed`, or an inset ring on primary |
-| Selected | Ink fill with white text (segments, width choices, the edited palette entry), or a white tile with a 2px ink ring (glyph cells, whose artwork is ink). Already chosen items do not react to hover and have `cursor: default` |
+| Selected | Ink fill with white text (segments, width choices, the chosen Radio list row, the edited palette entry), or a white tile with a 2px ink ring (glyph cells, whose artwork is ink). Already chosen items do not react to hover and have `cursor: default` |
 | Editing now | The accent: the open operation (edge and index), the active step (number, name and wash), and the preview's selected cells |
 | Focus | A 2px `--color-accent` ring, offset 2px; inset on full-width rows |
 | Disabled | `--color-disabled`, `cursor: default`, kept in place (never hidden) |
@@ -175,6 +180,23 @@ and Blend glyphs are **not designed yet**, and show label-only cells.
 | Scrolling | `ScrollArea`: the native scrollbar is hidden, and an overlay handle shows while hovered or scrolling. A scrollbar never takes width |
 | Width | Nothing in the sidebar sets its width from its content (`minmax(0, 1fr)` columns; long text ellipsizes or wraps) |
 | Motion | `--dur-fast` with `--ease`. Sections and groups slide open. Nothing animates under `prefers-reduced-motion` |
+
+### Export
+
+Export's main part writes the zip, unchanged: the file and its asset folder together, in one
+click (**E14**). JSON on its own is never offered. Image (.png)… opens **Export image**, and the
+image follows these rules (Pol, X0):
+- It draws the **saved** file, like the zip, never the open draft.
+- It uses the file's `defaultSeed` and the **current `loadSalt`**: the load on screen.
+- Its width is the chosen size (a breakpoint bound, or the preview's current width), and its
+  density is the chosen 1× or 2×, never the machine's DPR. So the same choices give the same PNG
+  on any screen.
+- It is the box: W × the natural height at W, with the bleed clipped as `overflow: hidden` would.
+- Its background is the preview colour or transparent.
+- Its name is `tileset-<W>px@<d>x.png`, and its pixels are (W·d) × (H·d).
+- A failure opens the existing "Export failed" Popup. Nothing is written on a failure.
+- Every size is an offscreen render, not a capture of the preview's canvas (a capture could
+  only give the width on screen, at the screen's DPR, with the draft in it).
 
 ## Accessibility (WCAG 2.2 AA)
 
@@ -186,6 +208,8 @@ and Blend glyphs are **not designed yet**, and show label-only cells.
 | Non-text: a field's edge 4.3:1 on white; ink lines; accent rings | 1.4.11 | The fill alone would be too faint to say "type here", so the edge carries it |
 | Reflow: one column below 40rem, no sideways scroll at 320 | 1.4.10 | Chips and actions wrap |
 | Focus visible everywhere; the menu returns focus to its button after an action | 2.4.7, 2.4.11 | |
+| A Split button's parts are separate buttons with separate names ("Export", "More export options"); the chevron is 28×30 | 4.1.2, 2.5.8 | |
+| The Radio list's choice shows by its dot (ring vs filled) and the ink row, not by colour alone; it uses native radios, so arrow keys and the group's name come for free | 1.4.1, 1.4.11, 4.1.2 | The ring is ink on the field grey |
 | Notices are announced without taking focus: advisories in a polite live region, failures in an assertive one. A failure is told apart by its icon's shape and its words, not by colour alone | 4.1.3, 1.4.1 | Dialogs are modal `<dialog>`s with `role="alertdialog"` |
 
 ## Naming
