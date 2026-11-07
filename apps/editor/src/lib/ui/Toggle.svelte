@@ -14,6 +14,10 @@
 
   Name it with `label`, or put it in a `FieldRow` (which names its group) and
   pass the same text.
+
+  An option may carry a `swatch`, a CSS colour drawn as a small square before
+  its label (Export image's "Preview colour"). The swatch keeps its own colour
+  on the chosen ink segment, because the colour is the information.
 -->
 <script lang="ts" generics="T extends string | number | boolean">
   import { rovingIndex } from "./keys.js";
@@ -21,6 +25,7 @@
   interface Option {
     value: T;
     label: string;
+    swatch?: string | undefined;
   }
 
   interface Props {
@@ -65,7 +70,7 @@
       onclick={() => choose(option.value)}
       onkeydown={(event) => onKeydown(event, i)}
     >
-      {option.label}
+      {#if option.swatch !== undefined}<span class="swatch" style="background: {option.swatch};"></span>{/if}{option.label}
     </button>
   {/each}
 </div>
@@ -101,6 +106,17 @@
     transition:
       background-color var(--dur-fast) var(--ease),
       color var(--dur-fast) var(--ease);
+  }
+
+  .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: var(--space-3);
+    border-radius: 2px;
+    vertical-align: -1px;
+    /* An edge on both grounds, so a white swatch shows on white and on ink. */
+    box-shadow: 0 0 0 1px var(--color-edge);
   }
 
   .segment:hover:not(:disabled) {

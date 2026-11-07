@@ -371,7 +371,7 @@
       point of **S2**'s single live preview. `.fixed` (the footer) never
       scrolls.
     -->
-    <SidebarTopBar onNew={() => (askingNew = true)} />
+    <SidebarTopBar onNew={() => (askingNew = true)} draft={drawn !== null} />
 
     <div class="sidebar-body">
     <div class="scrollable">

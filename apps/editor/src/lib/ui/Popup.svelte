@@ -12,10 +12,16 @@
 
   `open` is bindable. Closing by Esc, by the button or by the caller all end in
   `onClose`, once.
+
+  A Form popup (Export image) adds a ✕ to the bar (`closable`) and says where
+  focus starts (`initialFocus`): its first field, not the ✕ that comes first in
+  the DOM, which is where `showModal()` would put it (`DESIGN_SYSTEM.md` *Form
+  popup*).
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
   import Button from "./Button.svelte";
+  import IconButton from "./IconButton.svelte";
 
   interface Props {
     title: string;
@@ -29,16 +35,32 @@
     actions?: Snippet<[() => void]>;
     /** For a question that interrupts (`Dialog`): announced as an `alertdialog`. */
     alert?: boolean;
+    /** A ✕ at the bar's right, for a Form popup. */
+    closable?: boolean;
+    /** The element to focus once open, in place of the first focusable one. */
+    initialFocus?: () => HTMLElement | null | undefined;
   }
 
-  let { title, open = $bindable(false), onClose, children, actions, alert = false }: Props = $props();
+  let {
+    title,
+    open = $bindable(false),
+    onClose,
+    children,
+    actions,
+    alert = false,
+    closable = false,
+    initialFocus,
+  }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
   const titleId = $props.id();
 
   $effect(() => {
     if (dialog === null) return;
-    if (open && !dialog.open) dialog.showModal();
+    if (open && !dialog.open) {
+      dialog.showModal();
+      initialFocus?.()?.focus();
+    }
     if (!open && dialog.open) dialog.close();
   });
 
@@ -58,6 +80,9 @@
 >
   <div class="bar">
     <h2 class="t-section" id={titleId}>{title}</h2>
+    {#if closable}
+      <IconButton icon="close" label="Close" onclick={() => dialog?.close()} />
+    {/if}
   </div>
   <div class="body">
     {@render children()}
@@ -95,6 +120,10 @@
   }
 
   .bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
     padding: var(--space-7) var(--space-7) var(--space-4);
   }
 

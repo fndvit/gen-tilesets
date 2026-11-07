@@ -29,7 +29,7 @@ Generic over `T extends string | number | boolean`.
 
 | Prop | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `options` | `{ value: T; label: string }[]` | required | In display order. |
+| `options` | `{ value: T; label: string; swatch?: string }[]` | required | In display order. `swatch` is a CSS colour drawn as a 10px square before the label, with a `--color-edge` ring; it keeps its own colour on the chosen segment, because the colour is the information (Export image's "Preview colour"). |
 | `value` | `T` | required | The chosen value. |
 | `onChange` | `(value: T) => void` | required | Called on every change; never with the current `value`. |
 | `label` | `string` | required | `aria-label` of the radio group. |
@@ -55,7 +55,7 @@ Generic over `T extends string | number | boolean`.
 
 ### Callers / callees
 
-Callers: `lib/sections/GridSection.svelte` (Alignment), `lib/sections/SidebarFooter.svelte` (Assets on load), `controls/ParamControl.svelte` (a segmented parameter), `controls/NumericMapping.svelte` (Continuous / Stepped), `lib/operations/OperationBody.svelte` (Reseed on load). Callees: `rovingIndex` from `lib/ui/keys.ts`.
+Callers: `lib/sections/GridSection.svelte` (Alignment), `lib/sections/SidebarFooter.svelte` (Assets on load), `controls/ParamControl.svelte` (a segmented parameter), `controls/NumericMapping.svelte` (Continuous / Stepped), `lib/operations/OperationBody.svelte` (Reseed on load), `lib/sections/ExportImage.svelte` (Background, Density). Callees: `rovingIndex` from `lib/ui/keys.ts`.
 
 ### Tests
 

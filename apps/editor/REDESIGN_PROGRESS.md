@@ -2374,6 +2374,39 @@ and correct the doc line. An arrow reads as "download", which the main part alre
      - the zip is unchanged, including the `tiles/*/*` check.
    - Then stop for Pol. X4 (the sweep) follows.
 
+### X3b-3 · Done (2026-11-07), uncommitted, waiting for Pol's review
+
+X3b-2 committed f3427b4 (Pol: "continue").
+
+- **`lib/sections/ExportImage.svelte`:** the Form popup as specified. The row picked since
+  opening is held apart from the remembered size (module `let lastSize`) and cleared on close, so
+  opening needs no effect. `pixelSize` runs only while open. The click reads file, size, width,
+  density and name once, then `renderImage` → `saveBlob` → close; a rejection closes the form and
+  calls `onFailed`. Background and Density share their row 3:2 (an even split cut off "Preview
+  colour" at 480px) and wrap on a narrow screen.
+- **`Popup`:** `closable` (a ✕ in the bar) and `initialFocus` (called after `showModal()`), so
+  the form starts on the chosen size, not on the ✕.
+- **`Toggle`:** an optional `swatch` per option (10px, `--color-edge` ring), kept in its own
+  colour on the chosen segment.
+- **`download.ts`:** `saveBlob(blob, name)` split out of `exportZip`; the zip uses it unchanged.
+- **`SidebarTopBar`:** New / Import / Export (SplitButton) left, Undo right; the menu has Tileset
+  (.zip) and Image (.png)…; one "Export failed" Popup for both. Header comment rewritten, E14 kept.
+  `draft` prop from App (`drawn !== null`).
+- **Bug found by the probe, fixed in `Menu`:** after Image (.png)… then Esc, focus went to
+  `<body>`. The list was gone when the dialog opened, so the dialog remembered `<body>`, and
+  Menu's refocus came after the page was inert. `run()` now refocuses the trigger before the
+  action too (`close(true)`); a ⋯ Move later still ends on its ⋯ button.
+- **Docs:** new `export-image.md`; `sidebar-top-bar.md`, `ui-popup.mdx`, `ui-toggle.mdx`,
+  `download.md`, `ui-menu.mdx` and the three X3b-2 pages' callers updated. Coverage 135/135.
+- **Checks:** tests 671 + 430, typecheck green. Probe 32/32 (`x3b3/probe.mjs`, session
+  `ddbd1c91` scratchpad): bar order; one-click zip and the menu's zip (17 entries, `tiles/*/*`);
+  chevron keyboard, left-aligned menu, Esc to the chevron; the dialog's role, focus on the chosen
+  size, rows "Design width 720 px" / "Breakpoint 1 500 px", arrows, Esc and focus back to the
+  chevron; PNGs at 720@2× (1440×687), 720@1× (720×344) and 500@1× (500×781), each matching the
+  File line by IHDR; preview colour has no clear pixels, transparent has some; the size is
+  remembered; with an operation open the advisory shows and the PNG is byte-identical to the
+  saved one's. Not checked yet: the form at 320px wide (X4).
+
 **How to test:**
 - The dev server runs on 5175.
 - The Playwright headless shell path is in `x1/check.mjs` (session `312c3a1c`) and in

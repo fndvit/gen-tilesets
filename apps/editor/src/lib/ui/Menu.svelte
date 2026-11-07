@@ -98,9 +98,15 @@
    * Focus goes back to the button after the action has landed: a move
    * reinserts the row, which drops focus, so it is restored once the DOM has
    * settled. After a delete the button is gone and there is nothing to return to.
+   *
+   * It also goes back *before* the action. An item ending in "…" opens a modal
+   * dialog, which remembers what had focus when it opened and returns focus
+   * there when it closes; with the list already gone that would be `<body>`.
+   * The refocus after the action is then a no-op, because the page behind a
+   * modal is inert (found by the X3b-3 probe).
    */
   async function run(item: MenuItem): Promise<void> {
-    close(false);
+    close(true);
     item.onSelect();
     await tick();
     if (trigger?.isConnected) trigger.focus();

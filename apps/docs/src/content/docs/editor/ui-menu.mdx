@@ -44,6 +44,10 @@ The real component from `apps/editor`, rendered alone. Its second item is disabl
   pointer press outside, closes.
 - After an action, focus returns to the button once the DOM has settled. A move reinserts the
   row, which would otherwise drop focus. After a delete the button is gone.
+- Focus also returns to the button *before* the action runs. An item ending in "…" opens a modal
+  dialog, which returns focus on close to whatever had it when it opened; with the list already
+  gone that would be `<body>`. The refocus after the action is then a no-op, because the page
+  behind a modal is inert.
 - The list is `position: fixed`, measured from the anchor, so the scrolling sidebar never clips
   it. It opens upward when there is too little room below. The placement and the outside-press
   test are [`popover.ts`](/editor/ui-popover-ts/)'s `placeAt` and `pressedOutside`, shared with

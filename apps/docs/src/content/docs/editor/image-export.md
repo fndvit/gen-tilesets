@@ -43,7 +43,7 @@ package's [`renderImage`](/renderer/image/). The image is of the **saved** file,
 
 ### Callers
 
-None yet: X3b-3's `lib/sections/ExportImage.svelte`.
+`lib/sections/ExportImage.svelte`.
 
 ### Tests
 

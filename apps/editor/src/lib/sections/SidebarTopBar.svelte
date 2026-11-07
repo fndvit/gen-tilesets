@@ -3,20 +3,30 @@
   same height as the preview's top bar, so the two columns start on one line
   (iteration 2). One hairline runs under both.
 
-  Left, the edit history: Undo. Right, the document: New, Import and Export,
-  Export being the area's one primary. They moved here from the footer, which
-  now holds only the seed, so "what happens to the file" and "how it is drawn"
-  are two places instead of one crowded block.
+  Left, the document: New, Import and Export, Export being the area's one
+  primary. Right, the edit history: Undo. The document's actions come first
+  (Pol, X1), and Export's menu then opens left-aligned under it, inside the
+  sidebar. They moved here from the footer, which now holds only the seed, so
+  "what happens to the file" and "how it is drawn" are two places instead of
+  one crowded block.
 
-  Export is §11.1's: the file and its asset folder, **together** (**E14**). Not
-  two buttons: a file exported without its folder reopens the hole the folder
-  closes. The failure is reported rather than swallowed. `entries()` throws
-  where an asset's bytes are missing or two assets claim one path, and shipping
-  a folder that is quietly incomplete is `07` **R3**'s substitution problem
-  moved into the artifact, where no `onAssetError` will ever fire for it.
+  Export is a Split button. Its main part is §11.1's export: the file and its
+  asset folder, **together** (**E14**), in one click. Not two buttons: a file
+  exported without its folder reopens the hole the folder closes. Its menu
+  repeats that as Tileset (.zip) and adds Image (.png)…, which opens
+  `ExportImage`; JSON on its own is never offered. A PNG is a picture of the
+  tileset, not the tileset, so it does not reopen that hole.
 
-  Reports never take space here. An export failure appears in a `ui/Popup`
-  after the download, like the import reports (Pol, 2026-11-04). The advisory
+  A failure is reported rather than swallowed. `entries()` throws where an
+  asset's bytes are missing or two assets claim one path, and shipping a folder
+  that is quietly incomplete is `07` **R3**'s substitution problem moved into
+  the artifact, where no `onAssetError` will ever fire for it. `renderImage`
+  rejects naming every picture that failed, for the same reason: an image with
+  holes looks like a finished export.
+
+  Reports never take space here. An export failure, zip or image, appears in
+  one "Export failed" `ui/Popup` after the attempt, like the import reports
+  (Pol, 2026-11-04). The advisory
   that the document draws nothing is a notice in the preview's stack (Stage 2,
   W3): the export happened, so there is nothing to answer.
 
@@ -32,13 +42,19 @@
   import ImportPanel from "../ImportPanel.svelte";
   import Button from "../ui/Button.svelte";
   import Popup from "../ui/Popup.svelte";
+  import SplitButton from "../ui/SplitButton.svelte";
+  import ExportImage from "./ExportImage.svelte";
 
   interface Props {
     /** Starts a new tileset (App's `newTileset`: confirmed, not undoable). */
     onNew: () => void;
+    /** Whether the preview draws a draft: Export image says it is left out. */
+    draft: boolean;
   }
 
-  let { onNew }: Props = $props();
+  let { onNew, draft }: Props = $props();
+
+  let imaging = $state(false);
 
   const file = $derived(session.file);
 
@@ -64,9 +80,33 @@
       reporting = exportError !== null;
     }
   }
+
+  function imageFailed(message: string): void {
+    exportError = message;
+    reporting = true;
+  }
 </script>
 
 <div class="top-bar" class:over bind:this={root}>
+  <div class="file">
+    <Button label="New" icon="new" variant="tertiary" onclick={onNew} />
+    <!--
+      **E14**'s inverse. It discards the current document, but it is undoable
+      like everything else (**E6**), so it needs no confirmation.
+    -->
+    <ImportPanel target={root} bind:over />
+    <SplitButton
+      label={exporting ? "Exporting…" : "Export"}
+      icon="export"
+      disabled={exporting}
+      onclick={runExport}
+      menuLabel="More export options"
+      items={[
+        { label: "Tileset (.zip)", icon: "archive", onSelect: runExport },
+        { label: "Image (.png)…", icon: "image", onSelect: () => (imaging = true) },
+      ]}
+    />
+  </div>
   <!--
     **E6**: undo restores a previous `TilesetFile` in full, and no editor action
     is outside the stack. §9.4 makes it *the repair* for an orphaned Selection:
@@ -79,22 +119,9 @@
     disabled={!session.canUndo}
     onclick={() => session.undo()}
   />
-  <div class="file">
-    <Button label="New" icon="new" variant="tertiary" onclick={onNew} />
-    <!--
-      **E14**'s inverse. It discards the current document, but it is undoable
-      like everything else (**E6**), so it needs no confirmation.
-    -->
-    <ImportPanel target={root} bind:over />
-    <Button
-      label={exporting ? "Exporting…" : "Export"}
-      icon="export"
-      variant="primary"
-      disabled={exporting}
-      onclick={runExport}
-    />
-  </div>
 </div>
+
+<ExportImage bind:open={imaging} {draft} onFailed={imageFailed} />
 
 <Popup title="Export failed" bind:open={reporting} onClose={() => (exportError = null)}>
   <p class="t-body">{exportError}</p>
