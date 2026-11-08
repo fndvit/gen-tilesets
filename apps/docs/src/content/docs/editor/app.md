@@ -15,8 +15,9 @@ is the only top-level component. It defines the layout: a sidebar on the left (`
 and the preview on the right. The page itself never scrolls, so whatever the author changes in
 the sidebar, the picture stays on screen. There is no header.
 
-The sidebar is two parts, as in Figma. The top part scrolls and holds the sections: Grid & Size,
-Breakpoints, Derived, Tiles and Operations. The bottom part is a fixed black footer with the
+The sidebar is two parts, as in Figma. The top part scrolls and holds the sections: Grid & Size
+(with its folded Details, which was the Derived section), Tiles, Operations and Breakpoints, in the
+order a tileset is built in (batch 01, T-03). The bottom part is a fixed black footer with the
 seed, undo, import, new document and download. The shell asks with a dialog before an edit
 that would damage hand-placed work, and before starting a new document. Everything else the
 document holds, such
@@ -60,13 +61,13 @@ Which component renders which, in source order. Conditional children are marked.
     - `aside` (sidebar, 1px ink frame, `--color-surface`)
       - `.scrollable`, holding a [`ScrollArea`](/editor/ui-scroll-area/) (overlay scroll handle)
         - `.sections` (a one-column grid, no gap, 12px bottom padding)
-          - [`GridSection`](/editor/grid-section/) "Grid & Size"
-          - [`BreakpointsSection`](/editor/breakpoints-section/) (open when the file has rules)
-          - [`DerivedSection`](/editor/derived-section/) (closed)
+          - [`GridSection`](/editor/grid-section/) "Grid & Size", ending in a folded "Details"
+            group ([grid-details.ts](/editor/grid-details/))
           - [`TilesSection`](/editor/tiles-section/) "Tiles"
           - [`OperationsSection`](/editor/operations-section/) "Operations"
             - an [`OperationHeader`](/editor/operation-header/) per Operation, and
               [`OperationBody`](/editor/operation-body/) under the open one (*if* a draft is open)
+          - [`BreakpointsSection`](/editor/breakpoints-section/) (open when the file has rules)
       - [`SidebarFooter`](/editor/sidebar-footer/) (`.fixed`)
         - [`ImportPanel`](/editor/import-panel/), [`Popup`](/editor/ui-popup/)s for reports
     - `section.preview`: [`PreviewTopBar`](/editor/preview-bars/), then `.canvas` (the backdrop)
@@ -220,7 +221,7 @@ failures.
   appears every time teaches the author to dismiss it before reading".
 - **`loadSalt` writes no field and is held for the session** (**R12**). Only the footer's Fresh
   load button moves it.
-- **`columns` is displayed, never edited** (**E1**). The Derived section shows it.
+- **`columns` is displayed, never edited** (**E1**). Grid & Size's Details shows it.
 - **Advisories never block and never modify the file** (**E16**): orphans, inert flags and the
   empty-document note.
 - **The draft is not in the document** (**E3**). The overlay resolves against a local shadow
@@ -242,7 +243,7 @@ Callees, by import: from the package, [`selections`](/api/index/variables/select
 `Tileset.svelte`; from the editor, `advisories.ts` (`documentNotices`), `entry.svelte.ts`,
 `notices.svelte.ts` (and the `Notice` type from `notices.ts`), `assets.ts` (`editorProvider`, `replaceAll`, `stored`), `document.ts`
 (the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `opening.svelte.ts`, `orphans.ts`, `session.svelte.ts`,
-the six `lib/sections/` components (Grid, Breakpoints, Derived, Tiles, Operations, SidebarFooter),
+the five `lib/sections/` components (Grid, Tiles, Operations, Breakpoints, SidebarFooter),
 `PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer` and `ui/Dialog`.
 
 ### Tests

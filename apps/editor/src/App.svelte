@@ -49,7 +49,6 @@
   import PreviewTopBar from "./lib/preview/PreviewTopBar.svelte";
   import { preview } from "./lib/preview/view.svelte.js";
   import BreakpointsSection from "./lib/sections/BreakpointsSection.svelte";
-  import DerivedSection from "./lib/sections/DerivedSection.svelte";
   import GridSection from "./lib/sections/GridSection.svelte";
   import SidebarFooter from "./lib/sections/SidebarFooter.svelte";
   import SidebarTopBar from "./lib/sections/SidebarTopBar.svelte";
@@ -377,13 +376,19 @@
     <div class="scrollable">
       <ScrollArea>
         <div class="sections">
+          <!--
+            The order a tileset is built in (batch 01, T-03, D-01 A): its size,
+            what it draws, how the tiles are placed, then the rarely used
+            breakpoints last. The Derived numbers are Grid & size's folded
+            Details now (D-02 A). DOM order is Tab order, so this is both.
+          -->
           <GridSection {risked} {destructive} />
-          <BreakpointsSection {risked} />
-          <DerivedSection />
 
           <TilesSection />
 
           <OperationsSection />
+
+          <BreakpointsSection {risked} />
         </div>
       </ScrollArea>
     </div>

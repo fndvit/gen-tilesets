@@ -58,7 +58,6 @@ No events, no bindings.
 | --- | --- |
 | `lib/sections/GridSection.svelte` | "Grid & Size" |
 | `lib/sections/BreakpointsSection.svelte` | "Breakpoints", `open={rules.length > 0}` |
-| `lib/sections/DerivedSection.svelte` | "Derived", `open={false}` |
 | `lib/sections/TilesSection.svelte` | "Tiles" |
 | `lib/sections/OperationsSection.svelte` | "Operations", `reveal={opening.revealed}` |
 
