@@ -51,6 +51,10 @@ All of it is preview state ([view.svelte.ts](/editor/preview-width/)) and writes
   the two wrap together.
 - **Hints are hover-only**, like every `ui/Hint`: the readout's hint is its `aria-describedby`, and
   the readout is not a tab stop.
+- **The readout's hint never reaches past the bar** (batch 01, T-04, B-013). The bar is an
+  inline-size container, and the hint's `max-width` is `min(--hint-w, 100cqi − the bar's side
+  padding)`. In a narrow preview column the 260px bubble used to hang past the window and make the
+  page scroll sideways while it showed.
 - **Grid switch:** the editor's [Toggle](/editor/ui-toggle/) with **Off** and **On**, bound to
   `preview.showGrid` (batch 01, T-01, B-003; it was a one-segment `aria-pressed` button). It shows
   and hides [PreviewGrid](/editor/preview-grid/). A visible "Grid" label sits before it, as

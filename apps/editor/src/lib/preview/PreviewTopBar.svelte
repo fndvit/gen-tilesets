@@ -135,6 +135,28 @@
     border-bottom: var(--rule-w) solid var(--color-bar-rule);
     background: var(--color-ground);
     color: var(--color-ink);
+    /* The readout's hint measures the bar (`100cqi`), below. */
+    container-type: inline-size;
+  }
+
+  /*
+    The readout's hint opens rightward from the readout, up to `--hint-w`
+    (260px). In a narrow preview column (a 660px window, the sidebar taking 400)
+    there is less room than that to the bar's right edge, and the bubble, being
+    absolutely placed in a column nothing clips, hung past the window and made
+    the whole page scroll sideways while it showed (batch 01, T-04, B-013: the
+    one case the reproduction probe found). So it is held to the bar's width
+    less the bar's side padding, which is where it starts and where it must end.
+
+    Rejected: `overflow: clip` on the column, which would cut the hint's words
+    off instead; and `overflow: hidden` on `html`, which would hide the next
+    such bug and break the narrow layout, where the page scrolls on purpose.
+
+    It reaches into `Hint`'s bubble by its class because `--hint-w` cannot be
+    redefined in terms of itself; `Hint` is unchanged.
+  */
+  .top-bar .where :global(.hint) {
+    max-width: min(var(--hint-w), calc(100cqi - var(--space-7) - var(--space-6)));
   }
 
   /* The width and the breakpoints, which both say where the width is. */
