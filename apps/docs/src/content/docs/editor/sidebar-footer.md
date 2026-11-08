@@ -41,7 +41,9 @@ measured coverage all read it.
 | Reroll assets `Button` | `rerollAssets()` |
 | Preview a fresh load `Button` (disabled unless `loadVaries`) | `preview.loadSalt = drawLoadSalt()`; writes no field |
 
-The fresh-load hint only says whether a fresh load varies. The inert-flags advisory (Operations
+The fresh-load hint says whether a fresh load varies. While the button is disabled it also says how
+to enable it: "Nothing reseeds on load, so every load looks the same. Set Assets on load to Reseed,
+or turn on Reseed on load in an operation." (batch 01, T-02, B-015). The inert-flags advisory (Operations
 that reseed on load over a source that is not random) is now the `inertReseed` notice in the
 preview's stack (`advisories.ts`, Stage 2 W3), not a clause in this hint.
 

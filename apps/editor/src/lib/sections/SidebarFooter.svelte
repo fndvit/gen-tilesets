@@ -38,11 +38,14 @@
    * `06` §10.4's second diagnostic (an Operation flagged over a non-random
    * Source) is a notice in the preview's stack now (`advisories.ts`
    * `inertReseed`, Stage 2 W3), not a clause in this hint.
+   *
+   * The disabled text names the two switches that would enable the button
+   * (B-015): the reason alone left the user to find them.
    */
   const freshLoadHint = $derived(
     varies
       ? "Shows what another visitor's load looks like. Writes nothing to the file."
-      : "Nothing is set to reseed on load, so every load looks the same.",
+      : "Nothing reseeds on load, so every load looks the same. Set Assets on load to Reseed, or turn on Reseed on load in an operation.",
   );
 </script>
 
