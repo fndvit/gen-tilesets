@@ -2,7 +2,8 @@
 
 The visual language of the tileset editor: **"Ink on paper, with one live accent"**, adopted on
 2026-11-06 from the design exploration (iteration 2). Its tokens live in `src/styles/tokens.css`.
-For why each choice was made, and what it replaced, see `DESIGN_DIRECTION.md` next to this file.
+For why each choice was made, and what it replaced, see `editor-redesign/DESIGN_DIRECTION.md` in
+the archive (`../gen-tileset-spec-archive/`).
 Read this file before building or restyling any editor component.
 
 Layout and the Selection artwork still come from the Figma file **Tileset Creator Editor**
