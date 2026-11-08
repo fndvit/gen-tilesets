@@ -1,6 +1,6 @@
 ---
 title: preview/PreviewTopBar, WidthChoices
-description: The preview's one bar. It shows the width and one button per breakpoint bound at the left; the Grid toggle, the size presets with Fill and the background swatch at the right.
+description: The preview's one bar. It shows the width and one button per breakpoint bound at the left; the Grid switch, the size presets with Fill and the background swatch at the right.
 sidebar:
   order: 55
 ---
@@ -19,7 +19,7 @@ top bar (Stage 2): "So there is only the top UI". The bar stays put; only the pi
   Then "Breakpoints" and one button per bound the file's rules name. The black one is the range
   the width is in: the smallest bound at or above it. Pressing one shows the preview at exactly
   that bound. The breakpoints are not drawn when the file has no rules.
-- **Right, what to show:** a **Grid** toggle, the size presets **360 / 768 / 1024 / 1440** and **Fill**, and a
+- **Right, what to show:** a **Grid** Off/On switch, the size presets **360 / 768 / 1024 / 1440** and **Fill**, and a
   framed swatch that opens the colour picker for the background. There is no reset button (Pol,
   P2 review); white is picked like any other colour.
 
@@ -51,8 +51,11 @@ All of it is preview state ([view.svelte.ts](/editor/preview-width/)) and writes
   the two wrap together.
 - **Hints are hover-only**, like every `ui/Hint`: the readout's hint is its `aria-describedby`, and
   the readout is not a tab stop.
-- **Grid toggle:** an `aria-pressed` button bound to `preview.showGrid` (ink while the grid shows);
-  it shows and hides [PreviewGrid](/editor/preview-grid/).
+- **Grid switch:** the editor's [Toggle](/editor/ui-toggle/) with **Off** and **On**, bound to
+  `preview.showGrid` (batch 01, T-01, B-003; it was a one-segment `aria-pressed` button). It shows
+  and hides [PreviewGrid](/editor/preview-grid/). A visible "Grid" label sits before it, as
+  "Breakpoints" does before the bounds. `Toggle` fills its row by default; the bar holds it at two
+  chips wide (`2 × --width-chip-w`) from the outside, so `Toggle` itself is unchanged.
 - **Reflow:** the bar, its two halves and the button rows wrap on a narrow column, so nothing scrolls
   sideways at 320px. At 1024 and 600 the bar takes two rows (114px); Pol accepted it in P4.
 

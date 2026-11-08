@@ -21,6 +21,7 @@
 <script lang="ts">
   import type { ResponsiveRule } from "@vit-foundation/gen-tilesets";
   import Hint from "../ui/Hint.svelte";
+  import Toggle from "../ui/Toggle.svelte";
   import { preview } from "./view.svelte.js";
   import { activeBound, boundsOf, holdingLabel, PRESETS } from "./width.js";
   import WidthChoices from "./WidthChoices.svelte";
@@ -79,14 +80,27 @@
   </div>
 
   <div class="tools">
-    <button
-      type="button"
-      class="grid-toggle t-xs"
-      aria-pressed={preview.showGrid}
-      onclick={() => (preview.showGrid = !preview.showGrid)}
-    >
-      Grid
-    </button>
+    <!--
+      The grid is an On/Off switch (B-003), the editor's segmented `Toggle`.
+      `Toggle` fills its row, which in a panel makes every control share one
+      width; here it would take the bar, so `.grid` sizes it to its two
+      segments instead. The visible "Grid" names it as "Breakpoints" names its
+      buttons; the group's accessible name is the Toggle's own `label`.
+    -->
+    <div class="grid">
+      <span class="t-label" aria-hidden="true">Grid</span>
+      <span class="grid-switch">
+        <Toggle
+          label="Grid"
+          options={[
+            { value: false, label: "Off" },
+            { value: true, label: "On" },
+          ]}
+          value={preview.showGrid}
+          onChange={(on) => (preview.showGrid = on)}
+        />
+      </span>
+    </div>
 
     <!-- The presets touch the swatch, as in Figma, and wrap with it. -->
     <div class="sizes">
@@ -162,39 +176,17 @@
     gap: var(--space-4);
   }
 
-  /* A one-segment toggle: white like a track at rest, ink while the grid shows. */
-  .grid-toggle {
-    box-sizing: border-box;
-    min-width: var(--width-chip-w);
-    height: var(--control-h);
-    padding: 0 var(--space-5);
-    border: 0;
-    border-radius: var(--radius-sm);
-    background: var(--color-field);
-    color: var(--color-ink);
-    line-height: normal;
-    text-box: none;
-    cursor: pointer;
-    transition:
-      background-color var(--dur-fast) var(--ease),
-      color var(--dur-fast) var(--ease);
+  .grid {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
   }
 
-  .grid-toggle:hover {
-    background: var(--color-secondary);
-  }
-
-  .grid-toggle:active {
-    background: var(--color-secondary-hover);
-  }
-
-  .grid-toggle[aria-pressed="true"] {
-    background: var(--color-selected);
-    color: var(--color-on-selected);
-  }
-
-  .grid-toggle[aria-pressed="true"]:hover {
-    background: var(--color-primary-hover);
+  /* Two segments of one chip each, not the whole row `Toggle` takes by default. */
+  .grid-switch {
+    flex: none;
+    display: block;
+    width: calc(2 * var(--width-chip-w));
   }
 
   /* The swatch is the colour it holds, edged so white still shows (1.4.11). */
