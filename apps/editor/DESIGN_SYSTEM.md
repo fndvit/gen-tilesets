@@ -182,6 +182,7 @@ and Blend glyphs are **not designed yet**, and show label-only cells.
 | Width | Nothing in the sidebar sets its width from its content (`minmax(0, 1fr)` columns; long text ellipsizes or wraps) |
 | Motion | `--dur-fast` with `--ease`. Sections and groups slide open. Nothing animates under `prefers-reduced-motion` |
 | Sticky headers | An open section's header sticks to the top of the sidebar while its body scrolls under it, with its ink rule. It sticks within its own card only, so the next section's header pushes it off; headers never stack. `z-index: 2`: over the body's raised parts (1), under the scroll handle (3) and every fixed popover (20). Groups do not stick |
+| Opening near the bottom | A section or group the user opens scrolls into view once it has slid open: until its bottom shows, never past its own header, never under a stuck section header. Already visible: no scroll. Smooth, instant under `prefers-reduced-motion` (`ui/reveal.ts`) |
 
 ### Export
 
@@ -222,6 +223,7 @@ Components are PascalCase nouns (`Section`, `TileGroup`, `TileAsset`, `Operation
   `FieldRow`, `Hint`, `InlineEdit`, `Toggle`, `Button`, `SplitButton`, `Menu`, `RadioList`, `Popup`, `Dialog`, `Notice`, `Advisory`, `Slider`, `Marquee`,
   `OperationGlyph`, `GlyphGrid`, `ScrollArea`. Alongside them: `icons.ts`, `keys.ts` and
   `motion.ts`.
+  Also `reveal.ts`.
 - Sidebar sections, the top bar and the footer live in `src/lib/sections/`.
 - Tile rows live in `src/lib/tiles/`.
 - The operation card, body and labels live in `src/lib/operations/`.

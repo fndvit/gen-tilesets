@@ -25,7 +25,9 @@
   (`ui/Hint`).
 
   An open section's header sticks to the top of the scroller while its body
-  scrolls under it (see the style below). Groups do not stick.
+  scrolls under it (see the style below). Groups do not stick. Opened from
+  its own header, a collapsible scrolls its scroller, once the slide ends,
+  until its bottom shows, but never past its own top (`reveal.ts`).
 
   Hover washes the whole header one step darker; the chevron turns ink. The
   body slides open and closed over `--dur-fast`, and appears at once under
@@ -42,6 +44,7 @@
   import Icon from "./Icon.svelte";
   import InlineEdit from "./InlineEdit.svelte";
   import { motionDuration } from "./motion.js";
+  import { revealInScroller } from "./reveal.js";
 
   interface Props {
     title: string;
@@ -84,8 +87,41 @@
 
   let root: HTMLElement | undefined = $state();
 
+  /**
+   * Set when the user opens this from its own header, cleared when the body
+   * has slid open and been revealed.
+   *
+   * Only the user's own toggle reveals. An open from outside (`Section`'s
+   * `reveal` and "+", `opening.open` in `OperationsSection`) comes with its
+   * caller's own scrolling, and the two would fight: `OperationsSection`
+   * scrolls the opened card into view, and revealing the whole section after
+   * it would move that card away again.
+   */
+  let revealing = false;
+
   function toggle(): void {
     open = !open;
+    revealing = open;
+  }
+
+  /**
+   * After the slide, not at `tick()`: during it the body is still short, so
+   * its final bottom is not known yet (T-09).
+   */
+  function revealOpened(): void {
+    if (!revealing || !root) return;
+    revealing = false;
+    revealInScroller(root, stuckAbove(), motionDuration(root) > 0 ? "smooth" : "instant");
+  }
+
+  /**
+   * How much of the scroller's top an enclosing section's sticky header
+   * covers (T-08), so a group never ends up under it. A section has no
+   * enclosing section and gets 0.
+   */
+  function stuckAbove(): number {
+    const section = root?.parentElement?.closest(".collapsible.section");
+    return section?.querySelector(":scope > .heading")?.getBoundingClientRect().height ?? 0;
   }
 
   function fold(node: HTMLElement) {
@@ -167,7 +203,7 @@
   </svelte:element>
 
   {#if open}
-    <div id={bodyId} transition:fold>
+    <div id={bodyId} transition:fold onintroend={revealOpened}>
       {@render children()}
     </div>
   {/if}
