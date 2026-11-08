@@ -31,17 +31,17 @@
   import { selections } from "@vit-foundation/gen-tilesets";
   import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
   import { naturalRatio, type AssetRef } from "@vit-foundation/gen-tilesets/render";
-  import { activeRules, reshape, ruleOverride, type TilesetFile } from "@vit-foundation/gen-tilesets";
+  import { activeRules, reshape, ruleOverride, type Operation, type TilesetFile } from "@vit-foundation/gen-tilesets";
   import { documentNotices } from "./advisories.js";
   import { entry } from "./entry.svelte.js";
   import type { Notice } from "./notices.js";
   import { editorProvider, replaceAll, stored } from "./assets.js";
-  import type { Transition } from "./document.js";
+  import { trimToGrid, type Transition } from "./document.js";
   import { paintedTiles } from "./controls/palette.js";
   import { draftFile, shadowConfig } from "./draft.svelte.js";
   import { drafting } from "./drafting.svelte.js";
   import { opening } from "./opening.svelte.js";
-  import { atRisk, needsConfirmation, orphans } from "./orphans.js";
+  import { atRisk, cameWithFile, needsConfirmation, orphans } from "./orphans.js";
   import PaintLayer from "./lib/PaintLayer.svelte";
   import PreviewFrame from "./lib/preview/PreviewFrame.svelte";
   import NoticeStack from "./lib/preview/NoticeStack.svelte";
@@ -280,7 +280,35 @@
    * goes away by itself when the document no longer has it; a dismissal is
    * forgotten then too, so the notice returns if the condition does.
    */
-  const current = $derived(documentNotices(file, orphaned, liveFailures, openOperation));
+  /**
+   * The orphan notice's "Remove N cells outside the grid" (batch 01, T-05,
+   * D-03 A): one undoable step through the write path like any edit.
+   */
+  function trimOperation(id: string): void {
+    session.apply(trimToGrid(id));
+  }
+
+  /**
+   * Which orphaned Operations were already like this in the file as opened,
+   * so the notice does not offer an Undo that would leave the document
+   * (`orphans.ts` `cameWithFile`).
+   */
+  const cameWith = $derived(
+    new Set(
+      orphaned
+        .map((o) => config.operations.find((op) => op.id === o.operationId))
+        .filter((op): op is Operation => op !== undefined && cameWithFile(op, config, session.opened))
+        .map((op) => op.id),
+    ),
+  );
+
+  const current = $derived(
+    documentNotices(file, orphaned, liveFailures, {
+      onOpen: openOperation,
+      onRemove: trimOperation,
+      cameWithFile: cameWith,
+    }),
+  );
 
   /**
    * The conditions as of the last committed value. A numeric field commits on

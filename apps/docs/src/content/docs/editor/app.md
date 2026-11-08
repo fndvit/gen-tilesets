@@ -110,7 +110,8 @@ Which component renders which, in source order. Conditional children are marked.
 | `risked` | `atRisk(config)` from [orphans.ts](/editor/orphans/) | confirmation, Grid & Size hints, Breakpoints' pinned fields |
 | `orphaned` | `orphans(config, config.defaultSeed, loadSalt)` | `current` |
 | `liveFailures` | the `failures` whose asset still has the same `meta` object, and, for one reported while a draft was drawn, whose tile a palette in `shown` still names (`paintedTiles`), as text | `current` |
-| `current` | `documentNotices(file, orphaned, liveFailures, openOperation)` from `advisories.ts` | `conditions` |
+| `cameWith` | the orphaned Operations for which `cameWithFile(op, config, session.opened)` ([orphans.ts](/editor/orphans/)) holds | `current` |
+| `current` | `documentNotices(file, orphaned, liveFailures, { onOpen: openOperation, onRemove: trimOperation, cameWithFile: cameWith })` from `advisories.ts` | `conditions` |
 | `painting` | the draft's Selection schema, looked up via [`selections`](/api/index/variables/selections/), searched for a param of type `cellList` | `PaintLayer`, `PreviewFrame`'s `painting` |
 | `loadSalt` | `preview.loadSalt` ([view.svelte.ts](/editor/preview-width/)) | `<Tileset>`, `SelectionOverlay`, `orphaned` |
 | `shadow` | `shadowConfig(config, draft)` ([draft.svelte.ts](/editor/draft/)) | `SelectionOverlay` |
@@ -185,6 +186,11 @@ value means the confirm step does not have to work out which field the value bel
 (one per orphaned operation, at most three). It calls `opening.open(id, "selection")`, which goes
 through the unsaved-changes guard, opens the operation on its Selection step, and unfolds the
 Operations section.
+
+`trimOperation(id)` is the notice's "Remove N cells outside the grid" (batch 01, T-05, D-03 A):
+`session.apply(trimToGrid(id))`, one undoable step. `cameWith` decides the notice's wording: for
+cells that were already outside the grid in the file as opened, it does not offer Undo, which
+would go back to the previous document.
 
 #### Operations panel
 

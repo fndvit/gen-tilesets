@@ -49,7 +49,8 @@ one.
 | `applyLive(key, transition)` | method | `history = appliedLive(history, key, transition)`: a weight drag changes the file every frame and is one undo entry |
 | `settle()` | method | `history = settled(history)`, on release |
 | `reset()` | method | `history = historyOf(newDocument())`. Not undoable. |
-| `open(file)` | method | `history = replaced(history, file)` |
+| `open(file)` | method | `history = replaced(history, file)`, and notes `file` as `opened` |
+| `opened` | getter, `TilesetFile \| null` | The file as the last `open()` received it; `null` after `reset()` and at start. Read by the orphan notice (batch 01, T-05) |
 
 ### Inputs → outputs
 
@@ -64,6 +65,13 @@ one.
   document of holes. So the caller confirms with the author, resets, then empties the store.
 - **`open(file)`** takes an already-validated `TilesetFile` and replaces the document. It is
   undoable.
+- **`opened`** (batch 01, T-05, B-014) is bookkeeping beside the history, not part of it: the
+  orphan notice must not say "Undo puts the grid back" about cells that were already outside the
+  grid in the file as opened, because there Undo goes back to the previous document. The history
+  keeps no mark of where an open happened, and adding one would change the write path, so `open`
+  notes the file here instead and [orphans.ts](/editor/orphans/) `cameWithFile` compares against
+  it. Undo does not rewind it; `cameWithFile`'s cell-by-cell test keeps a document from before the
+  open from matching it by accident.
 
 ### Invariants
 

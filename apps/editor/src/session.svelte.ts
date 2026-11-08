@@ -51,6 +51,21 @@ import { applied, appliedLive, historyOf, replaced, settled, undone, type Histor
  */
 let history = $state<History<TilesetFile>>(historyOf(newDocument()));
 
+/**
+ * The file as the last `open()` received it, or `null` since the last new
+ * document (batch 01, T-05, B-014).
+ *
+ * **Read-only bookkeeping beside the history, not part of it.** The orphan
+ * notice must not offer "Undo puts the grid back" for cells that were outside
+ * the grid in the file as opened: there, Undo goes back to the previous
+ * document. The history keeps no mark of where an open happened, and adding
+ * one would change the write path, which T-05 may not. So `open()` notes the
+ * file here and `orphans.ts` `cameWithFile` compares against it. Undo does not
+ * rewind it; `cameWithFile`'s cell-by-cell test is what keeps a document from
+ * before the open from matching it by accident.
+ */
+let opened = $state.raw<TilesetFile | null>(null);
+
 export const session = {
   /**
    * The document. Read-only from outside: `08` **S3** requires the host to hold
@@ -59,6 +74,11 @@ export const session = {
    */
   get file(): TilesetFile {
     return history.current;
+  },
+
+  /** The file as last opened, or `null` since a new document (see `opened` above). */
+  get opened(): TilesetFile | null {
+    return opened;
   },
 
   /** Whether there is anything to undo — the button's enabled state. */
@@ -124,6 +144,7 @@ export const session = {
    */
   reset(): void {
     history = historyOf(newDocument());
+    opened = null;
   },
 
   /**
@@ -148,5 +169,6 @@ export const session = {
    */
   open(file: TilesetFile): void {
     history = replaced(history, file);
+    opened = file;
   },
 };

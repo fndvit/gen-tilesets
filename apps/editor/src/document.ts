@@ -56,6 +56,7 @@ import {
   RULE_PARSERS,
   type RuleField,
 } from "./fields.js";
+import { outsideCells } from "./orphans.js";
 import { nextSalt } from "./reseed.js";
 import { memorableSeed } from "./seed.js";
 
@@ -791,5 +792,43 @@ export function removeRuleField(index: number, field: RuleField): Transition {
     if (rule === undefined || rule[field] === undefined) return file;
     const { [field]: _gone, ...rest } = rule;
     return withRules(file, rulesOf(file).map((r, i) => (i === index ? rest : r)));
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Painted cells outside the grid (batch 01, T-05, B-014)
+// ---------------------------------------------------------------------------
+
+/**
+ * Drops the cells of Operation `operationId`'s painted list that lie outside
+ * the current grid — the orphan notice's "Remove N cells outside the grid"
+ * (D-03 A).
+ *
+ * **Not a migration**, which §9.4 refuses: nothing is moved or guessed. A cell
+ * outside the grid is drawn nowhere, so dropping it changes no picture; it only
+ * makes the list say what the grid can show. The author asks for it, and it is
+ * one undoable step like any other transition.
+ *
+ * "Outside" is the grid's bounds, `0 <= x < columns` and `0 <= y < rows`, not a
+ * Selection test (**E8** forbids the editor a second implementation of one):
+ * the question is where the grid ends, which is the file's `rows` and
+ * `columns`, and `orphans.ts` `outsideCells` states it once for this and for
+ * the notice's wording.
+ *
+ * Only a Selection whose parameter *is* the list (`cellList`) is trimmed; a
+ * `rect` may extend past the grid on purpose (`04` §4.2). Refused by identity
+ * (an unknown id, another Selection type, nothing outside), so `session.apply`
+ * pushes no empty undo entry.
+ */
+export function trimToGrid(operationId: string): Transition {
+  return (file) => {
+    const op = file.config.operations.find((o) => o.id === operationId);
+    if (op === undefined) return file;
+    const cells = (op.selection as { cells?: unknown }).cells;
+    if (!Array.isArray(cells)) return file;
+    const outside = new Set(outsideCells(op, file.config));
+    if (outside.size === 0) return file;
+    const kept = (cells as [number, number][]).filter((cell) => !outside.has(cell));
+    return replaceOperation({ ...op, selection: { ...op.selection, cells: kept } })(file);
   };
 }

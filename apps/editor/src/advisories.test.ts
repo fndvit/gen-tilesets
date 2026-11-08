@@ -141,12 +141,68 @@ describe("advisory 3 — orphans", () => {
       reachable: 0,
       empty: true,
     }));
-    const notice = orphanedNotice(orphans, (id) => opened.push(id));
+    const notice = orphanedNotice(orphans, { onOpen: (id) => opened.push(id) });
     expect(notice?.actions?.map((a) => a.label)).toEqual(["Open op1", "Open op2", "Open op3"]);
     expect(MAX_OPEN_ACTIONS).toBe(3);
     notice?.actions?.[1]?.run();
     expect(opened).toEqual(["op2"]);
     expect(notice?.data).toHaveLength(4);
+  });
+});
+
+describe("advisory 3 — cells outside the grid after an import (batch 01, T-05)", () => {
+  const listOrphan = { operationId: "op2", selectionType: "cellList", reachable: 8, authored: 11, empty: false };
+  const rectOrphan = { operationId: "op4", selectionType: "rect", reachable: 0, empty: true };
+
+  it("after a resize here: today's title and Undo text, plus the Remove button", () => {
+    const removed: string[] = [];
+    const notice = orphanedNotice([listOrphan], { onOpen: () => {}, onRemove: (id) => removed.push(id) });
+    expect(notice?.title).toBe("An operation lost cells in a resize");
+    expect(notice?.body).toBe("Nothing was moved for you. Undo puts the grid back, or edit the selection.");
+    expect(notice?.actions?.map((a) => a.label)).toEqual(["Open op2", "Remove 3 cells outside the grid"]);
+    notice?.actions?.[1]?.run();
+    expect(removed).toEqual(["op2"]);
+  });
+
+  it("after opening a file that holds them: no Undo, and says where they came from", () => {
+    const notice = orphanedNotice([listOrphan], { onRemove: () => {}, cameWithFile: new Set(["op2"]) });
+    expect(notice?.title).toBe("An operation has cells outside the grid");
+    expect(notice?.body).not.toMatch(/undo/i);
+    expect(notice?.body).toBe(
+      "It was like this in the file you opened. Nothing was moved for you: remove the cells outside the grid, or edit the selection.",
+    );
+    expect(notice?.actions?.map((a) => a.label)).toEqual(["Remove 3 cells outside the grid"]);
+  });
+
+  it("offers no Remove for a Selection with no painted list", () => {
+    const notice = orphanedNotice([rectOrphan], { onRemove: () => {}, cameWithFile: new Set(["op4"]) });
+    expect(notice?.actions).toBeUndefined();
+    expect(notice?.body).toBe("It was like this in the file you opened. Nothing was moved for you: edit the selection.");
+  });
+
+  it("names the operation on each Remove when two lists could be meant", () => {
+    const other = { ...listOrphan, operationId: "op3", reachable: 0, authored: 1 };
+    const notice = orphanedNotice([listOrphan, other], { onRemove: () => {} });
+    expect(notice?.actions?.map((a) => a.label)).toEqual([
+      "Remove 3 cells outside the grid from op2",
+      "Remove 1 cell outside the grid from op3",
+    ]);
+  });
+
+  it("when only some came with the file, marks those and keeps Undo for the rest", () => {
+    const notice = orphanedNotice([listOrphan, rectOrphan], { cameWithFile: new Set(["op4"]) });
+    expect(notice?.title).toBe("Operations have cells outside the grid");
+    expect(notice?.data).toEqual([
+      "op2 · cellList: 3 of 11 painted cells outside the grid",
+      "op4 · rect: wholly outside the grid, selects nothing (as opened)",
+    ]);
+    expect(notice?.body).toMatch(/Undo puts the grid back where a resize here caused it/);
+  });
+
+  it("changes its signature when where the loss came from changes, so a dismissal does not hide it", () => {
+    const a = orphanedNotice([listOrphan]);
+    const b = orphanedNotice([listOrphan], { cameWithFile: new Set(["op2"]) });
+    expect(a?.signature).not.toBe(b?.signature);
   });
 });
 
