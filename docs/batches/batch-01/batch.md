@@ -13,8 +13,8 @@
 | T-07 | B-018, B-019, B-010 | (i) explainers for Operations and Randomness             | contained    | editor-shell                             | A       | T-06       |
 | T-08 | B-002               | Sticky section headers                                   | trivial ⚖️   | ui-kit                                   | B       | –          |
 | T-09 | B-020               | Scroll opened content clear of the footer                | contained ⚖️ | ui-kit                                   | B       | T-08       |
-| T-10 | B-005               | Stable mark per operation                                | contained    | operations-ui                            | C       | –          |
-| T-11 | B-021               | Re-seed on a closed card: make it easier to spot         | trivial ⚖️   | operations-ui                            | C       | T-10       |
+| T-10 | B-005               | Editable name for every operation, saved in the file     | big          | schema (contract), editor-state, operations-ui | –  | –          |
+| T-11 | B-021               | Reseed on load from a closed card                        | contained    | operations-ui, editor-shell              | A       | T-07       |
 | T-12 | B-010               | Rotation persists into a later tileId operation          | big          | engine                                   | –       | –          |
 | T-13 | B-009               | `everyNth` semantics + Row/Column selection              | big          | engine, schema (contract)                | –       | –          |
 | T-14 | B-008               | Offset/Scale X+Y as one attribute                        | big ⚖️       | schema (contract), engine, operations-ui | –       | –          |
@@ -23,13 +23,13 @@
 | T-17 | B-016, B-017        | Starter tiles and tilesets; onboarding                   | big          | editor-shell, editor-io, ui-kit          | –       | –          |
 
 **Not in this batch:** B-011 (drag to draw a Rect selection) and B-012 (hide/unhide operations).
-Both are contained, but both need `App.svelte`, which session A holds for six tasks; in this batch
+Both are contained, but both need `App.svelte`, which session A holds for its whole run; in this batch
 they would wait for A's merge anyway. They go first in batch 02.
 
 **Areas, as used here.** `lib/sections/*` (including `OperationsSection` and `SidebarFooter`) and
 `lib/preview/*` are editor-shell; `lib/ui/*` (`Collapsible`, `ScrollArea`, `Explainer`) is ui-kit;
 `lib/operations/*` is operations-ui. Session A is the only one that edits `App.svelte` and
-editor-state. `tokens.css` and `DESIGN_SYSTEM.md` are append-only (A and C may both append).
+editor-state. `tokens.css` and `DESIGN_SYSTEM.md` are append-only (A and B may both append).
 
 **Tier notes (⚖️):**
 
@@ -37,7 +37,8 @@ editor-state. `tokens.css` and `DESIGN_SYSTEM.md` are append-only (A and C may b
 - T-04: contained because the cause is unknown; finding it is the work.
 - T-08: trivial as CSS. A header sticks within its own section card, so the open section's header stays reachable, which is what B-002 asks for. Headers stacking under each other would be a behaviour choice → contained.
 - T-09: contained because how far to scroll is a behaviour choice (decided in the plan below).
-- T-11: the button already exists on every closed card. Trivial if D-06 is B; nothing to do if A.
+- T-10: big after D-05. A name saved in the file is a new `Operation` field, so a schema bump (v4 → v5) with a migration step.
+- T-11: contained after D-06, not trivial: two areas (`OperationCard` in operations-ui, the write in `OperationsSection`, editor-shell). It runs in session A because T-07 also edits `OperationsSection`.
 - T-14: one card writing two operations would be contained; one attribute is a schema bump. The choice comes first, so big.
 
 ## Decisions needed
@@ -109,7 +110,7 @@ in the Operations header and in the Randomness footer. The text, as drafted:
 - _Advice:_ "Preview a fresh load shows what another visitor could see. It changes nothing in the file."
 - _Note:_ "Seeds and re-seeds are saved in the file, so the tileset looks the same wherever it is used, unless something reseeds on load."
 
-(The T-10 answer may change the operations _Note_; the session adjusts it to match.)
+(After D-05, T-10 is not in this batch, so the operations _Note_ stays as written.)
 
 - **A)** Approve as written.
 - **B)** Approve with the edits I write here.
@@ -134,6 +135,8 @@ pink, which in this editor means "editing now". Colour can be added later.
 
 Answer: Add an editable, editor-only 'Name' attribute for every operation. Keep the rest as it is
 
+Triage after the answer (Pol, 2026-11-08): the name is **saved in the file**. That is a new `Operation` field, so T-10 is now a big task (see Big tasks) and does not run in this batch. Cards keep their position number.
+
 ### D-06 (T-11) Re-seeding an operation without opening it already exists. What now?
 
 Context: Every closed card has a re-seed button (the circular arrows), with "Re-seed op3" as its
@@ -146,6 +149,8 @@ Recommendation: **B**, since the request shows the button was not noticed.
 
 Answer: I meant to be able to check the "Re-seed on load" option on those operations where it applies, even when the operation is folded.
 
+Triage after the answer: T-11 is now the Reseed on load toggle on the closed card (planned under Contained tasks). The re-seed button stays as it is.
+
 ## Trivial bundles
 
 ### Bundle B1 (editor-shell), session A
@@ -156,10 +161,6 @@ Answer: I meant to be able to check the "Re-seed on load" option on those operat
 ### Bundle B2 (ui-kit), session B
 
 - T-08 Sticky section headers: in `Collapsible.svelte`, the `section` variant's header gets `position: sticky; top: 0`, the card's background, and a `z-index` below `ScrollArea`'s thumb (`z-index: 3`). Keep the open rule (inset shadow) visible when stuck. Record in `DESIGN_SYSTEM.md` (append).
-
-### Bundle B3 (operations-ui), session C
-
-- T-11 Re-seed on a closed card: only if D-06 is B. Wrap the Re-seed `IconButton` in `OperationCard.svelte` in a `Hint` with "New random values for this operation only", as `SidebarFooter` does. If D-06 is A, write "Dropped by D-06" in the status file and do nothing.
 
 ## Contained tasks
 
@@ -271,24 +272,30 @@ Acceptance criteria:
 - Works with T-08's sticky headers.
   Risks: `Collapsible` is also used outside the sidebar; the scroll must apply only inside a scroll container, and do nothing otherwise.
 
-### T-10 Stable mark per operation (session C)
+### T-11 Reseed on load from a closed card (session A)
 
-Goal: Each operation keeps the same mark when the list is reordered, so it can be followed.
-Approach: Per D-05. A pure `lib/operations/mark.ts`, `operationMark(id)` (tested), gives the number
-from the id (A), a colour index from the id (B), or both (C). `OperationCard.svelte` shows it in its
-index square, keeping the square's open/closed colours. For B/C, append 8 hue tokens to `tokens.css`,
-each checked for WCAG 2.2 AA (3:1 for the square against the card, 4.5:1 for the number on the
-square), none close to the pink accent or the berry selection colour, and record them in
-`DESIGN_SYSTEM.md`. The square's accessible label says "Operation 3" (or the colour name) instead of
-the position.
-Areas: operations-ui
-Decisions: D-05
+Goal: The user can turn an operation's Reseed on load on or off without opening its card.
+Approach: On a closed `OperationCard`, when the operation's Pattern is random-based (the registry's
+`stochastic` flag, as `OperationBody` reads it; never a list of Source names), the chip row ends
+with a "Reseed on load" chip that shows On/Off and toggles on press. It is a switch to assistive
+tech (`role="switch"`, `aria-checked`), styled like the other chips, with local CSS only (no new
+`lib/ui` component). For operations whose Pattern is not random, the chip is absent, as the toggle
+is absent inside the card. `OperationCard` gets an optional `onReseedOnLoad(on)` callback;
+`OperationsSection` writes it with the existing `replaceOperation({ ...op, reseedOnLoad: on })`
+transition (no `document.ts` change). If that operation's edit draft is open, copy the value into
+`draft.reseedOnLoad` the way `reseed()` copies the salt. Write `reseedOnLoad: true` or `false`
+explicitly, as Save does (`toOperation` in `draft.svelte.ts`), so a file toggled from the card is
+identical to one saved from the card.
+Areas: operations-ui, editor-shell
+Decisions: D-06
 Acceptance criteria:
 
-- Moving an operation earlier or later keeps its mark.
-- An id that is not `op<number>` (imported files may use any id) still gets a mark, and two operations never show the same number.
-- Docs pages for `mark.ts` and `operation-card` are written/updated.
-  Risks: ids from imported files can be any `[A-Za-z0-9_-]+`; the fallback for those needs a test.
+- On a closed card with a Random or Noise pattern, the chip toggles Reseed on load; opening the card shows the same state, and undo reverts it.
+- The chip is absent for Constant and Gradient (or whatever the registry marks non-random).
+- Keyboard: reachable by Tab, toggled by Space and Enter; target at least 24×24 px.
+- "Preview a fresh load" in the footer enables as soon as the chip is turned on.
+- Docs pages `operation-card` and `operations-section` updated.
+  Risks: the closed card's header row is tight at the narrowest sidebar (400 px); check the chip row wraps rather than overflows.
 
 ## Big tasks
 
@@ -296,6 +303,7 @@ Not planned here. Each runs in its own interactive session with Pol. Nothing in 
 on them. The questions below are not under _Decisions needed_ on purpose: they do not block this
 batch.
 
+- **T-10 (B-005) Editable name for every operation, saved in the file (D-05).** A new optional `name` on `Operation`: `types.ts`, a `validate.ts` rule, a v4 → v5 step in `migrate.ts`, and the editor (inline edit on the card, likely with the existing `InlineEdit`). The engine and renderer ignore it, so generated output is unchanged. Questions for that session: what a card shows when there is no name (today's summary, or `op3`); whether names must be unique; whether notices ("Open op3") use the name; length limit.
 - **T-12 (B-010) Rotation persists into a later tileId operation.** This is how the engine works, not a bug: each cell keeps what earlier operations wrote, and choosing a tile changes only the tile (`generate.ts`). Question: **(a)** keep it, explain it (T-07's text does) and close B-010; **(b)** choosing a tile resets the cell's rotation, scale, offset and opacity, which changes how every existing file looks; **(c)** an option per operation, "reset the cell first", which needs a new file version. Recommendation: (a).
 - **T-13 (B-009) `everyNth`.** Today it already _is_ a row/column selection: it picks every Nth column or every Nth row. Question: rename it "Row/Column" (old files are upgraded automatically) and add a new "Every Nth" that counts cells across rows? The new one's pattern moves whenever the column count changes, which includes every breakpoint and resize.
 - **T-14 (B-008) Offset and Scale as one attribute.** Question: one card that writes an X and a Y operation together (no file change, contained), or one attribute with X/Y inside (new file version)?
@@ -307,7 +315,6 @@ batch.
 
 - No big task blocks this batch.
 - Sessions run in parallel:
-  - **A** (editor-shell, editor-state, owns `App.svelte`): B1 (T-01, T-02) → T-03 → T-04 → T-05 → T-06 → T-07
+  - **A** (editor-shell, editor-state, owns `App.svelte`): B1 (T-01, T-02) → T-03 → T-04 → T-05 → T-06 → T-07 → T-11
   - **B** (ui-kit): B2 (T-08) → T-09
-  - **C** (operations-ui): T-10 → B3 (T-11)
 - Batch 02 starts with B-011 and B-012 once session A is merged.
