@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm test)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm changelog check)",
+      "Bash(pnpm --filter @vit-foundation/gen-tilesets build)",
+      "Bash(pnpm --filter @vit-foundation/tileset-docs build)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git fetch origin)",
+      "Bash(git rebase origin/dev)",
+      "Bash(git rebase --continue)",
+      "Bash(git rebase --abort)",
+      "Bash(git push -u origin batch-*)",
+      "Bash(git push origin batch-*)",
+      "Bash(gh pr create --base dev *)"
+    ],
+    "deny": [
+      "Bash(git push * dev)",
+      "Bash(git push * main)",
+      "Bash(git push *:dev*)",
+      "Bash(git push *:main*)",
+      "Bash(git push --force*)",
+      "Bash(git push * --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * -f*)",
+      "Bash(git push * +*)",
+      "Bash(git branch -d*)",
+      "Bash(git branch -D*)",
+      "Bash(git branch --delete*)",
+      "Bash(git branch * -d*)",
+      "Bash(git branch * -D*)",
+      "Bash(git push * --delete*)",
+      "Bash(git push * -d *)",
+      "Bash(git push * :*)",
+      "Bash(gh pr merge*)"
+    ]
+  }
+}

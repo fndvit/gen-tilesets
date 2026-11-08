@@ -128,7 +128,9 @@ for s in $sessions; do
   # The window is opened for an existing worktree too, so running this again resumes a session.
   prompt="You are session $s of $batch_file. Read docs/Batch-workflow.md, then implement your tasks in order."
   # Single quotes are safe around the prompt: it is built above and contains none.
-  cmd="cd $(printf '%q' "$path") && claude '$prompt'"
+  # acceptEdits so file edits don't prompt; commands are governed by .claude/settings.json, which
+  # allows only the batch workflow's test, build, commit, rebase, push and PR commands.
+  cmd="cd $(printf '%q' "$path") && claude --permission-mode acceptEdits '$prompt'"
   if (( dry_run )); then
     echo "[dry-run] open a Terminal.app window running: $cmd"
   else
