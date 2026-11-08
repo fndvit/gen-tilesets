@@ -23,6 +23,12 @@
 -->
 <script lang="ts">
   import type { AttributeName, NumericMapping } from "@vit-foundation/gen-tilesets";
+  import NumericInput from "../lib/NumericInput.svelte";
+  import { labelFor } from "../lib/operations/labels.js";
+  import Advisory from "../lib/ui/Advisory.svelte";
+  import FieldRow from "../lib/ui/FieldRow.svelte";
+  import Hint from "../lib/ui/Hint.svelte";
+  import Toggle from "../lib/ui/Toggle.svelte";
   import { admitsTyped, endpointsCoincide, MIN_STEPS, trackFor } from "./mapping.js";
 
   interface Props {
@@ -54,13 +60,15 @@
     onChange({ ...mapping, range });
   }
 
-  /** In-flight text per end, so a half-typed number never reaches the draft (E5). */
-  let drafts = $state<[string | null, string | null]>([null, null]);
-
-  function type(index: 0 | 1, text: string): void {
-    drafts[index] = text;
+  /** `null` refuses the text; a typed end outside the attribute's domain never reaches the draft. */
+  function parseEnd(text: string): number | null {
     const n = Number(text.trim());
-    if (text.trim() !== "" && Number.isFinite(n)) setEnd(index, n);
+    return text.trim() !== "" && Number.isFinite(n) && admitsTyped(target, n) ? n : null;
+  }
+
+  function parseSteps(text: string): number | null {
+    const n = Number(text.trim());
+    return Number.isInteger(n) && n >= MIN_STEPS ? n : null;
   }
 
   /**
@@ -80,26 +88,34 @@
     }
   }
 
-  function setSteps(text: string): void {
-    const n = Number(text);
-    if (Number.isInteger(n) && n >= MIN_STEPS) onChange({ ...mapping, steps: n });
-  }
-
+  /**
+   * §12.2's ninth advisory (never blocks, never modifies the file, never an
+   * error, **E16**). `Advisory` waits until a drag or a typed value is
+   * committed before it shows or hides it.
+   */
   const advisory = $derived(endpointsCoincide(target, mapping));
+
+  const label = $derived(labelFor(target));
+
+  /**
+   * The label's hint: the track's domain, and why the handles collapsed. The
+   * ninth advisory shows inline under the fields instead. Spec references stay
+   * here, not in the bubble.
+   */
+  const hint = $derived(
+    collapsed
+      ? "A fixed value: the Constant source gives every cell the same number, so both ends are one."
+      : `${track.soft ? "Soft track" : "Domain"} ${track.min} to ${track.max}${track.wraps ? ", wrapping" : ""}.`,
+  );
 </script>
 
 <div class="mapping">
-  <div class="row">
-    <span class="label">{target}</span>
-    <span class="hint">
-      {#if collapsed}
-        fixed value — the Source is <code>constant</code>
-      {:else}
-        {track.soft ? "soft track" : "domain"}
-        [{track.min}, {track.max}{track.wraps ? ")" : "]"}]
-      {/if}
-    </span>
-  </div>
+  <Hint text={hint}>
+    {#snippet children()}
+      <!-- "Range": the framed block's bar above already names the attribute. -->
+      <span class="t-label">Range</span>
+    {/snippet}
+  </Hint>
 
   <!--
     One track carrying both handles. The filled span is between them whichever
@@ -107,7 +123,7 @@
     every Source is inverted (`04` §6.2).
   -->
   <div class="track">
-    <div class="span" style="left: {lowPct}%; right: {100 - highPct}%;"></div>
+    <div class="span" style:left="{lowPct}%" style:right="{100 - highPct}%"></div>
     <input
       class="handle"
       type="range"
@@ -116,7 +132,7 @@
       {step}
       value={mapping.range[0]}
       oninput={(e) => setEnd(0, Number(e.currentTarget.value))}
-      aria-label="{target} range start"
+      aria-label="{label} range start"
     />
     {#if !collapsed}
       <input
@@ -127,106 +143,72 @@
         {step}
         value={mapping.range[1]}
         oninput={(e) => setEnd(1, Number(e.currentTarget.value))}
-        aria-label="{target} range end"
+        aria-label="{label} range end"
       />
     {/if}
   </div>
 
-  <div class="ends">
-    <input
-      type="number"
-      step="any"
-      value={drafts[0] ?? mapping.range[0]}
-      oninput={(e) => type(0, e.currentTarget.value)}
-      onblur={() => (drafts[0] = null)}
-      aria-label="{target} range start, exact"
+  {#if collapsed}
+    <NumericInput label="Value" value={mapping.range[0]} parse={parseEnd} onCommit={(t) => setEnd(0, Number(t))} />
+  {:else}
+    <NumericInput label="From" value={mapping.range[0]} parse={parseEnd} onCommit={(t) => setEnd(0, Number(t))} />
+    <NumericInput label="To" value={mapping.range[1]} parse={parseEnd} onCommit={(t) => setEnd(1, Number(t))} />
+  {/if}
+
+  <!--
+    `04` §6.2: because `t < 1` strictly, a continuous mapping never attains
+    `max`. A stepped one does — which is why a flip needs `steps`
+    (`[−1, 1]` × 2).
+  -->
+  <FieldRow
+    label="Steps"
+    hint="Continuous never quite reaches the far end. Stepped lands on evenly spaced values, both ends included: a flip is -1 to 1 in 2 steps."
+    align="center"
+  >
+    {#snippet children()}
+      <Toggle
+        options={[
+          { value: false, label: "Continuous" },
+          { value: true, label: "Stepped" },
+        ]}
+        value={mapping.steps !== undefined}
+        onChange={setStepped}
+        label="Steps"
+      />
+    {/snippet}
+  </FieldRow>
+
+  {#if mapping.steps !== undefined}
+    <NumericInput
+      label="Step count"
+      value={mapping.steps}
+      parse={parseSteps}
+      onCommit={(t) => onChange({ ...mapping, steps: Number(t) })}
+      step="1"
     />
-    {#if collapsed}
-      <span class="fixed">both ends — <code>04</code> §5.2</span>
-    {:else}
-      <span class="to">to</span>
-      <input
-        type="number"
-        step="any"
-        value={drafts[1] ?? mapping.range[1]}
-        oninput={(e) => type(1, e.currentTarget.value)}
-        onblur={() => (drafts[1] = null)}
-        aria-label="{target} range end, exact"
-      />
-    {/if}
-  </div>
-
-  <div class="steps">
-    <div class="segmented">
-      <button class:on={mapping.steps === undefined} onclick={() => setStepped(false)}>
-        continuous
-      </button>
-      <button class:on={mapping.steps !== undefined} onclick={() => setStepped(true)}>
-        stepped
-      </button>
-    </div>
-    {#if mapping.steps !== undefined}
-      <input
-        type="number"
-        min={MIN_STEPS}
-        step="1"
-        value={mapping.steps}
-        oninput={(e) => setSteps(e.currentTarget.value)}
-        aria-label="steps"
-      />
-    {/if}
-  </div>
-
-  {#if mapping.steps === undefined}
-    <p class="note">
-      <!-- `04` §6.2: because `t < 1` strictly, a continuous mapping never attains
-           `max`. A stepped one does — which is why flip needs `steps`. -->
-      Continuous never attains the far end (<code>t &lt; 1</code>). Flip needs
-      <em>stepped</em>: <code>[−1, 1]</code> × 2.
-    </p>
   {/if}
 
-  {#if advisory}
-    <!--
-      §12.2's ninth advisory. Never blocks, never modifies the file, never an
-      error (**E16**).
-    -->
-    <p class="advisory">
-      <code>rotation</code> wraps at 360, so these endpoints are the same value — one
-      result lands twice as often. Quarter turns are <code>[0, 270]</code> × 4
-      (<code>04</code>&nbsp;§6.2).
-    </p>
-  {/if}
+  <Advisory when={advisory}>
+    Rotation wraps at 360, so these two ends are the same angle and one result lands twice as often.
+    Quarter turns are 0 to 270 in 4 steps.
+  </Advisory>
 </div>
 
 <style>
+  /* One column that never grows past the body (the implicit `auto` column would). */
   .mapping {
     display: grid;
-    gap: 0.4rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+    color: var(--color-ink);
   }
 
-  .row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.5rem;
-  }
-
-  .label {
-    font-size: 0.8rem;
-    color: #1a202c;
-  }
-
-  .hint {
-    font-size: 0.68rem;
-    color: #a0aec0;
-  }
-
-  /* One track, two thumbs. The inputs are stacked and made transparent so the
-     span below shows through; only the thumbs take pointer events. */
+  /* One track carrying both handles, drawn as `Slider`'s: a soft grey track, the
+     span between the handles in ink, round thumbs. The inputs are stacked and
+     transparent so the span shows through; only the thumbs take pointer events. */
   .track {
     position: relative;
-    height: 1.1rem;
+    height: var(--target-min);
   }
 
   .track::before {
@@ -235,25 +217,25 @@
     left: 0;
     right: 0;
     top: 50%;
-    height: 3px;
+    height: var(--slider-track-h);
+    border-radius: var(--slider-track-h);
     transform: translateY(-50%);
-    background: #e2e8f0;
-    border-radius: 2px;
+    background: var(--color-track);
   }
 
   .span {
     position: absolute;
     top: 50%;
-    height: 3px;
+    height: var(--slider-track-h);
     transform: translateY(-50%);
-    background: #3182ce;
-    border-radius: 2px;
+    background: var(--color-ink);
   }
 
   .handle {
     position: absolute;
     inset: 0;
     width: 100%;
+    height: 100%;
     margin: 0;
     padding: 0;
     background: transparent;
@@ -263,116 +245,49 @@
 
   .handle::-webkit-slider-thumb {
     appearance: none;
+    box-sizing: border-box;
     pointer-events: auto;
-    width: 13px;
-    height: 13px;
-    border-radius: 50%;
-    background: #1a202c;
-    border: 2px solid #cbd5e0;
+    width: var(--slider-thumb);
+    height: var(--slider-thumb);
+    border: var(--focus-w) solid var(--color-paper);
+    border-radius: var(--radius-round);
+    background: var(--color-ink);
+    box-shadow: var(--shadow-raised);
     cursor: ew-resize;
+    transition: transform var(--dur-fast) var(--ease);
   }
 
   .handle::-moz-range-thumb {
+    box-sizing: border-box;
     pointer-events: auto;
-    width: 13px;
-    height: 13px;
-    border-radius: 50%;
-    background: #1a202c;
-    border: 2px solid #cbd5e0;
+    width: var(--slider-thumb);
+    height: var(--slider-thumb);
+    border: var(--focus-w) solid var(--color-paper);
+    border-radius: var(--radius-round);
+    background: var(--color-ink);
+    box-shadow: var(--shadow-raised);
     cursor: ew-resize;
   }
 
-  .handle:focus-visible::-webkit-slider-thumb {
-    border-color: #3182ce;
+  .handle::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
   }
 
-  .ends {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
+  .handle::-moz-range-thumb:hover {
+    transform: scale(1.2);
   }
 
-  .ends input {
-    width: 5rem;
-  }
-
-  .to,
-  .fixed {
-    font-size: 0.7rem;
-    color: #a0aec0;
-  }
-
-  .steps {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .steps input {
-    width: 4rem;
-  }
-
-  .segmented {
-    display: flex;
-    flex: 1;
-  }
-
-  .segmented button {
-    flex: 1;
-    background: #f7fafc;
-    border: 1px solid #cbd5e0;
-    color: #4a5568;
-    border-radius: 0;
-    padding: 0.22rem 0.2rem;
-    font: inherit;
-    font-size: 0.7rem;
-    cursor: pointer;
-  }
-
-  .segmented button:first-child {
-    border-radius: 4px 0 0 4px;
-  }
-
-  .segmented button:last-child {
-    border-radius: 0 4px 4px 0;
-    border-left: 0;
-  }
-
-  .segmented button.on {
-    background: #cbd5e0;
-    color: #1a202c;
-  }
-
-  input[type="number"] {
-    background: #f7fafc;
-    border: 1px solid #cbd5e0;
-    color: inherit;
-    border-radius: 4px;
-    padding: 0.22rem 0.35rem;
-    font: inherit;
-    font-size: 0.78rem;
-    min-width: 0;
-  }
-
-  input[type="number"]:focus {
+  .handle:focus-visible {
     outline: none;
-    border-color: #a0aec0;
   }
 
-  .note,
-  .advisory {
-    margin: 0;
-    font-size: 0.68rem;
-    line-height: 1.45;
-    color: #a0aec0;
+  .handle:focus-visible::-webkit-slider-thumb {
+    outline: var(--focus-w) solid var(--color-ink);
+    outline-offset: var(--rule-w);
   }
 
-  .advisory {
-    color: #8a6d1f;
-  }
-
-  code {
-    font-family: ui-monospace, monospace;
-    color: #2b6cb0;
+  .handle:focus-visible::-moz-range-thumb {
+    outline: var(--focus-w) solid var(--color-ink);
+    outline-offset: var(--rule-w);
   }
 </style>

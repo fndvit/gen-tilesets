@@ -1,0 +1,71 @@
+---
+title: ui/FieldRow.svelte
+description: A label on the left and a control on the right, the row shape every Figma input shares.
+sidebar:
+  order: 64
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/FieldRow.svelte`.
+
+## Overview
+
+`FieldRow` is one line of a settings list: the setting's name in large uppercase on the left,
+and its control on the right, such as a number field or a set of choice chips. If a setting needs
+explaining, the explanation appears when the pointer is over its name, never in the row itself.
+
+Inside an open operation the rows are compact: the operation body sets `--field-label-w` (the
+width of a label column) and `--field-justify: flex-start`, so each control sits right after its
+label. The control shrinks rather than making the row wider than the sidebar.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
+
+<UiPrimitivesStory show="field-row" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `label` | `string` | required | In `.t-label`. |
+| `for` | `string` | — | Id of a single native input. When set, the label is a `<label for>`. |
+| `align` | `"end" \| "center"` | `"end"` | `end`: control on the label's baseline (underline fields). `center`: for chips. |
+| `hint` | `string` | — | Explanation shown in a bubble under the label while the label is hovered. |
+| `children` | `Snippet<[string \| undefined]>` | required | The control. Receives the hint's id for its `aria-describedby`. |
+
+### Inputs → outputs
+
+- With `for`: `<label for>`, so clicking the name focuses the input.
+- Without `for`: the row is `role="group"`, `aria-labelledby` the label (id from
+  `$props.id()`), which names a set of controls such as `Toggle`.
+- With `hint`: the label is wrapped in [`Hint`](/editor/ui-hint/), which draws the bubble under
+  it while the label is hovered (Block D moved the bubble there, so the tile thumbnails and group
+  titles share it). FieldRow fixes the bubble's id, so a group row can put it in its own
+  `aria-describedby`. A `for` row hands it to the child snippet, which puts it on the input.
+
+### Invariants
+
+- **No explanatory text in the row.** Explanations live in `hint`, shown on hovering the label
+  (Pol, Block B review).
+
+### Callers / callees
+
+| Caller | Use |
+| --- | --- |
+| `lib/NumericInput.svelte` | every numeric field, with `for` |
+| `lib/sections/GridSection.svelte` | Alignment, a group row around a `Toggle` |
+| `lib/sections/SidebarFooter.svelte` | Seed (with `for`), Assets, Assets on load, Fresh load |
+| `controls/ParamControl.svelte` | a segmented or slider parameter, with the range as `hint` |
+| `controls/ParamFields.svelte` | "Cells", the painted-cell count of a `cellList` |
+| `controls/NumericMapping.svelte` | "Values" (Continuous / Stepped) |
+| `lib/operations/OperationBody.svelte` | "Reseed on load" |
+
+Callees: `lib/ui/Hint.svelte`.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).

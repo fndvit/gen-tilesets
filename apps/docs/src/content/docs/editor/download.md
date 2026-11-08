@@ -35,6 +35,7 @@ testable half."*
 | --- | --- | --- |
 | `zipOf(list)` | `(ExportEntry[]) → Uint8Array` | `fflate.zipSync` over a flat `{ path: bytes }` map at level 6. |
 | `exportZip(file, name = "tileset")` | `(TilesetFile, string) → Promise<void>` | The whole export, as `<name>.zip`. |
+| `saveBlob(blob, name)` | `(Blob, string) → void` | One download of `blob` as `name`. The zip's last step, and Export image's PNG. |
 
 Private: `bytesByKey(file)`, which returns a `Map<assetKey, Uint8Array>` of every stored asset's
 original bytes.
@@ -49,8 +50,8 @@ original bytes.
    missing `meta.src`, a duplicate path, or missing bytes, and the throw propagates out of
    `exportZip`.
 3. **`zipOf`** flattens the entries. The slashes in each path are the zip's directories.
-4. A `Blob` of type `application/zip` gets an object URL, a temporary `<a download="<name>.zip">`
-   is clicked, and the URL is revoked in `finally`.
+4. **`saveBlob`**: a `Blob` of type `application/zip` gets an object URL, a temporary
+   `<a download="<name>.zip">` is clicked, and the URL is revoked in `finally`.
 
 ### Invariants
 
@@ -64,8 +65,8 @@ original bytes.
 
 | Caller | Uses |
 | --- | --- |
-| `App.svelte:25` | imports `exportZip` |
-| `App.svelte:320` | `await exportZip(file)` in `runExport()`. A throw is caught and shown as `exportError` beside the preview. |
+| `lib/sections/SidebarTopBar.svelte` | `await exportZip(file)` in `runExport()`. A throw is caught and shown in the "Export failed" popup. |
+| `lib/sections/ExportImage.svelte` | `saveBlob(png, name)` after `renderImage`. |
 
 `zipOf` is used only inside this module (`:72`). `import.test.ts` defines its own local helper of
 the same name.

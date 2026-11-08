@@ -1,0 +1,59 @@
+---
+title: ui/IconButton.svelte
+description: A bare button holding one icon, named for screen readers, with an optional seed tone.
+sidebar:
+  order: 61
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/IconButton.svelte`.
+
+## Overview
+
+`IconButton` is the small button made of nothing but an icon: delete an operation, re-seed it,
+move it up or down. It has no fill of its own, so it looks like the icon sitting on
+whatever bar or surface holds it. The icon sits in a 24px box, the smallest pointer target WCAG 2.2
+allows. Hovering draws a thin frame around it in the icon's own colour. The re-seed button is magenta, the one
+colour the design reserves for anything random.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
+
+<UiPrimitivesStory show="icon-button" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `icon` | `IconName` | required | Which icon. |
+| `label` | `string` | required | `aria-label` and `title`. |
+| `onclick` | `(event: MouseEvent) => void` | required | |
+| `disabled` | `boolean` | `false` | Drawn in `--color-inactive`, stays in place. |
+| `tone` | `"default" \| "seed"` | `"default"` | `seed` = `--color-seed`. |
+
+### Invariants
+
+- **`label` is required.** The icon is the only visible content, so the words have to be given.
+- **Seed means non-deterministic.** The design system gives `--color-seed` one meaning, so
+  `tone="seed"` is for re-seed only.
+
+### Inputs → outputs
+
+- `color: inherit`, so on a bar it is `--color-on-bar`.
+- At least `--target-min` × `--target-min` (24px, WCAG 2.5.8); the icon keeps its native size.
+  `seed` is larger (Pol, Block F review): a `--control-h` (28px) box with the icon scaled to
+  `--icon-seed` (18px wide).
+- Hover: a `--rule-w` frame in `currentColor`, so a seed button keeps its magenta. Pressed: the
+  frame thickens to `--focus-w` (Block F).
+
+### Callers / callees
+
+Callers: `lib/sections/BreakpointsSection.svelte` (rule actions, field drop), `lib/sections/SidebarFooter.svelte` (re-seed, reroll, fresh load), `lib/tiles/TileGroup.svelte` (trash), `lib/operations/OperationHeader.svelte` (trash, re-seed, up, down). Callees: `lib/ui/Icon.svelte`.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).

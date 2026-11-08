@@ -6,7 +6,7 @@ sidebar:
 ---
 
 **Written from:** `apps/editor/src/ids.ts`, `library.test.ts` (the *generated ids* block), and
-the call sites in `App.svelte` and `lib/TileLibrary.svelte`.
+the call sites in `App.svelte`, `lib/sections/TilesSection.svelte` and `assets.ts`.
 
 ## Overview
 
@@ -77,17 +77,16 @@ batch never repeats an id.
   deleted one's hash channels. Accepted: the reused id only matches an Operation that no longer
   exists, so no two Operations *in a file* share a channel.
 - **Tile and asset ids are kept clear of the asset store by the caller.** There a reuse would
-  overwrite bytes undo still needs, so `TileLibrary` adds [assets.ts](/editor/assets/)'
+  overwrite bytes undo still needs, so `TilesSection` and `attachAll` add [assets.ts](/editor/assets/)'
   `heldTileIds()` / `heldAssetIds(tileId)` to `taken`.
 
 ### Callers / callees
 
 | Caller | Uses |
 | --- | --- |
-| `App.svelte:642` | `nextOperationId(config.operations.map((o) => o.id))` when a create-draft opens |
-| `lib/TileLibrary.svelte:89-93` | `nextIds(files.length, [...tiles.map(t => t.id), ...heldTileIds()], nextTileId)` for a drop on the library |
-| `lib/TileLibrary.svelte:101` | `nextAssetId([])`: a new Tile's first asset is always `a1` |
-| `lib/TileLibrary.svelte:113-117` | `nextIds(files.length, [...tile.assets.map(a => a.id), ...heldAssetIds(tile.id)], nextAssetId)` for a drop onto a Tile |
+| `lib/sections/OperationsSection.svelte:84` | `nextOperationId(operations.map((o) => o.id))` when *Add operation* opens a create-draft |
+| `lib/sections/TilesSection.svelte:66` | `nextTileId([...tiles.map(t => t.id), ...heldTileIds(), ...reserved])`: one id per drop, `reserved` holding ids of drops still attaching |
+| `assets.ts:207-212` | `nextAssetId([...taken, ...heldAssetIds(tileId)])` inside `attachAll`, once per file that attaches, so no gaps; a new Tile's first asset is `a1` |
 
 Callees: none. The package's `validate.ts:99` has its own private copy of the same `IDENTIFIER`
 regex.

@@ -1,0 +1,65 @@
+---
+title: ui/Button.svelte
+description: A text button for an action (Undo, Import, Export, Cancel), in three weights told apart by fill.
+sidebar:
+  order: 74
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Button.svelte`.
+
+## Overview
+
+`Button` is the editor's text button: Undo, New, Import and Export in the sidebar top bar, the
+footer's rerolls, Cancel and the named verb in a dialog, Close in a popup, and a notice's actions.
+It has three weights, told apart by fill, never by border: `primary` (ink, white text, one per
+area), `secondary` (the default, a grey fill a step darker than the panel) and `tertiary` (text
+only, a wash under the pointer). Each darkens a step on hover and another while pressed.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports. The last row is drawn in `.theme-inverted`, as in the sidebar footer.
+
+<UiPrimitivesStory show="button" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `label` | `string` | required | The visible text, in `.t-xs`, in sentence case. |
+| `icon` | `IconName` | none | An icon before the label, for actions people find by shape (Undo, Import, Export). |
+| `onclick` | `(event: MouseEvent) => void` | required | |
+| `disabled` | `boolean` | `false` | `--color-disabled` text, `cursor: default`; a disabled `primary` takes the secondary fill. |
+| `wide` | `boolean` | `false` | Stretches to its container (`width: 100%`). |
+| `variant` | `"primary" \| "secondary" \| "tertiary"` | `"secondary"` | The weight, by fill. |
+| `describedby` | `string` | none | The id of a hint that explains it. |
+| `expanded` | `boolean` | none | `aria-expanded`, for a popover trigger ("How noise works"). |
+| `squared` | `"left" \| "right"` | none | Squares that side's corners, where the Button joins another part: a [Split button](/editor/ui-split-button/)'s main part, which so reuses these states instead of copying them. |
+| `element` | `HTMLButtonElement` | bindable | The `<button>`, for a popover to hang from. |
+
+### Inputs → outputs
+
+- At least `--control-h` tall, with `--space-6` side padding (`--space-4` for `tertiary`), no
+  border, `--radius-sm` corners. The height keeps it above the 24px target floor (WCAG 2.2, 2.5.8).
+- `primary`: `--color-primary` fill and `--color-on-primary` text; hover `--color-primary-hover`;
+  pressed is ink with an inset ring.
+- `secondary`: `--color-secondary` fill and ink text; hover `--color-secondary-hover`; pressed
+  `--color-secondary-pressed`.
+- `tertiary`: no fill; hover `--color-hover`; pressed `--color-pressed`.
+
+### Callers / callees
+
+Callers: `lib/sections/SidebarTopBar.svelte` (Undo, New, Export), `lib/ImportPanel.svelte`
+(Import), `lib/sections/SidebarFooter.svelte` (Reroll assets, Preview a fresh load),
+`lib/ui/Popup.svelte` (Close), `lib/ui/Dialog.svelte` (Cancel and the named verb, for the resize,
+New and unsaved-changes dialogs), `lib/ui/Notice.svelte` (a notice's actions),
+`lib/tiles/TileGroup.svelte` (Reset weights), `lib/operations/OperationBody.svelte` (Discard,
+Save / Add).
+Callees: none.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).

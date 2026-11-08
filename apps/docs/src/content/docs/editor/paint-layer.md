@@ -96,8 +96,6 @@ through the zoom before bounding); and the list helpers (idempotent add, remove 
   a genuinely different affordance (naming cells by coordinates), not a missing one.
 - **Canvas substrate only.** Like `SelectionOverlay`, the hover outline uses the ideal geometry,
   which is where cells land only under `substrate: "canvas"`.
-- **Brush wins over the reference image.** `App.svelte` passes `painting` to `PreviewFrame`, which
-  removes the reference image's drag surface while the brush is active.
 
 ### Review notes
 

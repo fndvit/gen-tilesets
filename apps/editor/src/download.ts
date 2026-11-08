@@ -69,13 +69,20 @@ export async function exportZip(file: TilesetFile, name = "tileset"): Promise<vo
     bytes.get(assetKey(tileId, asset.id)),
   );
 
-  const blob = new Blob([zipOf(list) as BlobPart], { type: "application/zip" });
+  saveBlob(new Blob([zipOf(list) as BlobPart], { type: "application/zip" }), `${name}.zip`);
+}
+
+/**
+ * One download of `blob` as `name`: the zip, and Export image's PNG (whose bytes
+ * the package's `renderImage` makes).
+ */
+export function saveBlob(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
 
   try {
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${name}.zip`;
+    anchor.download = name;
     anchor.click();
   } finally {
     // The click is synchronous and the browser has taken the URL by the time it

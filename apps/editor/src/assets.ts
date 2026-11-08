@@ -33,6 +33,7 @@
  * rather than a source of variation.
  */
 
+import type { TileAsset } from "@vit-foundation/gen-tilesets";
 import {
   assetKey,
   parseAssetKey,
@@ -41,6 +42,7 @@ import {
   type AssetRef,
   type Drawable,
 } from "@vit-foundation/gen-tilesets/render";
+import { nextAssetId } from "./ids.js";
 
 /** What one attach produced. `width`/`height` are E13's frozen measurement. */
 export interface StoredAsset {
@@ -152,6 +154,71 @@ export async function attach(tileId: string, assetId: string, file: File): Promi
     URL.revokeObjectURL(url);
     throw cause;
   }
+}
+
+/**
+ * **E13**: an attach measures and writes all three `meta` keys, or it fails.
+ *
+ * The measurement happens *before* any transition, so a file that will not
+ * decode never reaches the document: "an asset that will not decode is a
+ * failed attach, not an attach with two keys missing."
+ *
+ * **E4 applies here with force: these three keys and nothing else.** `meta` is
+ * tempting precisely because `06` **C4** exempts it from strictness, and `07`
+ * **R4** makes it additive-only: a key parked there is never removed and
+ * never retyped, and travels to every consumer.
+ */
+export async function attachAsset(tileId: string, assetId: string, file: File): Promise<TileAsset> {
+  const { width, height } = await attach(tileId, assetId, file);
+  return {
+    id: assetId,
+    // A UI constant with no spec content: `03` §4.1 admits any weight >= 0,
+    // and equal weights are the only starting point that expresses no opinion.
+    weight: 1,
+    meta: {
+      // §10.3: `src` is "the path §11.1 will export to". The editor's own
+      // provider bridges it to the object URL for now (§11.2).
+      src: exportPath(tileId, assetId, extensionOf(file.name)),
+      // §10.3: measured at attach, then frozen. The renderer never measures.
+      width,
+      height,
+    },
+  };
+}
+
+/** What `attachAll` produced: the assets that attached, and why the others did not. */
+export interface AttachResult {
+  assets: TileAsset[];
+  /** The file each asset came from, index for index. */
+  attached: File[];
+  /** One line per file that failed, naming it. */
+  failures: string[];
+}
+
+/**
+ * Attaches several files as variants of one Tile, in order.
+ *
+ * An id is allocated only for a file that attaches, so a failed file leaves no
+ * gap (`a1, a2`, never `a1, a3`). `taken` is the Tile's ids in the document;
+ * the store's are added here, because a deleted asset's bytes stay for undo.
+ * For a new Tile both are empty, so the first id is always `a1`.
+ */
+export async function attachAll(tileId: string, taken: readonly string[], files: File[]): Promise<AttachResult> {
+  const used = [...taken, ...heldAssetIds(tileId)];
+  const assets: TileAsset[] = [];
+  const attached: File[] = [];
+  const failures: string[] = [];
+  for (const file of files) {
+    const assetId = nextAssetId(used);
+    try {
+      assets.push(await attachAsset(tileId, assetId, file));
+      attached.push(file);
+      used.push(assetId);
+    } catch (cause) {
+      failures.push(`${file.name}: ${String(cause instanceof Error ? cause.message : cause)}`);
+    }
+  }
+  return { assets, attached, failures };
 }
 
 /*

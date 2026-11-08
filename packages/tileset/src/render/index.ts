@@ -184,3 +184,11 @@ export {
   type TileDecorationInputs,
 } from "./decoration.js";
 export { injectStyles, TILESET_CSS } from "./styles.js";
+
+/**
+ * A tileset as a PNG at a chosen width and density, with no element on the page
+ * (0.11.0). It draws with the live canvas's tile loop, and rejects naming every
+ * picture that failed. `imageSize` is the PNG's size from the same model, for a
+ * host that shows it before exporting.
+ */
+export { imageSize, renderImage, type ImageOptions, type ImageSize } from "./image.js";

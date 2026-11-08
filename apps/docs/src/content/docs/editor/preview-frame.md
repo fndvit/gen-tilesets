@@ -1,24 +1,21 @@
 ---
-title: PreviewFrame.svelte
-description: The preview's width control. Sets the render box width with drag handles, presets and breakpoint buttons, zooms it to fit, and writes no field.
+title: preview/PreviewFrame.svelte
+description: The preview's render box. Measures the column, drags the width with two handles, zooms the box to fit, and writes no field.
 sidebar:
   order: 54
 ---
 
-**Written from:** `apps/editor/src/lib/PreviewFrame.svelte`, `reference.test.ts`, and the call site
-in `App.svelte`. The reference helpers it calls are in [reference.ts](/editor/reference/).
+**Written from:** `apps/editor/src/lib/preview/PreviewFrame.svelte` and the call site in `App.svelte`.
 
 ## Overview
 
-The preview frame is the box at the top of the right-hand column that holds the live picture. It
-lets the author try the tileset at any page width: drag either edge, press a preset (375, 768,
-1024, 1440, or "fill" for the whole column), or press one of the file's own breakpoint widths. The
-frame stays centred and both edges move together.
+The preview frame is the render box in the middle of the right-hand column, under the
+[top bar](/editor/preview-bars/). The author can drag either edge to try the tileset
+at any page width; the frame stays centred and both edges move together. The bars' presets and
+breakpoint buttons set the same width.
 
 When the chosen width is wider than the screen has room for, the frame shrinks the whole picture
-to fit and says by how much, without changing the width the tileset is drawn at. A readout shows
-the width and which breakpoint rules apply there. Next to the presets is a backdrop colour picker,
-and beneath them the reference-image controls.
+to fit without changing the width the tileset is drawn at.
 
 None of this changes the document. In the editor's pipeline (import → document → draft/history →
 **preview** → export), it is the viewport the preview is drawn in.
@@ -27,68 +24,68 @@ None of this changes the document. In the editor's pipeline (import → document
 
 ### Purpose
 
-The component sets `Wpx`, the render box's width, and hands it to its `children` snippet. It is
-the editor's implementation of **E11**: *the preview width control sets `Wpx` and writes no
+The component draws at `Wpx`, the render box's width, and hands it to its `children` snippet. It
+is the editor's implementation of **E11**: *the preview width control sets `Wpx` and writes no
 field; it is not destructive and requires no confirmation*. The header comment explains the
 correction it embodies: a draggable page edge was once treated as the design width, which made
 resizing the preview destructive. The destructive rule now belongs to the numeric design-width
 field, and the drag handle is a pure viewport change.
+
+Since Stage 2 the width state lives in [view.svelte.ts](/editor/preview-width/), shared with the
+bars. This component writes `preview.available` (its track's width) and `preview.requested`
+(drags and arrow keys), and reads `preview.width` and `preview.zoom`.
 
 ### Public surface
 
 | Prop | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `ratio` | `(Wpx: number) => number` | required | The render box's natural aspect ratio at a width. A function since breakpoints can change `rows`. |
-| `rules` | `readonly ResponsiveRule[]` | `[]` | The file's breakpoints, for the readout and bound buttons. See [`ResponsiveRule`](/api/index/interfaces/responsiverule/). |
 | `children` | `Snippet<[number]>` | required | Rendered with the current `Wpx`. |
-| `painting` | `boolean` | `false` | While true, the reference image's drag surface is not rendered, so the brush is never shadowed. |
 
 ### Inputs → outputs
 
-#### Width
-
 | Name | Value |
 | --- | --- |
-| `available` | `bind:clientWidth` of the track |
-| `room` | `max(floor(available) − 2 × 9, 160)` |
-| `requested` | `null` (fill) or a number |
-| `width` (`Wpx`) | `room` when `requested` is `null`, else `max(requested, 160)` |
-| `zoom` | `min(1, room / width)`, or `1` before measurement |
+| `width`, `zoom` | `preview.width`, `preview.zoom` ([width.ts](/editor/preview-width/)) |
 | `frameHeight` | `width / ratio(width)`, or `0` if the ratio is not positive |
 
-- **Drag:** a handle captures the pointer; `requested = startWidth + 2 × delta / zoom`, where
-  `delta` is signed by the handle's direction. Both edges move, so the centre stays put.
+- **Drag:** a handle captures the pointer; `preview.requested = startWidth + 2 × delta / zoom`,
+  where `delta` is signed by the handle's direction. Both edges move, so the centre stays put.
 - **Keyboard:** ← / → on a handle change the width by `2 × 10` (`2 × 100` with Shift).
-- **Buttons:** each distinct `minWidth` / `maxWidth` across the rules (sorted), the four presets,
-  and "fill".
-- **Readout:** `render box <width>px`, "Wpx · writes no field", "shown at N%" when zoomed, and
-  `base` or `rule i + j` from [`activeRules`](/api/index/functions/activerules/)`(rules, width)`.
+- The viewport reserves `frameHeight × zoom` px of height, because a transform does not affect
+  layout, plus `--handle-hit-reach` above and below for the handles.
+- **Not clipped.** The track lets the [grid](/editor/preview-grid/) reach past the frame; the
+  picture area (`.preview-body`, `overflow: clip`) clips it, and a frame wider than the column.
+- **Centred vertically** by its parent `.stage` in `App.svelte`, a flex column that takes the
+  height left in the picture area; a taller frame overflows downward and scrolls.
+- **No background and no outline of its own.** The backdrop is the picture area's (`App.svelte`'s
+  `.canvas`), so the picture is judged against one colour everywhere. The handles mark the sides
+  and the grid shows the cells; nothing marks top and bottom, as in Figma (Pol, Stage 2 P3b).
 
-#### Backdrop and reference
+#### Handles (Figma *Handle* 2063:804 / 2063:805)
 
-- `background` starts `#ffffff`; an `<input type="color">` changes it; a ⟲ button returns to
-  white and appears only off white.
-- `reference`, `referenceError`, `yOffset`, `opacity`, `inFront`: local state passed to
-  [ReferenceControls](/editor/reference-controls/) and [ReferenceLayer](/editor/reference-layer/).
-- `pickReference(file)` awaits `loadReference(file)`. On failure it sets `referenceError` and keeps
-  the previous reference.
-- A file dropped on the track is picked; `dragover` is prevented so the browser does not
-  navigate to it.
-- An `$effect` revokes the reference's object URL when it is replaced and on unmount.
-- `extent = frameExtent(frameHeight, imageHeight, yOffset)`; the viewport reserves
-  `(extent.bottom − extent.top) × zoom` px of height, and the frame is translated by
-  `−extent.top` so an image placed above the render box is not cut off.
+| Part | Size (screen px, each divided by `zoom` inside the frame) |
+| --- | --- |
+| Hit area (the `<button>`) | `--handle-w` 24 wide, **wholly outside** the box edge; reaches `--handle-hit-reach` 28 past top and bottom, so the squares sit inside it with 9px to spare |
+| Square, at each end | `--handle-square` 6, centred on the edge, 13–19 past the box |
+| Cap, square to box edge | `--handle-cap` 16 long, `--handle-cap-w` 2 wide |
+| Line along the edge | `--handle-dot` 1 wide, dotted 1 on / `--handle-dot-gap` 2 off |
+
+- The drawing is a `.mark` span with `pointer-events: none`, centred on the box edge (the hit area's
+  inner side, so half the square and the line draw over the box) and painted
+  with `linear-gradient`s in `--color-ink`, so it stretches with the box height.
+- **Hover and focus:** the dotted line turns solid, 2px. **Pressed:** `--color-pressed`.
+  `cursor: ew-resize`. The focus ring goes round the 24px hit area.
 
 #### Layout
 
 `.track` (measures room) → `.viewport` (reserves zoomed height) → `.frame` (true `Wpx` width,
-`transform: scale(zoom)`, the backdrop) → reference layer, left handle, `children(width)`, right
-handle.
+`transform: scale(zoom)`) → left handle, `children(width)`, right handle.
 
 ### Invariants
 
-- **Writes no field** (**E11**). Width, backdrop and reference are all transient UI state; they
-  belong beside the file, never in it and never in `meta` (**E4**).
+- **Writes no field** (**E11**). The width is transient UI state; it belongs beside the file,
+  never in it and never in `meta` (**E4**).
 - **No regeneration on resize** (cited as **R12**). Every quantity is a fixed fraction of `Wpx`, so
   dragging shows the file's true behaviour at that width.
 - **Height is computed, not measured** (cited as **S8**). Measuring the frame would risk a
@@ -105,41 +102,33 @@ handle.
 
 | Caller | Use |
 | --- | --- |
-| `App.svelte:63` | import |
-| `App.svelte:810`–`863` | `ratio` from `naturalRatio` on `shapedAt(Wpx)`, `{rules}`, `painting={painting !== null}`, and a `children(Wpx)` snippet holding `<Tileset>`, `SelectionOverlay` and `PaintLayer` |
+| `App.svelte:30` | import |
+| `App.svelte:390`–`441` | `ratio` from `naturalRatio` on `shapedAt(Wpx)`, and a `children(Wpx)` snippet holding `<Tileset>`, `SelectionOverlay` and `PaintLayer` |
 
-Callees (`PreviewFrame.svelte:40`–`43`): [`activeRules`](/api/index/functions/activerules/);
-[ReferenceControls](/editor/reference-controls/), [ReferenceLayer](/editor/reference-layer/);
-`frameExtent`, `layerHeight`, `loadReference` from [reference.ts](/editor/reference/).
+Callees: `preview` from [view.svelte.ts](/editor/preview-width/).
 
 ### Tests
 
-No test file for the component. `reference.test.ts` pins the two helpers it uses for layout:
-`layerHeight` (intrinsic height at the image's own width, aspect kept at other widths, zero for a
-zero-width reference) and `frameExtent` (the render box alone without an image; reaches past it
-for a taller image; keeps the box's bottom for a shorter one; follows positive offsets down;
-opens room above for negative ones; never reports a top below the box's own).
+No test file for the component.
 
 ### Gotchas & rejected alternatives
 
-- **Presets are not "breakpoints".** That word is reserved for the file's `responsive` rules.
-  Presets "carry no spec content".
-- **Handles sit outside the render box.** The component's element has no padding or border so `Wpx`
-  is unambiguously its width; a handle inside would hide 9px of the picture. They are
-  counter-scaled by `1 / zoom` so they stay hittable at wide presets.
+- **Hit areas lie wholly outside the edge and include the squares** (Pol, P4). P3b centred them
+  on the edge, and their inner 16px took the edge cells from the Handpick brush. Now the brush
+  reaches every pixel inside `Wpx`; a hit area covers only the bleed (outer cells reaching past
+  the box), which lies outside the page anyway. The mark stays centred on the edge, so it does not
+  read as off-centre. Everything is counter-scaled by `1 / zoom` so the handle is the same size on
+  screen at every preset.
+- **Drawn, not downloaded.** Figma's export is one fixed 579px picture; the handle must stretch with
+  the box.
 - **`room` is floored** to a whole pixel, so the same file at the same preset draws the same
   picture from run to run.
-- **White by default.** The output is decorative and drawn over whatever the host page supplies;
-  the colour picker exists because a tileset for a dark page cannot be judged on white either. The
-  editor offers the choice and decides nothing.
 - **A native `<button>` for each handle**, not a `role="separator"` div, because a focusable
   separator reads as non-interactive to the linter.
 
 ### Review notes
 
-- `onPointerMove`'s comment (line 321) says "Step 7's brush will need it". The brush exists
+- `onPointerMove`'s comment (line 119) says "Step 7's brush will need it". The brush exists
   (`PaintLayer.svelte`, via `metricsOf`/`toRenderSpace`). (stale comment)
-- `clearReference()` resets `yOffset` but not `opacity` or `inFront`, so the next reference opens
-  with the previous one's opacity and side. Possibly intended; not stated. (inconsistency, minor)
-- The `9px` handle width is written as a literal in three CSS rules and as `HANDLE = 9` in the
-  script; changing one does not change the other. (inconsistency, minor)
+- The handle width is `--handle-w` in CSS and `HANDLE = 24` (the same) in `width.ts`; changing one does not
+  change the other. (inconsistency, minor)

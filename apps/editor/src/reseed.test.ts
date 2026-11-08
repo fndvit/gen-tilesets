@@ -9,13 +9,12 @@
 
 import type { Operation, TilesetConfig } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
-import { newDocument, rerollAssets, rerollOperation, setReseedOnLoad } from "./document.js";
+import { newDocument, rerollAssets, rerollOperation } from "./document.js";
 import {
   drawLoadSalt,
   inertFlags,
   loadVaries,
   nextSalt,
-  offersReseedOnLoad,
   SALT_MODULUS,
 } from "./reseed.js";
 
@@ -93,27 +92,6 @@ describe("the reroll transitions — 02 §6.4", () => {
   });
 });
 
-describe("the reseedOnLoad control is offered from the registry — 09 §8.4, 05 X5", () => {
-  it("is offered where the Source is stochastic", () => {
-    expect(offersReseedOnLoad(op({ source: { type: "random" } }))).toBe(true);
-    expect(offersReseedOnLoad(op({ source: { type: "valueNoise" } }))).toBe(true);
-  });
-
-  it("is withheld where it would be a control that does nothing — 05 §6.1", () => {
-    expect(offersReseedOnLoad(op({ source: { type: "constant" } }))).toBe(false);
-    expect(offersReseedOnLoad(op({ source: { type: "gradient" } }))).toBe(false);
-  });
-
-  it("reads the declaration, never a list of names", () => {
-    // The property X5 buys: a Source registered later declares its own answer
-    // and this keeps working with nothing edited here.
-    const declared = ["constant", "random", "valueNoise", "gradient"];
-    for (const name of declared) {
-      expect(typeof offersReseedOnLoad(op({ source: { type: name } }))).toBe("boolean");
-    }
-  });
-});
-
 describe("a flag over a non-stochastic Source is reported, not cleared — 09 §8.4", () => {
   it("names the Operations 06 §10.4's second diagnostic covers", () => {
     const c = config([
@@ -122,14 +100,6 @@ describe("a flag over a non-stochastic Source is reported, not cleared — 09 §
       op({ id: "c", source: { type: "gradient" }, reseedOnLoad: false }),
     ]);
     expect(inertFlags(c).map((o) => o.id)).toEqual(["a"]);
-  });
-
-  it("the transition still writes it — the editor must not silently correct", () => {
-    // §8.4: the flag also moves the Operation's `random` Selection (`04` §8.2),
-    // so it is not fully inert and clearing it would change the picture.
-    const file = { ...newDocument() };
-    file.config = config([op({ source: { type: "constant" } })]);
-    expect(setReseedOnLoad("op1", true)(file).config.operations[0]!.reseedOnLoad).toBe(true);
   });
 });
 
@@ -149,8 +119,8 @@ describe("the load preview is disabled where it provably does nothing — 09 §8
   });
 
   it("counts a flag over a non-stochastic Source, because the Selection still moves", () => {
-    // The asymmetry with `offersReseedOnLoad`: that one asks the Source, this
-    // one asks the flag. `04` §8.2 is why they differ.
+    // The asymmetry with the Source step's toggle: that one asks the Source,
+    // this one asks the flag. `04` §8.2 is why they differ.
     const c = config([op({ source: { type: "constant" }, reseedOnLoad: true })]);
     expect(loadVaries(c)).toBe(true);
     expect(inertFlags(c)).toHaveLength(1);

@@ -42,11 +42,13 @@ including the design-width change.*
 | Export | Signature | Meaning |
 | --- | --- | --- |
 | `UNDO_LIMIT` | `100` | How many past values to keep. |
-| `History<T>` | `{ past: T[]; current: T }` | `past` is oldest first; its last element is what one undo returns to. |
+| `History<T>` | `{ past: T[]; current: T; gesture?: string }` | `past` is oldest first; its last element is what one undo returns to. `gesture` names the live drag `current` belongs to. |
 | `historyOf(current)` | `(T) → History<T>` | `{ past: [], current }` |
 | `applied(history, f, limit?)` | `(History<T>, (T) → T, number) → History<T>` | Apply `f`; push the replaced value unless `f` returned its input. |
 | `replaced(history, value, limit?)` | `(History<T>, T, number) → History<T>` | Replace outright, still pushing. |
 | `undone(history)` | `(History<T>) → History<T>` | Pop one. A no-op at the bottom. |
+| `appliedLive(history, key, f, limit?)` | `(History<T>, string, (T) → T, number) → History<T>` | One frame of live gesture `key`: the first frame is `applied` (one push); later frames replace `current` without pushing. A refused first frame starts no gesture. |
+| `settled(history)` | `(History<T>) → History<T>` | End the gesture, so the next drag is a new entry. Every other operation also returns a history without one. |
 
 ### Inputs → outputs
 
@@ -96,6 +98,9 @@ Callees: none.
   identical. `setRows("5")` on a file already at 5 rows **does** push an entry.
 - **Bounded.** It keeps the most recent entries and drops the oldest. `UNDO_LIMIT` is 100.
 - **Purity.** Earlier entries are untouched as new ones arrive.
+- **Live gestures.** Three frames are one entry and undo to before the drag; a release and a
+  second drag of the same control is a second entry; another control or any other operation
+  starts a new one; a refused first frame opens no gesture; `settled` with none open is a no-op.
 
 ### Gotchas & rejected alternatives
 

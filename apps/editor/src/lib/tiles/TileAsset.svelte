@@ -1,0 +1,178 @@
+<!--
+  The Figma *Tile asset*: one variant of a tile group. A 32px thumbnail, the
+  weight slider and the variant's share as a %.
+
+  **Delete is a badge on the thumbnail** (Pol, Block D; not in Figma): an ink
+  circle with a white cross at its top-right corner, shown while the row is
+  hovered or has focus. It is focusable while hidden, so Tab reaches it and
+  shows it. With one variant left it stays, disabled, because a Tile with no
+  assets cannot resolve (`03` §4.1).
+
+  The thumbnail's hint carries E13's frozen measurement and `07` **R8**'s
+  centre-crop note. The asset id is not shown: `a1`, `a2` tell the author
+  nothing (Pol, Block D review). Controls are named by position instead.
+
+  The slider sets the raw `asset.weight` on 0–2. The file follows a drag on
+  every frame (`onInput`), so the tileset and every row's % move with it (Pol,
+  Stage 2); release (`onCommit`) closes the drag as one undo entry.
+-->
+<script lang="ts">
+  import type { TileAsset } from "@vit-foundation/gen-tilesets";
+  import { stored } from "../../assets.js";
+  import Hint from "../ui/Hint.svelte";
+  import Icon from "../ui/Icon.svelte";
+  import Slider from "../ui/Slider.svelte";
+
+  interface Props {
+    tileId: string;
+    asset: TileAsset;
+    /** 1-based position in the group, for accessible names. */
+    position: number;
+    /** This variant's share of the group, 0–100, rounded. */
+    percent: number;
+    canDelete: boolean;
+    onInput: (weight: number) => void;
+    onCommit: (weight: number) => void;
+    onDelete: () => void;
+  }
+
+  let { tileId, asset, position, percent, canDelete, onInput, onCommit, onDelete }: Props = $props();
+
+  const file = $derived(stored(tileId, asset.id));
+
+  const details = $derived(
+    file === undefined
+      ? "No attached file in this session."
+      : `${file.width}×${file.height}${
+          file.width !== file.height ? " · not square, so it is centre-cropped" : ""
+        }`,
+  );
+</script>
+
+<div class="asset">
+  <span class="thumb">
+    <Hint text={details}>
+      {#snippet children(hintId)}
+        {#if file}
+          <img src={file.url} alt="" aria-describedby={hintId} />
+        {:else}
+          <span class="missing" aria-describedby={hintId}></span>
+        {/if}
+      {/snippet}
+    </Hint>
+    <button
+      type="button"
+      class="badge"
+      aria-label="Delete variant {position}"
+      disabled={!canDelete}
+      onclick={onDelete}
+    >
+      <Icon name="close" />
+    </button>
+  </span>
+  <Slider
+    label="Weight of variant {position}"
+    min={0}
+    max={2}
+    step={0.01}
+    value={asset.weight}
+    {onInput}
+    {onCommit}
+  />
+  <span class="share t-value">{percent}%</span>
+</div>
+
+<style>
+  .asset {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--thumb);
+  }
+
+  .thumb {
+    position: relative;
+    flex: none;
+    width: var(--thumb);
+    height: var(--thumb);
+  }
+
+  img,
+  .missing {
+    display: block;
+    width: var(--thumb);
+    height: var(--thumb);
+    border-radius: var(--radius-xs);
+    object-fit: cover;
+  }
+
+  .missing {
+    background: var(--color-field);
+  }
+
+  .badge {
+    position: absolute;
+    top: calc(-1 * var(--space-2));
+    right: calc(-1 * var(--space-2));
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--badge);
+    height: var(--badge);
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-round);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    box-shadow: 0 0 0 var(--rule-w) var(--color-paper);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      opacity var(--dur-fast) var(--ease),
+      background-color var(--dur-fast) var(--ease),
+      transform var(--dur-fast) var(--ease);
+  }
+
+  /* The pointer target is `--target-min` square around the smaller circle (WCAG 2.2, 2.5.8). */
+  .badge::before {
+    content: "";
+    position: absolute;
+    inset: calc((var(--badge) - var(--target-min)) / 2);
+  }
+
+  /* Hover lifts the circle to the primary's hover grey and grows it a little. */
+  .badge:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+    transform: scale(1.15);
+  }
+
+  .badge:active:not(:disabled) {
+    background: var(--color-ink);
+    transform: scale(1);
+  }
+
+  /* The ring around a circle: the outline follows the radius. */
+  .badge:focus-visible {
+    outline: var(--focus-w) solid var(--color-ink);
+    outline-offset: var(--focus-offset);
+  }
+
+  .asset:hover .badge,
+  .asset:focus-within .badge {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .badge:disabled {
+    background: var(--color-disabled);
+    cursor: default;
+  }
+
+  .share {
+    flex: none;
+    width: var(--share-w);
+    text-align: right;
+  }
+</style>

@@ -65,7 +65,7 @@ frame, and it paints twice when a decode and a measurement land together.
 4. The bank.
 5. The substrate's elements (`#mount`): the canvas, or the cells and the extent.
 6. The attributes.
-7. The paint, or the cell pass.
+7. The paint, or the cell pass. The canvas paint's tile loop is `drawItems` in [paint.ts](/renderer/paint/), which `renderImage` shares.
 
 A trigger that fires synchronously inside it (`track()`'s first measurement, `bank.sync`'s
 `onChange`) lands before the step that reads it, so it queues nothing.

@@ -1,0 +1,72 @@
+---
+title: ui/OperationGlyph.svelte
+description: One cell of a glyph grid, a label above a 43px artwork slot, with no assumption about the artwork.
+sidebar:
+  order: 69
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/OperationGlyph.svelte`.
+
+## Overview
+
+`OperationGlyph` is one choice in an operation step: a small monospace name above a little
+picture, such as the Selection glyphs All, Checkered and Every nth. The chosen one gets a grey
+fill and a thin frame. The cell works the same whatever the picture is. A step whose pictures
+are not designed yet shows only the name.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
+
+<UiPrimitivesStory show="operation-glyph" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `label` | `string` | required | `.t-console`, shown as given. |
+| `selected` | `boolean` | `false` | `aria-checked`. |
+| `disabled` | `boolean` | `false` | |
+| `onclick` | `() => void` | required | |
+| `src` | `string` | — | URL of the artwork image (decorative, `alt=""`). |
+| `artwork` | `Snippet` | — | Any markup instead of an image. Wins over `src`. |
+| `tabindex` | `number` | `0` | Set by `GlyphGrid`. |
+| `onkeydown` | `(event: KeyboardEvent) => void` | — | Set by `GlyphGrid`. |
+| `element` | `HTMLButtonElement` (bindable) | — | For the grid's roving focus. |
+
+### Inputs → outputs
+
+- A `role="radio"` button: the label, then (with `src` or `artwork`) a slot with `--space-1`
+  padding whose child is `--glyph-slot` (43px) square.
+- With neither, the cell is label-only and centred in `--glyph-h`.
+- Selected and hover: `--color-inactive` fill and an ink frame (Figma node 2034:658). The frame
+  is always present (transparent when idle), so the layout never shifts. Pressing thickens the
+  frame to `--focus-w`, drawn inside. The selected cell has `cursor: default`.
+
+### Invariants
+
+- **The artwork is free.** The cell assumes no pixel grid and no particular iconography, as
+  decided for Attribute, Source and Blend.
+
+### Callers / callees
+
+| Caller | Use |
+| --- | --- |
+| `lib/ui/GlyphGrid.svelte` | one per item |
+
+No callees.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).
+
+### Gotchas & rejected alternatives
+
+- **Hover does not invert**, unlike chips. Inverting would sink ink artwork into an ink fill.
+- **Selection artwork is SVG exported from Figma** (`apps/editor/src/assets/glyphs/selection/`),
+  not generated from bitmaps. All and Checkered were drawn by hand in the same geometry, because
+  in Figma they are frames, not vectors.

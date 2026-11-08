@@ -1,0 +1,75 @@
+---
+title: ui/Marquee.svelte
+description: The console strip, which scrolls its text right to left only when it does not fit, on its own or only while hovered.
+sidebar:
+  order: 67
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Marquee.svelte`.
+
+## Overview
+
+`Marquee` is a thin grey strip of monospace text, such as the answer to one step above an
+operation's step tab (`Opacity [0.5 - 1]`). When the text fits, it stays still. When it is too
+long, it scrolls slowly from right to left in a loop, and stops while the pointer is over it so it
+can be read. With `scroll="hover"` it does the reverse: overflowing text stays still, cut with an
+ellipsis, and scrolls only while the pointer is over it. That is for strips side by side, such as
+an operation header's four, where four running at once would be noise. With reduced motion turned
+on, it never moves.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports. Edit the text to watch it switch between still and scrolling. The last strip is `scroll="hover"`: it shows an ellipsis until you point at it.
+
+<UiPrimitivesStory show="marquee" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `text` | `string` | required | Shown as given; also the `title`. |
+| `scroll` | `"always" \| "hover"` | `"always"` | `always`: overflow loops on its own, pausing on hover. `hover`: an ellipsis at rest, looping only while hovered. |
+
+### Inputs → outputs
+
+- `clientWidth` of the strip and `offsetWidth` of the text copy (including its trailing
+  `--space-6` gap) are bound. The text overflows when the copy is wider than the strip.
+- When it overflows, a second, `aria-hidden` copy is added, and the track animates
+  `translateX(0 → -50%)`, which moves exactly one copy, over
+  `marqueeDuration(copyWidth, --marquee-speed)` seconds, linearly and forever.
+- The strip has `contain: inline-size`, so the text never sets its width: a long summary scrolls
+  inside the strip instead of widening the operation header and the sidebar.
+- `scroll` is a class on the strip, and `clip` is added while the text overflows. `always`: the
+  animation runs, and hover pauses it. `hover`: the animation runs only under `:hover`, and a
+  `.hover.clip::after` draws "…" at the right edge on `--color-inactive`, removed while hovered.
+- `prefers-reduced-motion: reduce` turns the animation off in both modes, and the overflow is
+  clipped. A `hover` strip keeps its ellipsis then, since the `::after` is removed only under
+  `no-preference`.
+- Strip: `.t-console`, `--color-inactive`, `--rule` frame, `--console-pad-y` vertical
+  padding.
+
+### Invariants
+
+- **Constant speed.** A longer summary takes longer to pass instead of moving faster.
+- **Read once.** The duplicate copy is hidden from assistive technology.
+
+### Callers / callees
+
+Caller: `lib/operations/OperationHeader.svelte`, one `scroll="hover"` strip per step, above
+that step's tab (see [OperationHeader](/editor/operation-header/)). Callees: `marqueeDuration` from
+`lib/ui/marquee.ts`.
+
+### Tests
+
+None for the component. `lib/ui/marquee.test.ts` covers the duration.
+
+### Gotchas & rejected alternatives
+
+- **No `text-transform`.** Figma capitalises the summary, but the summary holds ids and values
+  that a blanket transform would rewrite (`tileId` → `TileId`). Casing is the caller's.
+- **The speed is read from the token at mount.** Changing `--marquee-speed` later has no effect
+  on a strip that is already mounted.

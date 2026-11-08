@@ -11,8 +11,8 @@ are 0.8.1's.
 **0.8.1 fixed the possible bugs**, as the *Status* column below says; the other kinds are as
 reported. Every possible bug was re-checked against the source after it was reported. The
 `edges.ts` SVG finding was reproduced in headless Chrome, and its fix, the async-provider fix and
-the unhandled-rejection fix were checked there too. The overlapping-drop and `download.ts`
-findings were not reproduced and are left open. The other kinds were spot-checked, not all re-read.
+the unhandled-rejection fix were checked there too. The `download.ts` finding was not reproduced and is left open; the overlapping-drop finding
+was fixed in the editor redesign. The other kinds were spot-checked, not all re-read.
 
 ## Summary
 
@@ -41,8 +41,8 @@ findings were not reproduced and are left open. The other kinds were spot-checke
 | [assets.ts](/editor/assets/) | `TileLibrary.svelte:174` and `:183` call `release()` before the delete transition. Undoing the delete brings back a Tile/asset with no stored bytes: `editorProvider` throws, `<Tileset>` draws a hole, and export throws "no attached bytes" | Fixed in 0.8.1: deletes keep the bytes; new ids skip ids the store holds |
 | [ids.ts](/editor/ids/) | "Never reassigned" does not hold for the highest id: scanning for the maximum hands the same id out again once the highest is deleted (remove `op3` from [op1, op2, op3] → next is `op3`), so a new Operation inherits the deleted one's hash channels. The test only deletes a middle id | Accepted in 0.8.1: documented in `ids.ts` and pinned by a test |
 | [download.ts](/editor/download/) | The object URL is revoked immediately after `anchor.click()`; the source asserts this is safe, nothing verifies it | Open: not reproduced |
-| [TileLibrary.svelte](/editor/tile-library/) | `removeAsset` → `deleteAsset` (`document.ts:512`) checks only the asset count, so deleting the only non-zero-weight asset (`[1, 0]` → `[0]`) leaves a Tile whose weights sum to zero: the session then holds a file `validate()` rejects (`ZERO_WEIGHT_SUM`), the state `setAssetWeight` refuses. No test covers it | Fixed in 0.8.1: `deleteAsset` refuses, and the library says so |
-| [TileLibrary.svelte](/editor/tile-library/) | `dropAsTiles` allocates ids before its awaits and `addTiles` does not check for duplicates, so two overlapping drops could produce the same tile id (not reproduced) | Open: confirmed by reading, not reproduced |
+| [TilesSection.svelte](/editor/tiles-section/) (was TileLibrary.svelte) | `removeAsset` → `deleteAsset` (`document.ts:512`) checks only the asset count, so deleting the only non-zero-weight asset (`[1, 0]` → `[0]`) leaves a Tile whose weights sum to zero: the session then holds a file `validate()` rejects (`ZERO_WEIGHT_SUM`), the state `setAssetWeight` refuses. No test covers it | Fixed in 0.8.1: `deleteAsset` refuses, and the library says so |
+| [TilesSection.svelte](/editor/tiles-section/) (was TileLibrary.svelte) | `dropAsTiles` allocates ids before its awaits and `addTiles` does not check for duplicates, so two overlapping drops could produce the same tile id (not reproduced) | Fixed in the editor redesign (Block D): `addGroup` reserves its in-flight tile id, and `nextTileId` skips the reserved set |
 | [App.svelte](/editor/app/) | `failures` is append-only and keyed by its own string (l.876); `onAssetError` is called from inside a derivation, so a repeat failure could produce a duplicate key (not checked at runtime) | Fixed in 0.8.1: a repeat is dropped. Also fixed: a synchronous throw reported from inside the derivation crashed this handler with `state_unsafe_mutation`. Since then fixed in the renderer too: `DrawableCache` reports a failure once, not on every reseed |
 | [ParamControl.svelte](/editor/param-control/) | A slider uses exclusive bounds as its ends and commits without calling `admits`, so it could land on an excluded value (no registered spec triggers this today); same root cause in `affordance.ts` | Fixed in 0.8.1: the slider checks `admits`; since then an exclusive end is inset by one step |
 | [ParamControl.svelte](/editor/param-control/) | The range readout marks only `exclusiveMin` as open (l.46); `exclusiveMax` is shown with `]` | Fixed in 0.8.1: `rangeLabel` in `affordance.ts` |
@@ -120,18 +120,18 @@ findings were not reproduced and are left open. The other kinds were spot-checke
 | [ids.ts](/editor/ids/) | `IDENTIFIER` duplicates the private regex at `packages/tileset/src/validate.ts:99`, so the two can drift | inconsistency |
 | [draft.svelte.ts](/editor/draft/) | Named `.svelte.ts` but holds no rune, and must stay rune-free to remain importable by three test files; the suffix invites a `$state` that would break them | inconsistency |
 | [App.svelte](/editor/app/) | The seed field and tile rename commit on every keystroke, so each keystroke is a separate undo entry | inconsistency |
-| [OperationStack.svelte](/editor/operation-stack/) | The × button's aria-label leaves out the op id, which the other four row buttons include | inconsistency |
-| [OperationDraft.svelte](/editor/operation-draft/) | Under a `constant` Source the control collapses, but a stored `range[1]` stays in the file, hidden | inconsistency |
+| `OperationStack.svelte` (file removed in Block E) | The × button's aria-label leaves out the op id, which the other four row buttons include | inconsistency |
+| `OperationDraft.svelte` (file removed in Block E) | Under a `constant` Source the control collapses, but a stored `range[1]` stays in the file, hidden | inconsistency |
 | [ParamControl.svelte](/editor/param-control/) | `pending` treats empty text as `Number("")` = 0, while `commit` refuses `""` | inconsistency |
 | [ParamControl.svelte](/editor/param-control/) | Dragging the slider leaves stale typed text in the exact-value field until blur | inconsistency |
-| [PaletteBar.svelte](/editor/palette-bar/) | A refused weight edit leaves the refused number in the box; no draft-text model | inconsistency |
-| [PaletteBar.svelte](/editor/palette-bar/) | The weight input has `step="1"`, but weights may be fractional | inconsistency |
+| PaletteBar.svelte (replaced) | A refused weight edit leaves the refused number in the box; no draft-text model | inconsistency. Resolved: PaletteList's weight is a slider that springs back, and the refusal is reported in a Popup |
+| PaletteBar.svelte (replaced) | The weight input has `step="1"`, but weights may be fractional | inconsistency. Resolved: the weight is a slider with `step` 0.01 |
 | [NumericMapping.svelte](/editor/numeric-mapping/) | The `steps` input has no draft-text model, unlike the two range ends | inconsistency |
 | [NumericMapping.svelte](/editor/numeric-mapping/) | Slider step is `/200` here but `/100` in affordance.ts; neither comment mentions the other | inconsistency |
-| [BlendControl.svelte](/editor/blend-control/) | The single-option sentence always talks about palettes, though the branch applies to any target with one accepted Blend (not reachable today) | inconsistency |
-| [PreviewFrame.svelte](/editor/preview-frame/) | `clearReference` resets `yOffset` but not `opacity` or `inFront` | inconsistency |
+| `BlendControl.svelte` (file removed in Block E) | The single-option sentence always talks about palettes, though the branch applies to any target with one accepted Blend (not reachable today) | inconsistency |
+| PreviewFrame.svelte | `clearReference` resets `yOffset` but not `opacity` or `inFront` | inconsistency. Resolved: the reference image was removed in the editor redesign |
 | [PreviewFrame.svelte](/editor/preview-frame/) | `9px` is a CSS literal in three rules as well as `HANDLE = 9` in the script | inconsistency |
-| [ReferenceControls.svelte](/editor/reference-controls/) | The y input has no draft-text model, so an emptied box is not reverted on blur | inconsistency |
+| ReferenceControls.svelte (removed) | The y input has no draft-text model, so an emptied box is not reverted on blur | inconsistency. Resolved: the reference image was removed in the editor redesign |
 | [SelectionOverlay.svelte](/editor/selection-overlay/) | `styleOf`, `vScale` and their 45-line comment are duplicated verbatim in PaintLayer.svelte | inconsistency |
 | [paint.ts](/editor/paint/) | `strandedCells` is exported and tested but never called; App uses `orphans()` instead | dead code |
 | [assets.ts](/editor/assets/) | `measure`, `attach`, `release`, `replaceAll` and `editorProvider` are untested, including `replaceAll`'s URL-revocation ordering | missing test |
@@ -152,10 +152,10 @@ findings were not reproduced and are left open. The other kinds were spot-checke
 | [App.svelte](/editor/app/) | l.886 says "what Step 11 will export"; export exists | stale comment |
 | [NumericInput.svelte](/editor/numeric-input/) | `note`'s comment says it is "used for the destructive three"; its only user is y offset, not one of them | stale comment |
 | [NumericInput.svelte](/editor/numeric-input/) | l.54 refers to "an undo at Step 10"; undo exists | stale comment |
-| [TileLibrary.svelte](/editor/tile-library/) | Header says the palette bar "is Step 6b"; it exists as PaletteBar.svelte | stale comment |
-| [OperationStack.svelte](/editor/operation-stack/) | `onCreate` comment says "Step 6 supplies it"; App.svelte does | stale comment |
-| [OperationDraft.svelte](/editor/operation-draft/) | Comment says "five Targets… four attributes plus tileId"; there are 8 Targets | stale comment |
-| [OperationDraft.svelte](/editor/operation-draft/) | The `draft` prop comment refers to "Step 8's overlay" | stale comment |
+| TileLibrary.svelte (removed) | Header says the palette bar "is Step 6b"; it exists as PaletteBar.svelte | stale comment. Resolved: the file was removed in the editor redesign |
+| `OperationStack.svelte` (file removed in Block E) | `onCreate` comment says "Step 6 supplies it"; App.svelte does | stale comment |
+| `OperationDraft.svelte` (file removed in Block E) | Comment says "five Targets… four attributes plus tileId"; there are 8 Targets | stale comment |
+| `OperationDraft.svelte` (file removed in Block E) | The `draft` prop comment refers to "Step 8's overlay" | stale comment |
 | [PreviewFrame.svelte](/editor/preview-frame/) | l.321 says "Step 7's brush will need it"; the brush exists | stale comment |
-| [ReferenceLayer.svelte](/editor/reference-layer/) | Header says "nothing else names a z-index", but the grab surface has 2 and PreviewFrame's handles 4 | stale comment |
+| ReferenceLayer.svelte (removed) | Header says "nothing else names a z-index", but the grab surface has 2 and PreviewFrame's handles 4 | stale comment. Resolved: the reference image was removed in the editor redesign |
 | [SelectionOverlay.svelte](/editor/selection-overlay/) | The header's E7 statement says geometry "comes from `cellBox`"; the code uses `cellPlacementPercent` | stale comment |

@@ -1,0 +1,51 @@
+---
+title: ui/AddBar.svelte
+description: The black plus button that adds a tile group, an operation or a tile, as a full-width bar or a square.
+sidebar:
+  order: 62
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/AddBar.svelte`.
+
+## Overview
+
+`AddBar` is the black button with a thin white plus that adds something. The full-width bar adds
+a tile group or an operation, at the bottom of those lists. The square version is the size of a
+tile thumbnail and adds a tile inside a tile group.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
+
+<UiPrimitivesStory show="add-bar" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `label` | `string` | required | `aria-label` and `title`. |
+| `onclick` | `(event: MouseEvent) => void` | required | |
+| `variant` | `"bar" \| "square"` | `"bar"` | `bar`: 100% × `--bar-h-add` (32px; 28 in Figma). `square`: `--thumb` × `--thumb` (32px). |
+| `disabled` | `boolean` | `false` | |
+
+### Inputs → outputs
+
+- A `--color-bar` button holding the 18px `plus` icon, centred, in `--color-on-bar`, with a 1px
+  frame in the bar colour. Hover inverts it (paper fill, ink plus and frame, ink focus ring);
+  pressing makes it `--color-pressed` (Block F).
+- It is wrapped in `.on-bar`, so the editor's focus ring is drawn in paper.
+
+### Callers / callees
+
+Callers: `lib/sections/BreakpointsSection.svelte` (Add breakpoint), `lib/sections/TilesSection.svelte`
+(Add tile group), `lib/tiles/TileGroup.svelte` (the square "+"),
+`lib/sections/OperationsSection.svelte` (Add operation), `controls/PaletteList.svelte` (Add entry, which
+opens the tile picker). Callees: `lib/ui/Icon.svelte`.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).

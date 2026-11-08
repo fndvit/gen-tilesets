@@ -166,21 +166,25 @@
     §6.1's "low-opacity rectangle". Low enough that the tile underneath is still
     the thing being judged — the overlay says *which cells*, and the picture says
     what they look like.
+
+    One thin line and a light wash in `--color-selection`, the accent's hue
+    darkened and muted (Pol, N3: the accent itself tinted the pink tiles; a
+    two-tone ink-and-paper edge was too heavy).
   */
   .cell {
     position: absolute;
     box-sizing: border-box;
-    background: rgba(49, 130, 206, 0.18);
-    border: 1px solid rgba(49, 130, 206, 0.45);
+    background: color-mix(in srgb, var(--color-selection) 12%, transparent);
+    border: var(--rule-w) solid color-mix(in srgb, var(--color-selection) 60%, transparent);
   }
 
   .readout {
     position: absolute;
     right: 0;
     top: 100%;
-    margin-top: 0.3rem;
-    font-size: 0.7rem;
-    color: #5a6b80;
+    margin-top: var(--space-2);
+    font-size: var(--text-xs-size);
+    color: var(--color-muted);
     white-space: nowrap;
   }
 </style>

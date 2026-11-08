@@ -1,0 +1,213 @@
+---
+title: PaletteList.svelte
+description: The palette editor for a tile operation. Its shape follows the Pattern - chances under Random, measured coverage under Noise and Gradient, one tile under Constant.
+sidebar:
+  order: 50
+---
+
+import PaletteListStory from "../../../stories/PaletteListStory.svelte";
+
+
+**Written from:** `apps/editor/src/controls/PaletteList.svelte`, `apps/editor/src/controls/palette.ts`,
+`apps/editor/src/controls/palette.test.ts`, and the call site in `lib/operations/OperationBody.svelte`.
+
+## Overview
+
+The palette list appears in the attribute step of an open operation when the author chooses
+Tile (`tileId`), which means the operation places tiles. Its shape follows the operation's
+**Pattern** (the Source), because the Pattern decides what a weight means:
+
+| Pattern | Shape | The % on each row |
+| --- | --- | --- |
+| Random | unnumbered rows, no grip, no Move items | the entry's **chance**, "33%", from the weights |
+| Noise, Gradient, any other | numbered rows, dragged by a grip | the **measured** share of the selected cells, "≈68%" |
+| Constant | one tile, not a palette | none: "every selected cell" |
+
+Measured with three equal weights, Noise paints the middle entry 68–75% and Constant paints only
+the first, so a weight read as a chance would mislead under every Pattern but Random (T0).
+
+Under Random and the ordered Patterns, from top to bottom:
+- **a header**: "Palette", and a muted label at the right, "chance" or "≈ painted";
+- **a proportion strip**: one segment per entry, in order, filled with the tile's picture. Its
+  widths are the same numbers as the rows' %, so the two always agree;
+- **one row per entry**: under an ordered Pattern a grip and its number, then the thumbnail, the
+  name, a weight slider, the %, and a ⋯ menu;
+- **a caption** that says what the % and the order mean under this Pattern;
+- **"Add entry"**, which opens the [tile picker](/editor/tile-picker/).
+
+Under Constant, a 48px thumbnail button that opens the picker, the tile's name and "every
+selected cell". It has no label of its own: the options caption above already reads "Tile", and
+a second one inside the well read as a stutter (Pol, T4). The button's name, "Tile: Beige,
+change", still carries it for a screen reader. When the draft holds other entries, an [Advisory](/editor/ui-advisory/)
+line names them: "Blue and Pink are kept until you save, in case you switch back to a pattern
+that uses a palette."
+
+Under an ordered Pattern the order matters: under Noise neighbouring entries become neighbouring
+regions, and under Gradient the bands follow the list. The author reorders by dragging a row's
+grip, or with the menu's Move earlier and Move later, which is the keyboard path. Clicking a
+thumbnail, or the menu's "Change tile…", opens the picker for that entry.
+
+In the editor's pipeline (import → document → **draft**/history → preview → export), it edits the
+draft's palette. It never touches the document: Save commits the whole draft as one undo step.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone with the docs fixture's tiles and no editor state. The story holds the palette, measures the coverage on a 20×10 grid with `fieldOf` and `coverageOf` (as `OperationBody` does), and prints what `onChange` returns. Switch the Pattern to see the three shapes. The editor's own stylesheet is not loaded here, so it looks plainer than in the app, and the fixture's tiles have no stored pictures, so thumbnails are grey.
+
+<PaletteListStory client:only="svelte" />
+
+## In detail
+
+### Purpose
+
+The component edits a [`PaletteEntry`](/api/index/interfaces/paletteentry/)`[]` and reports each
+change through `onChange`. The header comment gives the history. A Tile's asset list is sorted by
+id so that dragging cannot reshuffle the canvas, while a palette's order is authored and
+significant (cited as **O6**): "two adjacent lists in the same editor, with opposite rules". §7.6
+first answered that with a single segmented bar. The bar was hard to grasp, so the entries are
+rows again. Under an ordered Pattern the strip, the numbers and the grip show that order
+matters; under Random none of them is drawn, because there is no order to show.
+
+The component is presentational: it does not measure. `OperationBody` computes the coverage and
+passes it in.
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `palette` | `PaletteEntry[]` | required | The entries, in authored order. |
+| `tiles` | [`Tile`](/api/index/interfaces/tile/)`[]` | required | The library, for names, thumbnails and the picker. |
+| `sourceType` | `string \| null` | required | The draft's Pattern, which picks the shape: `random`, `constant`, or anything else (ordered). |
+| `coverage` | `number[] \| null` | `null` | Each entry's measured share, 0–1, by index. `null` shows "—". Read only under an ordered Pattern. |
+| `onChange` | `(palette: PaletteEntry[]) => void` | required | Receives the whole new palette. |
+
+### The rules: `palette.ts`
+
+The rules live outside the component so they can be tested. Each edit returns the next palette,
+or a refusal reason.
+
+| Function | Returns | Refused when |
+| --- | --- | --- |
+| `move(list, from, to)` | the list with one item moved; generic, so the row keys move the same way | never: out of range or unchanged returns `list` itself |
+| `add(palette, tileId)` | the palette with `{ tileId, weight: 1 }` at the end | never |
+| `remove(palette, index)` | `Edit` | `last-entry` (none left) or `last-weight` (the rest all zero) |
+| `setWeight(palette, index, weight)` | `Edit` | `last-weight`; a negative or non-finite weight is ignored |
+| `setTile(palette, index, tileId)` | the palette with that entry's tile changed | never |
+| `shares`, `percents` | each entry's share of the weights, 0–1 or a rounded % (Random's chances) | |
+| `sliderMax(palette)` | 2, or the largest weight if that is more | |
+| `constantEntry(palette)` | the index Constant paints: the first entry with a weight above zero | |
+| `entryIndex(palette, t)` | the index `t` lands on: `applyTileMapping`'s walk, copied to answer with an index | |
+| `fieldCells(config, operationId, seed, loadSalt)` | `{ x, y, t }` for every selected cell, in reading order: the Pattern's value and where it is | also the Pattern well's [field preview](/editor/field-preview/) |
+| `fieldOf(config, operationId, seed, loadSalt)` | `fieldCells(…)`'s `t`s alone | |
+| `coverageOf(field, palette)` | each entry's share of the field, 0–1; all zeros for an empty field | |
+| `coverage(config, operationId, seed, loadSalt)` | `coverageOf(fieldOf(…))` for an Operation with a palette | |
+| `keptText(palette, tiles, shown)` | Constant's line naming the other entries, or `null` | |
+| `paintedTiles(config)` | the tile ids any palette names (clear skipped) | App's asset-failure filter for a discarded draft |
+| `thumbOf(tiles, tileId)`, `nameOf(tiles, tileId)` | the thumbnail (also used by [OperationCard](/editor/operation-card/)) and the name | |
+
+`REFUSALS` holds the Popup's words for each reason.
+
+#### How the coverage is measured
+
+`fieldOf` uses only the package's exports, the way `generate()` does: the predicate from
+[`selection`](/api/index/functions/selection/), and the Source through `evalSource` against
+`operationCtx` with `effectiveSeeds(seed, loadSalt)`. `coverageOf` then counts each `t` into an
+entry with `entryIndex`'s walk, reading the palette once rather than per cell: the palette is the
+draft's `$state` proxy, and reading it per cell cost ~14 ms a drag move on a 61×120 grid (T4;
+0.1 ms after). It counts by **index**, not by tile id, because two entries can name the
+same tile (or both be clear), and counting the engine's answers could not tell their shares apart.
+
+`OperationBody` feeds it the **shadow config** (`shadowConfig` in
+[draft.svelte.ts](/editor/draft/)), the same one the Selection overlay draws, on the grid the
+preview is showing (the active breakpoint's rows and columns at `preview.width`), with
+`config.defaultSeed` and `preview.loadSalt`. So the figure is what Save will paint at that width,
+seed and load. The field does not read the palette, so a weight drag only recounts it.
+
+### Inputs → outputs
+
+- **Strip:** `aria-hidden`, read-only. A segment's `flex-grow` is its share: the chance under
+  Random, the measured share under an ordered Pattern (the weights until something is measured).
+  Its background is the tile's first asset, repeated along the strip. Clear is the slashed square,
+  a missing picture is field grey, and a zero share (a zero weight, or an entry that paints no
+  cell) is a `--strip-zero` ink tick. The row under the pointer, holding focus or being dragged
+  rings its segment in the accent.
+- **Rows:** an `<ol aria-label="Palette, in order">` under an ordered Pattern, a
+  `<ul aria-label="Palette">` under Random. Each row is keyed by a local key, not its index, so a
+  moved row keeps its DOM and its focus. The grip is `aria-hidden` and pointer only. The thumbnail
+  is a button, "Tile of entry 2: Blue, change". The weight is a [Slider](/editor/ui-slider/),
+  "Weight of entry 2, Blue", from 0 to `sliderMax`. The ⋯ [Menu](/editor/ui-menu/) holds Change
+  tile…, Move earlier, Move later and Remove; under Random, only Change tile… and Remove.
+- **The %:** "33%" under Random; "≈68%" under an ordered Pattern (`--share-measured-w`, 48px), or
+  "—" when `coverage` is `null`.
+- **Weight:** `onInput` applies a weight live unless it would leave every weight at zero.
+  `onCommit` applies it, or reports `last-weight` in a [Popup](/editor/ui-popup/), and the slider
+  springs back to the palette's value.
+- **Drag:** `pointerdown` on a grip captures the pointer on the list, which stays put while the
+  rows move. `pointermove` swaps the dragged row with a neighbour once the pointer crosses that
+  row's middle. The dragged row is lifted (white, `--shadow-float`).
+- **Remove:** refused reasons go to the Popup. After a removal, focus goes to the next row's menu,
+  or to "Add entry" after the last row.
+- **Add and change:** both open the [tile picker](/editor/tile-picker/). After a pick, focus goes
+  to that entry's thumbnail (Constant's one button under Constant).
+- **Caption:** Random: "Each cell picks a tile at random. The % is each tile's chance." Noise:
+  "Order matters: neighbours in this list meet on the canvas. Middle entries cover more because
+  noise rarely reaches its ends. Give the first and last entries more weight to even it out."
+  (item 12; the longer why is the "How noise works" popover on the Pattern step.) Gradient: "Order
+  matters: the bands follow this list from one side to the other. ≈ is what each one paints with
+  this seed." Any other Pattern: "Order matters: neighbours in this list meet on the canvas. ≈ is
+  what each one paints with this seed." No Pattern yet: "Choose a pattern to see what each entry
+  paints."
+- **Narrow:** the root is an inline-size container. Under 250px the rows' gaps go to `--space-2`
+  and the header's right-hand label is hidden.
+
+### Invariants
+
+- **Order is authored and never sorted.** Only `move` changes the sequence.
+- **`null` is an ordinary entry** meaning *clear this cell*. It is the picker's first cell and is
+  not a Tile in the library.
+- **At least one entry, and a total above zero** (`06` §7.3), or nothing can ever win the walk.
+  Both are refused after the attempt, never by disabling a control.
+- **Zero weight is legal**, meaning "listed but never chosen", and stays visible: a tick on the
+  strip, and a full row with 0% (or ≈0%).
+- **The strip and the % always show the same numbers.**
+- **Under Constant the list is not lost.** The draft keeps every entry; only Save writes the one
+  shown (`mappingOf`), so switching the Pattern back before Save restores the list.
+
+### Callers / callees
+
+| Caller | Use |
+| --- | --- |
+| `lib/operations/OperationBody.svelte` | `palette={draft.palette}`, `tiles={session.file.config.tiles}`, `sourceType={draft.sourceType}`, `coverage={measured}`, writes `draft.palette` |
+
+Callees: `controls/palette.ts`, [TilePicker](/editor/tile-picker/), [Slider](/editor/ui-slider/),
+[Menu](/editor/ui-menu/), [Popup](/editor/ui-popup/), [AddBar](/editor/ui-add-bar/),
+[Advisory](/editor/ui-advisory/), [Icon](/editor/ui-icon/).
+
+### Tests
+
+`controls/palette.test.ts` covers every refusal, the moves at both ends, the zero-weight rules,
+percentages, the slider's top, names, `constantEntry`, `keptText`, and the coverage:
+`entryIndex` matches `applyTileMapping` cell by cell under Random, Noise, Gradient and Constant
+(the **parity test**, which fails if the copied walk drifts from the engine's); two entries naming
+one tile keep their own shares; Random lands near the weight shares on a 60×60 grid; Noise gives
+the middle entry the most; Constant gives every cell to the first non-zero entry; a zero weight
+gets nothing; an empty selection gives all zeros; `coverageOf` matches the engine's own answers,
+counted by tile id, under a diagonal Gradient with zero weights and `t = 1`. `draft.test.ts` pins Constant's one-entry save.
+`controls/mapping.test.ts` pins the palette's surroundings in the draft: changing Target away
+from `tileId` and back keeps the palette, and an empty or all-zero palette makes the draft
+incomplete.
+
+### Gotchas & rejected alternatives
+
+- **The bar (until Stage 2).** One bar segmented by weight, with an editor under it for the
+  selected entry. It was rejected because an entry was not visible as an entry, the controls
+  edited one you could not see beside them, and the weight was a bare number.
+- **Stepper circles on the rows (K1 variant A).** They read well as a sequence, but they repeated
+  the operation's own stepper one level down. The rows use mono numbers instead.
+- **Advisory 8 (a palette reordered under `random`), retired in T3.** Under Random there is no
+  order to change, so there is nothing to warn about.
+- **Threshold labels under the strip (K3), removed in T3.** They placed the band edges by weight,
+  which under Noise is not where the canvas changes; the measured strip replaced them (T1, 3b).
+- **One % for every Pattern.** It read as a chance everywhere, which is right only under Random.
+- **The pointer is captured on the list, not the grip.** A keyed row that moves is reinserted,
+  which would drop a capture held by its grip.

@@ -6,7 +6,7 @@ sidebar:
 ---
 
 **Written from:** `apps/editor/src/reseed.ts`, `reseed.test.ts`, and the call sites in
-`document.ts`, `App.svelte` and `lib/OperationStack.svelte`.
+`document.ts`, `App.svelte` and `lib/operations/OperationBody.svelte`.
 
 ## Overview
 
@@ -52,7 +52,6 @@ The fourth writes no field, so it lives in editor state and reaches `<Tileset>` 
 | `SALT_MODULUS` | `2 ** 32` | Salts are integers in `[0, 2³²)`. |
 | `nextSalt(salt)` | `(number \| undefined) → number` | `((salt ?? 0) + 1) % 2³²` |
 | `isStochastic(sourceType)` | `(string) → boolean` | [`sources`](/api/index/variables/sources/)`.get(type).stochastic` |
-| `offersReseedOnLoad(op)` | `(Operation) → boolean` | Whether to show the per-Operation checkbox. |
 | `inertFlags(config)` | `(TilesetConfig) → Operation[]` | Operations flagged `reseedOnLoad` over a non-stochastic Source. |
 | `loadVaries(config)` | `(TilesetConfig) → boolean` | Whether a fresh `loadSalt` could change anything. |
 | `drawLoadSalt()` | `() → number` | `Math.floor(Math.random() * 2³²)` |
@@ -62,7 +61,6 @@ The fourth writes no field, so it lives in editor state and reaches `<Tileset>` 
 - **`nextSalt`** treats an absent salt as `0` and **wraps** at `2³² - 1 → 0`.
 - **`isStochastic`** reads the registry declaration. An unregistered type therefore throws from
   `sources.get`, which is the registry's behaviour, not this module's.
-- **`offersReseedOnLoad(op)`** is `isStochastic(op.source.type)`.
 - **`inertFlags`** filters `reseedOnLoad === true && !isStochastic(source.type)`.
 - **`loadVaries`** is `reseedAssetsOnLoad === true || some(op.reseedOnLoad === true)`. It asks the
   *flags*, not the Sources: a flag over a non-stochastic Source still moves that Operation's
@@ -93,7 +91,6 @@ The fourth writes no field, so it lives in editor state and reaches `<Tileset>` 
 | `App.svelte:186` | `loadVaries(config)`, which enables the load-preview button (`:722`) |
 | `App.svelte:187` | `inertFlags(config)` for the advisory |
 | `App.svelte:722` | `loadSalt = drawLoadSalt()` |
-| `lib/OperationStack.svelte:221` | `offersReseedOnLoad(op)` gates the checkbox |
 
 `isStochastic` is used only inside this module (`:68`, `:84`). `SALT_MODULUS` is used inside this
 module and in `reseed.test.ts`.
@@ -106,10 +103,7 @@ Callees: [`sources`](/api/index/variables/sources/) from the engine; `Math.rando
   values.
 - **Reroll transitions** (from `document.ts`). One Operation's salt moves and others do not.
   `rerollAssets` disturbs no Operation. Neither touches the seed or layout.
-- **Offered from the registry.** Offered for `random` and `valueNoise`, withheld for `constant`
-  and `gradient`, and a boolean for every registered Source.
-- **Reported, not cleared.** `inertFlags` names the flagged non-stochastic Operation, and
-  `setReseedOnLoad` still writes the flag.
+- **Reported, not cleared.** `inertFlags` names the flagged non-stochastic Operation.
 - **`loadVaries`.** False with no flags, true with any Operation flag, true with only the asset
   flag, and true for a flag over a non-stochastic Source (while `inertFlags` also reports it).
 - **`drawLoadSalt`.** Over many draws it is an integer in `[0, 2³²)`, and it draws more than one
@@ -125,4 +119,6 @@ Callees: [`sources`](/api/index/variables/sources/) from the engine; `Math.rando
 
 ### Review notes
 
-None found.
+- **`offersReseedOnLoad` was removed in Block F.** Block E moved the reseed-on-load control into
+  the Source step of [OperationBody](/editor/operation-body/), a toggle on the draft shown when
+  the draft's Source is stochastic, so only tests still called it.

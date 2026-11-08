@@ -1,0 +1,72 @@
+---
+title: ui/Popup.svelte
+description: A closable modal popup for a report the author has to read after an action, or a question with its own buttons, such as unsaved changes.
+sidebar:
+  order: 75
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Popup.svelte`.
+
+## Overview
+
+`Popup` shows a report that follows something the author just did: an import that was refused,
+or an export that failed. It opens over the
+page, takes no space in the layout, and closes with its Close button or Esc. Pol decided on
+2026-11-04 that such reports never take space in the sidebar footer.
+
+A popup can also ask a question. Then it shows its own buttons in place of Close, as the
+Operations section does for "Unsaved changes" ("Keep editing" or "Discard").
+
+`Dialog` is built on it, for a question that interrupts (Stage 2 W2). Notices that block nothing
+are `Notice`, not a popup.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
+
+<UiPrimitivesStory show="popup" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `title` | `string` | required | The bar's heading, and the dialog's accessible name. |
+| `open` | `boolean` (bindable) | `false` | Shows it with `showModal()`, hides it with `close()`. |
+| `onClose` | `() => void` | none | Called once however it closes: Esc, the button, or `open = false`. |
+| `children` | `Snippet` | required | The report. |
+| `actions` | `Snippet<[() => void]>` | none | Buttons in place of Close, for a popup that asks something. Receives `close`, so a choice can act and then close the dialog. |
+| `alert` | `boolean` | `false` | Sets `role="alertdialog"`, for a question that interrupts. `Dialog` passes it. |
+| `closable` | `boolean` | `false` | A ✕ (`IconButton`, "Close") at the bar's right, for a Form popup. |
+| `initialFocus` | `() => HTMLElement \| null \| undefined` | none | Called right after `showModal()`; focuses what it returns. A Form popup starts on its first field, not on the ✕ that comes first in the DOM. |
+
+### Inputs → outputs
+
+- A native `<dialog>` opened with `showModal()`, so focus moves in, Esc closes it, and the page
+  behind is inert. The dialog's `close` event sets `open = false` and calls `onClose`.
+- A white panel, radius 12, on `--shadow-float`, with no frame and no bar: the title in
+  `.t-section`, a scrolling body, and an actions row. At most 480px wide and the viewport's
+  height, on a backdrop of ink at 24%.
+- The actions row renders `actions(close)` when given, otherwise a Close `Button`. It is
+  right-aligned, with `--space-4` between buttons. `close` calls `dialog.close()`, so `onClose`
+  still runs once.
+- It sets `margin: auto` itself, so it stays centred on a page whose reset zeroes every margin
+  (Starlight's docs site).
+- It carries `.theme-default`, so a popup opened from inside the inverted footer is still drawn
+  on paper (`tokens.css`).
+
+### Callers / callees
+
+Callers: `lib/ImportPanel.svelte` (refusals only), `lib/sections/SidebarTopBar.svelte` (export
+failure only), `lib/sections/TilesSection.svelte` (refusals only; files that do not attach are a
+failure notice since Stage 2 W5), `controls/PaletteList.svelte` (refusals: the last entry, the
+last non-zero weight), `lib/ui/Dialog.svelte` (`actions` and `alert`), and `lib/sections/ExportImage.svelte` (a Form
+popup: `actions`, `closable`, `initialFocus`). Callees: `lib/ui/Button.svelte`,
+`lib/ui/IconButton.svelte`.
+
+### Tests
+
+None (the vitest config cannot load `.svelte`).

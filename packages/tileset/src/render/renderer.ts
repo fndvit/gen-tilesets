@@ -98,7 +98,6 @@
 import { DEV } from "../dev.js";
 import type { TileState, TilesetFile } from "../types.js";
 import { FlipFlop, inertCellSizeRules } from "./breakpoints.js";
-import { coverRect } from "./edges.js";
 import { ImageBank, NaturalSizeChecks } from "./images.js";
 import { currentDpr, observeDpr, scopeOf, track, WRAPPER_ATTRIBUTE, type Measurement } from "./measure.js";
 import {
@@ -112,6 +111,7 @@ import {
 } from "./model.js";
 import type { OcclusionMask } from "./occlusion.js";
 import { copyOptions, type NormalizedTargets, type TilesetOptions } from "./options.js";
+import { drawItems } from "./paint.js";
 import {
   assetKey,
   loadBlocked,
@@ -873,49 +873,25 @@ export class TilesetRenderer {
     // over the page. See the model's `pending`.
     if (now.pending) return;
 
-    const hidden = now.mask;
-    const ready = this.#bank.ready;
-    for (const item of now.items) {
-      // Hidden by the keep-out mask: the same outcome as R3's missing drawable,
-      // reached for a different reason.
-      if (hidden !== null && hidden[item.index] === 1) continue;
-      const img = ready.get(item.key);
-      // R3 -- a cell with no drawable draws nothing. No placeholder, and not a
-      // sibling TileAsset, which would silently reweight D3's distribution.
-      if (img === undefined) continue;
-
-      if (DEV) {
-        // Keyed on the asset alone, so a resize drag does not repeat it per step.
-        const ref = parseAssetKey(item.key);
-        if (ref !== null) {
-          this.#warnings.say(
-            item.key,
-            assetTooSmall(ref.tileId, ref.assetId, img.naturalWidth, img.naturalHeight, u.cellDev),
-          );
-        }
-      }
-
-      // R8 -- the destination is square, so a non-square source is centre-cropped
-      // exactly as `object-fit: cover` would crop it.
-      const { sx, sy, sw, sh } = coverRect(img.naturalWidth, img.naturalHeight, item.side, item.side);
-      if (sw <= 0 || sh <= 0) continue;
-
-      const alpha = item.alpha;
-      const m = item.matrix;
-
-      if (m === null && alpha >= 1) {
-        // The common case: an axis-aligned blit onto whole device pixels.
-        ctx.drawImage(img, sx, sy, sw, sh, item.dx, item.dy, item.side, item.side);
-        continue;
-      }
-
-      ctx.save();
-      if (alpha < 1) ctx.globalAlpha = alpha;
-      // D11 / R7 -- built about the cell's own centre; R9 -- the box clips.
-      if (m !== null) ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
-      ctx.drawImage(img, sx, sy, sw, sh, item.dx, item.dy, item.side, item.side);
-      ctx.restore();
-    }
+    // The tile loop is shared with `renderImage` (`./paint.ts`).
+    drawItems(
+      ctx,
+      now.items,
+      this.#bank.ready,
+      now.mask,
+      DEV
+        ? (item, img) => {
+            // Keyed on the asset alone, so a resize drag does not repeat it per step.
+            const ref = parseAssetKey(item.key);
+            if (ref !== null) {
+              this.#warnings.say(
+                item.key,
+                assetTooSmall(ref.tileId, ref.assetId, img.naturalWidth, img.naturalHeight, u.cellDev),
+              );
+            }
+          }
+        : undefined,
+    );
   }
 
   // ------------------------------------------------------------------ dom ---

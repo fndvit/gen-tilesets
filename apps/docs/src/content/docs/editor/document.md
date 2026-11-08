@@ -7,8 +7,8 @@ sidebar:
 
 **Written from:** `apps/editor/src/document.ts`, `document.test.ts`, `library.test.ts`,
 `rules.test.ts`, `reseed.test.ts`, `history.test.ts`, and the call sites in `App.svelte`,
-`lib/TileLibrary.svelte`, `lib/OperationStack.svelte`, `lib/OperationDraft.svelte` and
-`session.svelte.ts`.
+`lib/sections/TilesSection.svelte`, `lib/sections/OperationsSection.svelte`,
+`lib/operations/OperationBody.svelte` and `session.svelte.ts`.
 
 ## Overview
 
@@ -56,7 +56,8 @@ touch no derivation.
 `setDefaultSeed(text)` trims and refuses an empty result. `rerollSeed()` writes a fresh
 `memorableSeed()` ([seed.ts](/editor/seed/)). `rerollOperation(id)` and `rerollAssets()` increment
 a salt with `nextSalt` ([reseed.ts](/editor/reseed/)), which wraps at 2³².
-`setReseedOnLoad(id, on)` and `setReseedAssetsOnLoad(on)` write the flags unconditionally.
+`setReseedAssetsOnLoad(on)` writes the asset flag unconditionally. The per-Operation flag has no
+transition of its own: it is committed with the rest of the Operation by `replaceOperation`.
 
 #### Tile library
 
@@ -89,16 +90,18 @@ returns no errors.
 | `rerollSeed()` | `→ Transition` | never |
 | `rerollOperation(id)` | `→ Transition` | never (an unknown id is a no-op map) |
 | `rerollAssets()` | `→ Transition` | never |
-| `setReseedOnLoad(id, on)` | `→ Transition` | never |
 | `setReseedAssetsOnLoad(on)` | `→ Transition` | never |
 | `TileReference` | `{ operationId, entry }` | n/a |
 | `tileReferences(file, tileId)` | `→ TileReference[]` | n/a |
 | `addTiles(tiles)` | `→ Transition` | `tiles` empty |
 | `addAssets(tileId, assets)` | `→ Transition` | `assets` empty |
-| `renameTile(tileId, name)` | `→ Transition` | never, including empty or duplicate names |
+| `renameTile(tileId, name)` | `→ Transition` | another Tile has the name (`tileNameTaken`: trimmed, case-insensitive). Empty is allowed. Overrides `09` §10.1 (Pol, Block D) |
+| `tileNameTaken(file, name, exceptId?)` | `→ boolean` | — (query) |
+| `uniqueTileName(file, name)` | `→ string` | — `name`, else `name 2`, `name 3`… |
 | `deleteTile(tileId)` | `→ Transition` | any palette references the Tile |
 | `deleteAsset(tileId, assetId)` | `→ Transition` | Tile unknown; it has `<= 1` asset; remaining weights sum `<= 0` |
 | `setAssetWeight(tileId, assetId, text)` | `→ Transition` | text not `>= 0`; Tile unknown; new sum `<= 0` |
+| `resetAssetWeights(tileId)` | `→ Transition` | Tile unknown, or every weight already 1 (identity, so no undo entry) |
 | `addOperation(op)` | `→ Transition` | rules present and result invalid |
 | `removeOperation(id)` | `→ Transition` | no Operation has that id |
 | `replaceOperation(op)` | `→ Transition` | rules present and result invalid |
@@ -175,9 +178,9 @@ index is an argument: the subject is named by id, but a destination has no id.
   elsewhere.
 - **The seed is trimmed** because the engine hashes the string, and `"sunset "` and `"sunset"`
   would be two different pictures.
-- **`setReseedOnLoad` writes whatever it is asked.** Hiding the control over a non-stochastic
-  Source is the view's job (`offersReseedOnLoad`). Refusing here would be the silent clearing the
-  source forbids.
+- **The `reseedOnLoad` flag is written whatever the Source.** Hiding the control over a
+  non-stochastic Source is the view's job (`OperationBody`'s `stochastic` check). Refusing would
+  be the silent clearing the source forbids.
 
 ### Callers / callees
 
@@ -190,9 +193,12 @@ index is an argument: the subject is named by id, but a destination has no id.
 | `App.svelte:526-565` | `moveRule`, `removeRule`, `setRuleField`, `removeRuleField`, `addRuleField`, `addRule` |
 | `App.svelte:679`, `:681`, `:695`, `:703` | `setDefaultSeed`, `rerollSeed`, `rerollAssets`, `setReseedAssetsOnLoad` |
 | `App.svelte:346` | `ENGINE_VERSION` shown in the header |
-| `lib/TileLibrary.svelte:108`, `:128`, `:168`, `:178`, `:187`, `:196`, `:251` | `addTiles`, `addAssets`, `tileReferences`, `deleteTile`, `deleteAsset`, `setAssetWeight`, `renameTile` |
-| `lib/OperationStack.svelte:153`, `:163`, `:193`, `:202`, `:226` | `moveOperation`, `rerollOperation`, `removeOperation`, `setReseedOnLoad` |
-| `lib/OperationDraft.svelte:171` | `replaceOperation` or `addOperation` on commit |
+| `lib/sections/TilesSection.svelte:73`, `:80`, `:102`, `:112`, `:127`, `:133`, `:174` | `addTiles`, `addAssets`, `tileReferences`, `deleteTile`, `deleteAsset`, `setAssetWeight` (weight passed as `String(weight)`), `renameTile`, `resetAssetWeights` |
+| `lib/sections/OperationsSection.svelte:92`, `:110`, `:112`, `:113` | `rerollOperation`, `removeOperation`, `moveOperation` |
+| `lib/operations/OperationBody.svelte:257` | `replaceOperation` or `addOperation` on commit |
+
+`setReseedOnLoad` was removed in Block F: since Block E the flag is a toggle on the draft,
+committed with the rest of the Operation by `replaceOperation`, and only a test called it.
 
 Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseReferenceWidth`,
 `parseYOffset`, `parseWeight`, `RULE_PARSERS` (`fields.ts`); `nextSalt` (`reseed.ts`);
@@ -210,8 +216,8 @@ Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseRefe
   admitted, and `"1."` commits as 1. The parsers and transitions agree on every sample text. For
   the seed: whatever is typed is written, empty is refused, it is trimmed, and nothing else is
   touched.
-- **`library.test.ts`** (tile library and operation stack). Appends, rename never blocked (even to
-  `""` or a duplicate), `tileReferences` ignores numeric targets. The refusals: referenced
+- **`library.test.ts`** (tile library and operation stack). Appends, rename refused to another Tile's
+  name in any case (allowed to `""` and to its own name in another case), `uniqueTileName` numbering, `tileReferences` ignores numeric targets. The refusals: referenced
   `deleteTile`, last-asset `deleteAsset`, last-weighted-asset `deleteAsset`, last non-zero
   weight, a weight the schema rejects. Every
   refusal is `toBe` identity. Operations append, keep order, are removed by id, are returned
@@ -226,8 +232,7 @@ Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseRefe
   while a rule resizes, and allowed once none does; `setCellSize` is refused when it would break
   a rule's bleed.
 - **`reseed.test.ts`.** `rerollOperation` moves one salt only, `rerollAssets` moves no Operation,
-  and neither touches the seed or layout. `setReseedOnLoad` writes the flag even over a
-  non-stochastic Source.
+  and neither touches the seed or layout.
 - **`history.test.ts`** uses the layout transitions to exercise undo.
 
 ### Gotchas & rejected alternatives
@@ -253,7 +258,7 @@ Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseRefe
   stale. (stale comment)
 - Several transitions build a new object even when nothing changes: `setRows` to the current
   value, `setDefaultSeed` with the same trimmed text, `setHorizontalAlignment` to the current
-  alignment, `rerollOperation`/`setReseedOnLoad` with an unknown id, and `renameTile` to the
+  alignment, `rerollOperation` with an unknown id, and `renameTile` to the
   same name. `session.apply` compares by reference, so each pushes an undo entry that undoes to
   an identical file. Two consequences show in the UI. `App.svelte:679` applies `setDefaultSeed`
   on every `oninput`, so typing a trailing space pushes a no-op entry. `App.svelte:480` lets the

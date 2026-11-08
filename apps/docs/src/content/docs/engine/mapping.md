@@ -6,7 +6,7 @@ sidebar:
 ---
 
 **Written from:** `packages/tileset/src/mapping.ts`, `mapping.test.ts`, and the call sites in
-`generate.ts`, `apps/editor/src/draft.svelte.ts` and `apps/editor/src/controls/PaletteBar.svelte`.
+`generate.ts`, `apps/editor/src/draft.svelte.ts` and `apps/editor/src/controls/palette.ts`.
 
 ## Overview
 
@@ -78,9 +78,9 @@ legal answer meaning *clear this cell*.
 | Symbol | Caller |
 | --- | --- |
 | `isTileMapping` | `generate.ts:129`, `:136`; `apps/editor/src/draft.svelte.ts:333`, `:336` |
-| `applyTileMapping` | `generate.ts:130` |
+| `applyTileMapping` | `generate.ts:130`; its walk is copied as `entryIndex` in `apps/editor/src/controls/palette.ts`, pinned to it by a parity test |
 | `applyNumericMapping` | `generate.ts:138` |
-| `paletteTotal` | `apps/editor/src/draft.svelte.ts:210`; `apps/editor/src/controls/PaletteBar.svelte:35`, `:107`, `:124` |
+| `paletteTotal` | `apps/editor/src/draft.svelte.ts:210`; `apps/editor/src/controls/palette.ts` (`checked`, `shares`, `entryIndex`) |
 
 No callees beyond types.
 

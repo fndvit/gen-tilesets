@@ -1,123 +1,84 @@
 <!--
-  A collapsible sidebar panel.
+  A sidebar section: a header over its content, folding.
 
   `09` §2 sends "visual design, layout of panels" to *nowhere*, and §3.1 repeats
   it: "Panel layout is not specified anywhere and deliberately so." So this
-  component carries no obligation — it is the sidebar's one panel shell, and the
-  reason it exists is that `.panel` and the `h2` treatment were previously
-  duplicated verbatim across four components.
+  component carries no obligation. The bar, the chevron and the disclosure
+  semantics are `ui/Collapsible`'s, and so is the white panel an open section
+  becomes; this adds only the content padding, which lines the fields up with
+  the header's title.
 
-  **The collapsed state is transient and lives here.** `09` §12 lists persisted
-  editor state — collapsed panels among them — as `[POSTPONED]`, and **E4**
-  forbids `meta` as the place to put it. So it is a rune in this component,
-  per-session, and it neither reads nor writes the file.
+  It sets no gap between rows; each body sets its own (6px between fields and
+  between nested groups).
+
+  `summary` is the line a closed section shows under its title, built by the
+  section from values it already holds ("25 px · 14 rows · 720 wide").
+
+  `onAdd` puts a "+" in the header for a section that holds a list
+  (breakpoints, tiles, operations), so adding never needs a scroll to the end of
+  the list; it opens the section too, so the new item is in view. `reveal` opens
+  it from outside: the orphan notice's "Open op-2" (Stage 2 W4).
+
+  **The collapsed state is transient.** `09` §12 lists persisted editor state,
+  collapsed panels among them, as `[POSTPONED]`, and **E4** forbids `meta` as
+  the place to put it. So it lives in `Collapsible`, per session, and neither
+  reads nor writes the file.
+
+  There is no destructive look. A section whose edits can damage work is
+  protected by the confirmation gate in `App.svelte` (§9.3), not by its colour.
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import Collapsible from "./ui/Collapsible.svelte";
+  import IconButton from "./ui/IconButton.svelte";
 
   interface Props {
-    /** Shown in the header, uppercased by the style. */
     title: string;
-
-    /**
-     * The *initial* state only. Nothing writes back to it, because there is
-     * nowhere to persist it to (see above).
-     */
+    /** The *initial* state only. Nothing writes back to it (see above). */
     open?: boolean;
-
-    /** §9.2's design principle made visible: the destructive panel looks it. */
-    destructive?: boolean;
-
+    /** A muted line shown while closed, from values the section already holds. */
+    summary?: string | undefined;
+    /** Adds an item to the section's list, from a "+" in the header. */
+    onAdd?: (() => void) | undefined;
+    /** The "+" button's name: "Add breakpoint". */
+    addLabel?: string | undefined;
+    /** A counter: each change unfolds the section (something outside asked to show an item in it). */
+    reveal?: number;
     children: Snippet;
   }
 
-  let { title, open = true, destructive = false, children }: Props = $props();
+  let { title, open = true, summary, onAdd, addLabel, reveal = 0, children }: Props = $props();
 
-  // Capturing the initial value is the intent: `open` seeds the state once and
-  // is never read again, because a later change to it would reopen a panel the
-  // author had just closed.
+  // `open` seeds the state once. A later change to the prop would reopen a
+  // section the author had just closed.
   // svelte-ignore state_referenced_locally
   let expanded = $state(open);
+
+  $effect(() => {
+    if (reveal > 0) expanded = true;
+  });
 </script>
 
-<section class="panel" class:destructive>
-  <!--
-    An `<h2>` wrapping the button rather than the other way round: the heading
-    has to stay a heading for the sidebar's outline, and the button is what
-    carries the disclosure semantics. Same shape as `controls/BlendControl`'s
-    `button.disclose`.
-  -->
-  <h2 class:closed={!expanded}>
-    <button
-      type="button"
-      class="head"
-      aria-expanded={expanded}
-      onclick={() => (expanded = !expanded)}
-    >
-      {title}
-      <!-- Down when collapsed, up when expanded. Decorative — `aria-expanded`
-           is what a screen reader reads. -->
-      <span class="chev" aria-hidden="true">{expanded ? "▲" : "▼"}</span>
-    </button>
-  </h2>
+{#snippet add()}
+  <IconButton
+    icon="plus"
+    label={addLabel ?? `Add to ${title}`}
+    onclick={() => {
+      expanded = true;
+      onAdd?.();
+    }}
+  />
+{/snippet}
 
-  {#if expanded}
-    <div class="body">
-      {@render children()}
-    </div>
-  {/if}
-</section>
+<Collapsible {title} {summary} variant="section" bind:open={expanded} actions={onAdd ? add : undefined}>
+  <div class="content">
+    {@render children()}
+  </div>
+</Collapsible>
 
 <style>
-  .panel {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 1rem;
-  }
-
-  .destructive {
-    border-color: #e0b062;
-  }
-
-  h2 {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #5a6b80;
-    margin: 0 0 0.75rem;
-  }
-
-  /* Collapsed, the header is the whole panel, so it carries no gap below it. */
-  h2.closed {
-    margin-bottom: 0;
-  }
-
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0;
-    background: none;
-    border: 0;
-    font: inherit;
-    letter-spacing: inherit;
-    text-transform: inherit;
-    color: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .head:hover {
-    color: #1a202c;
-  }
-
-  .chev {
-    font-size: 0.6rem;
-    line-height: 1;
-    color: #a0aec0;
+  /* Under the header's ink rule: room on every side, the fields lined up with the title. */
+  .content {
+    padding: var(--space-6) var(--space-7) var(--space-7);
   }
 </style>

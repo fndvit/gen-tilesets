@@ -1,0 +1,62 @@
+---
+title: ui/Toggle.svelte
+description: A set of chips where exactly one is chosen, as a radio group. The Figma Boolean input.
+sidebar:
+  order: 65
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Toggle.svelte`.
+
+## Overview
+
+`Toggle` is a row of small outlined chips where exactly one is chosen, and the chosen one is
+filled black. It is used for Alignment (Column or Gutter) in Grid & Size, and for any short list
+of choices. Choosing a chip takes effect immediately.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
+
+<UiPrimitivesStory show="toggle" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+Generic over `T extends string | number | boolean`.
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `options` | `{ value: T; label: string; swatch?: string }[]` | required | In display order. `swatch` is a CSS colour drawn as a 10px square before the label, with a `--color-edge` ring; it keeps its own colour on the chosen segment, because the colour is the information (Export image's "Preview colour"). |
+| `value` | `T` | required | The chosen value. |
+| `onChange` | `(value: T) => void` | required | Called on every change; never with the current `value`. |
+| `label` | `string` | required | `aria-label` of the radio group. |
+| `disabled` | `boolean` | `false` | |
+
+### Inputs → outputs
+
+- `role="radiogroup"` of `role="radio"` buttons with `aria-checked`. Only the chosen chip has
+  `tabindex=0` (the first chip, if nothing matches `value`).
+- Click: `onChange(option.value)`. Arrow keys, Home and End: `rovingIndex` picks the next chip,
+  calls `onChange` and moves focus there.
+- Chip: 1px ink border, `--control-h` (28px) tall with `--space-4` side padding, `.t-xs`,
+  `--chip-gap` apart (Block F: above the 24px target floor, WCAG 2.5.8). Chosen and hover are
+  inverted (ink fill, paper text). Pressing an unchosen chip fills it with `--color-pressed`. The
+  chosen chip has `cursor: default`, because choosing it again does nothing.
+
+### Invariants
+
+- **Every move commits.** Each chip is a whole value, so there is no separate confirm step.
+- **Choosing the chosen chip calls nothing**, as with a native radio. Before Stage 2, clicking the
+  chosen Alignment chip asked to confirm a destructive edit that changed nothing (Pol).
+- **The component holds no value.** It shows `value` and reports changes.
+
+### Callers / callees
+
+Callers: `lib/sections/GridSection.svelte` (Alignment), `lib/sections/SidebarFooter.svelte` (Assets on load), `controls/ParamControl.svelte` (a segmented parameter), `controls/NumericMapping.svelte` (Continuous / Stepped), `lib/operations/OperationBody.svelte` (Reseed on load), `lib/sections/ExportImage.svelte` (Background, Density). Callees: `rovingIndex` from `lib/ui/keys.ts`.
+
+### Tests
+
+None for the component. `lib/ui/keys.test.ts` covers the arrow-key arithmetic.

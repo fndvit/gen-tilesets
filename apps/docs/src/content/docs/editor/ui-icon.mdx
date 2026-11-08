@@ -1,0 +1,71 @@
+---
+title: ui/Icon.svelte
+description: One icon from the editor's icon set, drawn at its Figma size in the surrounding text colour.
+sidebar:
+  order: 59
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Icon.svelte`.
+
+## Overview
+
+`Icon` draws one of the small pictures the redesigned editor uses: the fold chevron on section
+and tile group bars, the up and down arrows, the plus on add bars, the trash can and the re-seed
+shuffle. Each icon is drawn at exactly the size it has in the Figma file and is never scaled.
+
+An icon has no colour of its own. It takes the colour of the text around it, so the same icon is
+white on a black bar and black on paper.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
+
+<UiPrimitivesStory show="icon" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `name` | `IconName` | required | A key of [`ICONS`](/editor/ui-icons/). |
+| `label` | `string` | `undefined` | Accessible name. Unset means decorative (`aria-hidden="true"`). |
+
+### Inputs → outputs
+
+- An inline `<svg>` of `w` × `h` px with `viewBox="{origin} {w} {h}"`. `origin` defaults to
+  `0 0`; the trash icon uses `0.5 0.5` because Figma exported it with a margin.
+- `fill` icons get `fill="currentColor"`. `stroke` icons get `stroke="currentColor"`, the entry's
+  `strokeWidth`, and round caps and joins when `round` is set.
+- With `label`, the svg is `role="img"` with `aria-label`.
+
+### Invariants
+
+- **No colour in the icon.** Colour comes from `currentColor` only, so a bar, a paper surface or
+  `IconButton tone="seed"` decides it.
+- **Native size only.** There is no `size` prop. The Figma icons are pixel-sized, and scaling
+  would blur 1px strokes.
+
+### Callers / callees
+
+| Caller | Use |
+| --- | --- |
+| `lib/ui/IconButton.svelte` | the button's only content |
+| `lib/ui/AddBar.svelte` | `plus` |
+| `lib/ui/Collapsible.svelte` | `fold` |
+
+Callees: `ICONS` from `lib/ui/icons.ts`.
+
+### Tests
+
+No component test (the vitest config cannot load `.svelte`). `lib/ui/icons.test.ts` checks the
+data it draws.
+
+### Gotchas & rejected alternatives
+
+- **`overflow: visible`.** The 2px chevron and the trash outline extend past their frames in
+  Figma, and are allowed to here too, so they are not clipped.
+- **Path data, not the exported `.svg` files.** The exported files hard-code white or magenta; an
+  icon must follow the text colour.

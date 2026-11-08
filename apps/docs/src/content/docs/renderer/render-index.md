@@ -46,6 +46,7 @@ each is public.
 | Assets | [provider.ts](/renderer/provider/) | `assetKey`, `defaultProvider`, `parseAssetKey`, `prefixedProvider`; types `AssetProvider`, `AssetRef`, `Drawable` | (no comment on this group) |
 | Natural size | [images.ts](/renderer/images/) | `NO_NATURAL_SIZE`, `requireNaturalSize`; type `Probe` | So the editor refuses at attach exactly what the renderer refuses at draw. |
 | The renderer | [renderer.ts](/renderer/renderer/), [decoration.ts](/renderer/tile-decoration/), [styles.ts](/renderer/styles/) | `TilesetRenderer`, `TileDecorationRenderer`, `injectStyles`, `TILESET_CSS`; types `TilesetRendererInit`, `TilesetRendererInputs`, `TileDecorationInit`, `TileDecorationInputs` | Since 0.9.0. For a host with no Svelte. |
+| Image export | [image.ts](/renderer/image/) | `imageSize`, `renderImage`; types `ImageOptions`, `ImageSize` | Since 0.11.0. A PNG at a chosen width and density, drawn with the live canvas's tile loop ([paint.ts](/renderer/paint/)). |
 
 Generated API pages for every one of these are under `/api/render/`, except `sincos`, which is
 documented with the engine at [`/api/index/functions/sincos/`](/api/index/functions/sincos/).

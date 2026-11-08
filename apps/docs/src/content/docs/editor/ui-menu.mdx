@@ -1,0 +1,61 @@
+---
+title: ui/Menu.svelte
+description: A "more actions" button that opens a short, keyboard-navigable list of actions.
+sidebar:
+  order: 68
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Menu.svelte`.
+
+## Overview
+
+An icon button (the `more` icon) that opens a list of actions under it. It holds the actions
+a row needs but should not show at rest. In iteration 2 it is an operation card's Move earlier,
+Move later and Delete (and since Stage 2, a palette entry's Change tile, Move earlier, Move later
+and Remove): the card then reads as what the operation does, not as the things that
+can be done to it.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. Its second item is disabled, as Move later is on the last operation.
+
+<UiPrimitivesStory show="menu" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Notes |
+|---|---|---|
+| `label` | `string` | The button's accessible name, also the list's. |
+| `items` | `MenuItem[]` | `{ label, icon, onSelect, disabled? }`, in order. |
+| `align` | `"left" \| "right"` | Default `"right"`. Which edge of the anchor the list lines up with. |
+| `anchor` | `HTMLElement` | What the list is placed against. Defaults to the trigger. |
+| `trigger` | `Snippet<[MenuTrigger]>` | A button of the caller's own in place of the ⋯ icon button. It gets `{ open, toggle, attach }`: `{@attach attach}` on the button, `toggle` on its click, `open` for `aria-expanded`. |
+
+### Behaviour
+
+- It follows the WAI-ARIA menu button pattern: `aria-haspopup="menu"` and `aria-expanded` on
+  the button, `role="menu"` and `role="menuitem"` in the list.
+- Opening focuses the first enabled item. The arrow keys, Home and End move between enabled
+  items, and Enter or Space runs one. Escape closes and returns focus to the button. Tab, or a
+  pointer press outside, closes.
+- After an action, focus returns to the button once the DOM has settled. A move reinserts the
+  row, which would otherwise drop focus. After a delete the button is gone.
+- Focus also returns to the button *before* the action runs. An item ending in "…" opens a modal
+  dialog, which returns focus on close to whatever had it when it opened; with the list already
+  gone that would be `<body>`. The refocus after the action is then a no-op, because the page
+  behind a modal is inert.
+- The list is `position: fixed`, measured from the anchor, so the scrolling sidebar never clips
+  it. It opens upward when there is too little room below. The placement and the outside-press
+  test are [`popover.ts`](/editor/ui-popover-ts/)'s `placeAt` and `pressedOutside`, shared with
+  the tile picker and the Explainer. Once the list has a width it is kept 8px inside the window
+  (`keepInside`): on a 320px screen Export's left-aligned menu would otherwise run off the right
+  edge.
+- A row's ⋯ menu right-aligns with its button. A [Split button](/editor/ui-split-button/)
+  passes its chevron as `trigger`, its whole control as `anchor` and `align="left"`: the list
+  opens under the control and lines up with its left edge, while Escape and the refocus after an
+  action still go to the chevron. The trigger is a snippet rather than an exported `show`/`close`
+  so that opening, closing and refocusing stay in `Menu`.

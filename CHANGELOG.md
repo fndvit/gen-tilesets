@@ -8,6 +8,29 @@ is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
 
 ---
 
+## 0.11.0 — `renderImage`: a tileset as a PNG
+
+### Added: `renderImage` and `imageSize`
+
+From `@vit-foundation/gen-tilesets/render`, with their `ImageOptions` and `ImageSize` types.
+`renderImage(file, { width, density, background?, seed?, loadSalt?, provider?, sizing?, align?,
+responsive? })` resolves with a PNG `Blob`. The image is the box at `width` CSS px, as tall as
+the grid, with the bleed clipped. It is `round(width × density)` px wide: the density stands in
+for the screen's DPR, so the same options give the same PNG on any machine. `imageSize` returns
+the same size without loading a picture. The editor's image export is built on them.
+
+It drives the model directly, with nothing put on the page, and draws with the live canvas's own
+tile loop (`drawItems`, moved out of `TilesetRenderer`'s paint into `render/paint.ts` with no
+change in behaviour). If any picture fails to resolve or load, it rejects with one error naming
+every failed `tileId/assetId`, and no PNG is made. It loads pictures with
+`crossOrigin = "anonymous"`, so a server without CORS headers fails that picture by name instead
+of tainting the canvas. The live renderer still requests no CORS: `ImageBank` has a new
+`crossOrigin` option, and it is off by default.
+
+Additive: generated and drawn output is unchanged for every existing call.
+
+---
+
 ## 0.10.0 — public on npm, as `@vit-foundation/gen-tilesets`
 
 The package is renamed from `@fndvit/gen-tilesets` to **`@vit-foundation/gen-tilesets`** and

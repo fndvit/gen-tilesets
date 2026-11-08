@@ -10,7 +10,7 @@ sidebar:
 ## Overview
 
 While an operation is being created or edited, the preview shows which cells its Selection
-picks: each of those cells gets a faint tinted rectangle on top of the picture, and a readout says
+picks: each of those cells gets a faint rectangle in a muted berry, kin to the accent, on top of the picture, and a readout says
 "N of M cells selected". It updates as the author changes the Selection's settings, before
 anything is committed.
 

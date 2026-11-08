@@ -1,0 +1,57 @@
+---
+title: ui/RadioList.svelte
+description: One choice from a short list whose options need a label and a value, as native radios in a grey well.
+sidebar:
+  order: 80
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/RadioList.svelte`.
+
+## Overview
+
+A list of rows, exactly one chosen, for options that need more than a word: Export image's sizes,
+each a label and a width ("Breakpoint 2", "768 px"). A [segmented control](/editor/ui-toggle/)
+holds a word per option and no more.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone.
+
+<UiPrimitivesStory show="radio-list" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+Generic over `K extends string`.
+
+| Prop | Type | Meaning |
+| --- | --- | --- |
+| `legend` | `string` | The fieldset's legend, in `.t-label`: the group's name. |
+| `name` | `string` | The radios' shared `name`; unique on the page. |
+| `options` | `{ key: K; label: string; detail: string }[]` | In display order. `detail` is the mono value at the right. |
+| `value` | `K` | Bindable: the chosen option's `key`. |
+
+Options are told apart by `key`, not by the value they stand for: two sizes can share a width (a
+breakpoint bound equal to the design width keeps its own row), and a radio group needs one value
+per row.
+
+### Behaviour
+
+- The radios are native `<input type="radio">`s, only restyled (`appearance: none`). The legend
+  names the group, Tab enters on the chosen row, and the arrow keys move the choice, with no key
+  handling in the component.
+- The focus ring is drawn on the whole row (`:has(:focus-visible)`), not on the 12px dot.
+
+### Look
+
+- A field-grey well (`--color-field`, `--radius-sm`) of `--control-h` (30px) rows: a 12px ring
+  in the text colour, the label, and the `detail` in `.t-console` at the right.
+- The chosen row is ink with white text and a filled white dot, so the choice shows by the dot's
+  shape as well as by colour (1.4.1). Other rows wash darker under the pointer.
+
+### Callers
+
+`lib/sections/ExportImage.svelte` (Size).

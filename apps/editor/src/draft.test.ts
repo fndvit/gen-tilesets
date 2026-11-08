@@ -14,7 +14,20 @@
 
 import type { Operation } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
-import { fromOperation, isComplete, newDraft, toOperation, toShadowOperation } from "./draft.svelte.js";
+import { newDocument } from "./document.js";
+import {
+  draftDiffers,
+  draftFile,
+  fromOperation,
+  isComplete,
+  newDraft,
+  retarget,
+  shadowConfig,
+  STEPS,
+  toOperation,
+  toShadowOperation,
+  type Draft,
+} from "./draft.svelte.js";
 
 const numeric: Operation = {
   id: "op3",
@@ -37,6 +50,14 @@ const tileTargeted: Operation = {
   mapping: { palette: [{ tileId: "t1", weight: 2 }, { tileId: null, weight: 1 }] },
   blend: "set",
 };
+
+describe("STEPS", () => {
+  it("walks Selection, Pattern, Attribute, Blend, starting at Selection", () => {
+    // The Pattern decides what the mapping means, so it is asked first (Pol, T0).
+    expect(STEPS).toEqual(["selection", "source", "attribute", "blend"]);
+    expect(newDraft("op1").step).toBe("selection");
+  });
+});
 
 describe("fromOperation", () => {
   it("round-trips a numeric Operation unchanged", () => {
@@ -128,5 +149,174 @@ describe("toShadowOperation", () => {
 
   it("is null before a Selection type is chosen", () => {
     expect(toShadowOperation(newDraft("op1"))).toBeNull();
+  });
+});
+
+describe("draftDiffers", () => {
+  it("leaves a fresh create-draft unchanged until a step is answered", () => {
+    const draft = newDraft("op1");
+    expect(draftDiffers(draft, null)).toBe(false);
+    draft.selectionType = "all";
+    expect(draftDiffers(draft, null)).toBe(true);
+  });
+
+  it("sees no change in a reopened Operation, whatever step is open", () => {
+    const draft = fromOperation(numeric);
+    draft.step = "blend";
+    expect(draftDiffers(draft, numeric)).toBe(false);
+    expect(draftDiffers(fromOperation(tileTargeted), tileTargeted)).toBe(false);
+  });
+
+  it("sees an edited parameter, a new Blend and a new salt", () => {
+    const params = fromOperation(numeric);
+    params.selectionParams.parity = 0;
+    expect(draftDiffers(params, numeric)).toBe(true);
+
+    const blend = fromOperation(numeric);
+    blend.blend = "set";
+    expect(draftDiffers(blend, numeric)).toBe(true);
+
+    const salt = fromOperation(numeric);
+    salt.salt += 1;
+    expect(draftDiffers(salt, numeric)).toBe(true);
+  });
+
+  it("ignores a retarget there and back, since the unused mapping never commits", () => {
+    const draft = fromOperation(tileTargeted);
+    retarget(draft, "opacity");
+    retarget(draft, "tileId");
+    expect(draftDiffers(draft, tileTargeted)).toBe(false);
+  });
+
+  it("counts an edit made incomplete as a change", () => {
+    const draft = fromOperation(tileTargeted);
+    draft.palette = [];
+    expect(draftDiffers(draft, tileTargeted)).toBe(true);
+  });
+});
+
+describe("Constant with Tile (T0)", () => {
+  const palette = [
+    { tileId: "t0", weight: 0 },
+    { tileId: "t1", weight: 2 },
+    { tileId: "t2", weight: 1 },
+  ];
+  const constant: Operation = {
+    ...tileTargeted,
+    source: { type: "constant" },
+    mapping: { palette: [{ tileId: "t1", weight: 1 }] },
+  };
+
+  it("saves only the entry t = 0 lands on, the first with a weight", () => {
+    const draft = fromOperation({ ...tileTargeted, mapping: { palette } });
+    draft.sourceType = "constant";
+    draft.sourceParams = {};
+    expect(toOperation(draft)?.mapping).toEqual({ palette: [{ tileId: "t1", weight: 1 }] });
+  });
+
+  it("keeps the whole list in the draft, so switching back before Save restores it", () => {
+    const draft = fromOperation({ ...tileTargeted, mapping: { palette } });
+    draft.sourceType = "constant";
+    draft.sourceType = "valueNoise";
+    draft.sourceParams = { cellsPerFeature: 5, octaves: 2 };
+    expect(toOperation(draft)?.mapping).toEqual({ palette });
+  });
+
+  it("reopens a saved Constant operation unchanged", () => {
+    expect(draftDiffers(fromOperation(constant), constant)).toBe(false);
+  });
+
+  it("opens a file's multi-entry palette under constant on its first non-zero entry", () => {
+    const old: Operation = { ...constant, mapping: { palette } };
+    const draft = fromOperation(old);
+    expect(draft.palette).toEqual(palette);
+    expect(toOperation(draft)?.mapping).toEqual({ palette: [{ tileId: "t1", weight: 1 }] });
+  });
+
+  it("leaves a numeric mapping alone, whose collapse is the control's", () => {
+    const draft = fromOperation({ ...numeric, source: { type: "constant" } });
+    expect(toOperation(draft)?.mapping).toEqual(numeric.mapping);
+  });
+});
+
+describe("shadowConfig", () => {
+  const config = { ...newDocument().config, operations: [tileTargeted] };
+
+  it("appends a create-draft and replaces an edit-draft by id", () => {
+    const created = newDraft("op1");
+    created.selectionType = "all";
+    expect(shadowConfig(config, created)?.config.operations.map((o) => o.id)).toEqual(["op9", "op1"]);
+
+    const edited = fromOperation(tileTargeted);
+    edited.selectionType = "checkerboard";
+    edited.selectionParams = { parity: 0 };
+    const ops = shadowConfig(config, edited)!.config.operations;
+    expect(ops).toHaveLength(1);
+    expect(ops[0]!.selection.type).toBe("checkerboard");
+  });
+
+  it("carries the draft's own Pattern, which coverage evaluates", () => {
+    const draft = fromOperation(tileTargeted);
+    draft.sourceType = "gradient";
+    draft.sourceParams = { angle: 45 };
+    expect(shadowConfig(config, draft)?.config.operations[0]!.source).toEqual({ type: "gradient", angle: 45 });
+  });
+
+  it("is null before a Selection type is chosen", () => {
+    expect(shadowConfig(config, newDraft("op1"))).toBeNull();
+  });
+});
+
+describe("draftFile", () => {
+  const file = { ...newDocument(), config: { ...newDocument().config, operations: [numeric, tileTargeted] } };
+
+  /** A complete create-draft: what "Add" would append. */
+  const created = (): Draft => fromOperation({ ...tileTargeted, id: "op1" });
+
+  it("appends a create-draft, as Add does", () => {
+    const drawn = draftFile(file, created())!;
+    expect(drawn.config.operations.map((o) => o.id)).toEqual([numeric.id, "op9", "op1"]);
+  });
+
+  it("replaces an edit-draft in place, keeping its index", () => {
+    const edited = fromOperation(numeric);
+    edited.blend = "set";
+    const ops = draftFile(file, edited)!.config.operations;
+    expect(ops.map((o) => o.id)).toEqual([numeric.id, "op9"]);
+    expect(ops[0]).toEqual(toOperation(edited));
+  });
+
+  it("is null while the draft cannot paint", () => {
+    const draft = created();
+    draft.palette = [];
+    expect(draftFile(file, draft)).toBeNull();
+    expect(draftFile(file, newDraft("op1"))).toBeNull();
+  });
+
+  it("draws what Save writes: one entry under Constant", () => {
+    const draft = created();
+    draft.sourceType = "constant";
+    draft.sourceParams = {};
+    expect(draftFile(file, draft)!.config.operations.at(-1)!.mapping).toEqual({
+      palette: [{ tileId: "t1", weight: 1 }],
+    });
+  });
+
+  it("changes only the operations, so the preview's shape is the saved file's", () => {
+    // App measures the frame and overlays from the saved file while a draft is
+    // drawn; that is right only while nothing but `operations` differs.
+    const drawn = draftFile(file, created())!;
+    for (const key of Object.keys(file) as (keyof typeof file)[]) {
+      if (key !== "config") expect(drawn[key]).toBe(file[key]);
+    }
+    for (const key of Object.keys(file.config) as (keyof typeof file.config)[]) {
+      if (key !== "operations") expect(drawn.config[key]).toBe(file.config[key]);
+    }
+  });
+
+  it("never writes to the file it is given (E3)", () => {
+    const before = JSON.stringify(file);
+    draftFile(file, created());
+    expect(JSON.stringify(file)).toBe(before);
   });
 });

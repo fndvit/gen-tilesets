@@ -30,6 +30,11 @@ export interface History<T> {
   /** Previous values, oldest first. The last is what one undo returns to. */
   past: T[];
   current: T;
+  /**
+   * The live gesture `current` belongs to, if any (`appliedLive`). Every other
+   * operation returns a history without one, which is what ends a gesture.
+   */
+  gesture?: string;
 }
 
 export function historyOf<T>(current: T): History<T> {
@@ -54,6 +59,35 @@ export function applied<T>(history: History<T>, f: (value: T) => T, limit = UNDO
   const next = f(history.current);
   if (next === history.current) return history;
   return { past: [...history.past, history.current].slice(-limit), current: next };
+}
+
+/**
+ * Apply one frame of a live gesture (a slider being dragged), so the picture
+ * follows the drag while the whole drag stays **one** undo entry.
+ *
+ * The first frame of gesture `key` is an ordinary `applied`, pushing the value
+ * from before the drag. Later frames of the same gesture replace `current`
+ * without pushing, so one undo returns to before the drag, never to a
+ * half-way frame. Any other operation ends the gesture, and `settled` ends it
+ * on release, so the next drag of the same control is a new entry.
+ *
+ * A refused first frame pushes nothing and starts no gesture: otherwise the
+ * next frame would change the file with nothing on the stack to undo to.
+ */
+export function appliedLive<T>(history: History<T>, key: string, f: (value: T) => T, limit = UNDO_LIMIT): History<T> {
+  if (history.gesture !== key) {
+    const next = applied(history, f, limit);
+    return next === history ? history : { ...next, gesture: key };
+  }
+  const next = f(history.current);
+  return next === history.current ? history : { ...history, current: next };
+}
+
+/** End the live gesture, if one is open: the next frame starts a new entry. */
+export function settled<T>(history: History<T>): History<T> {
+  if (history.gesture === undefined) return history;
+  const { gesture: _, ...rest } = history;
+  return rest;
 }
 
 /**

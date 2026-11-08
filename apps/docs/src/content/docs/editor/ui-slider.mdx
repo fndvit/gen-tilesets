@@ -1,0 +1,75 @@
+---
+title: ui/Slider.svelte
+description: The tile weight slider, a restyled native range input that commits once per drag and always shows the file's value.
+sidebar:
+  order: 66
+---
+
+import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
+
+**Written from:** `apps/editor/src/lib/ui/Slider.svelte`.
+
+## Overview
+
+`Slider` is the thin line with a small black block that sets a tile variant's weight. Dragging
+the block updates the preview as it moves. The change is saved once, when the block is let go, so
+one drag is one step to undo. Arrow keys move it by one step, and Shift with an arrow moves it ten
+steps.
+
+## Try it
+
+The real component from `apps/editor`, rendered alone. The story loads the editor's `tokens.css` and `type.css` (but not `base.css`, so the editor's focus ring is not used here) and prints what the component reports.
+
+<UiPrimitivesStory show="slider" client:only="svelte" />
+
+## In detail
+
+### Public surface
+
+| Prop | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `value` | `number` | required | The file's value. |
+| `min`, `max`, `step` | `number` | required | Passed to the input. |
+| `label` | `string` | required | `aria-label`. |
+| `onInput` | `(value: number) => void` | — | Every movement (live preview). |
+| `onCommit` | `(value: number) => void` | required | Release (`change`), or each key press. |
+| `disabled` | `boolean` | `false` | |
+
+### Inputs → outputs
+
+- `input` event → `onInput(Number(value))`. `change` event → `onCommit`, then after
+  `tick()` the input is set back to `String(value)`.
+- Shift with an arrow key: the default is prevented, and the value moves by
+  `sliderStep(step, true)` (×10), clamped to `min`–`max` and rounded to the step's decimals. It
+  then calls `onInput` and `onCommit`.
+- Track: `--rule-w` of `--color-ink`. Thumb: `--slider-thumb-w` × `--slider-thumb-h`, square,
+  ink, centred on the track: 12×24 (Figma 10×20), so the thumb is a 24px target. WebKit and
+  Firefox pseudo-elements are both styled. `cursor: grab`, `grabbing` while pressed.
+
+### Invariants
+
+- **One drag, one commit.** Undo granularity follows the redesign decision for weights.
+- **The file is the source of truth.** If the caller refuses a value (for example, zeroing the
+  last non-zero weight), the thumb returns to `value` after the commit, instead of staying where
+  it was dropped.
+- **Out-of-range values are not rewritten.** A `value` above `max` pins the thumb at the end. The
+  component never commits on its own.
+
+### Callers / callees
+
+Callers: `lib/tiles/TileAsset.svelte:70`, the asset weight (0–2, step 0.01; see
+[TileAsset](/editor/tile-asset/)); `controls/PaletteList.svelte`, an entry's weight (0 to `sliderMax`, step 0.01, refused weights
+spring back; see [PaletteList](/editor/palette-list/)); `controls/ParamControl.svelte:71`, a bounded parameter, with
+`onInput` and `onCommit` both checked by `admits` (see [ParamControl](/editor/param-control/)). Callees: `sliderStep` from
+`lib/ui/keys.ts`.
+
+### Tests
+
+None for the component. `lib/ui/keys.test.ts` covers `sliderStep`.
+
+### Gotchas & rejected alternatives
+
+- **Native range, restyled**, rather than a custom div slider. Keyboard, focus and screen reader
+  support come free, and no pointer-capture code is needed.
+- **Plain arrow keys commit on every press**, because the browser fires `change` per key. That is
+  one undo entry per press, the same as a short drag.

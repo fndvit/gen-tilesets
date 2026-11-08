@@ -6,8 +6,8 @@ sidebar:
 ---
 
 **Written from:** `apps/editor/src/session.svelte.ts`, and the call sites in `App.svelte`,
-`lib/ImportPanel.svelte`, `lib/TileLibrary.svelte`, `lib/OperationStack.svelte` and
-`lib/OperationDraft.svelte`. No test file of its own. Its rule is tested in `history.test.ts`.
+`lib/ImportPanel.svelte`, `lib/sections/TilesSection.svelte`, `lib/sections/OperationsSection.svelte`
+and `lib/operations/OperationBody.svelte`. No test file of its own. Its rule is tested in `history.test.ts`.
 
 ## Overview
 
@@ -46,6 +46,8 @@ one.
 | `canUndo` | getter, `boolean` | `history.past.length > 0`. Drives the Undo button. |
 | `apply(transition)` | method | `history = applied(history, transition)` |
 | `undo()` | method | `history = undone(history)` |
+| `applyLive(key, transition)` | method | `history = appliedLive(history, key, transition)`: a weight drag changes the file every frame and is one undo entry |
+| `settle()` | method | `history = settled(history)`, on release |
 | `reset()` | method | `history = historyOf(newDocument())`. Not undoable. |
 | `open(file)` | method | `history = replaced(history, file)` |
 
@@ -86,12 +88,12 @@ one.
 | `App.svelte:458-722` | `session.apply(...)` for layout, rule, seed and asset-salt transitions |
 | `App.svelte:142` | `session.reset()` in `newTileset`, after `confirm`, for the *New document* button (`:639`) |
 | `lib/ImportPanel.svelte:210` | `session.open(file as TilesetFile)` after validate and `replaceAll` |
-| `lib/TileLibrary.svelte:47`, `:168`, `:195-198` | `session.file` reads, and the before/after identity check that detects a refused weight |
-| `lib/TileLibrary.svelte:108`, `:128`, `:178`, `:187`, `:196`, `:251` | `session.apply` for library transitions |
-| `lib/OperationStack.svelte:88` | `session.file.config.operations` |
-| `lib/OperationStack.svelte:153-226` | `session.apply` for move, reroll, remove, and the reseed flag |
-| `lib/OperationDraft.svelte:71`, `:316` | `session.file` reads (rules, tiles) |
-| `lib/OperationDraft.svelte:171` | `session.apply(editing ? replaceOperation(op) : addOperation(op))` |
+| `lib/sections/TilesSection.svelte:42`, `:102`, `:116-119` | `session.file` reads, and the `refused()` before/after identity check |
+| `lib/sections/TilesSection.svelte:73`, `:80`, `:112`, `:118`, `:174` | `session.apply` for the Tiles section's transitions |
+| `lib/sections/OperationsSection.svelte:34`, `:35`, `:94` | `session.file.config.operations` and `.tiles`; the rerolled Operation's new salt |
+| `lib/sections/OperationsSection.svelte:92`, `:110`, `:112`, `:113` | `session.apply` for reroll, remove and move |
+| `lib/operations/OperationBody.svelte:106`, `:273` | `session.file` reads (breakpoints, tiles) |
+| `lib/operations/OperationBody.svelte:227` | `session.apply(editing ? replaceOperation(op) : addOperation(op))` |
 
 Callees: `newDocument`, `Transition` from `document.ts`; `applied`, `historyOf`, `replaced`,
 `undone`, `History` from `history.ts`.
@@ -114,8 +116,9 @@ of `history.ts` (tested in `history.test.ts`) and `document.ts`.
 - **Undo after import does not restore asset bytes.** The bytes live in the session-scoped store
   ([assets.ts](/editor/assets/)) and were swapped with the document. The source calls this the
   same gap a reload has always had, not a defect in the undo stack.
-- **Refusals are detected by identity.** `TileLibrary.svelte:195-198` compares `session.file`
-  before and after `apply` to learn that a weight change was refused.
+- **Refusals are detected by identity.** `TilesSection.svelte`'s `refused()` (`:116-119`)
+  compares `session.file` before and after `apply` to learn that a delete or weight change was
+  refused, and shows the reason in a `ui/Popup`.
 
 ### Review notes
 

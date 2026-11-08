@@ -54,21 +54,6 @@ export function isStochastic(sourceType: string): boolean {
 }
 
 /**
- * Whether the **`reseedOnLoad` checkbox** is offered for this Operation.
- *
- * §8.4: offered only where the Source is stochastic, because `04` §8.4 and `05`
- * **X5** make the flag inert on `constant`, `gradient`, and `vignette` — and
- * `05` §6.1 records that a reroll control doing nothing "reads as a broken engine
- * rather than a mislabelled Source".
- *
- * This is also `06` §10.4's second diagnostic being *prevented* rather than
- * repaired: the editor cannot reach that state, so E1 holds.
- */
-export function offersReseedOnLoad(op: Operation): boolean {
-  return isStochastic(op.source.type);
-}
-
-/**
  * **The correction the editor must not make** — §8.4.
  *
  * A flagged Operation with a non-stochastic Source is *not* fully inert: the flag

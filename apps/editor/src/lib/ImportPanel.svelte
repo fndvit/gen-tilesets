@@ -25,23 +25,49 @@
   list is what once told an author with an *old* file that their editor was at
   fault.
 
-  ## The gestures are `TileLibrary.svelte`'s
+  ## The gestures are `sections/TilesSection.svelte`'s
 
-  The same dropzone-plus-hidden-picker pattern, deliberately: `09` §10.3 fixes
-  what an attach *writes* and leaves what starts one alone, so the two surfaces
-  that take files from the author should take them the same way.
+  The same drop-plus-hidden-picker pattern, deliberately: `09` §10.3 fixes what
+  an attach *writes* and leaves what starts one alone, so the two surfaces that
+  take files from the author should take them the same way. On screen this is
+  only the Import button in the sidebar footer; the caller passes the element
+  that takes drops (`target`, the sidebar's top bar) and styles it from the bindable `over`.
+
+  ## Reports appear after an attempt, in a popup
+
+  A refusal or a newer-version file is shown in a closable `ui/Popup` once the
+  attempt ends, and never takes space in the layout (Pol, 2026-11-04). Closing
+  it clears the report.
+
+  An import that opened with notes (an upgrade, unreadable pictures)
+  opens: there is nothing to answer, so its notes are notices in the preview's
+  stack instead (Stage 2, W3), beside the picture they are about.
 -->
 <script lang="ts">
   import { migrate, validate, type TilesetFile, type ValidationError } from "@vit-foundation/gen-tilesets";
   import { unzipSync } from "fflate";
+  import { importNotices } from "../advisories.js";
   import { replaceAll, type Incoming } from "../assets.js";
   import { drafting } from "../drafting.svelte.js";
   import { mimeOf, nameOf, readArchive, type Archive } from "../import.js";
+  import { notices } from "../notices.svelte.js";
   import { session } from "../session.svelte.js";
+  import Button from "./ui/Button.svelte";
+  import Popup from "./ui/Popup.svelte";
 
-  /** Whether the dropzone is armed. Purely visual, as in the tile library. */
-  let over = $state(false);
+  interface Props {
+    /** The element that takes dropped zips and folders. */
+    target?: HTMLElement | null;
+    /** Whether a drag is over `target`. Purely visual, as in the tile library. */
+    over?: boolean;
+  }
+
+  let { target = null, over = $bindable(false) }: Props = $props();
+
   let busy = $state(false);
+
+  /** Whether the report popup is showing. Opened only at the end of an attempt. */
+  let reporting = $state(false);
 
   /** The one refusal message, or the validation list. Never both. */
   let failure = $state<string | null>(null);
@@ -56,8 +82,6 @@
    * file came to be told the editor was at fault.
    */
   let newer = $state<number | null>(null);
-  /** Non-fatal: an upgrade that happened, and pictures the archive did not carry. */
-  let advisories = $state<string[]>([]);
 
   let picker = $state<HTMLInputElement | null>(null);
 
@@ -65,7 +89,6 @@
     failure = null;
     errors = [];
     newer = null;
-    advisories = [];
   }
 
   // -------------------------------------------------------------------------
@@ -178,7 +201,9 @@
    * sees a file that already claims it.
    */
   async function open(archive: Archive): Promise<void> {
-    const { file: read, assets, missing } = readArchive(archive);
+    // A `meta.src` the archive did not carry (`missing`) is left to §12.3: the
+    // asset has no file, so it fails to draw and the preview's notice says so.
+    const { file: read, assets } = readArchive(archive);
 
     const outcome = migrate(read);
     // §12.4's case, and the only one where *update the editor, not the file* is
@@ -212,20 +237,15 @@
     // does not have.
     drafting.discard();
 
-    advisories = [
-      // **E16** — it never blocks, and the upgrade already happened. The second
-      // clause is the part the author cannot infer: the document now in the
-      // editor differs from the file still on their disk.
-      ...(outcome.kind === "migrated"
-        ? outcome.steps.map(
-            (step) =>
-              `Upgraded from schemaVersion ${step.from} — ${step.note}. ` +
-              `Export to save the new form; older builds will not read it.`,
-          )
-        : []),
-      ...missing.map((path) => `${path} — the archive carries no such file. That cell draws nothing.`),
-      ...failed.map((f) => `${f.tileId}/${f.assetId} — ${f.reason}`),
-    ];
+    // A new document starts with no notices, then gets its own. Non-fatal:
+    // the upgrade already happened (**E16**), and a document whose pictures
+    // are absent is still a legal file the author can repair by dropping the
+    // images back in. Refusing would throw away the operations, the seed and
+    // the layout over a picture.
+    notices.clear();
+    for (const notice of importNotices({ upgrades: outcome.kind === "migrated" ? outcome.steps : [], failed })) {
+      notices.push(notice);
+    }
   }
 
   async function run(archive: Promise<Archive>): Promise<void> {
@@ -237,8 +257,10 @@
       failure = cause instanceof Error ? cause.message : String(cause);
     } finally {
       busy = false;
+      reporting = failure !== null || errors.length > 0 || newer !== null;
     }
   }
+
 
   function onDrop(event: DragEvent): void {
     event.preventDefault();
@@ -265,6 +287,23 @@
     over = true;
   }
 
+  // Listeners on the caller's element, so the whole footer takes a drop.
+  $effect(() => {
+    const el = target;
+    if (el === null) return;
+    const leave = (): void => {
+      over = false;
+    };
+    el.addEventListener("dragover", onDragOver);
+    el.addEventListener("dragleave", leave);
+    el.addEventListener("drop", onDrop);
+    return () => {
+      el.removeEventListener("dragover", onDragOver);
+      el.removeEventListener("dragleave", leave);
+      el.removeEventListener("drop", onDrop);
+    };
+  });
+
   function onPick(event: Event): void {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
@@ -272,223 +311,90 @@
     // Cleared so choosing the same file twice in a row fires `change` again.
     input.value = "";
   }
-
 </script>
 
-<p class="prose">
-  Opens an exported <code>tileset.zip</code>, or the folder it unzips to. Replaces the whole
-  document — undoable, like everything else (<strong>E6</strong>).
-</p>
+<Button
+  label={busy ? "Importing…" : "Import"}
+  icon="import"
+  disabled={busy}
+  onclick={() => picker?.click()}
+/>
+<input
+  class="picker"
+  type="file"
+  accept=".zip,application/zip"
+  bind:this={picker}
+  onchange={onPick}
+  tabindex="-1"
+  aria-hidden="true"
+/>
 
-<div
-  class="dropzone"
-  class:armed={over}
-  class:busy
-  role="region"
-  aria-label="Drop an exported tileset.zip or its folder here"
-  ondragover={onDragOver}
-  ondragleave={() => (over = false)}
-  ondrop={onDrop}
->
-  <span>
-    {busy ? "Reading…" : "Drop tileset.zip or its folder"}
-    <em>the document, its operations, and its pictures</em>
-  </span>
-  <button onclick={() => picker?.click()} disabled={busy}>Choose file…</button>
-  <input
-    class="picker"
-    type="file"
-    accept=".zip,application/zip"
-    bind:this={picker}
-    onchange={onPick}
-    tabindex="-1"
-    aria-hidden="true"
-  />
-</div>
+<Popup title="Import refused" bind:open={reporting} onClose={reset}>
+  {#if failure !== null}
+    <p class="t-body">Not opened. Nothing in the current document has changed.</p>
+    <p class="t-console detail">{failure}</p>
+  {/if}
 
-{#if failure !== null}
-  <p class="failure">{failure}</p>
-{/if}
+  <!--
+    §12.4's own case: the file was written by a **newer** build, and the action
+    is to update the editor rather than to fix the file. It is the one failure
+    the author cannot repair by editing anything.
 
-<!--
-  §12.4's own case: the file was written by a **newer** build, and the action is
-  to update the editor rather than to fix the file. It is the one failure the
-  author cannot repair by editing anything.
-
-  It is its own screen rather than a row in the error list because there is
-  nothing to list — no field is wrong, and `06` **C2** forbids inferring a shape
-  from the keys present, so the file was never walked.
--->
-{#if newer !== null}
-  <div class="errors">
-    <p class="lede">
-      This file was written by a newer build — it declares
-      <code>schemaVersion&nbsp;{newer}</code>. <strong>Update the editor, not the file.</strong>
-      <code>06</code>&nbsp;<strong>C2</strong> reads an unknown version as a load failure rather than
-      guessing at its shape.
+    It is its own message rather than a row in the error list because there is
+    nothing to list: no field is wrong, and `06` **C2** forbids inferring a shape
+    from the keys present, so the file was never walked.
+  -->
+  {#if newer !== null}
+    <p class="t-body">
+      This file was written by a newer build (schemaVersion {newer}). Update the editor, not the
+      file.
     </p>
-  </div>
-{/if}
+  {/if}
 
-<!--
-  **C6** — no partial load and no severity axis. The file was not opened; the
-  document on screen is the one that was already there.
--->
-{#if errors.length > 0}
-  <div class="errors">
-    <p class="lede">Not opened. Nothing in the current document has changed.</p>
-    <ul>
+  <!--
+    **C6**: no partial load and no severity axis. The file was not opened; the
+    document on screen is the one that was already there.
+  -->
+  {#if errors.length > 0}
+    <p class="t-body">Not opened. Nothing in the current document has changed.</p>
+    <ul class="t-console">
       {#each errors.slice(0, 12) as error, i (i)}
-        <li><code>{error.path || "/"}</code> <span class="code">{error.code}</span> {error.message}</li>
+        <li><strong>{error.path || "/"}</strong> {error.code} {error.message}</li>
       {/each}
       {#if errors.length > 12}
-        <li class="more">…and {errors.length - 12} more</li>
+        <li>…and {errors.length - 12} more</li>
       {/if}
     </ul>
-  </div>
-{/if}
+  {/if}
 
-<!--
-  Opened, with holes. A document whose pictures are absent is still a legal file
-  and the author can repair it by dropping the images back in — refusing would
-  throw away the operations, the seed and the layout over a picture.
--->
-{#if advisories.length > 0}
-  <ul class="advisories">
-    {#each advisories as advisory, i (i)}
-      <li>{advisory}</li>
-    {/each}
-    <li><button onclick={() => (advisories = [])}>clear</button></li>
-  </ul>
-{/if}
+</Popup>
 
 <style>
-  /* The panel shell and its heading belong to `lib/Section.svelte`. */
-
-  .prose {
-    margin: 0 0 0.6rem;
-    font-size: 0.78rem;
-    line-height: 1.5;
-    color: #5a6b80;
-  }
-
-  .dropzone {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    border: 1px dashed #cbd5e0;
-    border-radius: 6px;
-    padding: 0.6rem 0.7rem;
-    font-size: 0.8rem;
-    color: #a0aec0;
-  }
-
-  .dropzone.armed {
-    border-color: #3182ce;
-    background: #eef4fb;
-    color: #2b6cb0;
-  }
-
-  .dropzone.busy {
-    opacity: 0.7;
-  }
-
-  .dropzone em {
-    display: block;
-    font-style: normal;
-    font-size: 0.7rem;
-    color: #b5c0cf;
-  }
-
-  .dropzone button {
-    background: #cbd5e0;
-    border: 1px solid #a0aec0;
-    color: #1a202c;
-    border-radius: 4px;
-    padding: 0.25rem 0.55rem;
-    font: inherit;
-    font-size: 0.75rem;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .dropzone button:disabled {
-    cursor: default;
-    opacity: 0.6;
-  }
-
   .picker {
     display: none;
   }
 
-  .failure {
-    margin: 0.6rem 0 0;
-    font-size: 0.75rem;
-    line-height: 1.5;
-    color: #c53030;
+  p {
+    margin: 0 0 var(--space-4);
   }
 
-  .errors {
-    margin-top: 0.6rem;
-    border: 1px solid #f5c6c6;
-    border-radius: 5px;
-    background: #fdf3f3;
-    padding: 0.5rem 0.6rem;
+  .detail {
+    overflow-wrap: anywhere;
   }
 
-  .errors .lede {
-    margin: 0 0 0.4rem;
-    font-size: 0.75rem;
-    line-height: 1.5;
-    color: #9b2c2c;
-  }
-
-  .errors ul {
-    list-style: none;
+  ul {
+    display: grid;
+    gap: var(--space-4);
     margin: 0;
     padding: 0;
-    display: grid;
-    gap: 0.3rem;
-    font-size: 0.72rem;
-    line-height: 1.4;
-    color: #742a2a;
-  }
-
-  .errors .code {
-    font-family: ui-monospace, monospace;
-    font-size: 0.9em;
-    color: #9b2c2c;
-  }
-
-  .errors .more {
-    color: #a0aec0;
-  }
-
-  .advisories {
     list-style: none;
-    margin: 0.6rem 0 0;
-    padding: 0;
-    display: grid;
-    gap: 0.3rem;
-    font-size: 0.75rem;
-    color: #975a16;
+    line-height: var(--leading-hint);
+    text-box: none;
+    overflow-wrap: anywhere;
   }
 
-  .advisories button {
-    background: #cbd5e0;
-    border: 1px solid #a0aec0;
-    color: inherit;
-    border-radius: 4px;
-    padding: 0.15rem 0.45rem;
-    font: inherit;
-    font-size: 0.7rem;
-    cursor: pointer;
-  }
-
-  code {
-    font-family: ui-monospace, monospace;
-    font-size: 0.85em;
-    color: #2b6cb0;
+  strong {
+    font-weight: inherit;
+    text-decoration: underline;
   }
 </style>

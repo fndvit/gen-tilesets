@@ -5,9 +5,19 @@
   half-typed number must not reach the draft, and a value the spec refuses must
   not be coerced into range (`06` §9.2; §7.5's "clamping typed input would be
   coercion performed in the one place the author is watching").
+
+  Each affordance is a field row (Block E): a `NumericInput` for a number, a
+  `Toggle` for a segmented choice, and a `Slider` with a value readout for a
+  bounded number. The range is a hint on the label, never text in the row,
+  after what the param does when the caller knows (`about`, item 12).
 -->
 <script lang="ts">
   import type { ParamSpec } from "@vit-foundation/gen-tilesets";
+  import NumericInput from "../lib/NumericInput.svelte";
+  import FieldRow from "../lib/ui/FieldRow.svelte";
+  import Slider from "../lib/ui/Slider.svelte";
+  import Toggle from "../lib/ui/Toggle.svelte";
+  import { labelFor } from "../lib/operations/labels.js";
   import { admits, rangeLabel, type Affordance } from "./affordance.js";
 
   interface Props {
@@ -16,20 +26,23 @@
     affordance: Affordance;
     value: unknown;
     onChange: (value: unknown) => void;
+    /** What the param does, said before its range in the hint. */
+    about?: string | undefined;
   }
 
-  let { name, spec, affordance, value, onChange }: Props = $props();
+  let { name, spec, affordance, value, onChange, about }: Props = $props();
 
-  /** In-flight text, `null` when the author is not editing. Same model as `NumericInput`. */
-  let draft = $state<string | null>(null);
+  const label = $derived(labelFor(name));
+  const range = $derived(rangeLabel(spec));
+  const hint = $derived(
+    [about, range === "" ? undefined : `Accepts ${range}.`].filter((s) => s !== undefined).join(" ") ||
+      undefined,
+  );
 
-  const shown = $derived(draft ?? String(value ?? ""));
-  const pending = $derived(draft !== null && !admits(spec, Number(draft)));
-
-  function commit(text: string): void {
-    draft = text;
+  /** `null` refuses the text, so a half-typed or out-of-range number never reaches the draft. */
+  function parse(text: string): number | null {
     const n = Number(text.trim());
-    if (text.trim() !== "" && Number.isFinite(n) && admits(spec, n)) onChange(n);
+    return text.trim() !== "" && Number.isFinite(n) && admits(spec, n) ? n : null;
   }
 
   /**
@@ -37,161 +50,81 @@
    * exclusive end by one step, so no slider position should be refused; this
    * is the guard for a float step that lands a hair past the bound.
    */
-  function slide(text: string): void {
-    const n = Number(text);
+  function slide(n: number): void {
     if (admits(spec, n)) onChange(n);
   }
 
-  const range = $derived(rangeLabel(spec));
+  /**
+   * The readout, to the slider's step: a float step lands on values such as
+   * `0.30000000000000004`, which would also push the row wider than the sidebar.
+   */
+  function readout(v: unknown, step: number): string {
+    if (typeof v !== "number") return "";
+    const places = Math.max(0, Math.ceil(-Math.log10(step)));
+    return String(Number(v.toFixed(places)));
+  }
 </script>
 
-<div class="param" class:pending>
-  <span class="label">
-    {name}
-    {#if range}<em>{range}</em>{/if}
-  </span>
-
-  {#if affordance.kind === "segmented"}
-    <!-- §7.1: an `enum` gets a segmented control over `values`. A narrow bounded
-         integer arrives here too — §7.1's "or a stepper where narrow". -->
-    <div class="segmented">
-      {#each affordance.values as option (option)}
-        <button class:on={value === option} onclick={() => onChange(option)}>
-          {option}
-        </button>
-      {/each}
-    </div>
-  {:else if affordance.kind === "slider"}
-    <!-- §7.1: both bounds, so the track has a length. Typed entry stays exact
-         through the number field beside it. -->
-    <div class="slider">
-      <input
-        type="range"
-        min={affordance.min}
-        max={affordance.max}
-        step={affordance.step}
-        value={Number(value ?? affordance.min)}
-        oninput={(e) => slide(e.currentTarget.value)}
-        aria-label={name}
+{#if affordance.kind === "segmented"}
+  <!-- §7.1: an `enum` gets a segmented control over `values`. A narrow bounded
+       integer arrives here too — §7.1's "or a stepper where narrow". -->
+  <FieldRow {label} {...hint ? { hint } : {}} align="center">
+    {#snippet children()}
+      <Toggle
+        options={affordance.values.map((v) => ({ value: v, label: String(v) }))}
+        value={value as string | number}
+        onChange={(v) => onChange(v)}
+        {label}
       />
-      <input
-        class="exact"
-        type="number"
-        step={affordance.integer ? 1 : "any"}
-        value={shown}
-        oninput={(e) => commit(e.currentTarget.value)}
-        onblur={() => (draft = null)}
-        aria-label="{name} exact value"
-      />
-    </div>
-  {:else if affordance.kind === "number"}
-    <!-- §7.1: one bound or none — a numeric field, with integer steps where the
-         spec says integer. The step is a convenience; `admits` is the rule.
+    {/snippet}
+  </FieldRow>
+{:else if affordance.kind === "slider"}
+  <!-- §7.1: both bounds, so the track has a length. The draft is transient, so
+       following the thumb live costs no undo entries. -->
+  <FieldRow {label} {...hint ? { hint } : {}} align="center">
+    {#snippet children()}
+      <span class="slider">
+        <Slider
+          value={Number(value ?? affordance.min)}
+          min={affordance.min}
+          max={affordance.max}
+          step={affordance.step}
+          {label}
+          onInput={slide}
+          onCommit={slide}
+        />
+        <span class="readout t-value">{readout(value, affordance.step)}</span>
+      </span>
+    {/snippet}
+  </FieldRow>
+{:else if affordance.kind === "number"}
+  <!-- §7.1: one bound or none — a numeric field, with integer steps where the
+       spec says integer. The step is a convenience; `admits` is the rule.
 
-         Narrowed on `kind` rather than left as a bare `{:else}`: `cellList` is
-         in the union and `ParamFields` handles it before reaching here, so the
-         explicit branch is what keeps that routing checkable. -->
-    <input
-      class="field"
-      type="number"
-      step={affordance.integer ? 1 : "any"}
-      value={shown}
-      oninput={(e) => commit(e.currentTarget.value)}
-      onblur={() => (draft = null)}
-      aria-label={name}
-    />
-  {/if}
-</div>
+       Narrowed on `kind` rather than left as a bare `{:else}`: `cellList` is
+       in the union and `ParamFields` handles it before reaching here, so the
+       explicit branch is what keeps that routing checkable. -->
+  <NumericInput
+    {label}
+    value={Number(value ?? 0)}
+    {parse}
+    onCommit={(text) => onChange(Number(text.trim()))}
+    step={affordance.integer ? "1" : "any"}
+    {...hint ? { hint } : {}}
+  />
+{/if}
 
 <style>
-  .param {
-    display: grid;
-    grid-template-columns: 1fr 10rem;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8rem;
-  }
-
-  .label {
-    color: #4a5568;
-    min-width: 0;
-  }
-
-  .label em {
-    display: block;
-    font-style: normal;
-    font-size: 0.68rem;
-    color: #a0aec0;
-  }
-
-  input {
-    background: #f7fafc;
-    border: 1px solid #cbd5e0;
-    color: inherit;
-    border-radius: 4px;
-    padding: 0.25rem 0.35rem;
-    font: inherit;
-    font-size: 0.8rem;
-    width: 100%;
-    min-width: 0;
-  }
-
-  input:focus {
-    outline: none;
-    border-color: #a0aec0;
-  }
-
   .slider {
-    display: grid;
-    grid-template-columns: 1fr 4rem;
-    gap: 0.35rem;
-    align-items: center;
-  }
-
-  .slider input[type="range"] {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    accent-color: #3182ce;
-  }
-
-  .segmented {
     display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
   }
 
-  .segmented button {
-    flex: 1;
-    background: #f7fafc;
-    border: 1px solid #cbd5e0;
-    color: #4a5568;
-    border-radius: 0;
-    padding: 0.25rem 0.2rem;
-    font: inherit;
-    font-size: 0.72rem;
-    cursor: pointer;
-    min-width: 0;
-  }
-
-  .segmented button:first-child {
-    border-radius: 4px 0 0 4px;
-  }
-
-  .segmented button:last-child {
-    border-radius: 0 4px 4px 0;
-  }
-
-  .segmented button:not(:first-child) {
-    border-left: 0;
-  }
-
-  .segmented button.on {
-    background: #cbd5e0;
-    color: #1a202c;
-  }
-
-  /* Holding text the spec refuses. Not an error — the draft keeps its last
-     legal value and the preview keeps drawing. */
-  .pending input {
-    border-color: #b7791f;
+  .readout {
+    flex: none;
+    width: var(--share-w);
+    text-align: right;
   }
 </style>

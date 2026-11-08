@@ -1,0 +1,36 @@
+/*
+  Global base layer: the text styles, the focus ring, and reduced motion.
+
+  Deliberately small. Anything a single component needs stays in that
+  component's scoped <style>; only what *every* component shares is here.
+  The text styles live in `type.css` so they can be loaded on their own.
+*/
+
+@import "./type.css";
+
+/* The page: paper, ink, the UI face. The shell (`App.svelte`) owns the layout. */
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+}
+
+/*
+  One focus ring for the whole editor: the accent, 2px, clear of the control.
+  Focus is "what you are working on now", the accent's one meaning; the offset
+  keeps the ring on the surface behind an ink control.
+*/
+:focus-visible {
+  outline: var(--focus-w) solid var(--color-accent);
+  outline-offset: var(--focus-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
+}

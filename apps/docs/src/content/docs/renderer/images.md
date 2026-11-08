@@ -46,7 +46,7 @@ so the editor refuses at attach exactly what the renderer refuses at draw. `Natu
 | `requireNaturalSize(img, probe?)` | `(HTMLImageElement, Probe \| null) → Promise<void>` | Resolves if a loaded `img` has a natural size, rejects with `NO_NATURAL_SIZE` if not. `probe` defaults to the global `createImageBitmap` where it exists, and to `null` (no probe) where it does not. |
 | `Probe` | type | `(img: HTMLImageElement) → Promise<{ close(): void }>`: what `requireNaturalSize` asks, `createImageBitmap` in a browser. |
 | `NaturalSizeChecks` | class | `check(src, img)` runs `requireNaturalSize` once per `src` and returns the same promise after. The constructor takes the check, for tests. |
-| `ImageBank` | class | The cache below. `new ImageBank(checks?)` takes a `NaturalSizeChecks`, a fresh one by default. |
+| `ImageBank` | class | The cache below. `new ImageBank(checks?, options?)` takes a `NaturalSizeChecks`, a fresh one by default, and `{ crossOrigin?: "anonymous" }`, off by default. |
 
 | `ImageBank` member | Type | Meaning |
 | --- | --- | --- |
@@ -126,10 +126,13 @@ The probe is injected, because Node has no `createImageBitmap`.
 
 ### Gotchas & rejected alternatives
 
-- **No `crossOrigin`, on purpose.** Nothing reads the canvas back (no `getImageData`, no
-  `toDataURL`), so a tainted canvas costs nothing. Requesting CORS would make every asset on a
-  server without the header fail outright, and the comment says this path "must not be stricter
-  than" the DOM substrate's `<img>`.
+- **No `crossOrigin` by default, on purpose.** The live renderer never reads its canvas back (no
+  `getImageData`, no `toDataURL`), so a tainted canvas costs nothing. Requesting CORS would make
+  every asset on a server without the header fail outright, and the comment says this path "must
+  not be stricter than" the DOM substrate's `<img>`. `renderImage` is the one path that reads
+  back (`toBlob`), so it passes `{ crossOrigin: "anonymous" }`: a picture without CORS headers
+  then fails by name, where a tainted canvas would throw a `SecurityError` that names nothing
+  (see `image.md`).
 - **Why `naturalWidth` cannot detect it.** Measured in Chrome 154: a viewBox-only SVG reports
   150 × 150, a default, not 0, but `drawImage` with a source rect lays the art out at the
   destination size and reads the source in 150-unit coordinates. A 48 px cell showed a 15 px

@@ -383,28 +383,6 @@ export function rerollAssets(): Transition {
   });
 }
 
-/**
- * The per-Operation `reseedOnLoad` flag — §8.4.
- *
- * The transition is total and sets whatever it is asked to. **Whether the
- * control is offered** is `offersReseedOnLoad`'s question and belongs to the
- * view: §8.4 hides it where the Source is not stochastic, and explicitly
- * requires an imported file carrying the flag anyway to be "left alone and
- * reported as an advisory — not silently cleared". A transition that refused the
- * write would be that silent clearing wearing a different hat.
- */
-export function setReseedOnLoad(operationId: string, on: boolean): Transition {
-  return (file) => ({
-    ...file,
-    config: {
-      ...file.config,
-      operations: file.config.operations.map((op) =>
-        op.id === operationId ? { ...op, reseedOnLoad: on } : op,
-      ),
-    },
-  });
-}
-
 /** `reseedOnLoad`'s config-level counterpart, for assets — §8.4, `04` §8. */
 export function setReseedAssetsOnLoad(on: boolean): Transition {
   return (file) => ({ ...file, config: { ...file.config, reseedAssetsOnLoad: on } });
@@ -472,16 +450,39 @@ export function addAssets(tileId: string, assets: TileAsset[]): Transition {
       : mapTile(file, tileId, (tile) => ({ ...tile, assets: [...tile.assets, ...assets] }));
 }
 
+/** Names compared as the author sees them: trimmed, and case-insensitive, because the UI uppercases them. */
+const nameKey = (name: string) => name.trim().toLocaleLowerCase();
+
+/** Whether a Tile other than `exceptId` already has this name, as `nameKey` compares them. */
+export function tileNameTaken(file: TilesetFile, name: string, exceptId?: string): boolean {
+  const key = nameKey(name);
+  return file.config.tiles.some((t) => t.id !== exceptId && nameKey(t.name) === key);
+}
+
+/** `name`, or `name 2`, `name 3`…: the first that no Tile in the file has. For a new Tile. */
+export function uniqueTileName(file: TilesetFile, name: string): string {
+  if (!tileNameTaken(file, name)) return name;
+  for (let n = 2; ; n++) {
+    const candidate = `${name} ${n}`;
+    if (!tileNameTaken(file, candidate)) return candidate;
+  }
+}
+
 /**
- * **The editor never blocks a rename** (§10.1).
+ * **Refused when another Tile already has the name** (Pol, editor redesign
+ * Block D), compared by `nameKey`. This overrides `09` §10.1's "the editor
+ * never blocks a rename".
  *
- * `Tile.name` is deliberately unconstrained — not unique, not charset-limited,
- * possibly empty (`06` §5.3, **C10**) — because **D1** guarantees a name
- * collision cannot reach output, "so the only cost is authoring clarity".
- * Disambiguation is display behaviour and touches no field.
+ * The schema still allows duplicates: `Tile.name` is deliberately unconstrained,
+ * not unique, not charset-limited, possibly empty (`06` §5.3, **C10**), because
+ * **D1** guarantees a name collision cannot reach output. So this is an editor
+ * rule, not a validity rule, and an imported file may still hold duplicates;
+ * the Tiles section marks those with their id. Renaming to the Tile's own name
+ * in another case is allowed.
  */
 export function renameTile(tileId: string, name: string): Transition {
-  return (file) => mapTile(file, tileId, (tile) => ({ ...tile, name }));
+  return (file) =>
+    tileNameTaken(file, name, tileId) ? file : mapTile(file, tileId, (tile) => ({ ...tile, name }));
 }
 
 /**
@@ -547,6 +548,22 @@ export function setAssetWeight(tileId: string, assetId: string, text: string): T
     return mapTile(file, tileId, (t) => ({
       ...t,
       assets: t.assets.map((a) => (a.id === assetId ? { ...a, weight } : a)),
+    }));
+  };
+}
+
+/**
+ * Every variant of a Tile back to weight 1, the attach default: equal weights
+ * are the only starting point that expresses no opinion. One transition, so
+ * one undo entry. Already equal at 1 is an identity, so it adds no entry.
+ */
+export function resetAssetWeights(tileId: string): Transition {
+  return (file) => {
+    const tile = file.config.tiles.find((t) => t.id === tileId);
+    if (tile === undefined || tile.assets.every((a) => a.weight === 1)) return file;
+    return mapTile(file, tileId, (t) => ({
+      ...t,
+      assets: t.assets.map((a) => ({ ...a, weight: 1 })),
     }));
   };
 }

@@ -7,8 +7,7 @@ sidebar:
 
 **Written from:** `apps/editor/src/assets.ts`, `assets.test.ts`, `library.test.ts` (the
 attach-path block), and the
-call sites in `lib/TileLibrary.svelte`, `lib/ImportPanel.svelte`, `App.svelte`, `download.ts` and
-`reference.ts`.
+call sites in `lib/sections/TilesSection.svelte`, `lib/tiles/TileGroup.svelte`, `lib/tiles/TileAsset.svelte`, `lib/ImportPanel.svelte`, `App.svelte` and `download.ts`.
 
 ## Overview
 
@@ -116,15 +115,15 @@ Engine types: [`AssetProvider`](/api/render/type-aliases/assetprovider/),
 
 | Caller | Uses |
 | --- | --- |
-| `lib/TileLibrary.svelte:69` | `attach` inside `buildAsset`, then `exportPath(tileId, assetId, extensionOf(file.name))` at `:78` into `meta.src`. |
-| `lib/TileLibrary.svelte:102` | `tileNameOf(file.name)` for a new Tile's name. |
-| `lib/TileLibrary.svelte:91`, `:115` | `heldTileIds()` and `heldAssetIds(tile.id)`, passed to `nextIds` beside the document's ids. |
-| `lib/TileLibrary.svelte:275` | `stored(tile.id, asset.id)` to show a thumbnail. |
+| `assets.ts:172` | `attach` inside `attachAsset`, then `exportPath(tileId, assetId, extensionOf(file.name))` at `:181` into `meta.src`. `attachAll` (`assets.ts:206`) calls it per file, allocating `nextAssetId([...taken, ...heldAssetIds(tileId)])` only for files that attach. |
+| `lib/sections/TilesSection.svelte:68`, `:79` | `attachAll(tileId, [], files)` for a new Tile, `attachAll(tile.id, tile.assets.map(a => a.id), files)` for added variants. |
+| `lib/sections/TilesSection.svelte:73` | `tileNameOf(first.name)`: N files make one Tile named after the first file that attached. |
+| `lib/sections/TilesSection.svelte:66` | `heldTileIds()`, passed to `nextTileId` beside the document's ids and the in-flight `reserved` ids. |
+| `lib/tiles/TileGroup.svelte:59`, `lib/tiles/TileAsset.svelte:38` | `stored(tile.id, a.id)` for the closed bar's thumbnails and each variant row's thumbnail. |
 | `lib/ImportPanel.svelte:207` | `replaceAll(incoming)` after validation, before `session.open`. |
 | `App.svelte:144` | `replaceAll([])` in `newTileset`, after `session.reset()`, to reclaim every picture. |
 | `App.svelte:846` | `editorProvider` passed as `options.provider` to `<Tileset>`. |
 | `download.ts:43` | `stored` to read original bytes for export. |
-| `reference.ts:56` | `measure`, reused for the reference image. |
 
 Callees: `assetKey`, `parseAssetKey` and `requireNaturalSize` from `@vit-foundation/gen-tilesets/render`, `URL.createObjectURL` /
 `revokeObjectURL`, `Image`.
@@ -178,7 +177,7 @@ untested.
 - `StoredAsset.width`/`height` are documented as *"Intrinsic, design px"*, but `measure` returns
   `naturalWidth`/`naturalHeight`, which are image pixels. The comment's unit is questionable.
   (inconsistency)
-- `lib/TileLibrary.svelte:174` and `:183` call `release` **before** the delete transition. The
+- `lib/TileLibrary.svelte` (since removed) called `release` **before** the delete transition. The
   delete is undoable, but the bytes are not. An undo restores the Tile or asset with no stored
   bytes, so the preview draws an empty cell and export throws *no attached bytes*. `assets.ts`
   documents the same gap for import only. (possible bug) **Fixed in 0.8.1:** `release()` is
