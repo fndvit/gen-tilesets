@@ -51,6 +51,7 @@
   import BreakpointsSection from "./lib/sections/BreakpointsSection.svelte";
   import GridSection from "./lib/sections/GridSection.svelte";
   import SidebarFooter from "./lib/sections/SidebarFooter.svelte";
+  import SidebarMotif from "./lib/sections/SidebarMotif.svelte";
   import SidebarTopBar from "./lib/sections/SidebarTopBar.svelte";
   import OperationsSection from "./lib/sections/OperationsSection.svelte";
   import TilesSection from "./lib/sections/TilesSection.svelte";
@@ -402,7 +403,12 @@
 
     <div class="sidebar-body">
     <div class="scrollable">
-      <ScrollArea>
+      <!--
+        `fill` makes the content a flex column at least as tall as the area, so
+        the space under the last section exists to be measured: the tile motif
+        takes it (batch 01, T-06, B-004), and none once the sections fill it.
+      -->
+      <ScrollArea fill>
         <div class="sections">
           <!--
             The order a tileset is built in (batch 01, T-03, D-01 A): its size,
@@ -418,6 +424,7 @@
 
           <BreakpointsSection {risked} />
         </div>
+        <SidebarMotif />
       </ScrollArea>
     </div>
 
