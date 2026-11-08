@@ -34,6 +34,11 @@ No props. It reads `session.file.config.operations` and `.tiles`, and `drafting.
 
 ### Inputs → outputs
 
+- **Reseed on load from a closed card** (batch 01, T-11, B-021). Each card gets
+  `reseedOnLoad={reseedOnLoadChip(op) ?? undefined}` and `onReseedOnLoad`, which applies
+  `replaceOperation(withReseedOnLoad(op, on))` ([reseed.ts](/editor/reseed/)): one undo entry, with
+  the flag written explicitly as Save writes it. An open draft of the same Operation takes the
+  value too, as `reseed` copies the salt.
 - **"How operations work"** (batch 01, T-07, B-018). An `info` [IconButton](/editor/ui-icon-button/)
   in the section's header, before the "+" (through `Section`'s `actions`), opens the
   [Explainer](/editor/ui-explainer/) with [`OPERATIONS_EXPLAINER`](/editor/operations-explainer/),
@@ -92,7 +97,8 @@ No props. It reads `session.file.config.operations` and `.tiles`, and `drafting.
 | `App.svelte:34` | import |
 | `App.svelte:289` | `<OperationsSection />`, after `TilesSection` |
 
-Callees: `moveOperation`, `removeOperation`, `rerollOperation` (`document.ts`); `draftDiffers`,
+Callees: `moveOperation`, `removeOperation`, `replaceOperation`, `rerollOperation` (`document.ts`);
+`reseedOnLoadChip`, `withReseedOnLoad` (`reseed.ts`); `draftDiffers`,
 `Step` (`draft.svelte.ts`); `drafting`; `opening`; `nextOperationId` (`ids.ts`); `session`;
 [Section](/editor/section/); [OperationHeader](/editor/operation-header/),
 [OperationBody](/editor/operation-body/); `draftParts`, `partsOf`, `summaryCells`

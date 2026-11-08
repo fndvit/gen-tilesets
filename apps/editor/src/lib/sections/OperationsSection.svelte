@@ -24,7 +24,8 @@
 <script lang="ts">
   import { tick } from "svelte";
   import type { Operation } from "@vit-foundation/gen-tilesets";
-  import { moveOperation, removeOperation, rerollOperation } from "../../document.js";
+  import { moveOperation, removeOperation, replaceOperation, rerollOperation } from "../../document.js";
+  import { reseedOnLoadChip, withReseedOnLoad } from "../../reseed.js";
   import { type Step } from "../../draft.svelte.js";
   import { drafting } from "../../drafting.svelte.js";
   import { nextOperationId } from "../../ids.js";
@@ -99,6 +100,19 @@
   }
 
   /**
+   * The closed card's Reseed on load chip (batch 01, T-11, B-021): a file edit
+   * made at once, through the existing `replaceOperation`, so it is one undo
+   * entry. An open draft of the same Operation takes the value too, as
+   * `reseed` copies the salt, so its Save does not undo the toggle. (The chip
+   * shows only on a closed card, so today that draft is never open; the copy
+   * keeps the rule true if that changes.)
+   */
+  function setReseedOnLoad(op: Operation, on: boolean): void {
+    session.apply(replaceOperation(withReseedOnLoad(op, on)));
+    if (draft !== null && editingId === op.id) draft.reseedOnLoad = on;
+  }
+
+  /**
    * "How operations work" (batch 01, T-07, B-018), wired as `OperationBody`
    * wires "How noise works": the trigger while its popover is open, else
    * `undefined`. It explains the stack as a whole, so it hangs from the
@@ -140,6 +154,8 @@
         onClose={() => guard(() => drafting.discard())}
         onDelete={() => session.apply(removeOperation(op.id))}
         onReseed={() => reseed(op)}
+        reseedOnLoad={reseedOnLoadChip(op) ?? undefined}
+        onReseedOnLoad={(on) => setReseedOnLoad(op, on)}
         onMoveUp={() => session.apply(moveOperation(op.id, index - 1))}
         onMoveDown={() => session.apply(moveOperation(op.id, index + 1))}
         canMoveUp={index > 0}
