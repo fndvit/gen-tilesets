@@ -3,14 +3,23 @@
 What was built, in the order it happened, and what each thing cost. Moved out of `CLAUDE.md`
 on 2026-08-21 so that file could become a standing brief rather than a running narrative.
 
-**This is history, and it goes stale.** Where it describes a rule, the spec section it cites
-is authoritative. Where it describes a decision, `DECISIONS.md` or `/adr` is.
+**This is history, and it goes stale.** Where it describes a rule, the code is the authority;
+the spec section it cites says why. Where it describes a decision, `DECISIONS.md` or `adr/`
+says why. Both are in the frozen archive, `../gen-tileset-spec-archive/`.
+
+**From 0.12.0 on, this file records the package only.** Each task writes a change entry in
+`docs/changes/`; at release, `pnpm changelog draft` turns the unreleased `Package: yes` entries
+into a new section, which is then edited into this file's voice. The `<!-- change: … -->`
+comments mark which entries a section was built from: keep them. Editor-only changes are
+recorded in `docs/changes/` and not here. The sections up to 0.11.0 were written by hand before
+that, cover the editor too, and are not edited.
 
 ---
 
 ## 0.11.0 — `renderImage`: a tileset as a PNG
 
 ### Added: `renderImage` and `imageSize`
+<!-- change: docs/changes/pre-batch/editor-redesign.md -->
 
 From `@vit-foundation/gen-tilesets/render`, with their `ImageOptions` and `ImageSize` types.
 `renderImage(file, { width, density, background?, seed?, loadSalt?, provider?, sizing?, align?,
