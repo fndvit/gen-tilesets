@@ -35,6 +35,9 @@
   import OperationCard from "../operations/OperationCard.svelte";
   import { draftParts, partsOf } from "../operations/labels.js";
   import AddBar from "../ui/AddBar.svelte";
+  import Explainer from "../ui/Explainer.svelte";
+  import IconButton from "../ui/IconButton.svelte";
+  import { OPERATIONS_EXPLAINER } from "./operations-explainer.js";
   import Dialog from "../ui/Dialog.svelte";
 
   const operations = $derived(session.file.config.operations);
@@ -94,10 +97,30 @@
       if (after) draft.salt = after.salt ?? 0;
     }
   }
+
+  /**
+   * "How operations work" (batch 01, T-07, B-018), wired as `OperationBody`
+   * wires "How noise works": the trigger while its popover is open, else
+   * `undefined`. It explains the stack as a whole, so it hangs from the
+   * section's header rather than from any one card.
+   */
+  let explaining = $state<HTMLButtonElement | undefined>(undefined);
+  let explainTrigger = $state<HTMLButtonElement | undefined>(undefined);
 </script>
+
+{#snippet info()}
+  <IconButton
+    icon="info"
+    label="How operations work"
+    expanded={explaining !== undefined}
+    bind:element={explainTrigger}
+    onclick={() => (explaining = explaining === undefined ? explainTrigger : undefined)}
+  />
+{/snippet}
 
 <Section
   title="Operations"
+  actions={info}
   summary={operations.length === 0
     ? "None"
     : `${operations.length} ${operations.length === 1 ? "operation" : "operations"}`}
@@ -151,6 +174,18 @@
     <AddBar label="Add operation" onclick={create} />
   </div>
 </Section>
+
+{#if explaining !== undefined}
+  <Explainer
+    anchor={explaining}
+    content={OPERATIONS_EXPLAINER}
+    onClose={(refocus) => {
+      const trigger = explaining;
+      explaining = undefined;
+      if (refocus) trigger?.focus();
+    }}
+  />
+{/if}
 
 <Dialog
   title="Discard your changes?"

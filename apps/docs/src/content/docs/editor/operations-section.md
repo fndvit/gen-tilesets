@@ -34,6 +34,12 @@ No props. It reads `session.file.config.operations` and `.tiles`, and `drafting.
 
 ### Inputs → outputs
 
+- **"How operations work"** (batch 01, T-07, B-018). An `info` [IconButton](/editor/ui-icon-button/)
+  in the section's header, before the "+" (through `Section`'s `actions`), opens the
+  [Explainer](/editor/ui-explainer/) with [`OPERATIONS_EXPLAINER`](/editor/operations-explainer/),
+  wired as `OperationBody` wires "How noise works": `aria-expanded` while open; Esc, ✕ and a press
+  outside close it, and Esc and ✕ return focus to the button. Pressing it does not fold the section.
+
 - **The list.** `config.operations` in array order, keyed by `op.id`. That order is the stack
   order and is never sorted. Each row is an `OperationHeader` with `index + 1`, and the header of
   the open operation shows the draft's answers (`draftParts`) instead of the file's (`partsOf`),
@@ -91,7 +97,8 @@ Callees: `moveOperation`, `removeOperation`, `rerollOperation` (`document.ts`); 
 [Section](/editor/section/); [OperationHeader](/editor/operation-header/),
 [OperationBody](/editor/operation-body/); `draftParts`, `partsOf`, `summaryCells`
 ([labels.ts](/editor/operation-labels/)); [AddBar](/editor/ui-add-bar/),
-[Dialog](/editor/ui-dialog/).
+[Dialog](/editor/ui-dialog/), [Explainer](/editor/ui-explainer/), [IconButton](/editor/ui-icon-button/);
+`OPERATIONS_EXPLAINER` ([operations-explainer.ts](/editor/operations-explainer/)).
 
 ### Tests
 
