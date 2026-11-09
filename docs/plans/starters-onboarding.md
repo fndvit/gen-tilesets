@@ -207,3 +207,23 @@ BACKLOG.md isn't edited by a task. At the next BACKLOG update, move **B-022** to
 
 Create the branch and `docs/plans/starters-onboarding.md` with this plan. Then put **S0's
 questions** to Pol with AskUserQuestion, and write no code.
+
+## S0 answers (Pol, 2026-11-09)
+
+1. **Name:** "Templates". Collage is the first template.
+2. **Where templates are offered:** only through **New**. The New button opens a choice with
+   two options, **Empty** and **From template**. Templates do **not** appear in the Tiles or
+   Operations sections, and there is no separate top-bar entry. Choosing either option still goes
+   through today's unsaved-changes Dialog.
+3. **Gallery grain:** the grid shows **single images (21)**, with **multi-select**. The picked
+   images become one new tile group.
+   - Carried forward as an assumption for S1, not yet confirmed: the gallery is also offered from
+     a group's own "+", where the picked images are added as variants of that group.
+4. **Weight:** compress the embedded photos **only if appearance is unaffected**.
+   - S3a renders every tile before and after compression and diffs them.
+   - Any tile that differs visibly keeps its original file. The result goes to Pol with the sizes.
+
+**Consequences for S1–S3:**
+- S1 mocks the New choice (Empty / From template, then the template list), the "Add tile group"
+  choice (Gallery / From your computer), and the multi-select gallery grid.
+- S3b becomes "the New choice", not "the top-bar entry and the empty states".
