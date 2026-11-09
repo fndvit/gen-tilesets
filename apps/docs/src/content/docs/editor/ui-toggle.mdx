@@ -42,9 +42,11 @@ Generic over `T extends string | number | boolean`.
 - Click: `onChange(option.value)`. Arrow keys, Home and End: `rovingIndex` picks the next chip,
   calls `onChange` and moves focus there.
 - Chip: 1px ink border, `--control-h` (28px) tall with `--space-4` side padding, `.t-xs`,
-  `--chip-gap` apart (Block F: above the 24px target floor, WCAG 2.5.8). Chosen and hover are
-  inverted (ink fill, paper text). Pressing an unchosen chip fills it with `--color-pressed`. The
-  chosen chip has `cursor: default`, because choosing it again does nothing.
+  `--chip-gap` apart (Block F: above the 24px target floor, WCAG 2.5.8). The chosen chip is
+  inverted (ink fill, paper text). Hovering an unchosen chip washes it with `--color-hover`, and
+  pressing it with `--color-pressed`. Neither wash reaches the chosen chip: both rules outrank
+  `[aria-checked]` and would put its white label on a near-white wash (WCAG 1.4.3). The chosen
+  chip has `cursor: default`, because choosing it again does nothing.
 
 ### Invariants
 

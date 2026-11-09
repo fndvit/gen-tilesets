@@ -65,6 +65,18 @@ body have different padding and frames in Figma.
 - The body is `<div id>` (from `$props.id()`) and is rendered only while open. It slides open and
   closed (`svelte/transition` `slide`) over `--dur-fast`, read by
   [`motionDuration`](/editor/ui-motion/), so it is instant under `prefers-reduced-motion`.
+- In the section variant the heading is `position: sticky; top: 0` with the card's background
+  and `z-index: 2`, so an open section's header (and its ink rule) stays at the top of the
+  sidebar's scroller while the body scrolls under it. It sticks within its own card, so the next
+  section's header pushes it away; headers never stack. Groups do not stick. Everything in a
+  section's body has `scroll-margin-top: var(--header-h)`, so a field focused by Shift+Tab, or a
+  card scrolled into view, stops below the stuck header rather than behind it (WCAG 2.4.11).
+- Opened by the user from its own header, it scrolls its nearest scroll container once the slide
+  has ended, until its bottom is in view but never past its own top, and never under an enclosing
+  section's stuck header ([`reveal.ts`](/editor/ui-reveal-ts/)). Smooth, or instant under reduced
+  motion. An open from outside (`Section`'s `reveal` and "+", `opening.open`) does not scroll
+  here: those callers scroll for themselves, and `OperationsSection` scrolls the opened card,
+  which a reveal of the whole section would move away again.
 - The chevron sits in a `--target-min` (24px) box and rotates 180° when open, over `--dur-fast`.
 - Both variants are 32px tall (`--bar-h-section`, `--bar-h-group`; Figma 25 and 24). The bar
   itself never changes on hover (Pol, Block F review): the chevron and the title dim to
@@ -79,7 +91,7 @@ body have different padding and frames in Figma.
 
 ### Callers / callees
 
-Callers: `lib/Section.svelte`, `lib/sections/BreakpointsSection.svelte` (rules, `variant="group"`), `lib/sections/GridSection.svelte` (Details, `variant="group"`), `lib/tiles/TileGroup.svelte`. Callees: `lib/ui/Icon.svelte` (`fold`), `lib/ui/InlineEdit.svelte`, `lib/ui/Hint.svelte`.
+Callers: `lib/Section.svelte`, `lib/sections/BreakpointsSection.svelte` (rules, `variant="group"`), `lib/sections/GridSection.svelte` (Details, `variant="group"`), `lib/tiles/TileGroup.svelte`. Callees: `lib/ui/Icon.svelte` (`fold`), `lib/ui/InlineEdit.svelte`, `lib/ui/Hint.svelte`, `lib/ui/motion.ts`, `lib/ui/reveal.ts`.
 
 ### Tests
 

@@ -24,6 +24,11 @@
   duplicate name's ` (t3)`), and `hint` explains the title on hover
   (`ui/Hint`).
 
+  An open section's header sticks to the top of the scroller while its body
+  scrolls under it (see the style below). Groups do not stick. Opened from
+  its own header, a collapsible scrolls its scroller, once the slide ends,
+  until its bottom shows, but never past its own top (`reveal.ts`).
+
   Hover washes the whole header one step darker; the chevron turns ink. The
   body slides open and closed over `--dur-fast`, and appears at once under
   reduced motion. Its padding belongs to the caller (Section, TileGroup).
@@ -39,6 +44,7 @@
   import Icon from "./Icon.svelte";
   import InlineEdit from "./InlineEdit.svelte";
   import { motionDuration } from "./motion.js";
+  import { revealInScroller } from "./reveal.js";
 
   interface Props {
     title: string;
@@ -81,8 +87,41 @@
 
   let root: HTMLElement | undefined = $state();
 
+  /**
+   * Set when the user opens this from its own header, cleared when the body
+   * has slid open and been revealed.
+   *
+   * Only the user's own toggle reveals. An open from outside (`Section`'s
+   * `reveal` and "+", `opening.open` in `OperationsSection`) comes with its
+   * caller's own scrolling, and the two would fight: `OperationsSection`
+   * scrolls the opened card into view, and revealing the whole section after
+   * it would move that card away again.
+   */
+  let revealing = false;
+
   function toggle(): void {
     open = !open;
+    revealing = open;
+  }
+
+  /**
+   * After the slide, not at `tick()`: during it the body is still short, so
+   * its final bottom is not known yet (T-09).
+   */
+  function revealOpened(): void {
+    if (!revealing || !root) return;
+    revealing = false;
+    revealInScroller(root, stuckAbove(), motionDuration(root) > 0 ? "smooth" : "instant");
+  }
+
+  /**
+   * How much of the scroller's top an enclosing section's sticky header
+   * covers (T-08), so a group never ends up under it. A section has no
+   * enclosing section and gets 0.
+   */
+  function stuckAbove(): number {
+    const section = root?.parentElement?.closest(".collapsible.section");
+    return section?.querySelector(":scope > .heading")?.getBoundingClientRect().height ?? 0;
   }
 
   function fold(node: HTMLElement) {
@@ -164,7 +203,7 @@
   </svelte:element>
 
   {#if open}
-    <div id={bodyId} transition:fold>
+    <div id={bodyId} transition:fold onintroend={revealOpened}>
       {@render children()}
     </div>
   {/if}
@@ -189,6 +228,49 @@
   .heading {
     margin: 0;
     font: inherit;
+  }
+
+  /*
+    A section's header sticks to the top of the sidebar's scroller while its
+    own body scrolls under it (B-002), so the open section's title and its "+"
+    stay in reach. It sticks within its own card only: a sticky element never
+    leaves its containing block, so the next section's header pushes it away
+    rather than stacking under it (stacking would be a behaviour choice, batch
+    01 T-08).
+
+    It needs the card's background, or the body would show through. `z-index:
+    2` keeps the body's own raised parts (palette rows and tile assets at 1)
+    under it, and stays below `ScrollArea`'s handle (3), which must always draw
+    on top. Menus, the explainer and the tile picker are `position: fixed` at
+    20 and still open over it. Groups do not stick: they are short, and a
+    second stuck header would cover the section's.
+
+    The radius is the card's, so a header that is not stuck does not poke
+    square corners out over the ground; open, only its top corners are round.
+  */
+  .section > .heading {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--color-card);
+    border-radius: var(--radius);
+  }
+
+  .section.open > .heading {
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  /*
+    Whatever the browser scrolls into view inside a section's body (focus by
+    Shift+Tab, `OperationsSection`'s `scrollIntoView` of an opened card) stops
+    below the stuck header instead of under it. Without this, Shift+Tab back up
+    a scrolled section put the focused field wholly behind the header (WCAG
+    2.2 2.4.11, Focus Not Obscured). On the descendants, not as
+    `scroll-padding-top` on `ScrollArea`'s viewport: that is shared by every
+    scroller, and only a section's header sticks.
+  */
+  .section > div :global(*) {
+    scroll-margin-top: var(--header-h);
   }
 
   .bar {
