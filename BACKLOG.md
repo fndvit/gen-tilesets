@@ -12,8 +12,6 @@ with `dropped: <reason>`.
 - **B-008** Currently we have Offset X & Y separated. Same with Scale. Instead, group them as a single attribute (Offset, Scale), and add X & Y as parameters inside the same attribute, so the user can choose to affect both at the same time, or just one of them;
 - **B-009** The ‘EveryNth’ selection does not work how I imagine it. For me ‘everyNth’ means that every N cells, a cell is selected, and changing a row does not reset that count. The current behaviour acts more as a ‘Row’ or ‘Column’ selection, which is fine to have, but with another name. This means: change the behaviour of everyNth so it works like it should, and create another selection for ‘Row/Column’;
 - **B-010** Bug: In an operation where we configure a constant tileId in a cell, after another operation that configures rotation, it looks like rotation affects the tileId even if the tileId operation comes after. TLDR: a rotation operation affects operations that go after it; — *Open: batch-01 T-07 (PR #20) only explains the behaviour in "How operations work"; the engine fix is T-12, not yet scheduled.*
-- **B-011** The ‘Rect’ selection option should allow the user to use a drag over the tileset to select the cells;
-- **B-012** There should be an option to ‘Hide/Unhide’ operations so the user does not need to delete them;
 - **B-013** Bug: I have been able to scroll past the editor — *Open: batch-01 T-04 (PR #20) fixed the one case it reproduced (horizontal scroll from the "Preview size" hint at 660 px). No vertical scroll reproduced; needs the file or state it happened in.*
 
 ## Additions
@@ -22,7 +20,6 @@ with `dropped: <reason>`.
 - **B-017** We need to create a brief Onboarding explaining the steps to create a Tileset. It should include: how to configure the tileset dimension, how to add tiles, how to add operations, how to randomize (a brief step for every section). The user must be able to opt-out at any time, and the onboarding must make use of the typical UI that points to the places where the user must look at every step;
 
 - **B-022** Bug: in every `Toggle`, hovering the *chosen* segment puts its white label on the light hover wash and it can barely be read (the new Grid switch included). `.segment:hover:not(:disabled)` outranks `[aria-checked="true"]`; suggested fix: scope the hover to `:not([aria-checked="true"])`. Found in batch-01 session A;
-- **B-023** "How operations work" opens upward from the Operations header and is taller than the room there, so its last note scrolls inside the panel. The `Explainer` should fit or open where there is room. Found in batch-01 session A;
 
 ## Done
 
@@ -30,9 +27,12 @@ with `dropped: <reason>`.
 - **B-002** Sticky section headers: batch-01 T-08, PR #19
 - **B-003** Grid button → On/off switch: batch-01 T-01, PR #20
 - **B-004** Tile motif in the sidebar free space: batch-01 T-06, PR #20
+- **B-011** Drag to draw a Rect selection: batch-02 T-01, PR #22
+- **B-012** Hide/unhide operations: batch-02 T-02, PR #22
 - **B-014** Painted cells outside the grid: batch-01 T-05, PR #20
 - **B-015** Fresh-load hint points at "Assets on load": batch-01 T-02, PR #20
 - **B-018** Operations (i) explainer: batch-01 T-07, PR #20
 - **B-019** Randomness (i) explainer: batch-01 T-07, PR #20
 - **B-020** Scroll opened content clear of the footer: batch-01 T-09, PR #19
 - **B-021** Reseed on load from a closed card: batch-01 T-11, PR #20
+- **B-023** Explainer opens where it fits: batch-02 T-03, PR #21
