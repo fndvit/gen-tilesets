@@ -7,7 +7,9 @@
   (Preview colour / Transparent) and Density (1× / 2×, 2× by default), the
   draft advisory, the File line, then Cancel and Download PNG.
 
-  **It draws the saved file, never the draft** (Pol, X0), with the file's
+  **It draws the saved file, never the draft** (Pol, X0), **less the hidden
+  operations** (batch 02 T-02, D-03 A: the image is a picture of the preview;
+  the open one is kept, as the preview keeps it), with the file's
   `defaultSeed` and the load on screen (`preview.loadSalt`), through the same
   provider as the preview. The drawing is the package's `renderImage`, an
   offscreen render at the chosen width and density, so the same choices give
@@ -33,7 +35,9 @@
   import { saveBlob } from "../../download.js";
   import { fileName, pixelSize, rememberedSize, sizeRows } from "../../image-export.js";
   import { session } from "../../session.svelte.js";
+  import { drafting } from "../../drafting.svelte.js";
   import { preview } from "../preview/view.svelte.js";
+  import { withoutHidden } from "../preview/visibility.js";
   import Advisory from "../ui/Advisory.svelte";
   import Button from "../ui/Button.svelte";
   import Popup from "../ui/Popup.svelte";
@@ -74,7 +78,9 @@
 
   async function download(close: () => void): Promise<void> {
     // Read once: the radios stay live while the PNG is drawn.
-    const [source, key, w, d, n] = [file, size, width, density, name];
+    const openId = drafting.editing ? (drafting.draft?.id ?? null) : null;
+    const source = withoutHidden(file, preview.hidden, openId);
+    const [key, w, d, n] = [size, width, density, name];
     busy = true;
     try {
       const blob = await renderImage(source, {

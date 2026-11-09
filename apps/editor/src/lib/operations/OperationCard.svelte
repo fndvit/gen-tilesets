@@ -22,6 +22,14 @@
     tech (`role="switch"`, `aria-checked`) and wears the other chips' look; On
     is the ink-on-white selected state, as in a `Toggle`. Absent where the
     toggle is absent inside the card.
+  - **Hide, first of the actions** (batch 02 T-02, B-012). An eye that hides
+    the operation from the preview while the editor is open (D-02 A; the file
+    is untouched). A hidden card says "Hidden" in words, its index square goes
+    hollow and its title muted, so the state is never colour alone. One
+    label, "Hide operation N", with `aria-pressed`: the APG toggle-button
+    pattern, where a label that flipped to "Show" *and* a pressed state would
+    announce "Show …, pressed" and contradict itself. Absent on a new
+    operation, which is not in the file to be hidden.
   - **Actions, right.** Re-seed stays visible because it is the operation's
     everyday action. Move earlier, Move later and Delete sit in a "more" menu,
     so they are a click away without crowding every row; the moves are still
@@ -53,6 +61,10 @@
     onDelete: () => void;
     /** Absent for an operation that is not in the file yet (nothing to re-seed). */
     onReseed?: (() => void) | undefined;
+    /** Whether the operation is hidden from the preview (`preview.hidden`). */
+    hidden?: boolean;
+    /** Hides or shows it. Absent for an operation that is not in the file yet. */
+    onToggleHidden?: (() => void) | undefined;
     onMoveUp: () => void;
     onMoveDown: () => void;
     canMoveUp: boolean;
@@ -80,6 +92,8 @@
     onClose,
     onDelete,
     onReseed,
+    hidden = false,
+    onToggleHidden,
     onMoveUp,
     onMoveDown,
     canMoveUp,
@@ -100,7 +114,7 @@
   const name = $derived(`operation ${index}`);
 </script>
 
-<article class="card" class:open aria-label="Operation {index}">
+<article class="card" class:open class:hidden aria-label="Operation {index}{hidden ? ', hidden' : ''}">
   <div class="head">
     <span class="index t-console" aria-hidden="true">{index}</span>
     <button
@@ -128,7 +142,18 @@
         <span class="detail t-console">{writes.detail}</span>
       {/if}
     </button>
+    {#if hidden}
+      <span class="hidden-tag t-console">Hidden</span>
+    {/if}
     <span class="actions">
+      {#if onToggleHidden}
+        <IconButton
+          icon={hidden ? "eye-off" : "eye"}
+          label="Hide {name}"
+          pressed={hidden}
+          onclick={onToggleHidden}
+        />
+      {/if}
       {#if onReseed}
         <IconButton icon="reseed" strong label="Re-seed {name}" onclick={onReseed} />
       {/if}
@@ -219,6 +244,35 @@
 
   .open .index {
     background: var(--color-accent);
+  }
+
+  /*
+    Hidden (batch 02 T-02): dimmed by shape and tone, not by opacity, so every
+    word on the card keeps its contrast. The index square goes hollow, the
+    title's target takes the muted text colour, the thumbnails fade (they are
+    pictures, not text), and the "Hidden" tag says it in words. Open, the
+    accent square wins: the operation is being drawn while it is edited.
+  */
+  .hidden:not(.open) .index {
+    box-sizing: border-box;
+    border: var(--rule-w) solid var(--color-ink);
+    background: transparent;
+    color: var(--color-ink);
+  }
+
+  .hidden .target {
+    color: var(--color-muted);
+  }
+
+  .hidden .thumbs {
+    opacity: 0.5;
+  }
+
+  .hidden-tag {
+    flex: none;
+    color: var(--color-muted);
+    line-height: var(--leading-title);
+    text-box: none;
   }
 
   .title {

@@ -43,11 +43,13 @@
   import { opening } from "./opening.svelte.js";
   import { atRisk, cameWithFile, needsConfirmation, orphans } from "./orphans.js";
   import PaintLayer from "./lib/PaintLayer.svelte";
+  import RectLayer from "./lib/RectLayer.svelte";
   import PreviewFrame from "./lib/preview/PreviewFrame.svelte";
   import NoticeStack from "./lib/preview/NoticeStack.svelte";
   import PreviewGrid from "./lib/preview/PreviewGrid.svelte";
   import PreviewTopBar from "./lib/preview/PreviewTopBar.svelte";
   import { preview } from "./lib/preview/view.svelte.js";
+  import { pruned, withoutHidden } from "./lib/preview/visibility.js";
   import BreakpointsSection from "./lib/sections/BreakpointsSection.svelte";
   import GridSection from "./lib/sections/GridSection.svelte";
   import SidebarFooter from "./lib/sections/SidebarFooter.svelte";
@@ -58,7 +60,7 @@
   import Dialog from "./lib/ui/Dialog.svelte";
   import ScrollArea from "./lib/ui/ScrollArea.svelte";
   import SelectionOverlay from "./lib/SelectionOverlay.svelte";
-  import type { Cell } from "./paint.js";
+  import { rectParams, type Cell, type Rect } from "./paint.js";
   import { notices } from "./notices.svelte.js";
   import { session } from "./session.svelte.js";
 
@@ -87,8 +89,29 @@
     drafting.draft === null ? null : draftFile(file, $state.snapshot(drafting.draft)),
   );
 
-  /** What `<Tileset>` draws: the draft's file while there is one, else the saved file. */
-  const shown = $derived(drawn ?? file);
+  /**
+   * What `<Tileset>` draws: the draft's file while there is one, else the saved
+   * file — **less the hidden operations** (batch 02 T-02, D-02 A), except the one
+   * open for editing, which is drawn because you cannot edit what you cannot see.
+   *
+   * Only the picture reads this. Advisories, `shapedAt`, the `.json` export and
+   * undo read `file`, which still holds every operation; a reader of `shown`
+   * would silently lose the hidden ones. (`failures` reads `shown` on purpose: a
+   * failed tile no drawn operation paints is not on screen.)
+   */
+  const shown = $derived(
+    withoutHidden(drawn ?? file, preview.hidden, drafting.editing ? (drafting.draft?.id ?? null) : null),
+  );
+
+  /**
+   * Forget hidden ids the file no longer has. An id is given again once the
+   * newest operation is deleted (`nextOperationId`), and the next operation
+   * must start visible. `pruned` returns the same set when nothing went, so the
+   * write-back does not retrigger this.
+   */
+  $effect(() => {
+    preview.hidden = pruned(preview.hidden, file.config.operations);
+  });
 
   /**
    * The file **as `<Tileset>` draws it at a preview width** — its rules' cascade
@@ -341,6 +364,28 @@
   });
 
   /**
+   * The draft's rectangle, if the Selection it is building is one (batch 02 T-01).
+   *
+   * Recognised by its **parameter shape** — `rectParams`: exactly the integers
+   * `x`, `y`, `width`, `height` — not by the type's name, because the editor
+   * names no Selection type (**E9**); a registry flag was rejected because it
+   * changes the Registry contract. `rect` is `null` while a field holds no
+   * number (mid-typing), and the layer still mounts: a drag writes all four.
+   *
+   * **Never mounted with the brush.** No registered Selection has both shapes
+   * (`paint.test.ts` checks the registry), and if one ever did, the `cellList`
+   * brush wins: `rectangle` is `null` whenever `painting` is not.
+   */
+  const rectangle = $derived.by(() => {
+    const draft = drafting.draft;
+    if (draft === null || draft.selectionType === null || painting !== null) return null;
+    if (!rectParams(selections.get(draft.selectionType).params)) return null;
+    const p = draft.selectionParams;
+    const ok = ["x", "y", "width", "height"].every((k) => typeof p[k] === "number");
+    return { rect: ok ? ({ x: p.x, y: p.y, width: p.width, height: p.height } as Rect) : null };
+  });
+
+  /**
    * The **shadow config** the overlay resolves against (`shadowConfig`).
    *
    * `selection()` resolves an Operation **by id** and the draft is not in the
@@ -384,6 +429,12 @@
   function paintCells(name: string, cells: Cell[]): void {
     const draft = drafting.draft;
     if (draft !== null) draft.selectionParams[name] = cells;
+  }
+
+  /** The rectangle drag's write, the same way: into the draft, never the file. */
+  function drawRect(rect: Rect): void {
+    const draft = drafting.draft;
+    if (draft !== null) Object.assign(draft.selectionParams, rect);
   }
 </script>
 
@@ -505,6 +556,18 @@
                 cells={brush.cells}
                 param={brush.name}
                 onChange={(cells) => paintCells(brush.name, cells)}
+              />
+            {:else if rectangle !== null && renderBox !== null}
+              <!--
+                Batch 02 T-01 — dragging a rectangle Selection. `{:else}` of the
+                brush on purpose: the two layers never both mount (see
+                `rectangle`).
+              -->
+              <RectLayer
+                g={{ layout: here.layout, rows: here.config.rows, columns: here.config.columns, Wpx }}
+                box={renderBox}
+                rect={rectangle.rect}
+                onChange={drawRect}
               />
             {/if}
           {/snippet}

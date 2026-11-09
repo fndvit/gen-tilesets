@@ -23,13 +23,13 @@ describe("labelFor", () => {
     expect(labelFor("checkerboard")).toBe("Checkered");
     expect(labelFor("tileId")).toBe("Tile");
     expect(labelFor("valueNoise")).toBe("Noise");
+    expect(labelFor("rect")).toBe("Drag");
   });
 
   it("puts any other name in sentence case, so a later registration still reads", () => {
     expect(labelFor("cellsPerFeature")).toBe("Cells per feature");
     expect(labelFor("everyNth")).toBe("Every nth");
     expect(labelFor("scaleX")).toBe("Scale x");
-    expect(labelFor("rect")).toBe("Rect");
   });
 });
 

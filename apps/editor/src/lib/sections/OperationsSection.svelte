@@ -18,7 +18,9 @@
   unfolds when `opening.open` asks to show an operation.
 
   **No `disabled` toggle** (§4.1): there is no field for one, and adding one is
-  a `schemaVersion` bump. Reordering is arrows, not a drag (`DECISIONS.md`
+  a `schemaVersion` bump. What there is instead is **hiding** (batch 02 T-02,
+  B-012, D-02 A): the card's eye puts the id in `preview.hidden`, view state
+  that the preview and Export image draw through and the file never sees. Reordering is arrows, not a drag (`DECISIONS.md`
   D44): one gesture is one transition and one undo entry (D32).
 -->
 <script lang="ts">
@@ -30,6 +32,8 @@
   import { drafting } from "../../drafting.svelte.js";
   import { nextOperationId } from "../../ids.js";
   import { opening } from "../../opening.svelte.js";
+  import { preview } from "../preview/view.svelte.js";
+  import { toggled } from "../preview/visibility.js";
   import { session } from "../../session.svelte.js";
   import Section from "../Section.svelte";
   import OperationBody from "../operations/OperationBody.svelte";
@@ -154,6 +158,8 @@
         onClose={() => guard(() => drafting.discard())}
         onDelete={() => session.apply(removeOperation(op.id))}
         onReseed={() => reseed(op)}
+        hidden={preview.hidden.has(op.id)}
+        onToggleHidden={() => (preview.hidden = toggled(preview.hidden, op.id))}
         reseedOnLoad={reseedOnLoadChip(op) ?? undefined}
         onReseedOnLoad={(on) => setReseedOnLoad(op, on)}
         onMoveUp={() => session.apply(moveOperation(op.id, index - 1))}

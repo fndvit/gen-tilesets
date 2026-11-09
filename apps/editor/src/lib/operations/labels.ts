@@ -4,9 +4,13 @@
  *
  * The registry names (`everyNth`, `cellList`, `scaleX`) stay in the file and in
  * code. The author sees words: Figma names the glyphs "Handpick" and
- * "Checkered". A name with no entry here is put in sentence case, so a Selection,
- * Source or param registered later still gets a readable label with no change
- * here (**E9**).
+ * "Checkered". `rect` reads "Drag" (Pol, batch 02): the label names the
+ * gesture that sets it, so the picker tells the author they can drag on the
+ * preview; "Rect" named the shape and hid that.
+ *
+ * A name with no entry here is put in sentence case, so a Selection, Source or
+ * param registered later still gets a readable label with no change here
+ * (**E9**).
  */
 
 import { isTileMapping, type Operation, type Tile } from "@vit-foundation/gen-tilesets";
@@ -16,6 +20,7 @@ import { mappingOf, STEPS, type Draft, type Step } from "../../draft.svelte.js";
 const NAMED: Record<string, string> = {
   cellList: "Handpick",
   checkerboard: "Checkered",
+  rect: "Drag",
   tileId: "Tile",
   valueNoise: "Noise",
 };
