@@ -14,7 +14,7 @@ The document's actions, on the same ground and in the same grid row as the previ
 (`App.svelte` shares the row with a subgrid). The two bars are therefore always the same height,
 and one hairline runs under both.
 
-- Left: **New** (App's confirmed `newTileset`), **Import** ([import panel](/editor/import-panel/)),
+- Left: **New** (opens App's [New tileset](/editor/new-tileset/) popup), **Import** ([import panel](/editor/import-panel/)),
   and **Export**, the area's one primary, a [Split button](/editor/ui-split-button/).
 - Right: **Undo** (E6).
 
@@ -36,7 +36,7 @@ over it.
 
 | Prop | Type | Meaning |
 | --- | --- | --- |
-| `onNew` | `() => void` | Starts a new tileset (App's `newTileset`: confirmed, not undoable). |
+| `onNew` | `() => void` | Opens the [New tileset](/editor/new-tileset/) popup (App's `askingNew`). |
 | `draft` | `boolean` | Whether the preview draws a draft (App's `drawn !== null`), passed to Export image for its advisory. |
 
 These actions used to sit in the [sidebar footer](/editor/sidebar-footer/), which now holds only

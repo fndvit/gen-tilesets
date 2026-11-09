@@ -526,3 +526,42 @@ template thumbnail.
 
 **Next: S3b**, the New tileset popup (DESIGN_SYSTEM.md "New tileset"). It calls `loadManifest`,
 `loadTemplate`, `prepareArchive` and `adopt`, and a failure goes to the "Import refused" Popup.
+
+## S3b done (2026-11-09)
+
+New opens the **New tileset** Form popup (`lib/sections/NewTileset.svelte`), which replaces the
+"Start a new tileset?" Dialog.
+- **Empty** calls App's unchanged `newTileset`.
+- **From template** fetches the manifest (only then, and once per session), lists Collage with
+  its thumbnail, and opens it through `loadTemplate` → `prepareArchive` → `adopt`.
+- A failure is reported by **`lib/ImportRefused.svelte`**, the popup that used to live inside
+  ImportPanel. It is now shared, and says "Collage was not opened. …".
+- `RadioList` gains **described rows** and `legendHidden`, `starters.ts` gains **`once`** (tested),
+  and the tokens are `--radio-described-h` and `--template-thumb-w`.
+
+**Decisions made in S3b, for Pol to check:**
+- The manifest is fetched when **From template** is chosen, not when the popup opens, so a plain
+  New makes no request.
+- If the manifest fails, the Template fieldset shows "Couldn't load the templates: <reason>" with
+  the alert icon, and the verb stays disabled. Choosing From template again retries.
+- Closing the popup (Esc) while a template is loading **abandons** the load, and nothing is
+  replaced.
+- A template card that is not chosen gets a 1px ink ring on hover. The chosen one has 2px.
+- The summary wraps between its parts, never beside the "·" (seen at 320 px).
+
+**Verified:** `pnpm test` (671 + 524 + 12), `pnpm typecheck`, docs coverage and `pnpm changelog
+check` are green, and `packages/` is unchanged. A Playwright probe on 5174 checked that:
+- a fresh load makes no starters request, and opening New makes none either;
+- focus starts on Empty, and ArrowDown chooses From template, which fetches only `starters.json`
+  and `thumb.webp`;
+- Open Collage fetches the 21 pictures, opens the tileset (blau, seed north-quarry-83) and closes
+  the popup;
+- reopening starts on Empty and does not fetch the manifest again, and Start new empties the
+  document;
+- a 404 on one picture gives "Collage was not opened… /templates/collage/tiles/t1/a1.svg: HTTP
+  404", and the document is unchanged;
+- a manifest 500 shows the load error, and choosing From template again retries and succeeds;
+- Esc during a slow load leaves the document unchanged;
+- at 320 px the dialog is 282 px wide, with no overflow.
+
+**Next: S3c**, the tile gallery (the Add menu and the gallery popup).

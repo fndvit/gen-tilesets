@@ -283,16 +283,25 @@ choice and the warning, so it is one step, not a menu and then a Dialog.
 - **While a template loads**, the verb reads "Opening…" and is disabled, and the popup stays open.
   On success it closes and the document is replaced through the same sequence as Import. If it
   fails, nothing is replaced: the popup closes and the existing "Import refused" Popup reports it,
-  with the template's name in place of the file's.
+  with the template's name in place of the file's ("Collage was not opened. …"). Closing the popup
+  during the load (Esc) abandons it, and nothing is replaced.
+- **While the template list loads** (the first time From template is chosen; the list is then kept
+  for the session), the Template fieldset holds a muted "Loading templates…". If it cannot load,
+  the fieldset holds a Field error ("Couldn't load the templates: <reason>") and the verb stays
+  disabled. Choosing From template again retries. Both lines are `role="status"`.
+- **The summary** ("6 tile groups · 6 operations") wraps between its parts, never beside the "·".
+- **Hover** on a template card that is not chosen draws a 1px ink ring, one step under the chosen
+  2px ring.
 
-**Radio list, described** is a variant of the Radio list. Each row is at least 52px: the 12px ring
+**Radio list, described** is a variant of the Radio list. Each row is at least 52px
+(`--radio-described-h`): the 12px ring
 dot, the label in `.t-xs`, and under the label a muted `.t-body` line. The padding is `--space-5`
 above and below and `--space-4` at the sides. The chosen row is ink with white text, and its
 description is white at 75% (≈ 13:1 on ink). Everything else about the Radio list applies,
 including native radios, the arrow keys and hover.
 
 **Template list** is a Radio list of cards on the same field-grey well. Each row has a 96 × 60
-thumbnail (`--template-thumb-w` *(S3)*, 16:10, `object-fit: cover`, `--radius-xs`), then the name
+thumbnail (`--template-thumb-w`, 16:10, `object-fit: cover`, `--radius-xs`), then the name
 in `.t-title` and, under it, a muted mono summary ("6 tile groups · 12 operations"). Rows are white
 on the well. The chosen row has the glyph grid's 2px ink ring. The thumbnail is a PNG committed
 with the template, rendered once from it. It is never drawn live, because that would fetch the

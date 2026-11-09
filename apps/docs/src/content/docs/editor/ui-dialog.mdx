@@ -1,6 +1,6 @@
 ---
 title: ui/Dialog.svelte
-description: A blocking question with Cancel and one verb that acts, such as "Start a new tileset?". A Popup announced as an alertdialog.
+description: A blocking question with Cancel and one verb that acts, such as "Discard your changes?". A Popup announced as an alertdialog.
 sidebar:
   order: 77
 ---
@@ -57,7 +57,8 @@ only when the value really changed. It never interrupts typing (Pol, 2026-11-06)
 Callers (Stage 2 W4):
 
 - `App.svelte`: E12's resize confirmation ("Change cell size to 54?", verb "Change cell size",
-  the risked operations in a well) and New tileset ("Start a new tileset?", verb "Start new").
+  the risked operations in a well). New tileset used to be a Dialog ("Start a new tileset?"); since
+  B-016 it is the [New tileset](/editor/new-tileset/) Form popup.
 - `lib/sections/OperationsSection.svelte`: "Discard your changes?", cancel "Keep editing", verb
   "Discard", bound to `opening.asking`.
 - The docs story.

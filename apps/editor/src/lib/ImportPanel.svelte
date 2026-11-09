@@ -35,9 +35,10 @@
 
   ## Reports appear after an attempt, in a popup
 
-  A refusal or a newer-version file is shown in a closable `ui/Popup` once the
-  attempt ends, and never takes space in the layout (Pol, 2026-11-04). Closing
-  it clears the report.
+  A refusal or a newer-version file is shown in `ImportRefused.svelte`, a
+  closable `ui/Popup`, once the attempt ends, and never takes space in the
+  layout (Pol, 2026-11-04). Closing it clears the report. The New tileset
+  popup reports a template that fails to open in the same component.
 
   An import that opened with notes (an upgrade, unreadable pictures)
   opens: there is nothing to answer, so its notes are notices in the preview's
@@ -48,8 +49,8 @@
   import { unzipSync } from "fflate";
   import { adopt } from "../adopt.js";
   import { prepareArchive, type Archive } from "../import.js";
+  import ImportRefused from "./ImportRefused.svelte";
   import Button from "./ui/Button.svelte";
-  import Popup from "./ui/Popup.svelte";
 
   interface Props {
     /** The element that takes dropped zips and folders. */
@@ -286,72 +287,10 @@
   aria-hidden="true"
 />
 
-<Popup title="Import refused" bind:open={reporting} onClose={reset}>
-  {#if failure !== null}
-    <p class="t-body">Not opened. Nothing in the current document has changed.</p>
-    <p class="t-console detail">{failure}</p>
-  {/if}
-
-  <!--
-    §12.4's own case: the file was written by a **newer** build, and the action
-    is to update the editor rather than to fix the file. It is the one failure
-    the author cannot repair by editing anything.
-
-    It is its own message rather than a row in the error list because there is
-    nothing to list: no field is wrong, and `06` **C2** forbids inferring a shape
-    from the keys present, so the file was never walked.
-  -->
-  {#if newer !== null}
-    <p class="t-body">
-      This file was written by a newer build (schemaVersion {newer}). Update the editor, not the
-      file.
-    </p>
-  {/if}
-
-  <!--
-    **C6**: no partial load and no severity axis. The file was not opened; the
-    document on screen is the one that was already there.
-  -->
-  {#if errors.length > 0}
-    <p class="t-body">Not opened. Nothing in the current document has changed.</p>
-    <ul class="t-console">
-      {#each errors.slice(0, 12) as error, i (i)}
-        <li><strong>{error.path || "/"}</strong> {error.code} {error.message}</li>
-      {/each}
-      {#if errors.length > 12}
-        <li>…and {errors.length - 12} more</li>
-      {/if}
-    </ul>
-  {/if}
-
-</Popup>
+<ImportRefused bind:open={reporting} {failure} {newer} {errors} onClose={reset} />
 
 <style>
   .picker {
     display: none;
-  }
-
-  p {
-    margin: 0 0 var(--space-4);
-  }
-
-  .detail {
-    overflow-wrap: anywhere;
-  }
-
-  ul {
-    display: grid;
-    gap: var(--space-4);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    line-height: var(--leading-hint);
-    text-box: none;
-    overflow-wrap: anywhere;
-  }
-
-  strong {
-    font-weight: inherit;
-    text-decoration: underline;
   }
 </style>

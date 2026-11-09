@@ -18,6 +18,7 @@ import {
   loadManifest,
   loadTemplate,
   MANIFEST_PATH,
+  once,
   parseManifest,
   type Fetch,
   type GalleryEntry,
@@ -159,6 +160,28 @@ describe("loadGalleryFiles", () => {
     ]);
     expect(await files[0]!.text()).toBe("<svg>2</svg>");
     expect(failures).toEqual(["gone 1: /app/templates/demo/tiles/t9/a1.svg: HTTP 404"]);
+  });
+});
+
+describe("once", () => {
+  it("runs the load once and shares the result", async () => {
+    let runs = 0;
+    const load = once(async () => ++runs);
+    expect(await Promise.all([load(), load()])).toEqual([1, 1]);
+    expect(await load()).toBe(1);
+    expect(runs).toBe(1);
+  });
+
+  it("forgets a failed load, so the next call tries again", async () => {
+    let runs = 0;
+    const load = once(async () => {
+      runs += 1;
+      if (runs === 1) throw new Error("offline");
+      return runs;
+    });
+    await expect(load()).rejects.toThrow("offline");
+    expect(await load()).toBe(2);
+    expect(await load()).toBe(2);
   });
 });
 

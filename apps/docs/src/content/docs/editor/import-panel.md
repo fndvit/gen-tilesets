@@ -89,7 +89,9 @@ popup calls `reset()`.
 
 #### What it shows
 
-Refusals are in the popup, titled "Import refused".
+Refusals are in the popup, titled "Import refused". It is
+[ImportRefused.svelte](/editor/import-refused/), which the New tileset popup also uses for a
+template that fails to open.
 
 | State | Shown |
 | --- | --- |
@@ -119,7 +121,7 @@ Refusals are in the popup, titled "Import refused".
 | `lib/sections/SidebarFooter.svelte` | `<ImportPanel target={root} bind:over />` in the actions row |
 
 Callees: `prepareArchive` (`import.ts`); `adopt` (`adopt.ts`); `unzipSync` (`fflate`);
-`ui/Button`, `ui/Popup`.
+`ui/Button`, `ImportRefused`.
 
 ### Tests
 

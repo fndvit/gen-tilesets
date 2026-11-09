@@ -193,3 +193,26 @@ export async function loadGalleryFiles(entries: readonly GalleryEntry[], fetch: 
   });
   return { files, failures };
 }
+
+/**
+ * A loader that runs once and is then shared, until it fails.
+ *
+ * The manifest is fetched the first time a popup needs it (never at startup),
+ * then every popup and every reopening shares the one result. A **rejected**
+ * load is forgotten, so the next call tries again: a failed fetch is often a
+ * dropped connection, and holding on to it would leave the templates
+ * unreachable until a reload.
+ */
+export function once<T>(load: () => Promise<T>): () => Promise<T> {
+  let pending: Promise<T> | null = null;
+  return () => {
+    if (pending === null) {
+      const attempt = load();
+      pending = attempt;
+      attempt.catch(() => {
+        if (pending === attempt) pending = null;
+      });
+    }
+    return pending;
+  };
+}

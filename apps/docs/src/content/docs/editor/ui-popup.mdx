@@ -60,11 +60,11 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 ### Callers / callees
 
-Callers: `lib/ImportPanel.svelte` (refusals only), `lib/sections/SidebarTopBar.svelte` (export
+Callers: `lib/ImportRefused.svelte` (refusals only, for Import and templates), `lib/sections/SidebarTopBar.svelte` (export
 failure only), `lib/sections/TilesSection.svelte` (refusals only; files that do not attach are a
 failure notice since Stage 2 W5), `controls/PaletteList.svelte` (refusals: the last entry, the
-last non-zero weight), `lib/ui/Dialog.svelte` (`actions` and `alert`), and `lib/sections/ExportImage.svelte` (a Form
-popup: `actions`, `closable`, `initialFocus`). Callees: `lib/ui/Button.svelte`,
+last non-zero weight), `lib/ui/Dialog.svelte` (`actions` and `alert`), and two Form popups, `lib/sections/ExportImage.svelte` and `lib/sections/NewTileset.svelte`
+(`actions`, `closable`, `initialFocus`). Callees: `lib/ui/Button.svelte`,
 `lib/ui/IconButton.svelte`.
 
 ### Tests

@@ -85,7 +85,8 @@ Which component renders which, in source order. Conditional children are marked.
       - `NoticeStack` (`lib/preview/NoticeStack.svelte`), after the `ScrollArea` and inside
         `.canvas` (`position: relative`), so it stays put while the picture scrolls. It gets
         `notices.shown(conditions)` and `onDismiss={(n) => notices.dismiss(n)}`.
-- two [`Dialog`](/editor/ui-dialog/)s after `main`: E12's resize confirmation and New tileset.
+- after `main`: E12's resize confirmation, a [`Dialog`](/editor/ui-dialog/), and the
+  [New tileset](/editor/new-tileset/) popup.
 - `<svelte:window>` forwards `oninputcapture`, `onchange`, `onfocusout` and `onkeydown` to
   `entry` (`entry.svelte.ts`), which tracks whether the author is entering a value.
 
@@ -215,9 +216,10 @@ and do nothing.
 
 #### New document
 
-The footer's *New* button calls `newTileset` (passed as `onNew`), which is **confirmed and not
-undoable**. The button opens a [`Dialog`](/editor/ui-dialog/), "Start a new tileset?", and only
-its verb, "Start new", calls `newTileset`. That calls
+The top bar's *New* button sets `askingNew` (passed as `onNew`), which opens the
+[New tileset](/editor/new-tileset/) Form popup (B-016). Its **Empty** choice calls `newTileset`,
+which is **confirmed and not undoable**; its templates open through Import's sequence instead
+(`prepareArchive` + `adopt`), so App does nothing more for them. `newTileset` calls
 `session.reset()`, sets `failures = []`, calls `notices.clear()`, and awaits `replaceAll([])` to reclaim every picture the
 session held. Reset comes first so the outgoing document is already gone from the preview: no
 `<img>` then draws an object URL `replaceAll` has just revoked, and nothing reports those as
@@ -259,7 +261,8 @@ Callees, by import: from the package, [`selections`](/api/index/variables/select
 `notices.svelte.ts` (and the `Notice` type from `notices.ts`), `assets.ts` (`editorProvider`, `replaceAll`, `stored`), `document.ts`
 (the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `opening.svelte.ts`, `orphans.ts`, `session.svelte.ts`,
 the six `lib/sections/` components (Grid, Tiles, Operations, Breakpoints, SidebarMotif, SidebarFooter),
-`PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer`, `RectLayer` and `ui/Dialog`;
+`PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer`, `RectLayer`, `ui/Dialog` and
+`sections/NewTileset`;
 `lib/preview/visibility.ts` (`withoutHidden`, `pruned`); `paint.ts`
 (`rectParams`).
 

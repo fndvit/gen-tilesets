@@ -1,6 +1,7 @@
 <!--
   A blocking question with one answer that acts: "Change columns to 8?",
-  "Start a new tileset?", "Discard your changes?".
+  "Discard your changes?". (New tileset was one until B-016 made it a Form
+  popup, `sections/NewTileset.svelte`.)
 
   It is a `Popup` announced as an `alertdialog`. The title is the question. The
   body says what changes and how to undo it, and lists anything affected.

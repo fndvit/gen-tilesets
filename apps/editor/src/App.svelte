@@ -55,6 +55,7 @@
   import SidebarFooter from "./lib/sections/SidebarFooter.svelte";
   import SidebarMotif from "./lib/sections/SidebarMotif.svelte";
   import SidebarTopBar from "./lib/sections/SidebarTopBar.svelte";
+  import NewTileset from "./lib/sections/NewTileset.svelte";
   import OperationsSection from "./lib/sections/OperationsSection.svelte";
   import TilesSection from "./lib/sections/TilesSection.svelte";
   import Dialog from "./lib/ui/Dialog.svelte";
@@ -202,8 +203,10 @@
 
   /**
    * Starts a new tileset, **confirmed and not undoable** (`session.reset`). It
-   * discards everything, so it asks first (a `Dialog`, Stage 2 W4), and it then
-   * reclaims every picture the session held.
+   * discards everything, so it asks first, and it then reclaims every picture
+   * the session held. The asking is the New tileset popup's (B-016), which
+   * replaced the "Start a new tileset?" Dialog: its Empty choice calls this, and
+   * its templates open through Import's sequence instead.
    *
    * Reset first, then empty the store: the outgoing document is then already
    * gone from the preview, so no `<img>` draws an object URL `replaceAll` has
@@ -618,9 +621,7 @@
   </ul>
 </Dialog>
 
-<Dialog title="Start a new tileset?" confirmLabel="Start new" bind:open={askingNew} onConfirm={newTileset}>
-  <p class="t-body">Everything in this one is lost, and this can't be undone. Export it first to keep it.</p>
-</Dialog>
+<NewTileset bind:open={askingNew} onEmpty={newTileset} />
 
 <style>
   /*

@@ -6,8 +6,8 @@ sidebar:
 ---
 
 **Written from:** `apps/editor/src/starters.ts`, `starters.test.ts`, and the files under
-`apps/editor/public/` (`starters.json`, `templates/collage/`). No UI calls it yet: the New tileset
-popup (S3b) and the tile gallery (S3c) will.
+`apps/editor/public/` (`starters.json`, `templates/collage/`). The
+[New tileset](/editor/new-tileset/) popup uses it; the tile gallery (S3c) will.
 
 ## Overview
 
@@ -56,6 +56,7 @@ two apart: when the gallery grows past Collage, its new entries point somewhere 
 | `loadManifest(fetch, base)` | async function | Fetches `base + "starters.json"` and parses it. Throws on HTTP failure or bad JSON. |
 | `loadTemplate(entry, fetch, base)` | async function | Returns an `Archive`, the same map an exported zip unpacks to, so it opens through `prepareArchive` and `adopt`. Throws on any failed fetch, naming the URL. |
 | `GalleryFiles` | interface | `{ files: File[], failures: string[] }`. |
+| `once(load)` | function | A loader that runs once and is then shared; a **rejected** load is forgotten, so the next call retries. The New tileset popup holds the manifest in one. |
 | `loadGalleryFiles(entries, fetch, base)` | async function | The picked pictures as `File`s in pick order, named `<id><ext>` ("t1-a1.svg"). A failed picture is a line in `failures`, named by its label, and the rest still arrive. |
 
 `base` is the app's base URL ending in `/`, i.e. `import.meta.env.BASE_URL` at the call site.
@@ -111,6 +112,7 @@ live, because that would fetch the whole template to show a picture.
 - `loadManifest` fetches under the base URL, and throws on a 404 and on bad JSON.
 - `loadTemplate` builds an archive that `prepareArchive` readies. It fetches a shared picture
   once, and throws naming the missing URL.
+- `once` shares one run between concurrent and later calls, and retries after a rejection.
 - `loadGalleryFiles` keeps pick order, names files by id, and reports a 404 by label while the
   rest arrive.
 - **The committed starters**, read from `public/` through the same loaders: every template is at

@@ -5,8 +5,8 @@ sidebar:
   order: 83
 ---
 
-**Written from:** `apps/editor/src/adopt.ts`, and the call site in `lib/ImportPanel.svelte`. No
-test file.
+**Written from:** `apps/editor/src/adopt.ts`, and the call sites in `lib/ImportPanel.svelte` and
+`lib/sections/NewTileset.svelte`. No test file.
 
 ## Overview
 
@@ -15,8 +15,8 @@ This module is the second half. Once a tileset has passed every check, it puts i
 loads its pictures, makes it the open document, closes any half-edited operation and replaces
 the notices.
 
-Import uses it today. The New tileset popup will use it for templates (B-016, S3b), so a template
-opens exactly the way an exported zip of it would.
+Import uses it, and so does the New tileset popup for templates (B-016), so a template opens
+exactly the way an exported zip of it would.
 
 In the editor's pipeline (**import** → document → draft/history → preview → export), it is the
 last step of import.
@@ -52,6 +52,7 @@ last step of import.
 | Caller | Use |
 | --- | --- |
 | `lib/ImportPanel.svelte` `open()` | after `prepareArchive` returns `"ready"` |
+| `lib/sections/NewTileset.svelte` `confirm()` | after `loadTemplate` and `prepareArchive` return `"ready"` |
 
 Callees: `replaceAll`, `importNotices`, `session.open`, `drafting.discard`, `notices.clear`,
 `notices.push`.
