@@ -49,7 +49,7 @@ two apart: when the gallery grows past Collage, its new entries point somewhere 
 | --- | --- | --- |
 | `MANIFEST_PATH` | const | `"starters.json"`, relative to the app's base URL. |
 | `TemplateEntry` | interface | `{ id, label, path, thumb, summary }`. `path` is the template's folder and ends in `/`. `summary` is the muted line, e.g. "6 tile groups · 6 operations". |
-| `GalleryEntry` | interface | `{ id, label, src, thumb }`. `label` ("blau 1") is the cell's **accessible name only**; the cells show no visible label (Pol, 2026-11-09). |
+| `GalleryEntry` | interface | `{ id, label, src, thumb }`. `label` ("Blue 1") is the cell's **accessible name only**; the cells show no visible label (Pol, 2026-11-09). |
 | `Manifest` | interface | `{ templates, gallery }`. |
 | `Fetch` | type | The part of `fetch` the loaders use. The real one fits. |
 | `parseManifest(json)` | function | Checks the shape and returns only the typed fields. Throws on anything malformed, naming the field: `starters.json: templates[0].label must be a non-empty string`. A repeated id and a template `path` without a trailing `/` are refused too. |

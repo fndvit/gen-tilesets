@@ -565,3 +565,10 @@ check` are green, and `packages/` is unchanged. A Playwright probe on 5174 check
 - at 320 px the dialog is 282 px wide, with no overflow.
 
 **Next: S3c**, the tile gallery (the Add menu and the gallery popup).
+
+**After S3b (Pol, 2026-11-09):** Collage's tile groups are renamed from Catalan to English:
+- blau → **Blue**, verd → **Green**, rosa → **Pink**;
+- groc → **Yellow**, gris → **Grey**, solid red → **Solid**.
+
+The gallery labels follow ("Blue 1"). Only `name` changed, not the ids, so generated output is
+unchanged.

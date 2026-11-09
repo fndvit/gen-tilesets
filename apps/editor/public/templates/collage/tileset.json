@@ -10,7 +10,7 @@
     "tiles": [
       {
         "id": "t1",
-        "name": "blau",
+        "name": "Blue",
         "assets": [
           {
             "id": "a1",
@@ -43,7 +43,7 @@
       },
       {
         "id": "t2",
-        "name": "verd",
+        "name": "Green",
         "assets": [
           {
             "id": "a1",
@@ -85,7 +85,7 @@
       },
       {
         "id": "t3",
-        "name": "rosa",
+        "name": "Pink",
         "assets": [
           {
             "id": "a1",
@@ -136,7 +136,7 @@
       },
       {
         "id": "t4",
-        "name": "groc",
+        "name": "Yellow",
         "assets": [
           {
             "id": "a1",
@@ -187,7 +187,7 @@
       },
       {
         "id": "t5",
-        "name": "gris",
+        "name": "Grey",
         "assets": [
           {
             "id": "a1",
@@ -220,7 +220,7 @@
       },
       {
         "id": "t6",
-        "name": "solid red",
+        "name": "Solid",
         "assets": [
           {
             "id": "a1",

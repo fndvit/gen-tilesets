@@ -62,7 +62,7 @@ export interface TemplateEntry {
 export interface GalleryEntry {
   id: string;
   /**
-   * The cell's accessible name ("blau 1"). Not shown: the cells carry no
+   * The cell's accessible name ("Blue 1"). Not shown: the cells carry no
    * visible label (Pol, 2026-11-09).
    */
   label: string;
