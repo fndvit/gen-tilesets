@@ -830,3 +830,81 @@ now sums up the whole item, not only S3a.
 - The PR against `dev` carries B-016 and B-017 together, and is opened after O4.
 
 **Next: O0**, onboarding questions (no code).
+
+## O0 · What exists (checked 2026-11-09, after B-016)
+
+Some O0 facts above predate S3c and S4a:
+- "Add tile group" (the bar and the header "+") opens the **Tile gallery** directly. There is no
+  Add menu.
+- The sidebar order is Grid & size, Tiles, Operations, **Breakpoints** (`BreakpointsSection`, titled
+  "Breakpoints"), then the footer (`SidebarFooter.svelte`) with Seed and the **New seed**
+  `IconButton`.
+- There are already "How operations work" and "How randomness works" `Explainer` bubbles.
+  `Explainer`, `Menu` and `TilePicker` all use z-index 20.
+- `localStorage` is still unused. IndexedDB (`browser-db.ts`) holds the kept tileset and My tiles.
+- The tileset is kept across reloads, so a first visit is not the same thing as an empty tileset.
+
+## O0 answers (Pol, 2026-11-09)
+
+1. **Steps:** a Welcome step, then five steps in sidebar order. Pol added Breakpoints and left the
+   wording to Claude.
+
+   | Step | Points at | Text |
+   | --- | --- | --- |
+   | Welcome | nothing (centred) | "This is Collage, an example tileset. The next five steps show how it is made. You can skip the tour at any time." Buttons: Skip tour, Start tour. |
+   | Grid & size | the Grid & size section | "Set the cell size and the number of rows. The columns follow from the design width." |
+   | Tiles | "Add tile group" | "Add tile groups. Pick pictures from the gallery, or upload your own." |
+   | Operations | "Add operation" | "Operations decide which tile goes in each cell. They run from top to bottom." |
+   | Breakpoints | the Breakpoints section | "Change how the tileset looks at different screen sizes. Only useful if you export it for a website." |
+   | Randomness | the New seed button | "Every picture follows from the seed. Press New seed to get a different one." |
+
+2. **Collage is open on the first visit** (Pol's own answer, in place of "offer Collage from the
+   Welcome step"). The tour uses it as its example.
+   - **First visit only**, tied to the same flag as the tour. Once the tour has been seen or
+     skipped, a load with nothing kept is empty, as today.
+   - New → Empty still gives an empty tileset, and a reload brings that back.
+3. **When it shows:** on the first visit only, remembered in `localStorage` (behind a try/catch
+   wrapper). A new **"?"** button in the top bar replays it. Every step has **Skip tour**, and Esc
+   skips too. Skipping or finishing is remembered.
+   - **A replay runs over whatever is open.** It never replaces the user's tileset. If a step's
+     target is missing, the bubble points at its section instead.
+4. **Points, with a dimmed backdrop** (Pol chose this over the recommended "bubble + ring, no
+   backdrop"). Next always works, and the user doesn't have to do the step. Everything but the
+   target is dimmed, and the editor can't be used until the tour ends or is skipped.
+
+**Decisions made in O0, for Pol to check:**
+- On a replay, the Welcome text can't say "This is Collage", so it reads "Make a tileset in five
+  steps. You can skip this tour at any time." The Collage line is used only on the first visit.
+- A press on the backdrop does nothing. It does not skip, so a stray click doesn't end the tour.
+  Skip tour and Esc are the ways out.
+- The Breakpoints text says "export it for a website" because breakpoints only matter where the
+  package draws the tileset at different widths. Export image draws one width.
+
+**Consequences for O1–O4:**
+- **This reverses one B-016 check.** S4 checked that a fresh load fetches nothing from the starters.
+  A first visit now fetches `starters.json`, Collage and its 21 pictures (about 0.86 MB). Later
+  visits fetch nothing, because the tileset is kept. The O4 probe checks both.
+- If Collage fails to load on a first visit, the editor opens empty, the failure goes to the usual
+  notice, and the tour still runs.
+- The first visit is decided **before the editor mounts** (`main.ts` already restores the kept
+  tileset there): no kept tileset and no seen flag → open Collage through `loadTemplate` →
+  `prepareArchive` → `adopt`.
+- The backdrop needs a cut-out for the target and a z-index above the Explainer, Menu and
+  TilePicker's 20. While the tour is open, the editor behind it is `inert`.
+
+## Next session plan: O1 · Mock
+
+**Next session starts here.** Read "O0 answers" above and `apps/editor/DESIGN_SYSTEM.md`. No editor
+code is written. Output: a scratch page in the session scratchpad, drawn with the editor's tokens
+over a screenshot-like layout with Collage open, then Pol's picks recorded here as "O1 picks".
+
+Draw:
+- The Welcome step: centred card over the dimmed editor, both texts (first visit and replay).
+- One pointing step (Tiles) in the two-column layout and stacked below 40rem: the bubble beside
+  the target, the cut-out with a ring, "2 of 6", Back, Next, Skip tour.
+- The last step (Randomness, in the footer): Next reads "Done".
+- The "?" button in the top bar, next to New.
+
+Questions to put with the mock:
+- The backdrop's darkness (the scrim token, if one exists, else a value decided by contrast).
+- Where the step count sits, and whether Back is shown on the first pointing step.
