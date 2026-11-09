@@ -23,16 +23,16 @@ import { session } from "./session.svelte.js";
 /**
  * Replaces the open document, its pictures, its draft and its notices.
  *
- * `how` is `"open"` for Import and templates, which Undo can take back, and
- * `"resume"` for the tileset kept from the last visit (`keeping.svelte.ts`),
- * which starts a fresh history (`session.resume` says why). Everything else
- * is the same swap, so a reload opens the kept tileset as an import of it would.
+ * The history starts fresh (`session.open` says why): Undo cannot bring back
+ * the outgoing document, because `replaceAll` has just dropped its pictures.
+ * The caller asks the author first when there is anything to lose — New
+ * tileset always, Import unless the current tileset `isBlank` — and the reload
+ * has nothing to lose, because the outgoing document is the boot skeleton.
  */
-export async function adopt(prepared: Extract<Prepared, { kind: "ready" }>, how: "open" | "resume" = "open"): Promise<void> {
+export async function adopt(prepared: Extract<Prepared, { kind: "ready" }>): Promise<void> {
   const failed = await replaceAll(prepared.incoming);
 
-  if (how === "resume") session.resume(prepared.file);
-  else session.open(prepared.file);
+  session.open(prepared.file);
   // A draft built against the outgoing document names ids the incoming one
   // does not have.
   drafting.discard();

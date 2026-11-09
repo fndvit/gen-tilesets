@@ -228,7 +228,7 @@ starts with it already open.
 The top bar's *New* button sets `askingNew` (passed as `onNew`), which opens the
 [New tileset](/editor/new-tileset/) Form popup (B-016). Its **Empty** choice calls `newTileset`,
 which is **confirmed and not undoable**; its templates open through Import's sequence instead
-(`prepareArchive` + `adopt`), so App does nothing more for them. `newTileset` calls
+(`prepareArchive` + `adopt`, also not undoable), so App does nothing more for them. `newTileset` calls
 `session.reset()`, sets `failures = []`, calls `notices.clear()`, and awaits `replaceAll([])` to reclaim every picture the
 session held. Reset comes first so the outgoing document is already gone from the preview: no
 `<img>` then draws an object URL `replaceAll` has just revoked, and nothing reports those as

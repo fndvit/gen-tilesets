@@ -33,8 +33,8 @@ initialised with `historyOf(newDocument())`. It exposes the current file read-on
 **E5** is enforced structurally: `apply()` is the only mutator, so every caller has to hand over a
 `TilesetFile → TilesetFile`. E6 becomes structural for the same reason. An action that escaped
 the undo stack would have to escape the document too. There are **two exceptions, on purpose:
-`reset()`**, the confirmed New document, and **`resume(file)`**, the tileset reopened after a
-reload (B-016 S4a). Both start a fresh history instead of pushing onto this one.
+`reset()`**, the confirmed New document, and **`open(file)`**, a document opened whole (Import,
+a template, the tileset reopened after a reload). Both start a fresh history instead of pushing onto this one.
 
 ### Public surface
 
@@ -49,9 +49,8 @@ reload (B-016 S4a). Both start a fresh history instead of pushing onto this one.
 | `applyLive(key, transition)` | method | `history = appliedLive(history, key, transition)`: a weight drag changes the file every frame and is one undo entry |
 | `settle()` | method | `history = settled(history)`, on release |
 | `reset()` | method | `history = historyOf(newDocument())`. Not undoable. |
-| `open(file)` | method | `history = replaced(history, file)`, and notes `file` as `opened` |
-| `resume(file)` | method | `history = historyOf(file)`, and notes `file` as `opened`. The kept tileset after a reload ([keeping](/editor/keeping/)) |
-| `opened` | getter, `TilesetFile \| null` | The file as the last `open()` or `resume()` received it; `null` after `reset()` and at start. Read by the orphan notice (batch 01, T-05) |
+| `open(file)` | method | `history = historyOf(file)`, and notes `file` as `opened`. Not undoable. Import, templates and the kept tileset after a reload ([keeping](/editor/keeping/)), all through [adopt.ts](/editor/adopt/) |
+| `opened` | getter, `TilesetFile \| null` | The file as the last `open()` received it; `null` after `reset()` and at start. Read by the orphan notice (batch 01, T-05) |
 
 ### Inputs → outputs
 
@@ -64,14 +63,17 @@ reload (B-016 S4a). Both start a fresh history instead of pushing onto this one.
   ([assets.ts](/editor/assets/)), outside the file. Keeping them for undo meant the store was
   never reclaimed and grew with every new document; reclaiming them meant undo brought back a
   document of holes. So the caller confirms with the author, resets, then empties the store.
-- **`open(file)`** takes an already-validated `TilesetFile` and replaces the document. It is
-  undoable.
-- **`resume(file)`** is `open` without the push. At boot the outgoing document is the empty
-  skeleton the author never saw, so an Undo back to it would undo nothing they did. The kept file
-  counts as opened, as an import does.
+- **`open(file)`** takes an already-validated `TilesetFile`, replaces the document and starts a
+  **fresh history**: not undoable, the exception `reset()` makes and for the same reason. The
+  caller has just swapped the asset store (`replaceAll`), so Undo would bring back the outgoing
+  file without its pictures. Import used to be undoable on those terms; Pol saw the holes after a
+  template (2026-11-09) and chose this. In exchange Import now asks first unless the current
+  tileset `isBlank` ([document.ts](/editor/document/)), as New tileset always has. At boot the
+  outgoing file is the empty skeleton, so a reload loses nothing. (`resume()`, the old fresh-history
+  open for the kept tileset, was folded into `open` then.)
 - **`opened`** (batch 01, T-05, B-014) is bookkeeping beside the history, not part of it: the
   orphan notice must not say "Undo puts the grid back" about cells that were already outside the
-  grid in the file as opened, because there Undo goes back to the previous document. The history
+  grid in the file as opened, because Undo cannot reach past the open. The history
   keeps no mark of where an open happened, and adding one would change the write path, so `open`
   notes the file here instead and [orphans.ts](/editor/orphans/) `cameWithFile` compares against
   it. Undo does not rewind it; `cameWithFile`'s cell-by-cell test keeps a document from before the
@@ -99,8 +101,8 @@ reload (B-016 S4a). Both start a fresh history instead of pushing onto this one.
 | `App.svelte:373` | Undo button: `disabled={!session.canUndo}`, `session.undo()` |
 | `App.svelte:458-722` | `session.apply(...)` for layout, rule, seed and asset-salt transitions |
 | `App.svelte:142` | `session.reset()` in `newTileset`, after `confirm`, for the *New document* button (`:639`) |
-| `lib/ImportPanel.svelte:210` | `session.open(file as TilesetFile)` after validate and `replaceAll` |
-| `adopt.ts` | `session.resume(file)` when `adopt(prepared, "resume")` is called by `keeping.svelte.ts` at boot |
+| `adopt.ts` | `session.open(prepared.file)` after `replaceAll`; called by `ImportPanel.svelte`, `NewTileset.svelte` (templates) and `keeping.svelte.ts` (reload) |
+| `lib/ImportPanel.svelte` | `session.file`, for `isBlank` before asking |
 | `lib/sections/TilesSection.svelte:42`, `:102`, `:116-119` | `session.file` reads, and the `refused()` before/after identity check |
 | `lib/sections/TilesSection.svelte:73`, `:80`, `:112`, `:118`, `:174` | `session.apply` for the Tiles section's transitions |
 | `lib/sections/OperationsSection.svelte:34`, `:35`, `:94` | `session.file.config.operations` and `.tiles`; the rerolled Operation's new salt |
@@ -108,8 +110,8 @@ reload (B-016 S4a). Both start a fresh history instead of pushing onto this one.
 | `lib/operations/OperationBody.svelte:106`, `:273` | `session.file` reads (breakpoints, tiles) |
 | `lib/operations/OperationBody.svelte:227` | `session.apply(editing ? replaceOperation(op) : addOperation(op))` |
 
-Callees: `newDocument`, `Transition` from `document.ts`; `applied`, `historyOf`, `replaced`,
-`undone`, `History` from `history.ts`.
+Callees: `newDocument`, `Transition` from `document.ts`; `applied`, `appliedLive`, `historyOf`,
+`settled`, `undone`, `History` from `history.ts`.
 
 ### Tests
 
@@ -121,14 +123,15 @@ of `history.ts` (tested in `history.test.ts`) and `document.ts`.
 
 - **`open` is a replacement, not a transition.** There is no function from the outgoing file to
   the incoming one. Pretending otherwise would put a `() => file` on the stack that ignores its
-  argument. `reset()` was the precedent; it now starts a fresh history instead, so `open` is the
-  only remaining user of `replaced`.
+  argument. Both it and `reset()` start a fresh history with `historyOf`; `history.ts`'s
+  `replaced`, which pushed instead, was deleted (2026-11-09).
 - **New document cannot be undone, on purpose.** The comment records the trade: an undoable reset
   either leaked every picture for the session or restored a document of holes. Confirming first
   (`App.svelte` `newTileset`) is what makes the exception acceptable.
-- **Undo after import does not restore asset bytes.** The bytes live in the session-scoped store
-  ([assets.ts](/editor/assets/)) and were swapped with the document. The source calls this the
-  same gap a reload has always had, not a defect in the undo stack.
+- **Import and templates cannot be undone, on purpose** (fixed 2026-11-09). Undo after an import
+  used to bring back the previous document without its pictures, because the bytes live in the
+  asset store ([assets.ts](/editor/assets/)) and were swapped with it. Asking first (Import unless
+  `isBlank`, New tileset always) replaces the undo.
 - **Refusals are detected by identity.** `TilesSection.svelte`'s `refused()` (`:116-119`)
   compares `session.file` before and after `apply` to learn that a delete or weight change was
   refused, and shows the reason in a `ui/Popup`.

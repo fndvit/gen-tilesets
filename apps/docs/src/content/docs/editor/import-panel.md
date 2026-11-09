@@ -78,7 +78,13 @@ It changes editor state only through [`adopt`](/editor/adopt/), which writes
    - `"newer"`: set `newer = prepared.declared` and stop.
    - `"invalid"`: set `errors = prepared.errors` and stop.
    - `"ready"`: the validated file, its pictures as `File`s, and the migration steps.
-2. `await adopt(prepared)` ([adopt.ts](/editor/adopt/)): `replaceAll`, `session.open`,
+2. If the current tileset `isBlank` ([document.ts](/editor/document/): no Tiles, no Operations, no
+   responsive rules), `await adopt(prepared)` at once. Otherwise the prepared file waits in
+   `pending` and a `wide` [Dialog](/editor/ui-dialog/) asks "Replace the current tileset?" with
+   the verb **Import** and the shared `LossWarning` line ("Everything in the current tileset is
+   lost, and it can't be undone. Export it first to keep it."). Import calls `confirmImport()`;
+   Cancel drops `pending`.
+3. `adopt(prepared)` ([adopt.ts](/editor/adopt/)): `replaceAll`, `session.open` (a fresh history),
    `drafting.discard()`, then the notices from `importNotices({ upgrades, failed })`. A new
    document starts with no notices, then gets its own.
 
@@ -121,7 +127,8 @@ template that fails to open.
 | `lib/sections/SidebarFooter.svelte` | `<ImportPanel target={root} bind:over />` in the actions row |
 
 Callees: `prepareArchive` (`import.ts`); `adopt` (`adopt.ts`); `unzipSync` (`fflate`);
-`ui/Button`, `ImportRefused`.
+`isBlank` (`document.ts`); `session.file`; `ui/Button`, `ui/Dialog`, `ImportRefused`,
+`LossWarning`.
 
 ### Tests
 
@@ -139,13 +146,14 @@ are not tested.
 - **Same gesture as the tile library.** A drop target plus a hidden picker, on purpose: the two
   surfaces that take files from the author should take them the same way.
 - **A refused file costs nothing.** Every early `return` in `open()` is before `adopt`.
+- **It asks only after the file validated.** A question before a refusal would guard nothing.
+  It skips the question for a blank tileset (Pol, 2026-11-09).
 
 ### Review notes
 
-- Undo after an import restores the previous document, but `replaceAll` has already cleared the
-  asset store and revoked the old object URLs, so the restored document's pictures are gone.
-  `session.svelte.ts` documents this gap in its `open()` comment; nothing on screen tells the
-  author. (The footer's comment calls import undoable; that is true of the document only.)
+- Undo after an import used to restore the previous document without its pictures, because
+  `replaceAll` had already swapped the asset store. **Fixed (2026-11-09):** an import is no longer
+  undoable, and the panel asks first unless the current tileset is blank.
 - The header comment's opening says the editor "takes the exported `.zip` or the unzipped folder".
   The picker only accepts `.zip`; a folder can only be dropped. Not wrong, but the button does not
   offer the folder path.

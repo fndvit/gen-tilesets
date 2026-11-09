@@ -91,8 +91,8 @@
   <div class="file">
     <Button label="New" icon="new" variant="tertiary" onclick={onNew} />
     <!--
-      **E14**'s inverse. It discards the current document, but it is undoable
-      like everything else (**E6**), so it needs no confirmation.
+      **E14**'s inverse. It discards the current document and cannot be
+      undone (`session.open`), so it asks first unless the tileset is blank.
     -->
     <ImportPanel target={root} bind:over />
     <SplitButton

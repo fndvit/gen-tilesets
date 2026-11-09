@@ -27,7 +27,7 @@ rune: the "Changes won't be kept across reloads" condition.
 
 - **Reopened before mount.** `main.ts` awaits `restore()` and then mounts `App`, so the empty
   skeleton never flashes and never reaches undo. `restore` runs `prepareArchive`, then
-  `adopt(prepared, "resume")` ([adopt.ts](/editor/adopt/)), which calls `session.resume`: a fresh
+  `adopt(prepared)` ([adopt.ts](/editor/adopt/)), which calls `session.open`: a fresh
   history ([session](/editor/session/)).
 - **A refusal** (newer, invalid, unreadable) leaves the empty document and pushes
   `refusedNotice`.

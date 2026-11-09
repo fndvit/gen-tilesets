@@ -164,6 +164,20 @@ export function newDocument(): TilesetFile {
   };
 }
 
+/**
+ * Whether `file` holds nothing an author would miss: no Tiles, no Operations
+ * and no responsive rules. Import replaces such a file without asking (Pol,
+ * 2026-11-09), because the question would guard nothing.
+ *
+ * The grid's numbers and the seed are left out on purpose. Every file has
+ * them, so counting them would make a fresh New → Empty with its random seed
+ * "not blank" and the question would come back for the one case it was meant
+ * to skip. Losing a row count is not what "Everything … is lost" warns about.
+ */
+export function isBlank(file: TilesetFile): boolean {
+  return file.config.tiles.length === 0 && file.config.operations.length === 0 && (file.responsive ?? []).length === 0;
+}
+
 // ---------------------------------------------------------------------------
 // Layout transitions — `09` §9.1, §9.3; `02` §7.1
 // ---------------------------------------------------------------------------

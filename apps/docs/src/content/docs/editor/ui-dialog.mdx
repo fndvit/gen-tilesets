@@ -40,6 +40,7 @@ only when the value really changed. It never interrupts typing (Pol, 2026-11-06)
 | `onConfirm` | `() => void` | required | Called once, after the dialog starts closing. |
 | `onCancel` | `() => void` | none | Called once for Cancel, Esc, or `open = false` from outside. |
 | `children` | `Snippet` | required | The body. |
+| `wide` | `boolean` | `false` | Passed to `Popup`: 592px, for a body line that must not wrap (Import's `LossWarning`). |
 
 ### Inputs → outputs
 

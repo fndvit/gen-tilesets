@@ -42,6 +42,7 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 | `alert` | `boolean` | `false` | Sets `role="alertdialog"`, for a question that interrupts. `Dialog` passes it. |
 | `closable` | `boolean` | `false` | A ✕ (`IconButton`, "Close") at the bar's right, for a Form popup. |
 | `initialFocus` | `() => HTMLElement \| null \| undefined` | none | Called right after `showModal()`; focuses what it returns. A Form popup starts on its first field, not on the ✕ that comes first in the DOM. |
+| `wide` | `boolean` | `false` | 592px in place of 480px, for a warning that must fit on one line: New tileset, Import's question (through `Dialog`), and the Tile gallery to match. |
 | `divided` | `boolean` | `false` | A `--color-track` hairline over the actions, for a body that scrolls under a footer holding more than buttons (the [Tile gallery](/editor/tile-gallery/)'s Upload… and count). |
 
 ### Inputs → outputs

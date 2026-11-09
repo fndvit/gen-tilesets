@@ -21,6 +21,11 @@
   `divided` draws a hairline over the actions, for a Form popup whose body
   scrolls under a footer that holds more than buttons (the Tile gallery's
   count and Upload…).
+
+  `wide` gives the panel 592px in place of 480px, for a popup whose warning
+  must fit on one line (New tileset, Import's question; the Tile gallery
+  matches them). `LossWarning.svelte` measures 522px in 13px Helvetica Neue, so the panel needs
+  576px with the icon and padding; the rest is slack for a wider fallback font.
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
@@ -45,6 +50,8 @@
     initialFocus?: () => HTMLElement | null | undefined;
     /** A hairline over the actions, for a body that scrolls under them (the Tile gallery). */
     divided?: boolean;
+    /** 592px in place of 480px (New tileset, Import's question, the Tile gallery). */
+    wide?: boolean;
   }
 
   let {
@@ -57,6 +64,7 @@
     closable = false,
     initialFocus,
     divided = false,
+    wide = false,
   }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
@@ -81,6 +89,7 @@
 <dialog
   bind:this={dialog}
   class="popup theme-default"
+  class:wide
   role={alert ? "alertdialog" : undefined}
   aria-labelledby={titleId}
   onclose={closed}
@@ -115,6 +124,10 @@
     background: var(--color-panel);
     box-shadow: var(--shadow-float);
     color: var(--color-ink);
+  }
+
+  .popup.wide {
+    width: min(592px, calc(100vw - 2 * var(--space-6)));
   }
 
   .popup[open] {

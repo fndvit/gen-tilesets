@@ -289,6 +289,7 @@
   {title}
   bind:open
   closable
+  wide
   divided
   onClose={closed}
   initialFocus={() => (mode.kind === "group" ? nameInput : firstCell())}

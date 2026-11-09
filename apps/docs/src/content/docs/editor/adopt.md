@@ -28,14 +28,13 @@ last step of import.
 
 | Export | Kind | Meaning |
 | --- | --- | --- |
-| `adopt(prepared, how?)` | async function | Takes the `"ready"` case of [`Prepared`](/editor/import/) and swaps it in. Resolves when the pictures are attached and the document is open. `how` is `"open"` (default, undoable) or `"resume"` (a fresh history, for the kept tileset). |
+| `adopt(prepared)` | async function | Takes the `"ready"` case of [`Prepared`](/editor/import/) and swaps it in. Resolves when the pictures are attached and the document is open, with a fresh history (not undoable). |
 
 ### Inputs → outputs
 
 1. `replaceAll(prepared.incoming)` ([assets.ts](/editor/assets/)) measures every picture and
    swaps the whole asset store. A picture that fails is reported, not fatal.
-2. `session.open(prepared.file)`, or `session.resume` when `how` is `"resume"`
-   ([session](/editor/session/)).
+2. `session.open(prepared.file)` ([session](/editor/session/)): a fresh history.
 3. `drafting.discard()` ([drafting](/editor/drafting/)): a draft built against the outgoing
    document names ids the incoming one does not have.
 4. `notices.clear()`, then each notice from `importNotices({ upgrades, failed })`
@@ -46,6 +45,9 @@ last step of import.
 
 - **Only a `"ready"` result gets here.** The type takes `Extract<Prepared, { kind: "ready" }>`,
   so a refused file cannot reach the swap.
+- **The caller asks first when there is anything to lose.** New tileset always; Import unless
+  the current tileset `isBlank` ([document.ts](/editor/document/)); the reload never, because the
+  outgoing document is the boot skeleton.
 - **Missing or unreadable pictures are not a refusal.** The document opens. A picture that would
   not decode becomes a notice; one the archive did not carry is reported by the preview.
 
@@ -53,11 +55,11 @@ last step of import.
 
 | Caller | Use |
 | --- | --- |
-| `lib/ImportPanel.svelte` `open()` | after `prepareArchive` returns `"ready"` |
+| `lib/ImportPanel.svelte` `open()`, `confirmImport()` | after `prepareArchive` returns `"ready"`: at once if `isBlank(session.file)`, otherwise after the author confirms |
 | `lib/sections/NewTileset.svelte` `confirm()` | after `loadTemplate` and `prepareArchive` return `"ready"` |
-| `keeping.svelte.ts` `restore()` | `adopt(prepared, "resume")`, after `archiveOf` and `prepareArchive` |
+| `keeping.svelte.ts` `restore()` | `adopt(prepared)`, after `archiveOf` and `prepareArchive` |
 
-Callees: `replaceAll`, `importNotices`, `session.open`, `session.resume`, `drafting.discard`, `notices.clear`,
+Callees: `replaceAll`, `importNotices`, `session.open`, `drafting.discard`, `notices.clear`,
 `notices.push`.
 
 ### Tests
@@ -70,5 +72,7 @@ Playwright probe in S3a imported Collage through this path.
 
 - **Plain `.ts`, not `.svelte.ts`.** It holds no rune of its own. The S3a plan named it
   `adopt.svelte.ts`, and that was changed when the code was written.
-- **Undo after an open** has the gap [ImportPanel](/editor/import-panel/)'s review notes describe:
-  `replaceAll` has already swapped the asset store.
+- **No `how` argument any more** (2026-11-09). It used to choose between an undoable `"open"` and a
+  fresh-history `"resume"`; undo after an open brought back the old document without its
+  pictures, because `replaceAll` had already swapped the asset store. Every open now starts a
+  fresh history.

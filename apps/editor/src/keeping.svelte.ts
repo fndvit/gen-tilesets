@@ -10,7 +10,7 @@
  *
  * `main.ts` awaits `restore()` and only then mounts `App`. So the author never
  * sees the empty skeleton flash before their tileset, and the skeleton never
- * reaches the undo stack (`session.resume`). Measuring the pictures needs an
+ * reaches the undo stack (`session.open`). Measuring the pictures needs an
  * `Image`, not the page, so it works before mount.
  *
  * ## Saved at once, one write at a time
@@ -113,7 +113,7 @@ export const keeping = {
       if (prepared.kind !== "ready") {
         refusal = prepared;
       } else {
-        await adopt(prepared, "resume");
+        await adopt(prepared);
         // What the store holds now: the bytes just attached, which are the
         // kept ones, under new `File` objects. A picture that failed to decode
         // keeps its kept `Blob`, so the first save neither rewrites nor drops it.

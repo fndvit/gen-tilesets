@@ -43,14 +43,27 @@
   An import that opened with notes (an upgrade, unreadable pictures)
   opens: there is nothing to answer, so its notes are notices in the preview's
   stack instead (Stage 2, W3), beside the picture they are about.
+
+  ## It asks first, unless there is nothing to lose
+
+  An import cannot be undone (`session.open` says why), so a file that is
+  ready to open waits on a Dialog with New tileset's warning line
+  (`LossWarning.svelte`). It asks only once the file has validated: a refused
+  file changes nothing, and a question before the refusal would guard nothing.
+  When the current tileset `isBlank` (`document.ts`), it opens at once (Pol,
+  2026-11-09).
 -->
 <script lang="ts">
   import type { ValidationError } from "@vit-foundation/gen-tilesets";
   import { unzipSync } from "fflate";
   import { adopt } from "../adopt.js";
-  import { prepareArchive, type Archive } from "../import.js";
+  import { isBlank } from "../document.js";
+  import { prepareArchive, type Archive, type Prepared } from "../import.js";
+  import { session } from "../session.svelte.js";
   import ImportRefused from "./ImportRefused.svelte";
+  import LossWarning from "./LossWarning.svelte";
   import Button from "./ui/Button.svelte";
+  import Dialog from "./ui/Dialog.svelte";
 
   interface Props {
     /** The element that takes dropped zips and folders. */
@@ -81,6 +94,10 @@
   let newer = $state<number | null>(null);
 
   let picker = $state<HTMLInputElement | null>(null);
+
+  /** A validated file waiting on the author's answer, and whether the question shows. */
+  let pending = $state.raw<Extract<Prepared, { kind: "ready" }> | null>(null);
+  let asking = $state(false);
 
   function reset(): void {
     failure = null;
@@ -203,7 +220,19 @@
       errors = prepared.errors;
       return;
     }
-    await adopt(prepared);
+    if (isBlank(session.file)) {
+      await adopt(prepared);
+      return;
+    }
+    pending = prepared;
+    asking = true;
+  }
+
+  /** The Dialog's verb. The file was validated before the question, so this only swaps it in. */
+  async function confirmImport(): Promise<void> {
+    const prepared = pending;
+    pending = null;
+    if (prepared !== null) await adopt(prepared);
   }
 
   async function run(archive: Promise<Archive>): Promise<void> {
@@ -288,6 +317,17 @@
 />
 
 <ImportRefused bind:open={reporting} {failure} {newer} {errors} onClose={reset} />
+
+<Dialog
+  title="Replace the current tileset?"
+  bind:open={asking}
+  confirmLabel="Import"
+  wide
+  onConfirm={() => void confirmImport()}
+  onCancel={() => (pending = null)}
+>
+  <LossWarning />
+</Dialog>
 
 <style>
   .picker {

@@ -45,13 +45,17 @@ second way in, next to Import.
   disabled while no template is chosen and while a template loads, when it reads "Opening…".
 - **Start new** awaits `onEmpty()`, then closes.
 - **Open <label>** calls `loadTemplate` → `prepareArchive` → `adopt`, the same pair Import uses,
-  then closes. A `"newer"` or `"invalid"` result, or any throw (a missing picture, a 404), closes
+  then closes. Like Start new, it cannot be undone (`adopt` starts a fresh history). A `"newer"` or `"invalid"` result, or any throw (a missing picture, a 404), closes
   the popup and opens [ImportRefused](/editor/import-refused/) with the template's label as
   `subject`. Nothing is replaced.
 - **Closing during a load abandons it.** `closed()` bumps a `generation` counter, and a load
   compares it before acting, so a template the author cancelled never replaces the document.
 
 ### Look
+
+- The popup is `wide` (592px), so the `LossWarning` line fits on one line:
+  an `alert` icon, then "**Everything in the current tileset is lost, and it can't be undone.**
+  Export it first to keep it." Import's question shows the same component.
 
 - Template cards are white on the field-grey well: the 96 × 60 thumbnail (`--template-thumb-w`,
   16:10, `object-fit: cover`), the name in `.t-title`, and the summary in muted mono. The
@@ -68,7 +72,7 @@ second way in, next to Import.
 Callees: `BASE`, `manifest` ([starters-client.ts](/editor/starters-client/)); `loadTemplate`
 ([starters.ts](/editor/starters/));
 `prepareArchive` ([import.ts](/editor/import/)); `adopt` ([adopt.ts](/editor/adopt/));
-`ImportRefused`; `ui/Popup`, `ui/RadioList`, `ui/Button`, `ui/Icon`.
+`ImportRefused`, `LossWarning`; `ui/Popup`, `ui/RadioList`, `ui/Button`, `ui/Icon`.
 
 ### Gotchas & rejected alternatives
 

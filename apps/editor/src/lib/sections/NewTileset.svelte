@@ -37,6 +37,7 @@
   import { BASE, manifest } from "../../starters-client.js";
   import { loadTemplate, type TemplateEntry } from "../../starters.js";
   import ImportRefused from "../ImportRefused.svelte";
+  import LossWarning from "../LossWarning.svelte";
   import Button from "../ui/Button.svelte";
   import Icon from "../ui/Icon.svelte";
   import Popup from "../ui/Popup.svelte";
@@ -155,6 +156,7 @@
   title="New tileset"
   bind:open
   closable
+  wide
   onClose={closed}
   initialFocus={() => body?.querySelector<HTMLElement>("input[type=radio]:checked")}
 >
@@ -208,7 +210,7 @@
       </fieldset>
     {/if}
 
-    <p class="t-body">Everything in this one is lost, and this can't be undone. Export it first to keep it.</p>
+    <LossWarning />
   </div>
 
   {#snippet actions(close)}

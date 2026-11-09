@@ -31,6 +31,8 @@
     /** Cancel, Esc, or `open = false` from outside. */
     onCancel?: () => void;
     children: Snippet;
+    /** A `wide` Popup, for a body line that must not wrap (Import's `LossWarning`). */
+    wide?: boolean;
   }
 
   let {
@@ -41,6 +43,7 @@
     onConfirm,
     onCancel,
     children,
+    wide = false,
   }: Props = $props();
 
   /** Set by the verb, so the close that follows is not read as a cancel. */
@@ -52,7 +55,7 @@
   }
 </script>
 
-<Popup {title} bind:open alert onClose={closed}>
+<Popup {title} bind:open alert {wide} onClose={closed}>
   {@render children()}
   {#snippet actions(close)}
     <Button label={cancelLabel} onclick={close} />
