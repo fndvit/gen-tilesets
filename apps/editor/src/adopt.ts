@@ -2,8 +2,9 @@
  * Swapping a prepared document in — the side-effecting half of §12.4.
  *
  * `prepareArchive` (`import.ts`) decides what an archive amounts to and touches
- * nothing; this does the swap once it is `ready`. Import and the New tileset
- * popup's templates (B-016) both call the pair, so a template opens exactly as
+ * nothing; this does the swap once it is `ready`. Import, the New tileset
+ * popup's templates (B-016) and the reopening after a reload (S4a) all call
+ * the pair, so a template opens exactly as
  * an exported zip of it would.
  *
  * Plain `.ts`, not `.svelte.ts`: it holds no rune of its own, only calls into
@@ -19,11 +20,19 @@ import type { Prepared } from "./import.js";
 import { notices } from "./notices.svelte.js";
 import { session } from "./session.svelte.js";
 
-/** Replaces the open document, its pictures, its draft and its notices. */
-export async function adopt(prepared: Extract<Prepared, { kind: "ready" }>): Promise<void> {
+/**
+ * Replaces the open document, its pictures, its draft and its notices.
+ *
+ * `how` is `"open"` for Import and templates, which Undo can take back, and
+ * `"resume"` for the tileset kept from the last visit (`keeping.svelte.ts`),
+ * which starts a fresh history (`session.resume` says why). Everything else
+ * is the same swap, so a reload opens the kept tileset as an import of it would.
+ */
+export async function adopt(prepared: Extract<Prepared, { kind: "ready" }>, how: "open" | "resume" = "open"): Promise<void> {
   const failed = await replaceAll(prepared.incoming);
 
-  session.open(prepared.file);
+  if (how === "resume") session.resume(prepared.file);
+  else session.open(prepared.file);
   // A draft built against the outgoing document names ids the incoming one
   // does not have.
   drafting.discard();

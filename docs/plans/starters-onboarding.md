@@ -746,3 +746,29 @@ variants mode shows every picture.
   - Export → Import round-trips a gallery group.
 
 **Next: S4**, the sweep (see "Part 1"), then Pol closes B-016.
+
+## S4a done (2026-11-09)
+
+Pol, before S4: now that My tiles survives a reload, the tileset should too. Answers:
+- **What comes back:** the tileset and its pictures (what an Export holds). Undo starts empty; the
+  draft, open sections and load preview are not kept.
+- **Two tabs:** the last change wins.
+- **Failure:** an empty tileset and a failure notice saying why; blocked or full storage shows
+  "Changes won't be kept across reloads".
+
+Built: `browser-db.ts`, `keep.ts` (tested), `keeping.svelte.ts`, `session.resume`, `adopt(…, how)`.
+Decisions beyond Pol's are in `docs/changes/starters-onboarding/B-016.md` (S4a lines).
+
+Checked in the browser (Playwright on 5174), all passing:
+- a fresh load makes no starters request;
+- Collage, reloaded, comes back with the same groups, draws the same, Undo disabled, and makes no
+  starters request;
+- New → Empty, reloaded, is empty, and the kept pictures are gone;
+- an uploaded group, reloaded, comes back, and My tiles still works;
+- Tab then an instant reload keeps the edit (four times in a row);
+- deleting a variant removes its picture from storage;
+- Export before and after a reload is byte-identical;
+- a kept file with a newer schemaVersion gives the notice and an empty tileset;
+- blocked storage gives the "won't be kept" notice, and editing still works.
+
+**Next: S4**, the sweep (see "Part 1"), with the reload checks added, then Pol closes B-016.

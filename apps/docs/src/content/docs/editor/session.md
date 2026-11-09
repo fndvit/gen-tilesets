@@ -32,9 +32,9 @@ the preview draws from it, and export reads from it.
 initialised with `historyOf(newDocument())`. It exposes the current file read-only. Invariant
 **E5** is enforced structurally: `apply()` is the only mutator, so every caller has to hand over a
 `TilesetFile → TilesetFile`. E6 becomes structural for the same reason. An action that escaped
-the undo stack would have to escape the document too. There is **one exception, on purpose:
-`reset()`**, the confirmed New document, which starts a fresh history instead of pushing onto this
-one.
+the undo stack would have to escape the document too. There are **two exceptions, on purpose:
+`reset()`**, the confirmed New document, and **`resume(file)`**, the tileset reopened after a
+reload (B-016 S4a). Both start a fresh history instead of pushing onto this one.
 
 ### Public surface
 
@@ -50,7 +50,8 @@ one.
 | `settle()` | method | `history = settled(history)`, on release |
 | `reset()` | method | `history = historyOf(newDocument())`. Not undoable. |
 | `open(file)` | method | `history = replaced(history, file)`, and notes `file` as `opened` |
-| `opened` | getter, `TilesetFile \| null` | The file as the last `open()` received it; `null` after `reset()` and at start. Read by the orphan notice (batch 01, T-05) |
+| `resume(file)` | method | `history = historyOf(file)`, and notes `file` as `opened`. The kept tileset after a reload ([keeping](/editor/keeping/)) |
+| `opened` | getter, `TilesetFile \| null` | The file as the last `open()` or `resume()` received it; `null` after `reset()` and at start. Read by the orphan notice (batch 01, T-05) |
 
 ### Inputs → outputs
 
@@ -65,6 +66,9 @@ one.
   document of holes. So the caller confirms with the author, resets, then empties the store.
 - **`open(file)`** takes an already-validated `TilesetFile` and replaces the document. It is
   undoable.
+- **`resume(file)`** is `open` without the push. At boot the outgoing document is the empty
+  skeleton the author never saw, so an Undo back to it would undo nothing they did. The kept file
+  counts as opened, as an import does.
 - **`opened`** (batch 01, T-05, B-014) is bookkeeping beside the history, not part of it: the
   orphan notice must not say "Undo puts the grid back" about cells that were already outside the
   grid in the file as opened, because there Undo goes back to the previous document. The history
@@ -96,6 +100,7 @@ one.
 | `App.svelte:458-722` | `session.apply(...)` for layout, rule, seed and asset-salt transitions |
 | `App.svelte:142` | `session.reset()` in `newTileset`, after `confirm`, for the *New document* button (`:639`) |
 | `lib/ImportPanel.svelte:210` | `session.open(file as TilesetFile)` after validate and `replaceAll` |
+| `adopt.ts` | `session.resume(file)` when `adopt(prepared, "resume")` is called by `keeping.svelte.ts` at boot |
 | `lib/sections/TilesSection.svelte:42`, `:102`, `:116-119` | `session.file` reads, and the `refused()` before/after identity check |
 | `lib/sections/TilesSection.svelte:73`, `:80`, `:112`, `:118`, `:174` | `session.apply` for the Tiles section's transitions |
 | `lib/sections/OperationsSection.svelte:34`, `:35`, `:94` | `session.file.config.operations` and `.tiles`; the rerolled Operation's new salt |

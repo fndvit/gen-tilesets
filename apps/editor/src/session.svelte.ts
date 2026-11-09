@@ -24,12 +24,14 @@
  * outside* structural: `apply` is already the only mutator, so an action that
  * escaped the stack would have to escape the document too.
  *
- * **One exception, on purpose: `reset()`**, the confirmed New document. It
- * starts a fresh history rather than pushing onto this one; its comment says why.
+ * **Two exceptions, on purpose: `reset()`**, the confirmed New document, and
+ * **`resume()`**, the tileset reopened after a reload. Both start a fresh
+ * history rather than pushing onto this one; their comments say why.
  *
  * **Transient UI state** (§4.1) — the create-operation draft, which panel is
  * open, a muted Operation — lives *beside* this, keyed by the identifiers the
  * file already carries. It is session-scoped and does not survive a reload.
+ * The file itself does since B-016 S4a (`keep.ts`), but its history does not.
  * Never in `meta` (**E4**), and never in the file.
  *
  * The draft is deliberately **not** undone with the file. §4.4 restores a
@@ -160,7 +162,8 @@ export const session = {
    * the previous document; it does **not** restore that document's asset bytes,
    * which live in the session store outside the file and were swapped with it.
    * That is `09` §15 Q8's session-scoped store showing through, not a defect in
-   * the undo stack, and it is the same gap a reload has always had.
+   * the undo stack. (A reload, since S4a, keeps only the current document's
+   * bytes, and starts undo afresh, so it has no such gap to show.)
    *
    * **The file is validated before it gets here.** §12.4 refuses to open a file
    * with any `ValidationError`, and **S3** requires the host to hold a valid file
@@ -169,6 +172,25 @@ export const session = {
    */
   open(file: TilesetFile): void {
     history = replaced(history, file);
+    opened = file;
+  },
+
+  /**
+   * Reopen the tileset kept from the last visit (`keep.ts`, B-016 S4a), with a
+   * **fresh history**.
+   *
+   * Not `open()`: that pushes the outgoing document so Undo can bring it back,
+   * and at boot the outgoing document is the empty skeleton the page started
+   * with, which the author never saw. An Undo that swapped their tileset for
+   * it would be undoing nothing they did. And not `reset()` plus `open()`,
+   * which is the same push one step later.
+   *
+   * `opened` is set as an import sets it: the kept file is the file as opened,
+   * so cells it already held outside the grid are not offered back by an Undo
+   * that cannot reach them.
+   */
+  resume(file: TilesetFile): void {
+    history = historyOf(file);
     opened = file;
   },
 };

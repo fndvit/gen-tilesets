@@ -37,6 +37,8 @@
  * repo has no IndexedDB fake, and adding one for four calls was not worth it).
  */
 
+import { committed, done, MY_TILES, openDatabase } from "./browser-db.js";
+
 /** One uploaded picture. */
 export interface MyTile {
   /** The SHA-256 of the bytes, hex. */
@@ -83,36 +85,18 @@ export function memoryShelf(): TileShelf {
   };
 }
 
-const DB_NAME = "gen-tilesets-editor";
-const STORE = "my-tiles";
-
-function done<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("IndexedDB request failed"));
-  });
-}
-
-function committed(transaction: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB transaction failed"));
-    transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB transaction aborted"));
-  });
-}
-
 function indexedShelf(db: IDBDatabase): TileShelf {
   return {
     persistent: true,
-    list: async () => newestFirst(await done(db.transaction(STORE).objectStore(STORE).getAll() as IDBRequest<MyTile[]>)),
+    list: async () => newestFirst(await done(db.transaction(MY_TILES).objectStore(MY_TILES).getAll() as IDBRequest<MyTile[]>)),
     put: async (tile) => {
-      const transaction = db.transaction(STORE, "readwrite");
-      transaction.objectStore(STORE).put(tile);
+      const transaction = db.transaction(MY_TILES, "readwrite");
+      transaction.objectStore(MY_TILES).put(tile);
       await committed(transaction);
     },
     remove: async (ids) => {
-      const transaction = db.transaction(STORE, "readwrite");
-      const store = transaction.objectStore(STORE);
+      const transaction = db.transaction(MY_TILES, "readwrite");
+      const store = transaction.objectStore(MY_TILES);
       ids.forEach((id) => store.delete(id));
       await committed(transaction);
     },
@@ -129,11 +113,8 @@ function indexedShelf(db: IDBDatabase): TileShelf {
 export async function openShelf(factory: () => IDBFactory | undefined = () => globalThis.indexedDB): Promise<TileShelf> {
   try {
     // Inside the try: with site data blocked, even reading `indexedDB` can throw.
-    const idb = factory();
-    if (idb === undefined) return memoryShelf();
-    const request = idb.open(DB_NAME, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE, { keyPath: "id" });
-    const shelf = indexedShelf(await done(request));
+    // The database is shared with the open tileset's keeping (`browser-db.ts`).
+    const shelf = indexedShelf(await openDatabase(factory));
     await shelf.list();
     return shelf;
   } catch {

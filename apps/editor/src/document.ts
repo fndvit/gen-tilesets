@@ -33,7 +33,7 @@
  *
  * Transient UI state lives **beside** the file, keyed by the identifiers the file
  * already carries — `Operation.id`, `Tile.id`, `TileAsset.id` (§4.1). It is
- * session-scoped and does not survive a reload.
+ * session-scoped and does not survive a reload. The file does (`keep.ts`).
  */
 
 import {

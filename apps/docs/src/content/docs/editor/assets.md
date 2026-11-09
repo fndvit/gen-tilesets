@@ -17,8 +17,10 @@ exist anywhere a browser can fetch them. So the editor holds every dropped image
 answers the preview's requests for a picture from that memory.
 
 It also measures each picture when it arrives, and refuses one it cannot measure. That way the
-file never records an image without its size. The store lasts only for the browser session, so
-a reload empties it.
+file never records an image without its size. The store lasts only for the browser session. Since
+B-016 S4a the pictures the open tileset names are also kept in IndexedDB ([keep.ts](/editor/keep/)),
+and a reload attaches them back through `replaceAll`, as an import would. This store stays the one
+the preview and export read.
 
 In the editor's pipeline, import → document → draft/history → preview → export, this module
 serves three stages. Import and the tile library put pictures in. The preview draws them. Export

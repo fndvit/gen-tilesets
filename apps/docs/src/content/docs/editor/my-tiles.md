@@ -14,7 +14,8 @@ The [Tile gallery](/editor/tile-gallery/) has an **Upload…** button. What it u
 gallery under **My tiles**, and is **kept across reloads** (Pol, B-016 S3c), so a picture uploaded
 once can be added to any later tileset.
 
-This is the editor's first browser storage; until S3c nothing outlived the tab. My tiles belongs
+This was the editor's first browser storage; until S3c nothing outlived the tab. Since S4a the
+open tileset is kept too ([keep.ts](/editor/keep/)), in the same database ([browser-db.ts](/editor/browser-db/)). My tiles belongs
 to the browser, not to a tileset: it survives New and Import, and it is never exported.
 
 ## In detail
@@ -28,7 +29,7 @@ to the browser, not to a tileset: it survives New and Import, and it is never ex
 | `newestFirst(tiles)` | function | Sorted by `added`, newest first, then by `id` so equal times are stable. |
 | `idOf(bytes)` | async function | SHA-256, lower-case hex (`crypto.subtle`). |
 | `memoryShelf()` | function | A shelf kept in a `Map`: the fallback, and what the tests run on. `persistent: false`. |
-| `openShelf(factory?)` | async function | IndexedDB (database `gen-tilesets-editor`, store `my-tiles`, keyed by `id`) when it opens and can be read; otherwise `memoryShelf()`. Never rejects. |
+| `openShelf(factory?)` | async function | IndexedDB (database `gen-tilesets-editor` from [browser-db.ts](/editor/browser-db/), store `my-tiles`, keyed by `id`) when it opens and can be read; otherwise `memoryShelf()`. Never rejects. |
 | `upload(shelf, files, check, now?)` | async function | Puts files on the shelf one by one. Returns `{ ids, failures }`. |
 | `Uploaded` | interface | `{ ids: string[], failures: string[] }`. |
 | `fileOf(tile)` | function | A record as the `File` the attach path takes: same name, type and bytes. |

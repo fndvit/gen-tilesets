@@ -62,6 +62,7 @@
   import ScrollArea from "./lib/ui/ScrollArea.svelte";
   import SelectionOverlay from "./lib/SelectionOverlay.svelte";
   import { rectParams, type Cell, type Rect } from "./paint.js";
+  import { keeping } from "./keeping.svelte.js";
   import { notices } from "./notices.svelte.js";
   import { session } from "./session.svelte.js";
 
@@ -329,13 +330,17 @@
     ),
   );
 
-  const current = $derived(
-    documentNotices(file, orphaned, liveFailures, {
+  const current = $derived([
+    ...documentNotices(file, orphaned, liveFailures, {
       onOpen: openOperation,
       onRemove: trimOperation,
       cameWithFile: cameWith,
     }),
-  );
+    // "Changes won't be kept across reloads" (B-016 S4a). A condition rather
+    // than a pushed notice, so New and Import, which clear pushed notices, do
+    // not hide a problem that is still there.
+    ...(keeping.notice === null ? [] : [keeping.notice]),
+  ]);
 
   /**
    * The conditions as of the last committed value. A numeric field commits on
@@ -349,6 +354,9 @@
     if (!entry.active) conditions = next;
   });
   $effect(() => notices.forget(conditions));
+
+  /** Every document is kept across reloads, written as it changes (`keeping.svelte.ts`). */
+  $effect(() => keeping.schedule(session.file));
 
   /**
    * The draft's `cellList` parameter, if the Selection it is building has one.

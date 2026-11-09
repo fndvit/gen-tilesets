@@ -99,6 +99,7 @@ Which component renders which, in source order. Conditional children are marked.
 | [`session`](/editor/session/) | `file`; `apply`, `reset` |
 | [`drafting`](/editor/drafting/) | `draft`, `editing`; `discard` |
 | [`notices`](/editor/notices/) | `shown`, `forget`, `dismiss`, `clear` |
+| [`keeping`](/editor/keeping/) | `notice`; `schedule` |
 | `entry` (`entry.svelte.ts`) | `active`; `input`, `done`, `keydown` |
 | [`opening`](/editor/opening/) | `open` (the orphan notice's action) |
 | local `$state` | `failures`, `conditions`, `renderBox`, `pending`, `askingResize`, `askingNew` |
@@ -169,7 +170,9 @@ controls keep reading the base, because the base is what they edit.
 #### Notices
 
 `current = documentNotices(file, orphaned, liveFailures)` is every condition the document holds:
-§12.2's advisories and §12.3's failures. It is derived, so a notice goes away by itself when the
+§12.2's advisories and §12.3's failures, plus `keeping.notice` ("Changes won't be kept across
+reloads", B-016 S4a) when there is one. That one is a condition rather than a pushed notice, so
+New and Import, which clear pushed notices, do not hide it. It is derived, so a notice goes away by itself when the
 document no longer has the condition.
 
 A numeric field commits on every keystroke that parses (**E5**), so `current` moves while the
@@ -213,6 +216,12 @@ An `$effect` discards an edit-draft whose Operation is no longer in the stack (r
 undone away). Committing it would otherwise run `replaceOperation` against an id that matches
 nothing, which `session.apply` correctly declines to push, so the button would seem to work
 and do nothing.
+
+#### Kept across reloads
+
+An effect hands every `session.file` to `keeping.schedule` ([keeping](/editor/keeping/)), which
+writes it to IndexedDB. The kept tileset is reopened in `main.ts` before `App` mounts, so App
+starts with it already open.
 
 #### New document
 

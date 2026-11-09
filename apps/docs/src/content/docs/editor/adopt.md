@@ -16,7 +16,8 @@ loads its pictures, makes it the open document, closes any half-edited operation
 the notices.
 
 Import uses it, and so does the New tileset popup for templates (B-016), so a template opens
-exactly the way an exported zip of it would.
+exactly the way an exported zip of it would. Since S4a the tileset kept from the last visit
+reopens through it too ([keeping](/editor/keeping/)).
 
 In the editor's pipeline (**import** → document → draft/history → preview → export), it is the
 last step of import.
@@ -27,13 +28,14 @@ last step of import.
 
 | Export | Kind | Meaning |
 | --- | --- | --- |
-| `adopt(prepared)` | async function | Takes the `"ready"` case of [`Prepared`](/editor/import/) and swaps it in. Resolves when the pictures are attached and the document is open. |
+| `adopt(prepared, how?)` | async function | Takes the `"ready"` case of [`Prepared`](/editor/import/) and swaps it in. Resolves when the pictures are attached and the document is open. `how` is `"open"` (default, undoable) or `"resume"` (a fresh history, for the kept tileset). |
 
 ### Inputs → outputs
 
 1. `replaceAll(prepared.incoming)` ([assets.ts](/editor/assets/)) measures every picture and
    swaps the whole asset store. A picture that fails is reported, not fatal.
-2. `session.open(prepared.file)` ([session](/editor/session/)).
+2. `session.open(prepared.file)`, or `session.resume` when `how` is `"resume"`
+   ([session](/editor/session/)).
 3. `drafting.discard()` ([drafting](/editor/drafting/)): a draft built against the outgoing
    document names ids the incoming one does not have.
 4. `notices.clear()`, then each notice from `importNotices({ upgrades, failed })`
@@ -53,8 +55,9 @@ last step of import.
 | --- | --- |
 | `lib/ImportPanel.svelte` `open()` | after `prepareArchive` returns `"ready"` |
 | `lib/sections/NewTileset.svelte` `confirm()` | after `loadTemplate` and `prepareArchive` return `"ready"` |
+| `keeping.svelte.ts` `restore()` | `adopt(prepared, "resume")`, after `archiveOf` and `prepareArchive` |
 
-Callees: `replaceAll`, `importNotices`, `session.open`, `drafting.discard`, `notices.clear`,
+Callees: `replaceAll`, `importNotices`, `session.open`, `session.resume`, `drafting.discard`, `notices.clear`,
 `notices.push`.
 
 ### Tests
