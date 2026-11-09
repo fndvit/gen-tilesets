@@ -364,3 +364,115 @@ accessibility table. Tokens that S3 adds are marked *(S3)*.
   Every target is well above 24 px (2.5.8).
 
 Next: **S3a** (content and loader).
+
+## Next session plan: S3a · Content and loader
+
+**Next session starts here.** First read "S1 picks", "S2 · Docs" and the DESIGN_SYSTEM.md section
+"Starters: templates and the tile gallery". If Pol has changed any S2 decision, update the doc
+first. S3a is the first block that writes editor code. It adds **no UI**: New and the Add menu
+still behave as today. Stop for Pol at the end.
+
+### What exists (checked 2026-11-09)
+
+- **The source:** `../tileset-files/picsBackground/`, with `tileset.json` (schemaVersion 2,
+  engineVersion "0.0.0", 16 × 10 cells, cellSize 80, referenceWidth 1140, no breakpoints) and
+  `tiles/t1..t6/aN.svg`.
+  - The total is 10 MB.
+  - Every SVG but `t6/a1` (149 bytes, flat red) wraps **one embedded PNG**. The PNGs are 294–852
+    px square and 67 KB–1.2 MB each.
+  - `t2/a1` = `t2/a3` and `t3/a2` = `t5/a3` are byte-identical pairs. Keep both files: they are
+    separate assets in the file.
+- **Import today:** `ImportPanel.svelte` has a local `open(archive)` (~line 202):
+  - `readArchive` (`import.ts:104`) → `migrate` → a `newer` refusal → `validate`.
+  - Then `File`s (via `nameOf`/`mimeOf`) → `replaceAll` → `session.open` → `drafting.discard()`
+    → `notices.clear()` + `importNotices`.
+  - `run()` wraps it with the busy state and reports into the "Import refused" Popup.
+- **Tools present in `node_modules/.pnpm`:**
+  - `sharp`, `pixelmatch`, `pngjs`, `svgo`;
+  - `vite-node` (runs TS that imports the package source);
+  - Playwright 1.56. Its own Chromium build is **not** installed: launch with
+    `executablePath: ~/Library/Caches/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell`.
+- **Others:**
+  - `apps/editor/public/` does not exist, and Vite's default `publicDir` is used.
+  - Docs pages live in `apps/docs/src/content/docs/editor/`, and `pnpm --filter
+    @vit-foundation/tileset-docs coverage` fails on a source file without one. A
+    `.svelte.ts` page is named after the module (see `opening.md`).
+
+### Steps
+
+1. **Compress (scratchpad scripts, nothing committed but the output).**
+   - **Encode:** for each SVG, decode the embedded PNG with `sharp` and re-encode it as WebP at
+     the **same pixel size**. Try lossless first and keep it if it is smaller; otherwise use
+     lossy q 90. Swap the data URI's MIME and leave the SVG's markup alone. `t6/a1` is skipped.
+   - **Compare:** render each SVG before and after in headless Chromium, at the embedded PNG's
+     native size (the strictest case, since Collage draws cells at 80 px, so ≤ 160 device px at
+     2×). Compare the two with `pixelmatch` (threshold 0.1).
+   - **Accept:** an image is accepted only if **0.1 % of its pixels or fewer** differ. Any image
+     that fails keeps its original bytes.
+   - **Report:** build a scratch page showing every tile before and after, side by side, with
+     both sizes and the diff count, and send Pol the totals. **Stop here for Pol's OK on the
+     pictures** (S0 answer 4) before step 2 commits anything.
+2. **Template content.**
+   - Copy the folder to `apps/editor/public/templates/collage/`, in the export layout:
+     `tileset.json` + `tiles/tN/aN.svg`, with the compressed SVGs.
+   - Migrate `tileset.json` with the package's own `migrate()`, through a scratch `vite-node`
+     script. Commit its output. **No hand-edited version number** (E2), and `engineVersion` stays
+     what `migrate()` leaves.
+3. **Thumbnails.**
+   - **Gallery:** one 104 px square WebP per image (52 px at 2×), made with `sharp` from the
+     render in step 1, saved at `public/templates/collage/thumbs/tN-aN.webp`.
+   - **Template:** a 192 × 120 picture of Collage (96 × 60 at 2×). Import a zip of the folder
+     into the running editor, use **Export image** at the design width, then crop and scale it
+     with `sharp` to `public/templates/collage/thumb.webp`. That is the product's own drawing,
+     with no new render code.
+4. **Manifest:** `apps/editor/public/starters.json`, holding:
+   - `templates: [{ id: "collage", label: "Collage", path: "templates/collage/",
+     thumb, summary: "6 tile groups · 12 operations" }]` (count the operations from the file);
+   - `gallery: [{ id, label: "blau 1", src, thumb }]`, in Collage's order. The gallery **points
+     into the template's files** rather than copying them, and the manifest is what decouples the
+     two when the gallery grows (Pol, S1).
+   - Its TypeScript shape and a `parseManifest` that refuses a malformed one loudly live in
+     `starters.ts`.
+5. **Shared open sequence.**
+   - Split ImportPanel's `open()` into:
+     - a **pure** `prepareArchive(archive)` in `import.ts`, which returns `{ kind: "newer" }`,
+       `{ kind: "invalid", errors }` or `{ kind: "ready", file, incoming, upgrades }`;
+     - one side-effecting `adopt(prepared)`, in a new `adopt.svelte.ts`, which does the swap:
+       `replaceAll`, `session.open`, `drafting.discard`, notices.
+   - ImportPanel calls both, and its behaviour does not change. The New tileset popup uses the
+     same pair in S3b.
+   - Test `prepareArchive` in `import.test.ts`, moving what the panel did into cases: newer,
+     invalid, migrated, and missing asset.
+6. **`starters.ts` (pure, tested in `starters.test.ts`, with `fetch` injected):**
+   - `loadTemplate(entry, fetch) → Archive`: fetch `tileset.json`, read each `meta.src`, and
+     fetch it into the Map. A failed fetch **throws** with the path, and nothing is substituted.
+   - `loadGalleryFiles(entries, fetch) → { files: File[], failures }`, in pick order, with names
+     taken from `src`.
+   - Tests use a fake `fetch` over an in-memory map: the happy path, a 404 on one asset, a
+     malformed manifest.
+7. **The template test** (`starters.test.ts`, reading the real files from `public/` with `fs`):
+   - The committed `tileset.json` is at the current `schemaVersion`, `validate()` returns no
+     errors, every `meta.src` exists on disk, and the manifest's paths all exist.
+   - A future schema bump fails CI until the template is migrated again.
+8. **Docs pages** for `starters.ts` and `adopt.svelte.ts`. Update `import.md` and
+   `import-panel.md` for the split. The compression parameters and the 0.1 % rule go in
+   `starters.md`, so the step can be redone for new gallery images.
+9. **Change entry:** `docs/changes/starters-onboarding/B-016.md` (`Package: no`), started here
+   and completed in S3c.
+
+### Verification
+
+- `pnpm test` and `pnpm typecheck` at the root are green.
+- `pnpm --filter @vit-foundation/tileset-docs coverage` passes, and `pnpm changelog check` passes.
+- `git diff --stat origin/dev -- packages/` is empty.
+- **Import is unchanged:** run the editor on 5174 and drive it with a Playwright probe. Import a
+  zip of `public/templates/collage/`: it opens, and its pictures draw. Then check a
+  newer-version and an invalid zip still get "Import refused".
+- **Nothing is fetched up front:** a fresh load's network log has no request under `templates/`
+  or for `starters.json`.
+- `du -sh apps/editor/public` is reported to Pol.
+
+### Exit
+
+Record the sizes, any images kept uncompressed, and the file names under "S3a done". Commit,
+update the memory status line, and stop. The next block is **S3b**, the New tileset popup.
