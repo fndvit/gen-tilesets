@@ -215,7 +215,7 @@ image follows these rules (Pol, X0):
 | A Split button's parts are separate buttons with separate names ("Export", "More export options"); the chevron is 28×30 | 4.1.2, 2.5.8 | |
 | The Radio list's choice shows by its dot (ring vs filled) and the ink row, not by colour alone; it uses native radios, so arrow keys and the group's name come for free | 1.4.1, 1.4.11, 4.1.2 | The ring is ink on the field grey |
 | The gallery's cells are toggle buttons (`aria-pressed`). A picked cell shows a check badge as well as the ring, so the state is a shape, not only a line | 4.1.2, 1.4.1, 1.4.11 | The ring and the badge are ink on white, 18.9:1 |
-| Gallery and template cells are named by their visible label ("blau 1", "Collage"); the thumbnail's `alt` is empty | 2.5.3, 1.1.1 | The picture repeats the label's job, so describing it would be noise |
+| Template cells are named by their visible label ("Collage"). Gallery cells have no visible label (Pol, 2026-11-09), so the cell's `aria-label` names it ("blau 1"). In both, the thumbnail's `alt` is empty | 2.5.3, 1.1.1, 4.1.2 | The name already says what the picture is, so describing it again would be noise. 2.5.3 does not apply to a gallery cell, because it has no visible text |
 | The gallery grid is one Tab stop with arrow-key movement (roving `tabindex`), like the Tile picker. Space or Enter toggles | 2.1.1, 2.4.3 | 21 cells, and later more, would otherwise be 21 Tab stops |
 | The gallery's "N picked" line is a polite live region | 4.1.3 | It says what a toggle did without moving focus |
 | A Field error names the problem in words, is tied to the field (`aria-invalid`, `aria-describedby`), and takes focus to the field | 3.3.1, 3.3.2, 4.1.2 | Shown on Add, never while typing |
@@ -327,10 +327,11 @@ The hint shows only in the matching mode (Pol, S1). From the top, the popup hold
    (Pol, S1: the gallery will grow and get tabs, so a name can't be derived from where the
    pictures came from). Focus starts here. In variants mode, focus starts on the grid.
 2. **The grid**, one flat list in the collection's order (G1). Cells are 64px wide
-   (`--gallery-cell` *(S3)*, `auto-fill` columns, `--space-3` apart). Each cell has a 52px
-   thumbnail (`--gallery-thumb` *(S3)*, `--radius-xs`, the hairline ring the Tile picker's
-   thumbnails have) over a muted mono label, "<group> <n>" ("blau 1"). Hover washes the cell.
-   A picked cell has the 2px ink ring, its label turns ink, and an 18px ink badge with a white
+   (`--gallery-cell` *(S3)*, `auto-fill` columns, `--space-3` apart). Each cell is a 64px square
+   holding only its 52px thumbnail (`--gallery-thumb` *(S3)*, `--radius-xs`, the hairline ring
+   the Tile picker's thumbnails have). There is **no visible label** under the thumbnail (Pol,
+   2026-11-09): the cell is named "<group> <n>" ("blau 1") through `aria-label` only. Hover
+   washes the cell. A picked cell has the 2px ink ring, and an 18px ink badge with a white
    `check` sits at the cell's top-right, 4px in. The body scrolls; the name and the footer do not.
 3. **Footer**, under a hairline (`--color-track`). On the left, the count in muted mono: "None
    picked", then "N picked". On the right, Cancel and the verb. The verb is disabled at 0 and

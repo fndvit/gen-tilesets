@@ -13,7 +13,7 @@ import { unzipSync, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { newDocument } from "./document.js";
 import { entries, FILE_NAME, serialize } from "./export.js";
-import { mimeOf, nameOf, readArchive, type Archive } from "./import.js";
+import { mimeOf, nameOf, prepareArchive, readArchive, type Archive } from "./import.js";
 
 const bytes = (text: string): Uint8Array => new TextEncoder().encode(text);
 
@@ -214,6 +214,70 @@ describe("the import path, end to end through a zip", () => {
     expect(outcome.kind).toBe("migrated");
     if (outcome.kind !== "migrated") return;
     expect(validate(outcome.file).map((e) => [e.code, e.path])).toEqual([["UNKNOWN_KEY", "/colour"]]);
+  });
+});
+
+/**
+ * The shared, pure half of opening (B-016): what `ImportPanel` and the New
+ * tileset popup's templates both run before `adopt()` touches anything.
+ */
+describe("prepareArchive", () => {
+  /** `archiveOf`, with the document rewritten to declare `version` and carry `extra`. */
+  const declaring = (file: TilesetFile, version: number, extra: object = {}): Archive => {
+    const archive = new Map(archiveOf(file));
+    archive.set(FILE_NAME, bytes(JSON.stringify({ ...file, schemaVersion: version, ...extra })));
+    return archive;
+  };
+
+  it("readies a current archive, with its pictures as Files", async () => {
+    const file = withAssets();
+    const prepared = prepareArchive(archiveOf(file));
+    expect(prepared.kind).toBe("ready");
+    if (prepared.kind !== "ready") return;
+
+    expect(prepared.file).toEqual(file);
+    expect(prepared.upgrades).toEqual([]);
+    expect(prepared.incoming.map((i) => [i.tileId, i.assetId, i.file.name, i.file.type])).toEqual([
+      ["t1", "a1", "a1.png", "image/png"],
+      ["t1", "a2", "a2.png", "image/png"],
+      ["t2", "a1", "a1.svg", "image/svg+xml"],
+    ]);
+    expect(await prepared.incoming[2]!.file.text()).toBe("t2/a1");
+  });
+
+  it("migrates an older archive and says so", () => {
+    const file = withAssets();
+    const prepared = prepareArchive(declaring(file, 1));
+    expect(prepared.kind).toBe("ready");
+    if (prepared.kind !== "ready") return;
+    expect(prepared.file).toEqual(file);
+    expect(prepared.upgrades.map((step) => step.from)).toEqual([1, 2, 3]);
+  });
+
+  it("refuses a newer archive before validating it", () => {
+    // Invalid as well, so a validation run would show up as `invalid`.
+    expect(prepareArchive(declaring(withAssets(), 99, { colour: "red" }))).toEqual({ kind: "newer", declared: 99 });
+  });
+
+  it("refuses an invalid archive with the errors", () => {
+    const file = withAssets();
+    const prepared = prepareArchive(declaring(file, file.schemaVersion, { colour: "red" }));
+    expect(prepared.kind).toBe("invalid");
+    if (prepared.kind !== "invalid") return;
+    expect(prepared.errors.map((e) => [e.code, e.path])).toEqual([["UNKNOWN_KEY", "/colour"]]);
+  });
+
+  it("readies an archive missing a picture, leaving the gap to §12.3", () => {
+    const archive = new Map(archiveOf(withAssets()));
+    archive.delete("tiles/t1/a2.png");
+    const prepared = prepareArchive(archive);
+    expect(prepared.kind).toBe("ready");
+    if (prepared.kind !== "ready") return;
+    expect(prepared.incoming.map((i) => `${i.tileId}/${i.assetId}`)).toEqual(["t1/a1", "t2/a1"]);
+  });
+
+  it("throws where readArchive does", () => {
+    expect(() => prepareArchive(new Map())).toThrow(/no tileset\.json/);
   });
 });
 

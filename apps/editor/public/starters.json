@@ -1,0 +1,139 @@
+{
+  "templates": [
+    {
+      "id": "collage",
+      "label": "Collage",
+      "path": "templates/collage/",
+      "thumb": "templates/collage/thumb.webp",
+      "summary": "6 tile groups · 6 operations"
+    }
+  ],
+  "gallery": [
+    {
+      "id": "t1-a1",
+      "label": "blau 1",
+      "src": "templates/collage/tiles/t1/a1.svg",
+      "thumb": "templates/collage/thumbs/t1-a1.webp"
+    },
+    {
+      "id": "t1-a2",
+      "label": "blau 2",
+      "src": "templates/collage/tiles/t1/a2.svg",
+      "thumb": "templates/collage/thumbs/t1-a2.webp"
+    },
+    {
+      "id": "t1-a3",
+      "label": "blau 3",
+      "src": "templates/collage/tiles/t1/a3.svg",
+      "thumb": "templates/collage/thumbs/t1-a3.webp"
+    },
+    {
+      "id": "t2-a1",
+      "label": "verd 1",
+      "src": "templates/collage/tiles/t2/a1.svg",
+      "thumb": "templates/collage/thumbs/t2-a1.webp"
+    },
+    {
+      "id": "t2-a2",
+      "label": "verd 2",
+      "src": "templates/collage/tiles/t2/a2.svg",
+      "thumb": "templates/collage/thumbs/t2-a2.webp"
+    },
+    {
+      "id": "t2-a3",
+      "label": "verd 3",
+      "src": "templates/collage/tiles/t2/a3.svg",
+      "thumb": "templates/collage/thumbs/t2-a3.webp"
+    },
+    {
+      "id": "t2-a4",
+      "label": "verd 4",
+      "src": "templates/collage/tiles/t2/a4.svg",
+      "thumb": "templates/collage/thumbs/t2-a4.webp"
+    },
+    {
+      "id": "t3-a1",
+      "label": "rosa 1",
+      "src": "templates/collage/tiles/t3/a1.svg",
+      "thumb": "templates/collage/thumbs/t3-a1.webp"
+    },
+    {
+      "id": "t3-a2",
+      "label": "rosa 2",
+      "src": "templates/collage/tiles/t3/a2.svg",
+      "thumb": "templates/collage/thumbs/t3-a2.webp"
+    },
+    {
+      "id": "t3-a3",
+      "label": "rosa 3",
+      "src": "templates/collage/tiles/t3/a3.svg",
+      "thumb": "templates/collage/thumbs/t3-a3.webp"
+    },
+    {
+      "id": "t3-a4",
+      "label": "rosa 4",
+      "src": "templates/collage/tiles/t3/a4.svg",
+      "thumb": "templates/collage/thumbs/t3-a4.webp"
+    },
+    {
+      "id": "t3-a5",
+      "label": "rosa 5",
+      "src": "templates/collage/tiles/t3/a5.svg",
+      "thumb": "templates/collage/thumbs/t3-a5.webp"
+    },
+    {
+      "id": "t4-a1",
+      "label": "groc 1",
+      "src": "templates/collage/tiles/t4/a1.svg",
+      "thumb": "templates/collage/thumbs/t4-a1.webp"
+    },
+    {
+      "id": "t4-a2",
+      "label": "groc 2",
+      "src": "templates/collage/tiles/t4/a2.svg",
+      "thumb": "templates/collage/thumbs/t4-a2.webp"
+    },
+    {
+      "id": "t4-a3",
+      "label": "groc 3",
+      "src": "templates/collage/tiles/t4/a3.svg",
+      "thumb": "templates/collage/thumbs/t4-a3.webp"
+    },
+    {
+      "id": "t4-a4",
+      "label": "groc 4",
+      "src": "templates/collage/tiles/t4/a4.svg",
+      "thumb": "templates/collage/thumbs/t4-a4.webp"
+    },
+    {
+      "id": "t4-a5",
+      "label": "groc 5",
+      "src": "templates/collage/tiles/t4/a5.svg",
+      "thumb": "templates/collage/thumbs/t4-a5.webp"
+    },
+    {
+      "id": "t5-a1",
+      "label": "gris 1",
+      "src": "templates/collage/tiles/t5/a1.svg",
+      "thumb": "templates/collage/thumbs/t5-a1.webp"
+    },
+    {
+      "id": "t5-a2",
+      "label": "gris 2",
+      "src": "templates/collage/tiles/t5/a2.svg",
+      "thumb": "templates/collage/thumbs/t5-a2.webp"
+    },
+    {
+      "id": "t5-a3",
+      "label": "gris 3",
+      "src": "templates/collage/tiles/t5/a3.svg",
+      "thumb": "templates/collage/thumbs/t5-a3.webp"
+    },
+    {
+      "id": "t6-a1",
+      "label": "solid red 1",
+      "src": "templates/collage/tiles/t6/a1.svg",
+      "thumb": "templates/collage/thumbs/t6-a1.webp"
+    }
+  ]
+}

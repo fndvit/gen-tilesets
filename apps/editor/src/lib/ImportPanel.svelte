@@ -44,14 +44,10 @@
   stack instead (Stage 2, W3), beside the picture they are about.
 -->
 <script lang="ts">
-  import { migrate, validate, type TilesetFile, type ValidationError } from "@vit-foundation/gen-tilesets";
+  import type { ValidationError } from "@vit-foundation/gen-tilesets";
   import { unzipSync } from "fflate";
-  import { importNotices } from "../advisories.js";
-  import { replaceAll, type Incoming } from "../assets.js";
-  import { drafting } from "../drafting.svelte.js";
-  import { mimeOf, nameOf, readArchive, type Archive } from "../import.js";
-  import { notices } from "../notices.svelte.js";
-  import { session } from "../session.svelte.js";
+  import { adopt } from "../adopt.js";
+  import { prepareArchive, type Archive } from "../import.js";
   import Button from "./ui/Button.svelte";
   import Popup from "./ui/Popup.svelte";
 
@@ -191,61 +187,22 @@
   /**
    * §12.4's sequence, in order, with no partial states.
    *
-   * Read → parse → **migrate** → **validate** → attach → swap. Nothing before
-   * the last two lines touches the document, so every refusal above them leaves
-   * the author exactly where they were.
-   *
-   * **Migration precedes validation** and is a separate function — `06` §9.2
-   * forbids validation from coercing anything, and rewriting a `schemaVersion`
-   * is a coercion. `validate()` therefore still knows exactly one version, and
-   * sees a file that already claims it.
+   * `prepareArchive` (`import.ts`) reads, migrates and validates, and touches
+   * nothing; `adopt` (`adopt.ts`) swaps the document in. So every refusal leaves
+   * the author exactly where they were. The New tileset popup's templates go
+   * through the same pair (B-016).
    */
   async function open(archive: Archive): Promise<void> {
-    // A `meta.src` the archive did not carry (`missing`) is left to §12.3: the
-    // asset has no file, so it fails to draw and the preview's notice says so.
-    const { file: read, assets } = readArchive(archive);
-
-    const outcome = migrate(read);
-    // §12.4's case, and the only one where *update the editor, not the file* is
-    // the right advice. An **older** file is migrated below, not refused.
-    if (outcome.kind === "newer") {
-      newer = outcome.declared;
+    const prepared = prepareArchive(archive);
+    if (prepared.kind === "newer") {
+      newer = prepared.declared;
       return;
     }
-    // Absent, non-integer, or a past version with no path. Left to `validate()`,
-    // which reports it at `/schemaVersion` like any other error rather than
-    // getting a screen of its own for a problem it does not have.
-    const file = outcome.kind === "migrated" ? outcome.file : read;
-
-    const found = validate(file);
-    if (found.length > 0) {
-      errors = found;
+    if (prepared.kind === "invalid") {
+      errors = prepared.errors;
       return;
     }
-
-    const incoming: Incoming[] = assets.map((asset) => ({
-      tileId: asset.tileId,
-      assetId: asset.assetId,
-      file: new File([asset.bytes as BlobPart], nameOf(asset.path), { type: mimeOf(asset.path) }),
-    }));
-
-    const failed = await replaceAll(incoming);
-
-    // Validated above, so this is a `TilesetFile` by the only test there is.
-    session.open(file as TilesetFile);
-    // A draft built against the outgoing document names ids the incoming one
-    // does not have.
-    drafting.discard();
-
-    // A new document starts with no notices, then gets its own. Non-fatal:
-    // the upgrade already happened (**E16**), and a document whose pictures
-    // are absent is still a legal file the author can repair by dropping the
-    // images back in. Refusing would throw away the operations, the seed and
-    // the layout over a picture.
-    notices.clear();
-    for (const notice of importNotices({ upgrades: outcome.kind === "migrated" ? outcome.steps : [], failed })) {
-      notices.push(notice);
-    }
+    await adopt(prepared);
   }
 
   async function run(archive: Promise<Archive>): Promise<void> {

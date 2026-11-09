@@ -321,6 +321,9 @@ The mocks were a scratch page in the session scratchpad, drawn with the editor's
 3. **The gallery: G1.** One flat grid of the 21 images, each cell labelled with its source group
    and number ("blau 1"). Cells are toggles with an ink ring and a check, and "Add N tiles" is
    disabled at 0.
+   - **Changed by Pol (2026-11-09, start of S3a):** the cells show **no name** under the
+     thumbnail. The label ("blau 1") stays in the manifest as the cell's accessible name
+     (`aria-label`). DESIGN_SYSTEM.md is updated to match.
    - The hint "Pick one or more. They become one new tile group." shows **only** when the gallery
      is opened from "Add tile group", not from "Add variants to …".
 4. **The new group's name is typed by the user** when the gallery creates a group. Pol: the
@@ -476,3 +479,50 @@ still behave as today. Stop for Pol at the end.
 
 Record the sizes, any images kept uncompressed, and the file names under "S3a done". Commit,
 update the memory status line, and stop. The next block is **S3b**, the New tileset popup.
+
+## S3a done (2026-11-09)
+
+**Pol's answers in this block:**
+- Gallery cells show **no name** under the thumbnail. That was recorded under "S1 picks" and in
+  DESIGN_SYSTEM.md (Tile gallery item 2, and the accessibility table). The label is now only the
+  cell's `aria-label`.
+- Compression: **WebP q90** (chosen over lossless WebP at 5.7 MB and the originals at 10.8 MB,
+  after a side-by-side page).
+  - 10.8 MB → 0.86 MB.
+  - pixelmatch (threshold 0.1) found 0 % of pixels differing at the native size and at 160 px.
+    PSNR is 40–51 dB, and the worst channel change is 28/255 (`t4/a1`).
+  - No image was kept uncompressed. `t6/a1` (a flat colour) has no raster.
+
+**Sizes:** `apps/editor/public` is 984 KB: 21 SVGs (858 KB), 21 gallery thumbnails, and a 3 KB
+template thumbnail.
+
+**Files:**
+- `apps/editor/public/starters.json`
+- `public/templates/collage/`:
+  - `tileset.json`, migrated 2 → 4 by `migrate()`; only `schemaVersion` changed;
+  - `tiles/tN/aN.svg`;
+  - `thumb.webp`, 192 × 120, from the editor's Export image at 2×, centre-cropped;
+  - `thumbs/tN-aN.webp`, 104 px.
+- `src/starters.ts`, `src/starters.test.ts`, `src/adopt.ts`. `src/import.ts` gains `Prepared` and
+  `prepareArchive`, and `lib/ImportPanel.svelte`'s `open()` now calls `prepareArchive` + `adopt`.
+- Docs: `editor/starters.md` and `editor/adopt.md` are new; `import.md` and `import-panel.md` are
+  updated. The change entry is `docs/changes/starters-onboarding/B-016.md`.
+
+**Deviations from the plan:**
+- `adopt.ts`, not `adopt.svelte.ts`, because it holds no rune.
+- Collage has **6 operations**, not 12. The manifest summary is "6 tile groups · 6 operations",
+  and a test checks it against the file.
+- Gallery files are named `<id><ext>` ("t1-a1.svg"), not by their source basename, because every
+  group has an `a1.svg`.
+- Gallery thumbnails come from Chromium's render of the **original** SVG.
+
+**Verified:**
+- `pnpm test`: 671 + 522 + 12 tests, all green. `pnpm typecheck` is green, as are docs coverage
+  and `pnpm changelog check`. `git diff --stat origin/dev -- packages/` is empty.
+- A Playwright probe on 5174 checked that:
+  - a fresh load makes no request under `templates/` or for `starters.json`;
+  - a zip of `public/templates/collage/` imports and draws, with no page errors;
+  - a newer zip (schemaVersion 99) and an invalid zip (an unknown key) still get "Import refused".
+
+**Next: S3b**, the New tileset popup (DESIGN_SYSTEM.md "New tileset"). It calls `loadManifest`,
+`loadTemplate`, `prepareArchive` and `adopt`, and a failure goes to the "Import refused" Popup.
