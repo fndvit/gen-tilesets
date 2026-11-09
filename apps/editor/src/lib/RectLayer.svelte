@@ -14,9 +14,9 @@
   overlay underneath redraws the selection as it now is, through the package's
   `selection()` — this layer never draws "the selected cells" itself.
 
-  What it draws is the **gesture**: a dashed outline of the rectangle the pointer
-  traced, which follows the pointer past the grid's edge, and a hover outline
-  when no drag is under way. The values it writes are clamped to the grid (Pol,
+  What it draws is the **gesture**: a marquee (solid edge, low-opacity fill) of
+  the rectangle the pointer traced, which follows the pointer past the grid's
+  edge, and a dashed hover outline when no drag is under way. The values it writes are clamped to the grid (Pol,
   batch 02 D-01): past the edge the outline keeps growing and the selection does
   not. The overlay is what shows the difference.
 -->
@@ -180,20 +180,29 @@
   }
 
   /*
-    The dragged outline is dashed and unfilled: the fill is `SelectionOverlay`'s,
-    underneath, and it stops at the grid's edge while this keeps going (D-01).
-    So the one place the two differ is exactly what was not selected.
+    The dragged rectangle is a marquee: a solid edge and a low-opacity fill, as
+    the iOS screenshot drag draws one (Pol, batch 02). It used to be dashed and
+    unfilled, leaving the fill to `SelectionOverlay`; that read as a cursor, and
+    authors did not see that dragging set the Selection.
+
+    The fill is light enough that stacked on the overlay's it still shows the
+    tile. The two still differ past the grid's edge, where this keeps going and
+    the overlay stops (D-01): there the marquee is alone and visibly paler, and
+    that paler band is exactly what was not selected.
   */
   .outline {
     position: absolute;
     box-sizing: border-box;
-    border: var(--rule-w) dashed var(--color-selection);
+    border: var(--rule-w) solid var(--color-selection);
+    background: color-mix(in srgb, var(--color-selection) 15%, transparent);
     pointer-events: none;
   }
 
+  /* Weaker than the marquee, so hovering never looks like a drag. */
   .outline.hover {
+    border-style: dashed;
     border-color: color-mix(in srgb, var(--color-selection) 80%, transparent);
-    background: color-mix(in srgb, var(--color-selection) 10%, transparent);
+    background: color-mix(in srgb, var(--color-selection) 8%, transparent);
   }
 
   .readout {

@@ -10,3 +10,4 @@ While an operation's Selection is a rectangle, dragging on the preview sets its 
 - Esc and `pointercancel` end the drag and keep the values already written, as the plan says ("end"), rather than restoring the rectangle from before the drag.
 - `paint.ts`'s bounding table (and the `paint` docs page) said a `rect` drag does not bound; D-01 changed that row to "the result, not the gesture", with the reason.
 - Docs: new `editor/rect-layer.md`; `editor/paint.md` and `editor/app.md` updated.
+- Follow-up (Pol): the `rect` Selection is labelled "Drag" in the UI (`labels.ts`; registry name unchanged), and the dragged outline is now a marquee — solid edge, 15% fill, as the iOS screenshot drag — so it is clear that dragging sets the rectangle. Hover stays dashed and fainter.

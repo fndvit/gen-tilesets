@@ -40,11 +40,11 @@ All * Random * Tile [sand, clear] * Set
 
 ### Inputs → outputs
 
-- **`labelFor`.** Four names are fixed: `cellList` → "Handpick", `checkerboard` → "Checkered",
-  `tileId` → "Tile", `valueNoise` → "Noise". Any other name is split before each capital that
-  follows a lower-case letter or digit and put in sentence case, with no exceptions (Pol, N3):
-  `cellsPerFeature` → "Cells per feature", `everyNth` → "Every nth", `scaleX` → "Scale x",
-  `rect` → "Rect".
+- **`labelFor`.** Five names are fixed: `cellList` → "Handpick", `checkerboard` → "Checkered",
+  `rect` → "Drag" (it names the gesture that sets it), `tileId` → "Tile", `valueNoise` → "Noise".
+  Any other name is split before each capital that follows a lower-case letter or digit and put in
+  sentence case, with no exceptions (Pol, N3):
+  `cellsPerFeature` → "Cells per feature", `everyNth` → "Every nth", `scaleX` → "Scale x".
 - **`STEP_LABELS`.** Kept apart from `labelFor`'s fixed names on purpose: those map registry
   names, and a Source registered under the name `source` would otherwise read "Pattern".
 - **`summaryCells`.** `{ selection, source, attribute, blend }`, each through `labelFor` or

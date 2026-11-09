@@ -11,11 +11,11 @@ sidebar:
 ## Overview
 
 The rectangle layer lets the author draw a rectangle Selection by dragging on the preview. It
-appears while an operation is being built or edited and its Selection is a rectangle (Rect). Press
+appears while an operation is being built or edited and its Selection is a rectangle (Drag). Press
 on a cell, drag to the opposite corner and let go: the Selection's X, Y, Width and Height fields
 follow as you drag, and so does the selection overlay. A click selects that one cell.
 
-The dashed outline follows the pointer even past the grid's edge, but the rectangle written covers
+A translucent marquee follows the pointer even past the grid's edge, but the rectangle written covers
 only the cells the grid has (Pol's batch 02 decision D-01). The overlay underneath shows what was
 actually selected. The number fields stay the keyboard path, and can still be typed past the
 grid's edge.
@@ -28,8 +28,9 @@ Like the paint layer, it writes into the operation draft, never into the documen
 
 The component is the **gesture** only, on the same terms as [PaintLayer](/editor/paint-layer/):
 the selected cells are `SelectionOverlay`'s (**E7**, **E8**), resolved by the package's
-`selection()` from the four numbers this writes. What it draws is the outline of the rectangle the
-pointer traced, and a one-cell hover outline when no drag is under way.
+`selection()` from the four numbers this writes. What it draws is a marquee (solid edge,
+low-opacity fill) of the rectangle the pointer traced, and a dashed one-cell hover outline when no
+drag is under way.
 
 ### Which Selection gets it
 
@@ -56,7 +57,7 @@ from [paint.ts](/editor/paint/), true when the params are exactly the integers `
 - **`pointerup`**, **`pointercancel`**, **Esc**: end the drag and keep what was written. Nothing
   has reached the file; the draft can still be discarded.
 - Output: `<div class="layer" role="application" aria-label="Drag to draw the selection
-  rectangle">`, the dashed `.outline` from `rectFrom(from, to)` (unclamped), and a readout
+  rectangle">`, the filled `.outline` marquee from `rectFrom(from, to)` (unclamped), and a readout
   `rectangle · x, y · w × h`.
 
 ### Invariants
