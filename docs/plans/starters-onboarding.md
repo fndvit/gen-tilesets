@@ -820,3 +820,13 @@ Commit 9fb4cf1. Details and checks are in `docs/changes/starters-onboarding/B-01
 sweep was not re-run; the parts the change touched were checked in Chrome.
 
 **Next:** Pol closes B-016, then O0 (onboarding questions, no code), in a new session.
+
+## B-016 closed (Pol, 2026-11-09)
+
+Pol closed B-016 after S4 and the undo fix. Nothing is left open. The change entry's "What changed"
+now sums up the whole item, not only S3a.
+- `BACKLOG.md` is not edited here. B-016 moves to `## Done` after the PR merges into `dev` (Pol, per
+  `docs/Batch-workflow.md`, Release).
+- The PR against `dev` carries B-016 and B-017 together, and is opened after O4.
+
+**Next: O0**, onboarding questions (no code).
