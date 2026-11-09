@@ -12,12 +12,15 @@
  */
 
 import type { GridGeometry } from "@vit-foundation/gen-tilesets/render";
-import type { Layout } from "@vit-foundation/gen-tilesets";
+import { selections, type Layout } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import {
   addCell,
+  cellReached,
   cellUnder,
   hasCell,
+  rectFrom,
+  rectParams,
   removeCell,
   strandedCells,
   toRenderSpace,
@@ -152,5 +155,64 @@ describe("cells stranded by a design-width change — 09 §9.4", () => {
 
   it("finds nothing while the grid contains every painted cell", () => {
     expect(strandedCells([[0, 0], [9, 4]], 10, 5)).toEqual([]);
+  });
+});
+
+describe("the rectangle drag — batch 02 T-01, D-01", () => {
+  const bound = { columns: 10, rows: 5 };
+
+  it("a click is a 1×1 rectangle at that cell", () => {
+    expect(rectFrom([3, 2], [3, 2], bound)).toEqual({ x: 3, y: 2, width: 1, height: 1 });
+  });
+
+  it("gives the same rectangle in all four directions — the smaller corner, an inclusive size", () => {
+    const want = { x: 2, y: 1, width: 4, height: 3 };
+    expect(rectFrom([2, 1], [5, 3], bound)).toEqual(want); // down-right
+    expect(rectFrom([5, 3], [2, 1], bound)).toEqual(want); // up-left
+    expect(rectFrom([5, 1], [2, 3], bound)).toEqual(want); // down-left
+    expect(rectFrom([2, 3], [5, 1], bound)).toEqual(want); // up-right
+  });
+
+  it("clamps to the grid with a bound: past the edge covers no more cells (D-01)", () => {
+    expect(rectFrom([7, 3], [14, 9], bound)).toEqual({ x: 7, y: 3, width: 3, height: 2 });
+    // Up-left off the grid pins the corner at 0 rather than growing a negative x.
+    expect(rectFrom([2, 2], [-4, -3], bound)).toEqual({ x: 0, y: 0, width: 3, height: 3 });
+  });
+
+  it("follows the pointer without a bound — the outline the drag traced", () => {
+    expect(rectFrom([7, 3], [14, 9])).toEqual({ x: 7, y: 3, width: 8, height: 7 });
+    expect(rectFrom([2, 2], [-4, -3])).toEqual({ x: -4, y: -3, width: 7, height: 6 });
+  });
+
+  it("reads the unbounded cell a pointer reached, where cellUnder says null", () => {
+    expect(cellUnder(g, box(), 1250, 50)).toBeNull();
+    expect(cellReached(g, box(), 1250, 50)).toEqual([12, 0]);
+    expect(cellReached(g, box(), -50, -150)).toEqual([-1, -2]);
+  });
+});
+
+describe("which Selection gets the drag: its parameter shape", () => {
+  const int = { type: "integer" } as const;
+
+  it("is exactly the integers x, y, width, height, in any order", () => {
+    expect(rectParams({ x: int, y: int, width: int, height: int })).toBe(true);
+    expect(rectParams({ height: int, width: int, y: int, x: int })).toBe(true);
+  });
+
+  it("is not a schema with a fifth parameter, a missing one, or a non-integer", () => {
+    expect(rectParams({ x: int, y: int, width: int, height: int, step: int })).toBe(false);
+    expect(rectParams({ x: int, y: int, width: int })).toBe(false);
+    expect(rectParams({ x: int, y: int, width: int, height: { type: "number" } })).toBe(false);
+    expect(rectParams({ cells: { type: "cellList" } })).toBe(false);
+    expect(rectParams({})).toBe(false);
+  });
+
+  it("matches the registered `rect`, and no Selection is both a rectangle and a brush", () => {
+    expect(rectParams(selections.get("rect").params)).toBe(true);
+    for (const name of selections.names()) {
+      const params = selections.get(name).params;
+      const brush = Object.values(params).some((p) => p.type === "cellList");
+      expect(rectParams(params) && brush).toBe(false);
+    }
   });
 });

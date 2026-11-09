@@ -1,12 +1,12 @@
 ---
 title: paint.ts
-description: The cellList brush. Find the in-grid cell under a pointer, and keep the painted-cell list free of duplicates.
+description: The cellList brush and the rectangle drag. Find the cell under a pointer, keep the painted-cell list free of duplicates, and turn two cells into a rectangle.
 sidebar:
   order: 12
 ---
 
 **Written from:** `apps/editor/src/paint.ts`, `paint.test.ts`, and the call sites in
-`lib/PaintLayer.svelte` and `App.svelte`.
+`lib/PaintLayer.svelte`, `lib/RectLayer.svelte` and `App.svelte`.
 
 ## Overview
 
@@ -22,6 +22,10 @@ passes over the same cell twice does not add it twice.
 In the editor's pipeline, import → document → **draft**/history → preview → export, the brush
 writes into the operation draft from the preview. The painted list reaches the document only when
 the draft is committed.
+
+Since batch 02 (T-01) it also holds the arithmetic for dragging a rectangle Selection: two cells
+become an `x, y, width, height`, clamped to the grid, and a Selection counts as a rectangle when its
+parameters are exactly those four integers.
 
 ## In detail
 
@@ -50,6 +54,10 @@ caller. It is **re-exported** so this module's callers and tests are unchanged.
 | `addCell(cells, cell)` | `(readonly Cell[], Cell) → Cell[]` | Idempotent append; always a fresh array. |
 | `removeCell(cells, cell)` | `(readonly Cell[], Cell) → Cell[]` | Removes every equal entry; always a fresh array. |
 | `strandedCells(cells, columns, rows)` | `(readonly Cell[], number, number) → Cell[]` | Cells outside `[0, columns) × [0, rows)`. |
+| `Rect` | `{ x, y, width, height }` | A rectangle Selection's parameters. |
+| `cellReached(g, box, clientX, clientY)` | `(GridGeometry, BoxMetrics, number, number) → Cell` | The cell under a pointer, unbounded. |
+| `rectFrom(a, b, bound?)` | `(Cell, Cell, { columns, rows }?) → Rect` | The rectangle two cells span: smaller corner, inclusive size. With `bound`, both cells are clamped into the grid first. |
+| `rectParams(schema)` | `(ParamSchema) → boolean` | Whether the params are exactly the integers `x`, `y`, `width`, `height`. |
 
 Engine: [`GridGeometry`](/api/render/interfaces/gridgeometry/).
 
@@ -60,6 +68,13 @@ Engine: [`GridGeometry`](/api/render/interfaces/gridgeometry/).
 - **`addCell`** returns a copy unchanged if the cell is present, otherwise appends.
 - **`removeCell`** filters by value. Removing an absent cell is a no-op copy.
 - **`strandedCells`** returns the entries outside the grid, in order.
+- **`cellReached`** is `cellUnder` without the bound: `[x, y]` from `cellAt`, possibly negative or
+  past the last column.
+- **`rectFrom`** clamps each cell to `[0, columns-1] × [0, rows-1]` when given a bound (and the
+  grid has at least one cell), then returns `{ x: min, y: min, width: |Δx| + 1, height: |Δy| + 1 }`.
+  A click is 1×1; all four drag directions give the same rectangle.
+- **`rectParams`** sorts the keys and compares them with `height, width, x, y`, each of type
+  `integer`.
 
 ### Invariants
 
@@ -68,11 +83,13 @@ Engine: [`GridGeometry`](/api/render/interfaces/gridgeometry/).
 
   | Tool | Bounds? | Why |
   | --- | --- | --- |
-  | `rect` drag | no | A rectangle dragged to the edge is not silently resized. |
+  | `rect` drag | the result, not the gesture | Batch 02 D-01. |
   | `cellList` brush | yes | A painted cell outside the grid can never be drawn, seen or clicked. |
 
-  The asymmetry is that a `rect` states an intention that survives the grid growing, while a
-  `cellList` entry is a claim about one specific cell.
+  The `rect` row used to read "no". Pol's D-01 split it: the dragged outline follows the pointer
+  past the edge, but the rectangle written covers only cells the grid has. A `rect` typed into the
+  fields may still extend past the grid, and `cellAt` stays unbounded because the outline needs
+  the coordinates the drag reached.
 - **No duplicates.** A duplicate would be legal and invisible, since membership is all the
   predicate tests. It would grow the file on every stroke, with nothing to show for it and nothing
   to remove it by.
@@ -86,7 +103,8 @@ Engine: [`GridGeometry`](/api/render/interfaces/gridgeometry/).
 | `lib/PaintLayer.svelte:65` | `cellUnder(g, metricsOf(box), event.clientX, event.clientY)` |
 | `lib/PaintLayer.svelte:72` | `addCell` or `removeCell` per stroke; `onChange(next)` only if the length changed |
 | `lib/PaintLayer.svelte:80`, `:176` | `hasCell`: a stroke paints if it starts on an empty cell and erases otherwise; the hover style |
-| `App.svelte:67` | `type Cell`, for `painting` and `paintCells` |
+| `App.svelte:62` | `rectParams`, `type Cell`, `type Rect`, for `painting`, `rectangle`, `paintCells` and `drawRect` |
+| `lib/RectLayer.svelte:29` | imports `cellReached`, `cellUnder`, `metricsOf`, `rectFrom`, `Cell`, `Rect` |
 
 `strandedCells` has **no caller outside `paint.test.ts`**.
 
@@ -106,6 +124,12 @@ only what the editor owns.
 - **The list.** `addCell` is idempotent; `removeCell` removes by value and is a no-op when absent;
   `(x, y)` is not confused with `(y, x)`; inputs are never mutated.
 - **`strandedCells`** names the out-of-grid cells and finds nothing when all fit.
+- **The rectangle drag.** `rectFrom`: a click is 1×1, the four directions agree, the bound clamps
+  past either edge, and without a bound it follows the pointer. `cellReached` returns the
+  unbounded cell where `cellUnder` says `null`.
+- **`rectParams`.** True for the four integers in any order; false with a fifth, a missing one, a
+  non-integer, a `cellList` or nothing. It matches the registered `rect`, and no registered
+  Selection is both a rectangle and a brush.
 
 ### Gotchas & rejected alternatives
 

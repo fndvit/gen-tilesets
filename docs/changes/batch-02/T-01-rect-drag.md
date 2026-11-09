@@ -1,0 +1,12 @@
+# T-01 Drag to draw a Rect selection
+Backlog: B-011 · Tier: contained · Areas: operations-ui, editor-shell · Decisions: D-01 (Pol: B's gesture, A's result)
+Output: unchanged
+Package: no
+
+## What changed
+While an operation's Selection is a rectangle, dragging on the preview sets its X, Y, Width and Height live; a click gives a 1×1 rectangle. A new `lib/RectLayer.svelte` does the gesture, mounted by `App.svelte` in the `{:else}` of the `cellList` brush. Per Pol's D-01 answer the dashed outline follows the pointer past the grid's edge, while the values written are clamped to the grid; the overlay shows the difference. The arithmetic is new and tested in `paint.ts`: `rectFrom`, `cellReached`, and `rectParams`, which recognises a rectangle Selection by its four integer parameters rather than by name.
+
+## Notes
+- Esc and `pointercancel` end the drag and keep the values already written, as the plan says ("end"), rather than restoring the rectangle from before the drag.
+- `paint.ts`'s bounding table (and the `paint` docs page) said a `rect` drag does not bound; D-01 changed that row to "the result, not the gesture", with the reason.
+- Docs: new `editor/rect-layer.md`; `editor/paint.md` and `editor/app.md` updated.

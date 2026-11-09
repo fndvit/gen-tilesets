@@ -81,6 +81,7 @@ Which component renders which, in source order. Conditional children are marked.
           - `<Tileset>` from `@vit-foundation/gen-tilesets/Tileset.svelte`
           - [`SelectionOverlay`](/editor/selection-overlay/) (*if* `shadow !== null`)
           - [`PaintLayer`](/editor/paint-layer/) (*if* the draft has a `cellList` param and `renderBox` is bound)
+          - else [`RectLayer`](/editor/rect-layer/) (*if* the draft's Selection is a rectangle, `rectangle !== null`, and `renderBox` is bound; batch 02 T-01)
       - `NoticeStack` (`lib/preview/NoticeStack.svelte`), after the `ScrollArea` and inside
         `.canvas` (`position: relative`), so it stays put while the picture scrolls. It gets
         `notices.shown(conditions)` and `onDismiss={(n) => notices.dismiss(n)}`.
@@ -115,6 +116,7 @@ Which component renders which, in source order. Conditional children are marked.
 | `cameWith` | the orphaned Operations for which `cameWithFile(op, config, session.opened)` ([orphans.ts](/editor/orphans/)) holds | `current` |
 | `current` | `documentNotices(file, orphaned, liveFailures, { onOpen: openOperation, onRemove: trimOperation, cameWithFile: cameWith })` from `advisories.ts` | `conditions` |
 | `painting` | the draft's Selection schema, looked up via [`selections`](/api/index/variables/selections/), searched for a param of type `cellList` | `PaintLayer`, `PreviewFrame`'s `painting` |
+| `rectangle` | `null` while `painting` is set; else, when `rectParams` ([paint.ts](/editor/paint/)) holds for the draft's Selection schema, `{ rect }`, the four values or `null` while one is not a number | `RectLayer` |
 | `loadSalt` | `preview.loadSalt` ([view.svelte.ts](/editor/preview-width/)) | `<Tileset>`, `SelectionOverlay`, `orphaned` |
 | `shadow` | `shadowConfig(config, draft)` ([draft.svelte.ts](/editor/draft/)) | `SelectionOverlay` |
 
@@ -150,7 +152,8 @@ Which component renders which, in source order. Conditional children are marked.
   too. A failure reported while a draft was drawn also goes once no palette in `shown` names its
   tile, so discarding a draft takes its pictures' failures with it. A failure from the saved file
   is kept as before.
-- **`renderBox`** is bound out so `PaintLayer` can convert pointer events into render space.
+- **`renderBox`** is bound out so `PaintLayer` and `RectLayer` can convert pointer events into render space.
+- **`drawRect(rect)`** assigns the four values into `draft.selectionParams`, as `paintCells` writes the brush's list. The file is untouched until the draft is saved.
   Since the canvas substrate became the default, the box is the canvas's wrapper `<div>`, which
   is why it is typed `HTMLElement`.
 
@@ -252,7 +255,8 @@ Callees, by import: from the package, [`selections`](/api/index/variables/select
 `notices.svelte.ts` (and the `Notice` type from `notices.ts`), `assets.ts` (`editorProvider`, `replaceAll`, `stored`), `document.ts`
 (the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `opening.svelte.ts`, `orphans.ts`, `session.svelte.ts`,
 the six `lib/sections/` components (Grid, Tiles, Operations, Breakpoints, SidebarMotif, SidebarFooter),
-`PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer` and `ui/Dialog`.
+`PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer`, `RectLayer` and `ui/Dialog`; `paint.ts`
+(`rectParams`).
 
 ### Tests
 

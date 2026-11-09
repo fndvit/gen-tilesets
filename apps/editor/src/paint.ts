@@ -21,8 +21,14 @@
  *
  * | Tool             | Bounds? | Why                                                                   |
  * | ---------------- | ------- | --------------------------------------------------------------------- |
- * | `rect` drag      | no      | `04` §4.2 — a rectangle dragged to the edge is not silently resized   |
+ * | `rect` drag      | the result, not the gesture | batch 02 D-01, see `rectFrom` below          |
  * | `cellList` brush | yes     | a painted cell outside the grid can never be drawn, seen, or clicked  |
+ *
+ * The `rect` row used to read "no", after `04` §4.2. Pol's batch 02 D-01 split it:
+ * the dragged outline follows the pointer past the edge, but the rectangle written
+ * covers only cells the grid has. The *selection* still may extend past the grid —
+ * typed into the fields, it is not clamped — and `cellAt` still stays unbounded,
+ * because the outline needs the coordinates the drag actually reached.
  *
  * The asymmetry follows from `04` §4.4's distinction: a `rect` states an
  * intention that survives the grid growing, where a `cellList` entry states a
@@ -30,6 +36,7 @@
  * diagnostic describes, arrived at by painting instead of by resizing.
  */
 
+import type { ParamSchema } from "@vit-foundation/gen-tilesets";
 import {
   cellAt,
   toRenderSpace,
@@ -109,4 +116,86 @@ export function removeCell(cells: readonly Cell[], [x, y]: Cell): Cell[] {
  */
 export function strandedCells(cells: readonly Cell[], columns: number, rows: number): Cell[] {
   return cells.filter(([x, y]) => x < 0 || y < 0 || x >= columns || y >= rows);
+}
+
+// ---------------------------------------------------------------------------
+// The rectangle drag — batch 02 T-01, B-011
+// ---------------------------------------------------------------------------
+
+/** A `rect` Selection's parameters: the four integers `04` §4.2 gives it. */
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * The cell under a pointer, **unbounded**: the coordinates a drag actually
+ * reached, which may be `-2` or past the last column. `cellUnder`'s null is the
+ * brush's answer; the rectangle drag wants the point, so the dragged outline can
+ * follow the pointer off the grid (D-01).
+ */
+export function cellReached(
+  g: GridGeometry,
+  box: BoxMetrics,
+  clientX: number,
+  clientY: number,
+): Cell {
+  const { px, py } = toRenderSpace(box, clientX, clientY);
+  const { x, y } = cellAt(g, px, py);
+  return [x, y];
+}
+
+/**
+ * The rectangle spanned by two cells: the smaller corner, and an **inclusive**
+ * size, so a click (both cells the same) is a 1×1 rectangle and a drag in any of
+ * the four directions gives the same rectangle as its reverse.
+ *
+ * With `bound`, both cells are first clamped into `[0, columns-1] × [0, rows-1]`:
+ * Pol's batch 02 D-01 — the gesture follows the pointer past the edge, the result
+ * covers no cell the grid does not have. Clamping the *cells* rather than the
+ * rectangle is what makes that true in every direction: dragging up-left off the
+ * grid pins the corner at 0 instead of growing a negative `x`. Without `bound` it
+ * is the outline the pointer traced, which is what the layer draws.
+ *
+ * Rejected: clamping in `cellAt` (it stays total, `07` **Q6**), and leaving the
+ * result unclamped (D-01 B), which writes columns nobody can see — the surprise
+ * B-014 had to clean up. A grid with no columns or rows has no cell to clamp to;
+ * the caller never mounts the layer there, and the bound is skipped rather than
+ * producing a negative size.
+ */
+export function rectFrom(a: Cell, b: Cell, bound?: { columns: number; rows: number }): Rect {
+  let [ax, ay] = a;
+  let [bx, by] = b;
+  if (bound !== undefined && bound.columns > 0 && bound.rows > 0) {
+    const cx = (v: number) => Math.min(Math.max(v, 0), bound.columns - 1);
+    const cy = (v: number) => Math.min(Math.max(v, 0), bound.rows - 1);
+    [ax, bx, ay, by] = [cx(ax), cx(bx), cy(ay), cy(by)];
+  }
+  const x = Math.min(ax, bx);
+  const y = Math.min(ay, by);
+  return { x, y, width: Math.abs(ax - bx) + 1, height: Math.abs(ay - by) + 1 };
+}
+
+const RECT_KEYS = ["height", "width", "x", "y"] as const;
+
+/**
+ * Whether a Selection's parameters are a rectangle: **exactly** the integers
+ * `x`, `y`, `width`, `height`, and nothing else.
+ *
+ * Decided by the parameter *shape*, not the Selection's name. The editor builds
+ * every control from `ParamSchema` (**E9**) and names no Selection type, so a
+ * `selectionType === "rect"` check would be the first. A registry flag
+ * ("draggable") was the other option, and rejected: it changes the Registry
+ * contract, which is a big task, to say something the four parameters already say.
+ * Exactly, because a Selection with a fifth parameter is not "a rectangle" and a
+ * drag would leave that parameter unexplained.
+ */
+export function rectParams(schema: ParamSchema): boolean {
+  const keys = Object.keys(schema).sort();
+  return (
+    keys.length === RECT_KEYS.length &&
+    keys.every((k, i) => k === RECT_KEYS[i] && schema[k]!.type === "integer")
+  );
 }
