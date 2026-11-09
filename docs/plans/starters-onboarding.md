@@ -772,3 +772,33 @@ Checked in the browser (Playwright on 5174), all passing:
 - blocked storage gives the "won't be kept" notice, and editing still works.
 
 **Next: S4**, the sweep (see "Part 1"), with the reload checks added, then Pol closes B-016.
+
+## S4 done (2026-11-09)
+
+The sweep found nothing to fix, so no code changed. It ran as one Playwright probe on 5174, with
+axe-core 4.10.2 for WCAG 2.2 AA (contrast and target size are both in its `wcag22aa` set). All
+33 checks pass:
+- **Nothing loads early:**
+  - a fresh load makes no request to `starters.json` or `templates/`;
+  - neither does reopening Collage on a reload.
+- **The template round-trips:**
+  - Collage's Export matches the committed `tileset.json` except for `engineVersion`, which Export
+    stamps with the running engine's version (0.11.0; advisory, `06` **C3**, and E2);
+  - its 21 pictures are byte-identical to the committed files;
+  - Export → New Empty → Import → Export is byte-identical;
+  - a reload exports byte-identically, with Undo disabled.
+- **Gallery tiles survive:** Blue 1, Solid 1 and an upload, named "Mix", export in pick order with
+  their bytes intact, and a reload exports byte-identically.
+- **Keyboard:**
+  - New opens with Enter, focus lands on the checked radio, ArrowDown picks From template, Tab
+    reaches the card, and Esc closes and returns focus to New;
+  - the gallery opens on Name, one Tab reaches the grid and one leaves it, the arrows, End and
+    Space pick, and Esc returns focus to Add tile group.
+- **axe AA, no violations:**
+  - the editor, empty and with Collage open;
+  - the New tileset popup, with From template chosen;
+  - the Tile gallery, with and without My tiles, and at 320 px.
+- **No overflow** at 320 px and at 1000 px (a 400 px sidebar): the editor, the New tileset popup,
+  Collage open, and the Tile gallery.
+
+**Next:** Pol closes B-016, then O0 (onboarding questions, no code).
