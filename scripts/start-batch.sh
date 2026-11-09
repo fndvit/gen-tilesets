@@ -6,7 +6,9 @@
 # Checks that local dev matches origin/dev, that docs/batches/batch-NN/batch.md is on origin/dev
 # and that every decision in it has an answer. Then, for each session (A, B, C…) in the Summary
 # table, creates ../<repo>-batch-NN-<x> on a new branch batch-NN-<x> from origin/dev (skipped if
-# it exists) and opens a Terminal.app window there running claude. See docs/Batch-workflow.md.
+# it exists) and opens a Terminal.app window there running claude. When that claude exits (the
+# implementer opens its PR and quits), the same window runs scripts/review-batch.sh NN --session X,
+# which starts the session's reviewer. See docs/Batch-workflow.md.
 #
 # Written for macOS: bash 3.2 (no mapfile, no associative arrays) and Terminal.app.
 
@@ -130,7 +132,10 @@ for s in $sessions; do
   # Single quotes are safe around the prompt: it is built above and contains none.
   # acceptEdits so file edits don't prompt; commands are governed by .claude/settings.json, which
   # allows only the batch workflow's test, build, commit, rebase, push and PR commands.
-  cmd="cd $(printf '%q' "$path") && claude --permission-mode acceptEdits '$prompt'"
+  # `;`, not `&&`: the review attempt runs however claude exits. review-batch.sh checks that the PR
+  # exists and stops with the reason if not. It is called from the main checkout ($top), not the
+  # worktree, because a batch's branches may predate the script.
+  cmd="cd $(printf '%q' "$path") && claude --permission-mode acceptEdits '$prompt'; $(printf '%q' "$top/scripts/review-batch.sh") $nn --session $s"
   if (( dry_run )); then
     echo "[dry-run] open a Terminal.app window running: $cmd"
   else

@@ -24,7 +24,8 @@
 <script lang="ts">
   import { tick } from "svelte";
   import type { Operation } from "@vit-foundation/gen-tilesets";
-  import { moveOperation, removeOperation, rerollOperation } from "../../document.js";
+  import { moveOperation, removeOperation, replaceOperation, rerollOperation } from "../../document.js";
+  import { reseedOnLoadChip, withReseedOnLoad } from "../../reseed.js";
   import { type Step } from "../../draft.svelte.js";
   import { drafting } from "../../drafting.svelte.js";
   import { nextOperationId } from "../../ids.js";
@@ -35,6 +36,9 @@
   import OperationCard from "../operations/OperationCard.svelte";
   import { draftParts, partsOf } from "../operations/labels.js";
   import AddBar from "../ui/AddBar.svelte";
+  import Explainer from "../ui/Explainer.svelte";
+  import IconButton from "../ui/IconButton.svelte";
+  import { OPERATIONS_EXPLAINER } from "./operations-explainer.js";
   import Dialog from "../ui/Dialog.svelte";
 
   const operations = $derived(session.file.config.operations);
@@ -94,10 +98,43 @@
       if (after) draft.salt = after.salt ?? 0;
     }
   }
+
+  /**
+   * The closed card's Reseed on load chip (batch 01, T-11, B-021): a file edit
+   * made at once, through the existing `replaceOperation`, so it is one undo
+   * entry. An open draft of the same Operation takes the value too, as
+   * `reseed` copies the salt, so its Save does not undo the toggle. (The chip
+   * shows only on a closed card, so today that draft is never open; the copy
+   * keeps the rule true if that changes.)
+   */
+  function setReseedOnLoad(op: Operation, on: boolean): void {
+    session.apply(replaceOperation(withReseedOnLoad(op, on)));
+    if (draft !== null && editingId === op.id) draft.reseedOnLoad = on;
+  }
+
+  /**
+   * "How operations work" (batch 01, T-07, B-018), wired as `OperationBody`
+   * wires "How noise works": the trigger while its popover is open, else
+   * `undefined`. It explains the stack as a whole, so it hangs from the
+   * section's header rather than from any one card.
+   */
+  let explaining = $state<HTMLButtonElement | undefined>(undefined);
+  let explainTrigger = $state<HTMLButtonElement | undefined>(undefined);
 </script>
+
+{#snippet info()}
+  <IconButton
+    icon="info"
+    label="How operations work"
+    expanded={explaining !== undefined}
+    bind:element={explainTrigger}
+    onclick={() => (explaining = explaining === undefined ? explainTrigger : undefined)}
+  />
+{/snippet}
 
 <Section
   title="Operations"
+  actions={info}
   summary={operations.length === 0
     ? "None"
     : `${operations.length} ${operations.length === 1 ? "operation" : "operations"}`}
@@ -117,6 +154,8 @@
         onClose={() => guard(() => drafting.discard())}
         onDelete={() => session.apply(removeOperation(op.id))}
         onReseed={() => reseed(op)}
+        reseedOnLoad={reseedOnLoadChip(op) ?? undefined}
+        onReseedOnLoad={(on) => setReseedOnLoad(op, on)}
         onMoveUp={() => session.apply(moveOperation(op.id, index - 1))}
         onMoveDown={() => session.apply(moveOperation(op.id, index + 1))}
         canMoveUp={index > 0}
@@ -151,6 +190,18 @@
     <AddBar label="Add operation" onclick={create} />
   </div>
 </Section>
+
+{#if explaining !== undefined}
+  <Explainer
+    anchor={explaining}
+    content={OPERATIONS_EXPLAINER}
+    onClose={(refocus) => {
+      const trigger = explaining;
+      explaining = undefined;
+      if (refocus) trigger?.focus();
+    }}
+  />
+{/if}
 
 <Dialog
   title="Discard your changes?"

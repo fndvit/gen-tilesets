@@ -54,6 +54,27 @@ export function isStochastic(sourceType: string): boolean {
 }
 
 /**
+ * The closed card's "Reseed on load" chip (batch 01, T-11, B-021): `null`
+ * where the chip is absent, else whether the flag is on.
+ *
+ * Absent exactly where the toggle is absent inside the card (`OperationBody`
+ * shows it only over a stochastic Source), by the same registry declaration,
+ * so the two can never disagree about which operations it applies to.
+ */
+export function reseedOnLoadChip(op: Operation): boolean | null {
+  return isStochastic(op.source.type) ? op.reseedOnLoad === true : null;
+}
+
+/**
+ * The operation with its flag set as the chip asks. Written as an explicit
+ * `true` or `false`, as Save writes it (`draft.svelte.ts` `toOperation`), so a
+ * file toggled from the card is identical to one saved from the open card.
+ */
+export function withReseedOnLoad(op: Operation, on: boolean): Operation {
+  return { ...op, reseedOnLoad: on };
+}
+
+/**
  * **The correction the editor must not make** — §8.4.
  *
  * A flagged Operation with a non-stochastic Source is *not* fully inert: the flag

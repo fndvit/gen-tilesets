@@ -23,12 +23,23 @@
   import { session } from "../../session.svelte.js";
   import { preview } from "../preview/view.svelte.js";
   import Button from "../ui/Button.svelte";
+  import Explainer from "../ui/Explainer.svelte";
   import FieldRow from "../ui/FieldRow.svelte";
   import Hint from "../ui/Hint.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import Toggle from "../ui/Toggle.svelte";
+  import { RANDOMNESS_EXPLAINER } from "./randomness-explainer.js";
 
   const config = $derived(session.file.config);
+
+  /**
+   * "How randomness works" (batch 01, T-07, B-019), wired as `OperationBody`
+   * wires "How noise works". `Explainer` places itself against the trigger and
+   * opens upward when there is no room below, which at the foot of the window
+   * is always.
+   */
+  let explaining = $state<HTMLButtonElement | undefined>(undefined);
+  let explainTrigger = $state<HTMLButtonElement | undefined>(undefined);
   const seedId = $props.id();
 
   /** §8.5's disabled condition. */
@@ -38,16 +49,28 @@
    * `06` §10.4's second diagnostic (an Operation flagged over a non-random
    * Source) is a notice in the preview's stack now (`advisories.ts`
    * `inertReseed`, Stage 2 W3), not a clause in this hint.
+   *
+   * The disabled text names the two switches that would enable the button
+   * (B-015): the reason alone left the user to find them.
    */
   const freshLoadHint = $derived(
     varies
       ? "Shows what another visitor's load looks like. Writes nothing to the file."
-      : "Nothing is set to reseed on load, so every load looks the same.",
+      : "Nothing reseeds on load, so every load looks the same. Set Assets on load to Reseed, or turn on Reseed on load in an operation.",
   );
 </script>
 
 <div class="fixed">
-  <h2 class="title t-title">Randomness</h2>
+  <div class="heading">
+    <h2 class="title t-title">Randomness</h2>
+    <IconButton
+      icon="info"
+      label="How randomness works"
+      expanded={explaining !== undefined}
+      bind:element={explainTrigger}
+      onclick={() => (explaining = explaining === undefined ? explainTrigger : undefined)}
+    />
+  </div>
   <!--
     `09` §8.2, the seed field. **The author never sees a hash** (`02` §6.6): they
     type a string, and that is the whole interface. **There is no separate
@@ -127,6 +150,18 @@
   </div>
 </div>
 
+{#if explaining !== undefined}
+  <Explainer
+    anchor={explaining}
+    content={RANDOMNESS_EXPLAINER}
+    onClose={(refocus) => {
+      const trigger = explaining;
+      explaining = undefined;
+      if (refocus) trigger?.focus();
+    }}
+  />
+{/if}
+
 <style>
   .fixed {
     /* Hints open upward: below the footer is the edge of the screen. */
@@ -143,8 +178,18 @@
     color: var(--color-ink);
   }
 
+  /* The title, and its (i) at the right end, as a section header holds its controls. */
+  .heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    /* The 28px button would push the card taller than the title; pull it back into the padding. */
+    margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)) 0 0;
+  }
+
   .title {
-    margin: 0 0 var(--space-2);
+    margin: 0;
   }
 
   /* The field gives way before the row grows past a narrow sidebar (WCAG 1.4.10). */

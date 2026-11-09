@@ -48,6 +48,19 @@ that will be affected.* The response has three parts, and this file supplies the
 | `needsConfirmation(config)` | `(TilesetConfig) → boolean` | `atRisk(config).length > 0` |
 | `Orphan` | interface | `{ operationId, selectionType, reachable, authored?, empty }` |
 | `orphans(config, seed, loadSalt = 0)` | `(TilesetConfig, string, number) → Orphan[]` | Coordinate-bound Operations that no longer reach what they were authored to. |
+| `outsideCells(op, config)` | `(Operation, {rows, columns}) → [x, y][]` | The painted list's entries outside the grid (`0 ≤ x < columns`, `0 ≤ y < rows`), as the list's own arrays; empty for a Selection with no list. Batch 01, T-05. |
+| `cameWithFile(op, config, opened)` | `(Operation, TilesetConfig, TilesetFile \| null) → boolean` | Whether the loss was already there in the file as opened, so Undo cannot repair it. Batch 01, T-05. |
+
+**`outsideCells` is the grid's extent, not a Selection test.** **E8** keeps "which cells does this
+Selection match" in the engine; "where does the grid end" is two fields of the file. It is stated
+once here, for the notice's Remove action (`trimToGrid` in [document.ts](/editor/document/)) and
+for `cameWithFile`.
+
+**`cameWithFile`** (B-014: after an import, the notice said "Undo puts the grid back", and Undo
+went back to the previous document instead). For a painted list: true when every cell now outside
+the grid was in the opened file's list for that operation id *and* outside that file's grid, so a
+cell a later resize pushed out keeps the Undo wording. For a `rect` (or any other bound Selection):
+true while neither it nor the grid has changed since the open. `false` when nothing was opened.
 
 Engine: [`selection`](/api/index/functions/selection/),
 [`selections`](/api/index/variables/selections/),

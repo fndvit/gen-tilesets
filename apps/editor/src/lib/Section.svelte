@@ -19,6 +19,10 @@
   the list; it opens the section too, so the new item is in view. `reveal` opens
   it from outside: the orphan notice's "Open op-2" (Stage 2 W4).
 
+  `actions` puts further header controls before the "+": the Operations
+  section's (i), which opens "How operations work" (batch 01, T-07). They sit
+  outside the disclosure button, so pressing one does not fold the section.
+
   **The collapsed state is transient.** `09` §12 lists persisted editor state,
   collapsed panels among them, as `[POSTPONED]`, and **E4** forbids `meta` as
   the place to put it. So it lives in `Collapsible`, per session, and neither
@@ -44,10 +48,12 @@
     addLabel?: string | undefined;
     /** A counter: each change unfolds the section (something outside asked to show an item in it). */
     reveal?: number;
+    /** Header controls before the "+" (an (i) that opens an explainer). Outside the disclosure button. */
+    actions?: Snippet | undefined;
     children: Snippet;
   }
 
-  let { title, open = true, summary, onAdd, addLabel, reveal = 0, children }: Props = $props();
+  let { title, open = true, summary, onAdd, addLabel, reveal = 0, actions, children }: Props = $props();
 
   // `open` seeds the state once. A later change to the prop would reopen a
   // section the author had just closed.
@@ -58,6 +64,11 @@
     if (reveal > 0) expanded = true;
   });
 </script>
+
+{#snippet header()}
+  {@render actions?.()}
+  {#if onAdd}{@render add()}{/if}
+{/snippet}
 
 {#snippet add()}
   <IconButton
@@ -70,7 +81,7 @@
   />
 {/snippet}
 
-<Collapsible {title} {summary} variant="section" bind:open={expanded} actions={onAdd ? add : undefined}>
+<Collapsible {title} {summary} variant="section" bind:open={expanded} actions={onAdd || actions ? header : undefined}>
   <div class="content">
     {@render children()}
   </div>

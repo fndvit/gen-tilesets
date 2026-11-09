@@ -10,7 +10,8 @@ sidebar:
 
 ## Overview
 
-A white card at the bottom of the sidebar, titled "Randomness". It never scrolls or collapses.
+A white card at the bottom of the sidebar, titled "Randomness", with an (i) at the right of the
+title that opens "How randomness works" (batch 01, T-07, B-019). It never scrolls or collapses.
 Since iteration 2 it holds only what decides the picture's randomness:
 
 - **Seed:** the text field (mono, so the case shows as typed) and a re-seed button.
@@ -35,13 +36,16 @@ measured coverage all read it.
 
 | Control | Writes |
 | --- | --- |
+| (i) `IconButton` "How randomness works" | opens the [Explainer](/editor/ui-explainer/) with [`RANDOMNESS_EXPLAINER`](/editor/randomness-explainer/), wired as "How noise works" (Esc, ✕ and a press outside close; Esc and ✕ refocus). It opens upward, since the footer is at the foot of the window. Writes nothing |
 | Seed field (`.t-value`, mono, so the case shows as typed) | `setDefaultSeed(value)` on every `input` |
 | New seed `IconButton` (`strong`) | `rerollSeed()` |
 | Assets on load `Toggle` | `setReseedAssetsOnLoad(on)` |
 | Reroll assets `Button` | `rerollAssets()` |
 | Preview a fresh load `Button` (disabled unless `loadVaries`) | `preview.loadSalt = drawLoadSalt()`; writes no field |
 
-The fresh-load hint only says whether a fresh load varies. The inert-flags advisory (Operations
+The fresh-load hint says whether a fresh load varies. While the button is disabled it also says how
+to enable it: "Nothing reseeds on load, so every load looks the same. Set Assets on load to Reseed,
+or turn on Reseed on load in an operation." (batch 01, T-02, B-015). The inert-flags advisory (Operations
 that reseed on load over a source that is not random) is now the `inertReseed` notice in the
 preview's stack (`advisories.ts`, Stage 2 W3), not a clause in this hint.
 
@@ -59,7 +63,7 @@ and stack in a narrow sidebar.
 ### Callers / callees
 
 Caller: `App.svelte` (`<SidebarFooter />`). Callees: `FieldRow`, `Hint`,
-`IconButton`, `Toggle`, `Button`; `document.ts` (`setDefaultSeed`, `rerollSeed`, `rerollAssets`,
+`IconButton`, `Toggle`, `Button`, `Explainer`; `randomness-explainer.ts`; `document.ts` (`setDefaultSeed`, `rerollSeed`, `rerollAssets`,
 `setReseedAssetsOnLoad`); `reseed.ts` (`loadVaries`, `drawLoadSalt`). Export, Import, New and
 Undo live in `SidebarTopBar` since iteration 2.
 

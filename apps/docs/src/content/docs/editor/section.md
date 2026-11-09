@@ -40,6 +40,7 @@ ends is visible (Pol, Block F review).
 | `summary` | `string` | none | The muted line a closed section shows. |
 | `onAdd` | `() => void` | none | Puts a "+" in the header; it also unfolds the section. |
 | `addLabel` | `string` | `"Add to <title>"` | The "+" button's name. |
+| `actions` | `Snippet` | – | Header controls before the "+", outside the disclosure button, so pressing one does not fold the section. The Operations section's (i) (batch 01, T-07). |
 | `reveal` | `number` | `0` | A counter. Each change unfolds the section, for something outside that asks to show an item in it (Stage 2 W4: `opening.revealed`, from the orphan notice's "Open op-2"). |
 | `children` | `Snippet` | required | The content, rendered only while open. |
 
@@ -58,9 +59,8 @@ No events, no bindings.
 | --- | --- |
 | `lib/sections/GridSection.svelte` | "Grid & Size" |
 | `lib/sections/BreakpointsSection.svelte` | "Breakpoints", `open={rules.length > 0}` |
-| `lib/sections/DerivedSection.svelte` | "Derived", `open={false}` |
 | `lib/sections/TilesSection.svelte` | "Tiles" |
-| `lib/sections/OperationsSection.svelte` | "Operations", `reveal={opening.revealed}` |
+| `lib/sections/OperationsSection.svelte` | "Operations", `reveal={opening.revealed}`, `actions` (the (i)) |
 
 Callees: `lib/ui/Collapsible.svelte`.
 

@@ -24,7 +24,7 @@
  * is `06` §9.2's coercion applied to the thing the author cares about most."
  */
 
-import { selection, selections, type Operation, type TilesetConfig } from "@vit-foundation/gen-tilesets";
+import { selection, selections, type Operation, type TilesetConfig, type TilesetFile } from "@vit-foundation/gen-tilesets";
 
 /**
  * The Operations a design-width change puts at risk — E12's "names the
@@ -117,4 +117,61 @@ export function orphans(config: TilesetConfig, seed: string, loadSalt = 0): Orph
   }
 
   return out;
+}
+
+/**
+ * The entries of `op`'s painted list that lie outside `config`'s grid, as the
+ * very arrays the list holds (so a caller can drop them by identity). Empty
+ * for a Selection with no countable list.
+ *
+ * This is the grid's extent, `0 <= x < columns` and `0 <= y < rows`, and not a
+ * Selection test: **E8** keeps "which cells does this Selection match" in the
+ * engine, but "where does the grid end" is two fields of the file. Batch 01
+ * (T-05, B-014): the cells the orphan notice offers to remove.
+ */
+export function outsideCells(op: Operation, config: Pick<TilesetConfig, "rows" | "columns">): [number, number][] {
+  const cells = (op.selection as { cells?: unknown }).cells;
+  if (!Array.isArray(cells)) return [];
+  return (cells as [number, number][]).filter(
+    ([x, y]) => !(x >= 0 && x < config.columns && y >= 0 && y < config.rows),
+  );
+}
+
+/**
+ * Whether `op`'s loss came with the file the session opened rather than from a
+ * resize made since — which decides whether the orphan notice may say "Undo
+ * puts the grid back" (B-014: after an import, Undo goes back to the previous
+ * *document*, so offering it there is false).
+ *
+ * `opened` is the file as `session.open` received it, or `null` when the
+ * session started from a new document. The history is not consulted: it keeps
+ * no mark of where an open happened, and the write path (`apply`, `history.ts`)
+ * is not changed to add one (T-05's plan).
+ *
+ * - **A painted list** came with the file when every cell now outside the grid
+ *   was already in the opened file's list for this operation id, and already
+ *   outside *that* file's grid. A cell pushed out by a later resize fails the
+ *   second test, so the notice keeps offering Undo, which is then true.
+ * - **Any other coordinate-bound Selection** (a `rect`) came with the file when
+ *   neither it nor the grid has changed since the open: then no edit in this
+ *   session caused the loss.
+ *
+ * Operation ids are reused across documents (`op1`), so after undoing *past*
+ * the open the previous document may share an id with the opened one; the
+ * cell-by-cell test is what keeps that from matching by accident.
+ */
+export function cameWithFile(op: Operation, config: TilesetConfig, opened: TilesetFile | null): boolean {
+  if (opened === null) return false;
+  const was = opened.config.operations.find((o) => o.id === op.id);
+  if (was === undefined || was.selection.type !== op.selection.type) return false;
+
+  const now = outsideCells(op, config);
+  if (Array.isArray((op.selection as { cells?: unknown }).cells)) {
+    if (now.length === 0) return false;
+    const before = new Set(outsideCells(was, opened.config).map(([x, y]) => `${x},${y}`));
+    return now.every(([x, y]) => before.has(`${x},${y}`));
+  }
+
+  const sameGrid = config.rows === opened.config.rows && config.columns === opened.config.columns;
+  return sameGrid && JSON.stringify(op.selection) === JSON.stringify(was.selection);
 }
