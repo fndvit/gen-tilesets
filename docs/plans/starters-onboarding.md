@@ -331,3 +331,36 @@ The mocks were a scratch page in the session scratchpad, drawn with the editor's
      shown when the popup is opened from "Add variants to …". S2 decides its place, whether it
      starts empty or prefilled, and how an empty or taken name is refused. Tiles already refuses
      a taken name.
+
+## S2 · Docs (2026-11-09)
+
+The patterns are in `apps/editor/DESIGN_SYSTEM.md` § "Starters: templates and the tile gallery":
+New tileset, Radio list described, Template list, Add menu, Tile gallery and Field error. Cross-references
+were updated in Layout, Menu, Add row, Dialog, Form popup, the icons, Status, and the
+accessibility table. Tokens that S3 adds are marked *(S3)*.
+
+**Decisions made in S2, for Pol to check:**
+- The mock's template list sat **inside** the chosen ink row. It now sits **under** the choices as
+  its own radio group, so each group of radios has its own name for assistive tech.
+- The chosen template had an **accent** ring. It is now the ink ring, because the accent only
+  means "editing now".
+- New tileset opens on **Empty**, which is what New did before.
+- The **name field starts empty**, with no placeholder text, and focus starts there.
+- An empty or taken name is refused **on Add**, as a new **Field error** (a red alert icon and
+  ink words under the field), and never while typing. Taken uses the existing rename rule:
+  case and spaces are ignored.
+- **Variants mode:** the title is "Add to <group>", the hint is "Pick one or more to add as
+  variants.", and the verb is "Add N variants".
+- **Load failures:**
+  - A template that fails is reported by the existing "Import refused" Popup.
+  - A gallery add where every picture fails gets a Popup.
+  - A partial failure uses the existing attach-failure notice.
+- **New icon:** `gallery` (Lucide layout-grid). "From your computer…" reuses `import`.
+- **Sizes:**
+  - gallery cell 64 px, thumbnail 52 px, check badge 18 px;
+  - template thumbnail 96 × 60;
+  - described radio rows at least 52 px.
+
+  Every target is well above 24 px (2.5.8).
+
+Next: **S3a** (content and loader).
