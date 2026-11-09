@@ -302,3 +302,32 @@ page (in the session scratchpad, not the repo) plus Pol's picks, recorded here a
 
 Pol has picked a variant for 1, 2 and 3 and answered the four questions. Record them under
 "S1 picks", commit, and stop. S2 (DESIGN_SYSTEM.md) is the next block.
+
+## S1 picks (Pol, 2026-11-09)
+
+The mocks were a scratch page in the session scratchpad, drawn with the editor's tokens and the
+21 real Collage images. None of it is in the repo.
+
+1. **The New choice: 1B.** New opens one Form popup, "New tileset", with the two choices as
+   large options: **Empty** and **From template**. Choosing "From template" unfolds the template
+   list inline, with a thumbnail. Under the choices is the "Everything in this one is lost…" line,
+   then Cancel and the verb ("Start new" / "Open Collage"). There is no menu and no second Dialog.
+   - The list shows even with only Collage in it, so a second template adds nothing new to learn.
+2. **Add tile group: 2A.** The section's "+" and the "Add tile group" bar open a `Menu` with
+   "From gallery…" and "From your computer…". The section's layout does not change. Dropping files
+   stays "from your computer".
+   - **Confirmed:** a group's own "Add variants to …" opens the same Menu. Images picked there are
+     added as variants of that group.
+3. **The gallery: G1.** One flat grid of the 21 images, each cell labelled with its source group
+   and number ("blau 1"). Cells are toggles with an ink ring and a check, and "Add N tiles" is
+   disabled at 0.
+   - The hint "Pick one or more. They become one new tile group." shows **only** when the gallery
+     is opened from "Add tile group", not from "Add variants to …".
+4. **The new group's name is typed by the user** when the gallery creates a group. Pol: the
+   gallery will grow a lot and will be reworked later, possibly with tabs, so the name can't be
+   derived from the source group. The rejected recommendation was "the source group's name, or
+   'Gallery'".
+   - So the gallery popup opened from "Add tile group" holds a **name field**, and it is not
+     shown when the popup is opened from "Add variants to …". S2 decides its place, whether it
+     starts empty or prefilled, and how an empty or taken name is refused. Tiles already refuses
+     a taken name.
