@@ -275,8 +275,13 @@ choice and the warning, so it is one step, not a menu and then a Dialog.
     each group of radios stays its own `radiogroup` with its own name.
   - In the mock the chosen template had an accent ring. That is replaced by the ink ring:
     the accent means "what you are editing now" and nothing else.
-- **The warning**, unchanged, as `.t-body`: "Everything in this one is lost, and this can't be
-  undone. Export it first to keep it."
+- **The warning**, the **Loss warning** line (`lib/LossWarning.svelte`, Pol, 2026-11-09): an
+  alert icon in `--color-danger`, then "**Everything in the current tileset is lost, and it can't
+  be undone.** Export it first to keep it." in `.t-body`, the first sentence semibold. It fits on
+  one line, so the popup is `wide` (592px, in place of Popup's 480px). Import's question
+  ("Replace the current tileset?", a `wide` Dialog with Cancel and **Import**) shows the same
+  line; it is asked only after the file validates, and skipped when the current tileset has no
+  tile groups, operations or breakpoints. The red is on the icon only; the words carry the danger.
 - **Buttons:** Cancel (secondary), then the verb, which follows the choice: **Start new** for
   Empty, **Open <template name>** ("Open Collage") for a template.
 - **While a template loads**, the verb reads "Opening…" and is disabled, and the popup stays open.

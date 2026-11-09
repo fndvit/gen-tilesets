@@ -802,3 +802,21 @@ axe-core 4.10.2 for WCAG 2.2 AA (contrast and target size are both in its `wcag2
   Collage open, and the Tile gallery.
 
 **Next:** Pol closes B-016, then O0 (onboarding questions, no code).
+
+## After S4: opening a file can't be undone (Pol, 2026-11-09)
+
+Pol found that Undo after opening a template brought back the old tileset without its pictures
+(the store had already been swapped). It was not in the plan: New → Empty already started a fresh
+history for this reason, but templates went through Import's undoable path. Answers:
+- **Templates and Import both start a fresh history** (`session.open`). The reload already did.
+- **Import asks first**, with the same warning line as New tileset, **unless the current tileset is
+  blank** (no tile groups, operations or breakpoints), so the question is skipped when it would
+  guard nothing.
+- **The warning** gains an alert icon and a bold first sentence, and reads "Everything in the
+  current tileset is lost, and it can't be undone. Export it first to keep it." It fits on one
+  line: New tileset, Import's question and the Tile gallery are 592px wide.
+
+Commit 9fb4cf1. Details and checks are in `docs/changes/starters-onboarding/B-016.md`. The full S4
+sweep was not re-run; the parts the change touched were checked in Chrome.
+
+**Next:** Pol closes B-016, then O0 (onboarding questions, no code), in a new session.
