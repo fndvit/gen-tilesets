@@ -17,7 +17,9 @@
   `onAdd` puts a "+" in the header for a section that holds a list
   (breakpoints, tiles, operations), so adding never needs a scroll to the end of
   the list; it opens the section too, so the new item is in view. `reveal` opens
-  it from outside: the orphan notice's "Open op-2" (Stage 2 W4).
+  it from outside: the orphan notice's "Open op-2" (Stage 2 W4). Tiles' "+"
+  opens the Tile gallery rather than adding at once, so it says so with
+  `addHaspopup` (B-016 S3c).
 
   `actions` puts further header controls before the "+": the Operations
   section's (i), which opens "How operations work" (batch 01, T-07). They sit
@@ -46,6 +48,8 @@
     onAdd?: (() => void) | undefined;
     /** The "+" button's name: "Add breakpoint". */
     addLabel?: string | undefined;
+    /** Set when the "+" opens a dialog rather than adding at once: Tiles' opens the Tile gallery. */
+    addHaspopup?: "dialog" | undefined;
     /** A counter: each change unfolds the section (something outside asked to show an item in it). */
     reveal?: number;
     /** Header controls before the "+" (an (i) that opens an explainer). Outside the disclosure button. */
@@ -53,7 +57,7 @@
     children: Snippet;
   }
 
-  let { title, open = true, summary, onAdd, addLabel, reveal = 0, actions, children }: Props = $props();
+  let { title, open = true, summary, onAdd, addLabel, addHaspopup, reveal = 0, actions, children }: Props = $props();
 
   // `open` seeds the state once. A later change to the prop would reopen a
   // section the author had just closed.
@@ -74,6 +78,7 @@
   <IconButton
     icon="plus"
     label={addLabel ?? `Add to ${title}`}
+    haspopup={addHaspopup}
     onclick={() => {
       expanded = true;
       onAdd?.();

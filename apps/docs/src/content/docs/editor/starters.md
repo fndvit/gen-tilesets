@@ -7,7 +7,8 @@ sidebar:
 
 **Written from:** `apps/editor/src/starters.ts`, `starters.test.ts`, and the files under
 `apps/editor/public/` (`starters.json`, `templates/collage/`). The
-[New tileset](/editor/new-tileset/) popup uses it; the tile gallery (S3c) will.
+[New tileset](/editor/new-tileset/) popup and the [Tile gallery](/editor/tile-gallery/) use it,
+through [starters-client.ts](/editor/starters-client/).
 
 ## Overview
 
@@ -56,7 +57,7 @@ two apart: when the gallery grows past Collage, its new entries point somewhere 
 | `loadManifest(fetch, base)` | async function | Fetches `base + "starters.json"` and parses it. Throws on HTTP failure or bad JSON. |
 | `loadTemplate(entry, fetch, base)` | async function | Returns an `Archive`, the same map an exported zip unpacks to, so it opens through `prepareArchive` and `adopt`. Throws on any failed fetch, naming the URL. |
 | `GalleryFiles` | interface | `{ files: File[], failures: string[] }`. |
-| `once(load)` | function | A loader that runs once and is then shared; a **rejected** load is forgotten, so the next call retries. The New tileset popup holds the manifest in one. |
+| `once(load)` | function | A loader that runs once and is then shared; a **rejected** load is forgotten, so the next call retries. [starters-client.ts](/editor/starters-client/) holds the manifest in one, and the Tile gallery holds My tiles' shelf in another. |
 | `loadGalleryFiles(entries, fetch, base)` | async function | The picked pictures as `File`s in pick order, named `<id><ext>` ("t1-a1.svg"). A failed picture is a line in `failures`, named by its label, and the rest still arrive. |
 
 `base` is the app's base URL ending in `/`, i.e. `import.meta.env.BASE_URL` at the call site.

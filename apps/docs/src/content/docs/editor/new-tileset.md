@@ -36,8 +36,9 @@ second way in, next to Import.
   blank grid. Add your own tiles.") and From template ("A finished tileset to change and learn
   from."). Every opening starts on Empty, and focus starts on it.
 - **Template** shows only while From template is chosen, as its own radio group under Start. The
-  first time, it fetches the manifest (`loadManifest`) through a module-level `once`, so later
-  openings and choices reuse it, and a failed fetch is retried next time. While loading it says
+  first time, it fetches the manifest through [starters-client.ts](/editor/starters-client/)'s
+  shared `manifest()`, so later openings, choices and the Tile gallery reuse it, and a failed
+  fetch is retried next time. While loading it says
   "Loading templates…"; on failure, "Couldn't load the templates: <reason>" beside an `alert`
   icon. Its first template is chosen when the list appears.
 - **The verb** follows the choice: **Start new**, or **Open <label>** ("Open Collage"). It is
@@ -64,7 +65,8 @@ second way in, next to Import.
 | --- | --- |
 | `App.svelte` | `<NewTileset bind:open={askingNew} onEmpty={newTileset} />`, in place of the old Dialog |
 
-Callees: `loadManifest`, `loadTemplate`, `once` ([starters.ts](/editor/starters/));
+Callees: `BASE`, `manifest` ([starters-client.ts](/editor/starters-client/)); `loadTemplate`
+([starters.ts](/editor/starters/));
 `prepareArchive` ([import.ts](/editor/import/)); `adopt` ([adopt.ts](/editor/adopt/));
 `ImportRefused`; `ui/Popup`, `ui/RadioList`, `ui/Button`, `ui/Icon`.
 

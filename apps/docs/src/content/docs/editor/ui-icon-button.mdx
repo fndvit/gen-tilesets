@@ -35,6 +35,7 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 | `disabled` | `boolean` | `false` | Drawn in `--color-inactive`, stays in place. |
 | `tone` | `"default" \| "seed"` | `"default"` | `seed` = `--color-seed`. |
 | `pressed` | `boolean \| undefined` | `undefined` | For a toggle: `aria-pressed`, and the icon in ink while pressed. Absent, the button is a plain action (batch 02 T-02, the operation card's hide). |
+| `haspopup` | `"menu" \| "dialog" \| undefined` | `undefined` | `aria-haspopup`. `"menu"` for a Menu's ⋯; `"dialog"` for a "+" that opens a dialog first (Tiles' header "+", which opens the Tile gallery; B-016 S3c). |
 
 ### Invariants
 

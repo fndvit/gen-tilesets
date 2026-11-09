@@ -1,6 +1,6 @@
 ---
 title: sections/TilesSection.svelte
-description: The Tiles section. Adds a tile group from N files, adds variants, renames, weights and deletes, explains every refusal in a popup, and pushes a failure notice for files that did not attach.
+description: The Tiles section. Opens the Tile gallery to add a group or variants, adds a tile group from N dropped files, renames, weights and deletes, explains every refusal in a popup, and pushes a failure notice for files that did not attach.
 sidebar:
   order: 44
 ---
@@ -14,10 +14,12 @@ The Tiles section of the sidebar, matching the Figma *Tiles* frame. It is where 
 editor. Each Tile is a [tile group](/editor/tile-group/), and each picture in it is a
 [tile asset](/editor/tile-asset/) (a variant). Under the groups is a black "+" bar.
 
-- **Add tile group** ("+" bar) opens the file picker. **However many files are chosen, they make
-  one group**, with one variant per file, named after the first file. Dropping files on the
-  section outside any group does the same.
-- **Add variants:** the square "+" inside a group, or dropping files onto the group.
+- **Add tile group** (the header "+" or the "+" bar) opens the [Tile gallery](/editor/tile-gallery/)
+  (B-016 S3c). The pictures picked there, from the collection or from the author's uploads, make
+  **one group** under the name typed there. **Dropping files** on the section outside any group
+  also makes one group, with one variant per file, named after the first file.
+- **Add variants:** the square "+" inside a group opens the gallery for that group; dropping files
+  onto the group adds them at once.
 - Rename a group by clicking its title, delete it with its trash icon, delete a variant with the
   badge on its thumbnail, and set a variant's weight with its slider. "Reset weights" puts every
   variant of a group back to the same weight in one step.
@@ -38,8 +40,8 @@ files through [assets.ts](/editor/assets/).
 
 | Gesture | Function | Result |
 | --- | --- | --- |
-| "+" bar, or a drop on the section | `addGroup(files)` | one id from `nextTileId(tiles + heldTileIds() + reserved)`; `attachAll(tileId, [], files)`; if anything attached, one `addTiles([{ id, name: tileNameOf(first attached file), assets }])` |
-| Square "+", or a drop on a group | `addVariants(tile, files)` | `attachAll(tile.id, tile's asset ids, files)`, then `addAssets(tile.id, assets)` |
+| A drop on the section, or the gallery in group mode | `addGroup(files, name?, earlier?)` | one id from `nextTileId(tiles + heldTileIds() + reserved)`; `attachAll(tileId, [], files)`; if anything attached, one `addTiles([{ id, name: uniqueTileName(name ?? tileNameOf(first attached file)), assets }])` |
+| A drop on a group, or the gallery in variants mode | `addVariants(tile, files, earlier?)` | `attachAll(tile.id, tile's asset ids, files)`, then `addAssets(tile.id, assets)` |
 
 `attachAll` allocates an asset id only for a file that attaches, so a new group is always
 `a1…aN` with no gaps. Files that fail are pushed as one failure notice, `attachFailures` in
@@ -51,8 +53,25 @@ second failed drop replaces the notice (same key).
 and commits after, so without it two quick drops could allocate the same id. `addTiles` does not
 check for duplicates.
 
-One hidden `<input type="file" multiple accept="image/*">` serves both gestures. `pick(tile)`
-records what the chosen files are for (`null` means a new group) and clicks it.
+#### The Tile gallery
+
+Every Add opens [TileGallery](/editor/tile-gallery/). `openGallery(tile)` records what it is for
+(`galleryTile`, `null` for a new group) and opens it; the mode follows, `{ kind: "group" }` or
+`{ kind: "variants", tileName }`. The gallery hands back `{ files, failures, name }` to
+`addFromGallery`:
+
+- **No files** (every pick failed): nothing is added, and the section's refusal Popup lists the
+  failures, because nothing happened.
+- **Some files:** `addGroup(files, name, failures)` or `addVariants(tile, files, failures)`. The
+  fetch failures (`earlier`) are merged with `attachAll`'s into one `attachFailures` notice.
+- **The group was deleted while the gallery was open:** the Popup says so, and nothing is added.
+
+The typed name was checked in the gallery, but a group may have been made meanwhile, so
+`addGroup` still runs it through `uniqueTileName`: "Mix" becomes "Mix 2" rather than a refusal
+after the work is done.
+
+There is no file input here any more: pictures from the computer come in through the gallery's
+Upload… (into My tiles) or by a drop.
 
 #### Edits and refusals
 
@@ -98,7 +117,8 @@ apart." This is §12.2's sixth advisory, and it is display only.
 Called by `App.svelte` (`<TilesSection />` in `.scrollable`). Callees: `attachAll`,
 `heldTileIds`, `tileNameOf` (`assets.ts`); `attachFailures` (`advisories.ts`); `notices.push`
 (`notices.svelte.ts`); the library transitions from `document.ts`; `nextTileId` (`ids.ts`);
-`Section`, `tiles/TileGroup`, `ui/AddBar`, `ui/Popup`.
+`Section` (with `addHaspopup="dialog"`), `tiles/TileGroup`, `tiles/TileGallery`, `ui/AddBar`,
+`ui/Popup`.
 
 ### Tests
 
@@ -111,5 +131,7 @@ covers every transition and refusal it calls.
 
 - **Equal weights on attach.** `weight: 1` expresses no opinion, and sits mid-track on the 0–2
   slider.
-- **The group is named after the first file that attached**, not the first chosen, so a group is
-  never named after a picture it does not hold.
+- **A dropped group is named after the first file that attached**, not the first chosen, so a
+  group is never named after a picture it does not hold. A gallery group takes the typed name.
+- **Rejected: an Add menu** (From gallery… / From your computer…), which S2 planned. Pol, at S3c:
+  every Add opens the gallery, and the gallery's Upload… is the way in from the computer.

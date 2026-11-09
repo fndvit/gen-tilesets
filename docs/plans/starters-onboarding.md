@@ -707,3 +707,42 @@ S3c finishes B-016's UI. Stop for Pol at the end. S4, the sweep, comes next.
 
 Record "S3c done" here, commit, update the memory status line, and stop for Pol. Next is **S4**,
 the sweep (see "Part 1"), then Pol closes B-016.
+
+## S3c answers (Pol, 2026-11-09)
+
+At the start of S3c, Pol changed the plan above:
+- **No Add menu.** Every Add in Tiles (the header "+", "Add tile group", a group's "+") opens the
+  Tile gallery directly.
+- The gallery has an **Upload…** button at the **footer's left**.
+- Uploads join the gallery under **My tiles**, **kept across reloads** (IndexedDB), and arrive
+  **already picked**. One Add adds gallery and uploaded pictures together, in pick order.
+
+The three open decisions went with the recommendations: AddBar and Section are extended (only
+with `aria-haspopup="dialog"` now, since there is no menu); a loading thumbnail is field grey;
+variants mode shows every picture.
+
+## S3c done
+
+- Every Add opens `lib/tiles/TileGallery.svelte`, a Form popup with My tiles and Collection,
+  Upload…, Remove picked…, the name Field error, and the wrapping footer.
+- New modules: `starters-client.ts` (one manifest fetch for both popups), `lib/tiles/gallery.ts`
+  and `my-tiles.ts`, both tested.
+- Decisions beyond Pol's are listed in `docs/changes/starters-onboarding/B-016.md` (S3c lines).
+- Checked in the browser (Playwright on 5174), all passing:
+  - a fresh load makes no starters request;
+  - both Add tile group triggers open the gallery;
+  - empty and taken names show the Field error and fetch nothing;
+  - Blue 1, Pink 2 and Solid 1 named "Mix" add a group in pick order, fetching only those three;
+  - two PNG uploads arrive picked, and a .txt is refused with a line;
+  - a mixed group adds;
+  - My tiles survives a reload, and a re-upload makes no duplicate;
+  - Remove picked… asks and removes;
+  - the arrows, Home, End and Space work, with one Tab stop per grid;
+  - variants mode appends;
+  - one 404 adds the rest and names the missing picture in the notice, and all 404s give the
+    Popup and add nothing;
+  - nothing overflows at 320 and 400 px, and the footer wraps;
+  - blocked storage shows the in-memory line and still uploads;
+  - Export → Import round-trips a gallery group.
+
+**Next: S4**, the sweep (see "Part 1"), then Pol closes B-016.

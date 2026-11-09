@@ -3,9 +3,13 @@
   pictures enter the editor.
 
   One `TileGroup` per Tile, 4px apart, then the "+" bar that adds a group.
+  **Every Add opens the Tile gallery** (`TileGallery`, Pol, B-016 S3c): the
+  header "+" and the bar for a new group, a group's square "+" for variants.
+  The gallery holds the collection and the author's uploads (My tiles); what
+  it picks comes back here as files and takes the same path as a drop.
   **N files make one group** (redesign Block D, replacing `DECISIONS.md`
   D13's one-Tile-per-file): the files become its variants `a1…aN`, and it is
-  named after the first file that attached. Dropping files on the section,
+  named after the first file that attached, or what was typed in the gallery. Dropping files on the section,
   outside any group, does the same. Dropping on a group, or its square "+",
   adds variants to it.
 
@@ -47,6 +51,7 @@
   import { notices } from "../../notices.svelte.js";
   import { session } from "../../session.svelte.js";
   import Section from "../Section.svelte";
+  import TileGallery from "../tiles/TileGallery.svelte";
   import TileGroup from "../tiles/TileGroup.svelte";
   import AddBar from "../ui/AddBar.svelte";
   import Popup from "../ui/Popup.svelte";
@@ -79,7 +84,8 @@
    */
   const reserved = new Set<string>();
 
-  async function addGroup(files: File[]): Promise<void> {
+  /** `name` is the Tile gallery's typed name; a drop names the group after its first file. */
+  async function addGroup(files: File[], name?: string, earlier: string[] = []): Promise<void> {
     // The store's ids too: a deleted Tile's bytes stay for undo (assets.ts).
     const tileId = nextTileId([...tiles.map((t) => t.id), ...heldTileIds(), ...reserved]);
     reserved.add(tileId);
@@ -88,34 +94,49 @@
     );
     const first = attached[0];
     if (first !== undefined) {
-      // Read after the await, so a group committed meanwhile is counted too.
-      const name = uniqueTileName(session.file, tileNameOf(first.name));
-      session.apply(addTiles([{ id: tileId, name, assets }]));
+      // Read after the await, so a group committed meanwhile is counted too: a
+      // typed name the gallery checked can be taken by now, and becomes "Mix 2"
+      // rather than a refusal after the work is done.
+      const named = uniqueTileName(session.file, name ?? tileNameOf(first.name));
+      session.apply(addTiles([{ id: tileId, name: named, assets }]));
     }
-    reportFailures(failures);
+    reportFailures([...earlier, ...failures]);
   }
 
-  async function addVariants(tile: Tile, files: File[]): Promise<void> {
+  async function addVariants(tile: Tile, files: File[], earlier: string[] = []): Promise<void> {
     const { assets, failures } = await attachAll(tile.id, tile.assets.map((a) => a.id), files);
     session.apply(addAssets(tile.id, assets));
-    reportFailures(failures);
+    reportFailures([...earlier, ...failures]);
   }
 
-  /** One hidden file picker. `target` says what the chosen files are for. */
-  let picker = $state<HTMLInputElement | null>(null);
-  let target: Tile | null = null;
+  /**
+   * The Tile gallery, opened by every Add here (Pol, B-016 S3c). `galleryTile`
+   * is the group the square "+" was pressed on; `null` makes a new group.
+   */
+  let galleryOpen = $state(false);
+  let galleryTile = $state<Tile | null>(null);
 
-  function pick(tile: Tile | null): void {
-    target = tile;
-    picker?.click();
+  function openGallery(tile: Tile | null): void {
+    galleryTile = tile;
+    galleryOpen = true;
   }
 
-  function onPick(event: Event): void {
-    const input = event.currentTarget as HTMLInputElement;
-    const files = input.files === null ? [] : Array.from(input.files);
-    if (files.length > 0) void (target === null ? addGroup(files) : addVariants(target, files));
-    // Cleared so choosing the same file twice in a row fires `change` again.
-    input.value = "";
+  /**
+   * What the gallery picked, as files. When none could be had, nothing
+   * happened, so it is a refusal Popup; when some could, the rest are added
+   * and the missing ones join the attach-failure notice (`DESIGN_SYSTEM.md`
+   * *Tile gallery*).
+   */
+  async function addFromGallery({ files, failures, name }: { files: File[]; failures: string[]; name: string }) {
+    if (files.length === 0) {
+      report([failures.length === 1 ? "The picture couldn't be loaded, so nothing was added:" : "None of the pictures could be loaded, so nothing was added:", ...failures]);
+      return;
+    }
+    // The group may have been deleted while the gallery was open.
+    const tile = galleryTile && session.file.config.tiles.find((t) => t.id === galleryTile!.id);
+    if (galleryTile === null) await addGroup(files, name, failures);
+    else if (tile) await addVariants(tile, files, failures);
+    else report([`"${galleryTile.name}" was deleted, so nothing was added.`]);
   }
 
   function rename(tile: Tile, name: string): void {
@@ -199,7 +220,7 @@
   }
 </script>
 
-<Section title="Tiles" {summary} addLabel="Add tile group" onAdd={() => pick(null)}>
+<Section title="Tiles" {summary} addLabel="Add tile group" addHaspopup="dialog" onAdd={() => openGallery(null)}>
   <div
     class="library"
     class:armed
@@ -225,24 +246,19 @@
         onWeight={(assetId, weight) => changeWeight(tile, assetId, weight)}
         onDeleteAsset={(assetId) => removeAsset(tile, assetId)}
         onResetWeights={() => session.apply(resetAssetWeights(tile.id))}
-        onAdd={() => pick(tile)}
+        onAdd={() => openGallery(tile)}
         onFiles={(files) => void addVariants(tile, files)}
       />
     {/each}
-    <AddBar label="Add tile group" onclick={() => pick(null)} />
+    <AddBar label="Add tile group" haspopup="dialog" onclick={() => openGallery(null)} />
   </div>
-
-  <input
-    class="picker"
-    type="file"
-    multiple
-    accept="image/*"
-    bind:this={picker}
-    onchange={onPick}
-    tabindex="-1"
-    aria-hidden="true"
-  />
 </Section>
+
+<TileGallery
+  bind:open={galleryOpen}
+  mode={galleryTile === null ? { kind: "group" } : { kind: "variants", tileName: galleryTile.name }}
+  onAdd={addFromGallery}
+/>
 
 <Popup title="Tiles" bind:open={reporting} onClose={() => (problems = [])}>
   {#each problems as problem, i (i)}
@@ -264,9 +280,5 @@
   /* Image files dragged over the section, outside any group. */
   .library.armed {
     outline-color: var(--color-ink);
-  }
-
-  .picker {
-    display: none;
   }
 </style>

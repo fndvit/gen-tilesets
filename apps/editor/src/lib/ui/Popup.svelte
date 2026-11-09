@@ -17,6 +17,10 @@
   focus starts (`initialFocus`): its first field, not the ✕ that comes first in
   the DOM, which is where `showModal()` would put it (`DESIGN_SYSTEM.md` *Form
   popup*).
+
+  `divided` draws a hairline over the actions, for a Form popup whose body
+  scrolls under a footer that holds more than buttons (the Tile gallery's
+  count and Upload…).
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
@@ -39,6 +43,8 @@
     closable?: boolean;
     /** The element to focus once open, in place of the first focusable one. */
     initialFocus?: () => HTMLElement | null | undefined;
+    /** A hairline over the actions, for a body that scrolls under them (the Tile gallery). */
+    divided?: boolean;
   }
 
   let {
@@ -50,6 +56,7 @@
     alert = false,
     closable = false,
     initialFocus,
+    divided = false,
   }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
@@ -87,7 +94,7 @@
   <div class="body">
     {@render children()}
   </div>
-  <div class="actions">
+  <div class="actions" class:divided>
     {#if actions}
       {@render actions(() => dialog?.close())}
     {:else}
@@ -147,5 +154,11 @@
     justify-content: flex-end;
     gap: var(--space-4);
     padding: var(--space-4) var(--space-7) var(--space-7);
+  }
+
+  .actions.divided {
+    margin-top: var(--space-4);
+    padding-top: var(--space-6);
+    border-top: var(--rule-w) solid var(--color-track);
   }
 </style>

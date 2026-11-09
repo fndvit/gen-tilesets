@@ -11,7 +11,7 @@
   ## Nothing is fetched until From template is chosen
 
   The manifest is fetched the first time From template is chosen, and then
-  shared for the session (`once`, `starters.ts`); a failed fetch is forgotten,
+  shared for the session, with the Tile gallery too (`starters-client.ts`); a failed fetch is forgotten,
   so choosing it again retries. The template's files are fetched only on
   "Open <name>". Until then the list shows the committed thumbnail.
 
@@ -30,20 +30,11 @@
   Empty calls the caller's `onEmpty`, `App.svelte`'s `newTileset`, which is
   unchanged.
 -->
-<script lang="ts" module>
-  import { loadManifest, once } from "../../starters.js";
-
-  /** The app's base URL, ending in `/`: where `public/` is served. */
-  const BASE = import.meta.env.BASE_URL;
-
-  /** Fetched on first use, never at startup; shared by every opening. */
-  const manifest = once(() => loadManifest((url) => fetch(url), BASE));
-</script>
-
 <script lang="ts">
   import type { ValidationError } from "@vit-foundation/gen-tilesets";
   import { adopt } from "../../adopt.js";
   import { prepareArchive } from "../../import.js";
+  import { BASE, manifest } from "../../starters-client.js";
   import { loadTemplate, type TemplateEntry } from "../../starters.js";
   import ImportRefused from "../ImportRefused.svelte";
   import Button from "../ui/Button.svelte";

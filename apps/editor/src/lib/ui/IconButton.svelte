@@ -30,7 +30,7 @@
      * drawn in ink while pressed, so the state is not only in the icon's shape.
      */
     pressed?: boolean | undefined;
-    haspopup?: "menu" | undefined;
+    haspopup?: "menu" | "dialog" | undefined;
     element?: HTMLButtonElement | undefined;
   }
 

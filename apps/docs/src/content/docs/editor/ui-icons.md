@@ -13,9 +13,9 @@ sidebar:
 paper" (2026-11-06) they are one outline family, Lucide's paths (ISC licence), on a 24-unit grid,
 drawn at 16px with a 1.5px stroke and round caps and joins.
 
-There are nineteen: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`,
-`export`, `new`, `more`, `grip`, `swap`, `archive`, `image`, `check`, `info`, `alert`, `eye` and
-`eye-off`.
+There are twenty-two: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`,
+`upload`, `export`, `new`, `more`, `grip`, `swap`, `archive`, `image`, `check`, `info`, `alert`,
+`eye` and `eye-off`.
 
 ## In detail
 
@@ -36,6 +36,7 @@ There are nineteen: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `u
 | `trash` | Delete |
 | `reseed` | Draw the randomness again. The shape, not a colour, says it |
 | `undo`, `import`, `export`, `new` | The sidebar top bar's document actions |
+| `upload` | The Tile gallery's Upload…: pictures from the computer into My tiles (Lucide upload, B-016 S3c) |
 | `more` | More actions, in a menu |
 | `grip` | Drag to reorder: a palette entry's grip |
 | `swap` | Change a palette entry's tile, in its menu |

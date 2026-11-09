@@ -43,7 +43,7 @@
     onDeleteAsset: (assetId: string) => void;
     /** Every variant back to weight 1. */
     onResetWeights: () => void;
-    /** The square "+": the section opens the file picker for this Tile. */
+    /** The square "+": the section opens the Tile gallery in variants mode for this Tile (B-016 S3c). */
     onAdd: () => void;
     /** Files dropped on the group, to add as variants. */
     onFiles: (files: File[]) => void;
@@ -130,7 +130,7 @@
         />
       {/each}
       <div class="add">
-        <AddBar label="Add variants to {tile.name}" variant="square" onclick={onAdd} />
+        <AddBar label="Add variants to {tile.name}" variant="square" haspopup="dialog" onclick={onAdd} />
         <Button label="Reset weights" variant="tertiary" disabled={equal} onclick={onResetWeights} />
       </div>
     </div>
