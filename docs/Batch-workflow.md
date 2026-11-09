@@ -7,7 +7,8 @@ review. Each batch is a folder, `docs/batches/batch-NN/`:
 |---|---|---|
 | `batch.md` | triage; Pol fills `Answer:` lines | The plan. **The single source of truth.** Implementation sessions never edit it |
 | `status-<S>.md` | session S only | Progress per task, `BLOCKED:` notes |
-| `review.md` | the review session | The review summary |
+
+The review is not a file: each reviewer posts it on its session's PR (see Review pass).
 
 **The base branch is `dev`.** Worktrees branch from `dev`, PRs target `dev`
 (`gh pr create --base dev`), and rebases are onto `dev` (`git rebase origin/dev`). `main` is the
@@ -60,7 +61,7 @@ Shared shapes many parts depend on. Changing one is never trivial.
 | File | Rule |
 |---|---|
 | `apps/editor/src/App.svelte` | One session per batch edits it. Every other task that needs it gets `Depends on` and runs in that session or after its merge |
-| `styles/tokens.css`, `DESIGN_SYSTEM.md`, `lib/ui/icons.ts` | Append only. Two sessions may append; the review pass resolves merge conflicts |
+| `styles/tokens.css`, `DESIGN_SYSTEM.md`, `lib/ui/icons.ts` | Append only. Two sessions may append; the review pass reports merge conflicts, Pol resolves them when merging |
 | `apps/editor/src/document.ts` | Add new transitions; don't move or reorder existing ones |
 | `types.ts`, `validate.ts`, `migrate.ts` | Big tasks only |
 | `BACKLOG.md` | **Never edited by a task.** Parallel branches would conflict. Items move to `## Done` after merge (see Release) |
@@ -234,8 +235,8 @@ on come first, before the batch runs.
   and conflicts on merge.
 - **Never edit `batch.md`** or another session's files.
 - `status-<S>.md` is committed on your own branch. Each session writes a different file, so the
-  status files never conflict on merge. The review session reads them from each branch
-  (`git show batch-NN-<s>:docs/batches/batch-NN/status-<S>.md`) before writing `review.md`.
+  status files never conflict on merge. The reviewer reads its branch's file
+  (`git show batch-NN-<s>:docs/batches/batch-NN/status-<S>.md`) before posting its review.
 - One commit per task: `T-07: Add hide/unhide for operations`. Use an imperative sentence after the
   ID, as in the rest of the history, and end with the Co-Authored-By trailer.
 - Stay within the task's areas. If you must touch another, say so in the change entry.
@@ -260,6 +261,8 @@ on come first, before the batch runs.
 
   If a PR was opened against `main` by mistake, retarget it with `gh pr edit <n> --base dev`.
   **Never merge.** Pol merges.
+- **Then exit.** Your terminal window runs `scripts/review-batch.sh NN --session <S>` next, which
+  starts this branch's reviewer.
 
 ## Change entries (one file per task)
 
@@ -297,12 +300,36 @@ Package: no
 
 ## Review pass
 
-The review session first reads every `status-<S>.md` from its branch and copies each `BLOCKED:`
-note into `review.md`, so they are all in one place. Then it checks every branch against
-`batch.md`:
+**How it runs.** `scripts/review-batch.sh` starts one reviewer per session, a fresh Claude session
+(never the implementer) in that session's worktree. `start-batch.sh` chains it after each
+implementer, so a review starts as soon as its implementer has opened the PR and exited; run
+`scripts/review-batch.sh NN --session <S>` by hand if one stopped (it prints why). Reviewers run
+in parallel, each on its own editor and demo-preview ports, given in its prompt.
+
+**No script and no session merges anything into `dev`.** The integration merge below is a local
+branch that is never pushed, and reviewers are denied `gh pr merge`, `git merge`, `git pull`,
+`git rebase` and any push but to their own branch (`scripts/review-settings.json`). Pol does every
+merge.
+
+- A session is reviewed only when its worktree is clean, its branch is pushed, it has exactly one
+  open PR with base `dev`, and its implementer has exited.
+- **Screenshot baseline:** the script captures `dev` once, from the main checkout, into
+  `.shots/batch-NN-dev`. The main checkout stays on `dev` for this; nothing is edited there.
+- **Integration check:** once every session has its PR, the script merges every branch onto
+  `origin/dev` in session order in `../<repo>-batch-NN-review`, runs test, typecheck, changelog
+  check and both builds on the result, and posts a summary on every batch PR: the merge order, and
+  per PR "merge as is" or "needs dev merged in after #x; conflicts in: …". It reports conflicts and
+  never resolves them; that is Pol's, at merge.
+- **Fixes** go on the session branch: committed and pushed from its worktree, so they land in the PR.
+- **The review** is posted on the PR: `gh pr review <n> --comment --body-file <file>`.
+
+The reviewer first reads its branch's `status-<S>.md` and copies each `BLOCKED:` note into the
+review. Then it checks the branch against `batch.md`:
 
 - Each task does what its plan and Pol's answers say, nothing more; the acceptance criteria are met.
-- `pnpm test`, `pnpm typecheck` and both builds (`gen-tilesets`, `tileset-docs`) are green.
+- `pnpm test`, `pnpm typecheck` and both builds (`gen-tilesets`, `tileset-docs`) are green on the
+  branch. The integration summary, once it exists, covers the merged result; quote any line about
+  this PR.
 - A change entry exists per task, with an honest `Output:` line, and `pnpm changelog check` passes;
   no shared log or version edited.
 - Every new or changed logic file has tests. Every new source file has a docs page.
@@ -310,21 +337,24 @@ note into `review.md`, so they are all in one place. Then it checks every branch
   @vit-foundation/tileset-editor dev`, port 5174) and drive each change with a Playwright probe
   kept in the scratchpad, not the repo. Check keyboard access, WCAG 2.2 AA contrast and target
   size, and hover/press feedback, against `DESIGN_SYSTEM.md`.
-- **Renderer**: run the demo screenshot harness (`pnpm --filter @vit-foundation/tileset-demo
-  shots:capture <dir>`, then `shots:diff`) against a fresh capture of `dev`, expecting 0 px
-  difference. Also run `apps/demo/scripts/ssr.mjs`.
+- **Renderer**: build the demo, serve it on your preview port, capture it (`pnpm --filter
+  @vit-foundation/tileset-demo shots:capture <dir> http://localhost:<port>/`) and `shots:diff` it
+  against the `dev` baseline the script captured, expecting 0 px difference. Also run
+  `apps/demo/scripts/ssr.mjs`.
 - **Engine/schema** (big tasks only): confirm the `Output:` claim by generating the same file
   before and after.
 - Every PR's base is `dev` (`gh pr view <n> --json baseRefName`). Retarget any that isn't.
 - No stray debug code, no renamed terminology, no stripped citations.
 
-Fix mechanical issues directly. For anything else, don't change the code; write it in the summary.
-In `review.md`, list ⚠️ items first:
+Fix mechanical issues directly. For anything else, don't change the code; write it in the review.
+In the review, list ⚠️ items first, then the `BLOCKED:` notes, then the ✅ tasks:
 
 ```markdown
 ## Review: batch-NN-b
 - T-09: ⚠️ deviated: plan said X, implementation does Y because Z. Needs Pol's check.
+- T-08: BLOCKED (from status-B.md): …
 - T-07: ✅ as planned.
+Fixed: <mechanical fixes pushed to this branch, one line each, or "none">
 ```
 
 ## Release (outside the batch)
@@ -354,9 +384,17 @@ For Pol. From the main checkout, on `dev`.
    matches `origin/dev` and every decision is answered, then opens one Terminal window per
    session, each running Claude in its own worktree. Running it again reopens the sessions
    without recreating anything.
-2. **Review pass.** When every session has opened its PR, start a review session in the main
-   checkout (see Review pass). It writes `docs/batches/batch-NN/review.md`.
-3. **Merge.** Read `review.md`, settle the ⚠️ items and `BLOCKED:` notes, and merge the PRs into
-   `dev`.
+2. **Review pass.** Starts by itself: each session's window runs its reviewer when the
+   implementer exits (see Review pass). If one stopped because something was not ready, fix that
+   and run `scripts/review-batch.sh NN --session <S>`, or `--dry-run` first to see the checks. The
+   main checkout must stay on `dev`, level with `origin/dev`, until the reviews are done.
+3. **Merge.** Read each PR's review and the integration comment, and settle the ⚠️ items and
+   `BLOCKED:` notes. Then merge **one PR at a time, in the integration comment's order**, with
+   "Create a merge commit". Where it says "merge as is" and its checks are green, that reproduces
+   the tree it tested, so nothing needs a rebase or retest between merges. A PR marked "needs dev
+   merged in": merge the ones before it, then in its worktree run `git merge origin/dev` (never a
+   rebase: that needs a force push, which is denied), resolve the conflicts (in an append-only
+   hotspot, keep both sides), run the tests, push, and merge.
 4. **End.** `scripts/end-batch.sh NN` removes the worktrees and local branches whose PRs are
-   merged into `dev`, and lists any it kept. Then the Release steps above.
+   merged into `dev`, and lists any it kept. Once all are merged it also removes the integration
+   worktree, its `batch-NN-review` branch and the screenshot baseline. Then the Release steps above.

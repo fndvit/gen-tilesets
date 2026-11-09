@@ -5,7 +5,9 @@
 #
 # Looks at every local branch batch-NN-*, with or without a worktree. A branch whose PR into dev
 # is merged loses its worktree and its local branch; every other one is listed with the reason
-# it was kept, and the script exits 1. See docs/Batch-workflow.md, "Running a batch".
+# it was kept, and the script exits 1. Once every branch is merged, it also removes what
+# review-batch.sh made: the integration worktree and branch batch-NN-review, and the screenshot
+# baseline .shots/batch-NN-dev. See docs/Batch-workflow.md, "Running a batch".
 
 set -euo pipefail
 
@@ -23,7 +25,8 @@ die() { echo "end-batch: $*" >&2; exit 1; }
 [[ "$nn" =~ ^[0-9]{1,2}$ ]] || die "usage: scripts/end-batch.sh NN [--dry-run]"
 nn=$(printf '%02d' "$((10#$nn))")
 
-cd "$(git rev-parse --show-toplevel)"
+top=$(git rev-parse --show-toplevel)
+cd "$top"
 command -v gh >/dev/null || die "gh is not installed; it is how merged PRs are found"
 
 run() {
@@ -36,11 +39,12 @@ run() {
 
 git fetch --quiet --prune origin
 
-branches=$(git for-each-ref --format='%(refname:short)' "refs/heads/batch-$nn-*")
-if [[ -z "$branches" ]]; then
-  echo "No local batch-$nn-* branches. Nothing to do."
-  exit 0
-fi
+# batch-NN-review is review-batch.sh's integration merge. It has no PR, so it is handled after the
+# loop, not in it, where it would always be "kept".
+review_branch="batch-$nn-review"
+branches=$(git for-each-ref --format='%(refname:short)' "refs/heads/batch-$nn-*" | grep -vx "$review_branch" || true)
+# No session branches left still falls through, so a review worktree left behind is removed.
+[[ -n "$branches" ]] || echo "No local batch-$nn-* session branches."
 
 # The worktree, if any, that has the branch checked out.
 worktree_of() {
@@ -82,4 +86,19 @@ if [[ -n "$kept" ]]; then
   echo "Kept, not merged into dev:"
   printf '%s' "$kept"
   exit 1
+fi
+
+# Every PR is merged, so the review pass's leftovers can go.
+review_path=$(worktree_of "$review_branch")
+if [[ -n "$review_path" ]]; then
+  # --force, unlike the session worktrees above: this one always holds the untracked .review-logs/,
+  # and nobody works in it; it is a merge the script made and can make again.
+  run git worktree remove --force "$review_path"
+  echo "$( (( dry_run )) && echo 'would remove' || echo removed ) integration worktree $review_path"
+fi
+if git rev-parse --verify --quiet "refs/heads/$review_branch" >/dev/null; then
+  run git branch --quiet -D "$review_branch"
+fi
+if [[ -d "$top/.shots/batch-$nn-dev" ]]; then
+  run rm -rf "$top/.shots/batch-$nn-dev" "$top/.shots/batch-$nn-dev.log"
 fi
