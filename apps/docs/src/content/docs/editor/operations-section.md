@@ -58,10 +58,11 @@ No props. It reads `session.file.config.operations` and `.tiles`, and `drafting.
   | --- | --- |
   | `onSelect(step)` | `selectStep`: on the open operation, only sets `draft.step`; otherwise `guard`, then `drafting.edit(op)` at that step. |
   | `onDelete` | `session.apply(removeOperation(op.id))`. |
+  | `hidden` / `onToggleHidden` | `preview.hidden.has(op.id)`; the toggle writes `toggled(preview.hidden, op.id)` ([visibility.ts](/editor/visibility/)). View state, not a transition: nothing is applied, nothing to undo (batch 02 T-02, D-02 A). |
   | `onReseed` | `reseed(op)`: `rerollOperation(op.id)`, and an open draft of the same operation copies the new `salt`, so its Save does not undo the reroll. |
   | `onMoveUp` / `onMoveDown` | `moveOperation(op.id, index ∓ 1)`, disabled at the ends. |
 
-- **The new operation's header** passes no `onReseed` (re-seed is disabled), no-op arrows (both
+- **The new operation's header** passes no `onReseed` (re-seed is disabled), no `onToggleHidden` (no eye), no-op arrows (both
   disabled), and `onDelete` = `drafting.discard()`.
 - **Add operation** calls `create()`: `guard`, then `drafting.start(nextOperationId(...))`.
 - **`guard(action)`** is `opening.guard` from [opening.svelte.ts](/editor/opening/) (moved
@@ -87,7 +88,8 @@ No props. It reads `session.file.config.operations` and `.tiles`, and `drafting.
   changes does not ask.
 - **The list order is the stack order** and is never canonicalized (`06` §7). Reordering is
   arrows, not a drag (**D44**): one gesture is one transition and one undo entry (**D32**).
-- **No `disabled` toggle per operation** (§4.1). The file has no field for one.
+- **No `disabled` toggle per operation** (§4.1). The file has no field for one. Hiding is the
+  session-only alternative: `preview.hidden`, which the file never sees.
 - **Edit mode comes from `drafting.editing`**, never from looking the draft's id up in the stack.
 
 ### Callers / callees
@@ -99,7 +101,8 @@ No props. It reads `session.file.config.operations` and `.tiles`, and `drafting.
 
 Callees: `moveOperation`, `removeOperation`, `replaceOperation`, `rerollOperation` (`document.ts`);
 `reseedOnLoadChip`, `withReseedOnLoad` (`reseed.ts`); `draftDiffers`,
-`Step` (`draft.svelte.ts`); `drafting`; `opening`; `nextOperationId` (`ids.ts`); `session`;
+`Step` (`draft.svelte.ts`); `drafting`; `opening`; `preview` ([view.svelte.ts](/editor/preview-width/)),
+`toggled` ([visibility.ts](/editor/visibility/)); `nextOperationId` (`ids.ts`); `session`;
 [Section](/editor/section/); [OperationHeader](/editor/operation-header/),
 [OperationBody](/editor/operation-body/); `draftParts`, `partsOf`, `summaryCells`
 ([labels.ts](/editor/operation-labels/)); [AddBar](/editor/ui-add-bar/),

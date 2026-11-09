@@ -53,6 +53,17 @@ let showGrid = $state(true);
  */
 let loadSalt = $state(0);
 
+/**
+ * The operations hidden from the picture (batch 02 T-02, B-012), by id.
+ *
+ * **Only while the editor is open** (D-02 A), like everything here: never in the
+ * file, so export, undo and a reload all show every operation. Here rather than
+ * in `OperationsSection` because the card toggles it while `App.svelte` and
+ * Export image draw through it (`visibility.ts` `withoutHidden`). Replaced, never
+ * mutated, so a reader re-runs on a toggle and on nothing else.
+ */
+let hidden = $state.raw<ReadonlySet<string>>(new Set());
+
 const room = $derived(roomFor(available));
 const width = $derived(widthFor(requested, room));
 const zoom = $derived(zoomFor(width, room, available));
@@ -91,6 +102,13 @@ export const preview = {
   },
   set loadSalt(next: number) {
     loadSalt = next;
+  },
+
+  get hidden(): ReadonlySet<string> {
+    return hidden;
+  },
+  set hidden(next: ReadonlySet<string>) {
+    hidden = next;
   },
 
   /** The column less the handle gutters: what Fill fills. */

@@ -91,6 +91,17 @@ export const ICONS = {
   info: icon("M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 16v-4M12 8h.01"),
   /** A failure: something that did not work (a picture that did not load). */
   alert: icon("m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3M12 9v4M12 17h.01"),
+  /** An operation drawn in the preview; press to hide it (batch 02 T-02). Lucide eye. */
+  eye: icon(
+    "M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0" +
+      "M9 12a3 3 0 1 0 6 0a3 3 0 1 0-6 0",
+  ),
+  /** An operation hidden from the preview (batch 02 T-02). Lucide eye-off. */
+  "eye-off": icon(
+    "M10.73 5.08a10.74 10.74 0 0 1 11.2 6.57 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-1.44 2.49" +
+      "M14.08 14.16a3 3 0 0 1-4.24-4.24M17.48 17.5a10.75 10.75 0 0 1-15.42-5.15 1 1 0 0 1 0-.7" +
+      " 10.75 10.75 0 0 1 4.45-5.14M2 2l20 20",
+  ),
 } as const satisfies Record<string, IconDef>;
 
 export type IconName = keyof typeof ICONS;

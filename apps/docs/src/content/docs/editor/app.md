@@ -108,7 +108,7 @@ Which component renders which, in source order. Conditional children are marked.
 | --- | --- | --- |
 | `file`, `config`, `rules` | `session.file` (`rules` is `file.responsive ?? []`) | everything |
 | `drawn` | `draftFile(file, drafting.draft)` ([draft.svelte.ts](/editor/draft/)), or `null` with no draft | `shown`, the draft cue, `failures`' `drafted` |
-| `shown` | `drawn ?? file` | `<Tileset>`, `liveFailures` |
+| `shown` | `withoutHidden(drawn ?? file, preview.hidden, <id of the operation open for editing>)` ([visibility.ts](/editor/visibility/); batch 02 T-02): the hidden operations left out, except the open one | `<Tileset>`, `liveFailures` |
 | `shapedAt(Wpx)` | [`reshape`](/api/index/functions/reshape/)`(file, `[`ruleOverride`](/api/index/functions/ruleoverride/)`(`[`activeRules`](/api/index/functions/activerules/)`(rules, Wpx)))` | the frame's ratio and both overlays' geometry; from the saved file even while a draft is drawn, which has the same shape (`draftFile` changes only `config.operations`) |
 | `risked` | `atRisk(config)` from [orphans.ts](/editor/orphans/) | confirmation, Grid & Size hints, Breakpoints' pinned fields |
 | `orphaned` | `orphans(config, config.defaultSeed, loadSalt)` | `current` |
@@ -152,6 +152,10 @@ Which component renders which, in source order. Conditional children are marked.
   too. A failure reported while a draft was drawn also goes once no palette in `shown` names its
   tile, so discarding a draft takes its pictures' failures with it. A failure from the saved file
   is kept as before.
+- **Hidden operations** (batch 02 T-02, D-02 A). Only the picture reads `shown`; advisories,
+  `shapedAt`, the `.json` export and undo read `file`, which keeps every operation. An `$effect`
+  writes `pruned(preview.hidden, file.config.operations)` back, so an id the file no longer has is
+  forgotten and a new operation given that id starts visible.
 - **`renderBox`** is bound out so `PaintLayer` and `RectLayer` can convert pointer events into render space.
 - **`drawRect(rect)`** assigns the four values into `draft.selectionParams`, as `paintCells` writes the brush's list. The file is untouched until the draft is saved.
   Since the canvas substrate became the default, the box is the canvas's wrapper `<div>`, which
@@ -255,7 +259,8 @@ Callees, by import: from the package, [`selections`](/api/index/variables/select
 `notices.svelte.ts` (and the `Notice` type from `notices.ts`), `assets.ts` (`editorProvider`, `replaceAll`, `stored`), `document.ts`
 (the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `opening.svelte.ts`, `orphans.ts`, `session.svelte.ts`,
 the six `lib/sections/` components (Grid, Tiles, Operations, Breakpoints, SidebarMotif, SidebarFooter),
-`PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer`, `RectLayer` and `ui/Dialog`; `paint.ts`
+`PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer`, `RectLayer` and `ui/Dialog`;
+`lib/preview/visibility.ts` (`withoutHidden`, `pruned`); `paint.ts`
 (`rectParams`).
 
 ### Tests

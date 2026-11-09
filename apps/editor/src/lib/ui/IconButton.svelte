@@ -24,6 +24,12 @@
     strong?: boolean;
     /** For a menu trigger. */
     expanded?: boolean | undefined;
+    /**
+     * For a toggle (batch 02 T-02: hide an operation). Absent, the button is a
+     * plain action and says nothing; given, it is `aria-pressed` and the icon is
+     * drawn in ink while pressed, so the state is not only in the icon's shape.
+     */
+    pressed?: boolean | undefined;
     haspopup?: "menu" | undefined;
     element?: HTMLButtonElement | undefined;
   }
@@ -35,6 +41,7 @@
     disabled = false,
     strong = false,
     expanded,
+    pressed,
     haspopup,
     element = $bindable(),
   }: Props = $props();
@@ -47,6 +54,7 @@
   class:strong
   aria-label={label}
   aria-expanded={expanded}
+  aria-pressed={pressed}
   aria-haspopup={haspopup}
   title={label}
   {disabled}
@@ -82,6 +90,11 @@
   .icon-button:hover:not(:disabled),
   .icon-button[aria-expanded="true"] {
     background: var(--color-hover);
+    color: var(--color-ink);
+  }
+
+  /* A pressed toggle keeps the ink the hover gives, at rest too. */
+  .icon-button[aria-pressed="true"] {
     color: var(--color-ink);
   }
 

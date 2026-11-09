@@ -230,3 +230,17 @@ Components are PascalCase nouns (`Section`, `TileGroup`, `TileAsset`, `Operation
 
 Every new `.ts` or `.svelte` file under `src/` needs a page in
 `apps/docs/src/content/docs/editor/`, or the docs coverage check fails.
+
+## Preview gestures and hidden operations (batch 02, session A)
+
+- **Rectangle drag** (T-01). While an operation's Selection is a rectangle, the preview takes a
+  crosshair and a drag draws a dashed `--color-selection` outline, unfilled; the fill is the
+  selection overlay's. The outline follows the pointer past the grid; the overlay, and the values,
+  stop at the edge (D-01). A one-cell hover outline shows where a drag would start. The readout
+  under the picture, as the brush's, reads `rectangle · x, y · w × h` in mono.
+- **Hidden operation** (T-02). An `eye` icon button (28px, `aria-pressed`, one label "Hide
+  operation N") leads the card's actions; pressed, it shows `eye-off` in ink. A hidden card says
+  **Hidden** in console type, muted, before its actions; its index square goes hollow (ink ring
+  on the well) and the attribute name takes `--color-muted` (6.5:1 on white, 5.5:1 on the
+  ground). Thumbnails fade to 50%; they are pictures, not text. No opacity on text, so contrast
+  holds (1.4.3), and the state is in words and shape, not colour alone (1.4.1).

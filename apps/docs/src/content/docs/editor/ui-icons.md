@@ -14,7 +14,8 @@ paper" (2026-11-06) they are one outline family, Lucide's paths (ISC licence), o
 drawn at 16px with a 1.5px stroke and round caps and joins.
 
 There are nineteen: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`,
-`export`, `new`, `more`, `grip`, `swap`, `archive`, `image`, `check`, `info` and `alert`.
+`export`, `new`, `more`, `grip`, `swap`, `archive`, `image`, `check`, `info`, `alert`, `eye` and
+`eye-off`.
 
 ## In detail
 
@@ -43,6 +44,7 @@ There are nineteen: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `u
 | `check` | Done |
 | `info` | An advisory: a `Notice` of kind `advisory`, and an inline advisory |
 | `alert` | A failure: a `Notice` of kind `failure`, drawn in `--color-danger` |
+| `eye` / `eye-off` | An operation drawn in the preview / hidden from it: the operation card's hide toggle (batch 02 T-02) |
 
 ### Invariants
 

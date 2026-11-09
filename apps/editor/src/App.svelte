@@ -49,6 +49,7 @@
   import PreviewGrid from "./lib/preview/PreviewGrid.svelte";
   import PreviewTopBar from "./lib/preview/PreviewTopBar.svelte";
   import { preview } from "./lib/preview/view.svelte.js";
+  import { pruned, withoutHidden } from "./lib/preview/visibility.js";
   import BreakpointsSection from "./lib/sections/BreakpointsSection.svelte";
   import GridSection from "./lib/sections/GridSection.svelte";
   import SidebarFooter from "./lib/sections/SidebarFooter.svelte";
@@ -88,8 +89,29 @@
     drafting.draft === null ? null : draftFile(file, $state.snapshot(drafting.draft)),
   );
 
-  /** What `<Tileset>` draws: the draft's file while there is one, else the saved file. */
-  const shown = $derived(drawn ?? file);
+  /**
+   * What `<Tileset>` draws: the draft's file while there is one, else the saved
+   * file — **less the hidden operations** (batch 02 T-02, D-02 A), except the one
+   * open for editing, which is drawn because you cannot edit what you cannot see.
+   *
+   * Only the picture reads this. Advisories, `shapedAt`, the `.json` export and
+   * undo read `file`, which still holds every operation; a reader of `shown`
+   * would silently lose the hidden ones. (`failures` reads `shown` on purpose: a
+   * failed tile no drawn operation paints is not on screen.)
+   */
+  const shown = $derived(
+    withoutHidden(drawn ?? file, preview.hidden, drafting.editing ? (drafting.draft?.id ?? null) : null),
+  );
+
+  /**
+   * Forget hidden ids the file no longer has. An id is given again once the
+   * newest operation is deleted (`nextOperationId`), and the next operation
+   * must start visible. `pruned` returns the same set when nothing went, so the
+   * write-back does not retrigger this.
+   */
+  $effect(() => {
+    preview.hidden = pruned(preview.hidden, file.config.operations);
+  });
 
   /**
    * The file **as `<Tileset>` draws it at a preview width** — its rules' cascade

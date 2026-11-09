@@ -16,7 +16,10 @@ density, so the same choices give the same PNG on any screen. The choices themse
 [image-export.ts](/editor/image-export/)'s, tested.
 
 **It draws the saved file, never the draft** (Pol, X0), with the file's `defaultSeed`, the load on
-screen (`preview.loadSalt`), and the editor's asset provider.
+screen (`preview.loadSalt`), and the editor's asset provider. **Hidden operations are left out**
+(batch 02 T-02, D-03 A: the image is a picture of the preview): it draws `withoutHidden(file,
+preview.hidden, <id of the operation open for editing>)` from [visibility.ts](/editor/visibility/),
+which keeps the open one, as the preview does.
 
 ## In detail
 
