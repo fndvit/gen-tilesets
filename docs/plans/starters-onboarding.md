@@ -227,3 +227,78 @@ questions** to Pol with AskUserQuestion, and write no code.
 - S1 mocks the New choice (Empty / From template, then the template list), the "Add tile group"
   choice (Gallery / From your computer), and the multi-select gallery grid.
 - S3b becomes "the New choice", not "the top-bar entry and the empty states".
+
+## Next session plan: S1 · Mocks
+
+**Next session starts here.** Read this section and "S0 answers" above, then
+`apps/editor/DESIGN_SYSTEM.md`. No editor code is written in this block. The output is a scratch
+page (in the session scratchpad, not the repo) plus Pol's picks, recorded here as "S1 picks".
+
+### What exists today (checked 2026-11-09)
+
+- **New:** `SidebarTopBar.svelte:92` is a tertiary `Button` with `onNew`. `App.svelte:212` sets
+  `askingNew`, and `App.svelte:621` is a `Dialog` ("Start a new tileset?", "Start new"). That
+  Dialog asks **every time**, not only when there are unsaved changes. On confirm,
+  `newTileset()` (`App.svelte:214`) runs `session.reset()`, clears failures and notices, then
+  `replaceAll([])`.
+- **Add tile group:** the section header "+" (`TilesSection.svelte:202`) and the full-width
+  `AddBar` (`:232`) both call `pick(null)`, which opens the hidden file input. A group's own
+  `AddBar` ("Add variants to …", `TileGroup.svelte:133`) calls `pick(tile)`. Dropping files on
+  the library also adds a group, and stays "from your computer".
+- **Primitives to reuse:** `ui/Popup.svelte` (modal form popup), `Dialog.svelte`, `Menu.svelte`
+  (`align`/`anchor`/`trigger`), `SplitButton.svelte`, `RadioList.svelte`, `GlyphGrid.svelte`, and
+  the tile picker's thumbnail grid (`lib/operations/…/TilePicker`, see its docs page
+  `apps/docs/src/content/docs/editor/tile-picker.md`).
+- **Content:** `../tileset-files/picsBackground/` has 21 SVGs in `tiles/t1..t6/`. The groups are
+  blau, verd, rosa, groc, gris and solid red; `t6/a1.svg` is a 149-byte flat colour. Use the
+  real files in the mock.
+
+### Mock variants to draw
+
+1. **The New choice** (S0: Empty / From template).
+   - **A:** `New` becomes a `Menu` trigger: "Empty", "From template…". Each then goes through
+     today's confirm Dialog.
+   - **B:** `New` opens one `Popup` that holds the two choices as large options (`RadioList`
+     or two cards) plus the existing "Everything in this one is lost…" line, so there is **one**
+     step, not a menu and then a Dialog. Under "From template", the template list (only
+     Collage now) appears inline, with a thumbnail.
+   - Recommend **B**: one popup replaces a two-step menu → dialog, and it has room for the
+     template's thumbnail.
+2. **"Add tile group"** (S0: Gallery / From your computer).
+   - **A:** The header "+" and the `AddBar` open a `Menu`: "From gallery…", "From your
+     computer…".
+   - **B:** The `AddBar` splits into two side-by-side bars, "Gallery" and "From your computer".
+     The header "+" opens the A menu.
+   - Recommend **A** (one control, nothing new in the section's layout).
+3. **The gallery** (S0: 21 single images, multi-select → one new group).
+   - A `Popup` with a thumbnail grid. Each cell is a toggle (`aria-pressed`), at least 44 px
+     (WCAG 2.2 AA target size; the exact size is decided here and recorded in DESIGN_SYSTEM.md).
+   - Primary button: "Add N tiles", disabled at 0.
+   - Variant **G1** is a flat grid of 21. Variant **G2** groups the cells under the source
+     group's name (blau, verd…).
+   - Show the state with 0, 1 and several selected, and at a 320 px-wide window.
+
+### Questions to put to Pol with the mocks
+
+- Pick A/B for 1 and 2, and G1/G2 for 3.
+- **The new group's name** when several images are picked. Recommend: the source group's name
+  if they all come from one group, otherwise "Gallery".
+- **The S0 assumption:** is the gallery also offered from a group's own "+" (picked images
+  become variants of that group)? Recommend yes; the same Menu applies.
+- **"From template" with one template:** does it open Collage straight away, or show the
+  one-item list? Recommend the list (B shows it inline anyway), so a second template adds
+  nothing new to learn.
+
+### Notes for later blocks (do not do in S1)
+
+- S3a needs thumbnails. Picking one thumbnail per gallery image is cheap, but the photos inside
+  the SVGs are large. Generate small PNG/WebP thumbnails once, outside the app, and commit them
+  next to the template. The compression check (S0 answer 4) runs in the same step.
+- The template's own thumbnail: render Collage once with the package's `renderImage` and
+  commit the PNG. It is not drawn live, because that would fetch 10 MB to show a preview.
+- Gallery images keep weight 1 when added; the template keeps its own weights.
+
+### Exit criterion
+
+Pol has picked a variant for 1, 2 and 3 and answered the four questions. Record them under
+"S1 picks", commit, and stop. S2 (DESIGN_SYSTEM.md) is the next block.
