@@ -60,3 +60,63 @@ export function keepInside(offset: number, size: number, room: number, margin: n
 export function pressedOutside(target: Node, inside: readonly ({ contains(node: Node): boolean } | undefined)[]): boolean {
   return !inside.some((el) => el?.contains(target) === true);
 }
+
+/**
+ * Above or below the trigger, whichever side the panel fits on — or, when it
+ * fits on neither, whichever side has more room (it then scrolls on that
+ * side). Below wins a tie, because below is where the eye goes first.
+ *
+ * `height` is the panel's measured height, not a guess: the fixed 420px room
+ * `Explainer` passed to `placeAt` opened "How operations work" upward into
+ * less room than it had below (batch 02, T-03).
+ */
+export function placeOnLargerSide(anchor: Box, viewport: { width: number; height: number }, height: number): Placement {
+  const below = viewport.height - anchor.bottom;
+  const above = anchor.top;
+  const up = below < height && above > below;
+  return {
+    top: up ? anchor.top : anchor.bottom,
+    left: anchor.left,
+    right: viewport.width - anchor.right,
+    up,
+  };
+}
+
+/** A panel placed beside the sidebar: CSS `top` and `left`, and the most it may be tall. */
+export interface BesidePlacement {
+  top: number;
+  left: number;
+  maxHeight: number;
+}
+
+/**
+ * To the right of the sidebar, over the preview, level with its trigger when
+ * it fits and otherwise moved up just enough to stay `margin` px inside the
+ * window. A panel taller than the window sits at the top margin and scrolls
+ * (`maxHeight`). `undefined` when a panel `size.width` wide does not fit
+ * between the sidebar and the window's right margin.
+ *
+ * Batch 02 D-04 (A): a tall explainer is beside the sidebar, where the whole
+ * window height is free, instead of above or below a trigger with half of it.
+ * It covers only its own width of the preview (Pol: "not the full preview
+ * width"), next to the controls it explains.
+ *
+ * "Does not fit" is measured, not the stacked layout's 40rem breakpoint: in
+ * that layout the sidebar spans the window, so no room is left, and a window
+ * just over 40rem whose preview column is narrower than the panel also falls
+ * back, which a media query would miss. Level with the trigger rather than at
+ * the window's top or centre, so the panel opens where the eye already is.
+ */
+export function placeBeside(
+  sidebar: Box,
+  anchor: Box,
+  viewport: { width: number; height: number },
+  size: { width: number; height: number },
+  margin: number,
+): BesidePlacement | undefined {
+  const left = sidebar.right + margin;
+  if (left + size.width > viewport.width - margin) return undefined;
+  const maxHeight = Math.max(0, viewport.height - 2 * margin);
+  const top = Math.max(margin, Math.min(anchor.top, viewport.height - margin - size.height));
+  return { top, left, maxHeight };
+}

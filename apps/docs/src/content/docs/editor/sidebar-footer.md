@@ -36,7 +36,7 @@ measured coverage all read it.
 
 | Control | Writes |
 | --- | --- |
-| (i) `IconButton` "How randomness works" | opens the [Explainer](/editor/ui-explainer/) with [`RANDOMNESS_EXPLAINER`](/editor/randomness-explainer/), wired as "How noise works" (Esc, ✕ and a press outside close; Esc and ✕ refocus). It opens upward, since the footer is at the foot of the window. Writes nothing |
+| (i) `IconButton` "How randomness works" | opens the [Explainer](/editor/ui-explainer/) with [`RANDOMNESS_EXPLAINER`](/editor/randomness-explainer/), wired as "How noise works" (Esc, ✕ and a press outside close; Esc and ✕ refocus). It opens beside the sidebar, kept inside the window; in the stacked layout, above the button, since the footer is at the foot of the window. Writes nothing |
 | Seed field (`.t-value`, mono, so the case shows as typed) | `setDefaultSeed(value)` on every `input` |
 | New seed `IconButton` (`strong`) | `rerollSeed()` |
 | Assets on load `Toggle` | `setReseedAssetsOnLoad(on)` |

@@ -34,9 +34,9 @@
 
   /**
    * "How randomness works" (batch 01, T-07, B-019), wired as `OperationBody`
-   * wires "How noise works". `Explainer` places itself against the trigger and
-   * opens upward when there is no room below, which at the foot of the window
-   * is always.
+   * wires "How noise works". `Explainer` places itself: beside the sidebar,
+   * level with the trigger and kept inside the window; above the trigger in
+   * the stacked layout, since the footer is at the foot of the window.
    */
   let explaining = $state<HTMLButtonElement | undefined>(undefined);
   let explainTrigger = $state<HTMLButtonElement | undefined>(undefined);
