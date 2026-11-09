@@ -68,7 +68,9 @@ body have different padding and frames in Figma.
 - In the section variant the heading is `position: sticky; top: 0` with the card's background
   and `z-index: 2`, so an open section's header (and its ink rule) stays at the top of the
   sidebar's scroller while the body scrolls under it. It sticks within its own card, so the next
-  section's header pushes it away; headers never stack. Groups do not stick.
+  section's header pushes it away; headers never stack. Groups do not stick. Everything in a
+  section's body has `scroll-margin-top: var(--header-h)`, so a field focused by Shift+Tab, or a
+  card scrolled into view, stops below the stuck header rather than behind it (WCAG 2.4.11).
 - Opened by the user from its own header, it scrolls its nearest scroll container once the slide
   has ended, until its bottom is in view but never past its own top, and never under an enclosing
   section's stuck header ([`reveal.ts`](/editor/ui-reveal-ts/)). Smooth, or instant under reduced

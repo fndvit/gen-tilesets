@@ -260,6 +260,19 @@
     border-radius: var(--radius) var(--radius) 0 0;
   }
 
+  /*
+    Whatever the browser scrolls into view inside a section's body (focus by
+    Shift+Tab, `OperationsSection`'s `scrollIntoView` of an opened card) stops
+    below the stuck header instead of under it. Without this, Shift+Tab back up
+    a scrolled section put the focused field wholly behind the header (WCAG
+    2.2 2.4.11, Focus Not Obscured). On the descendants, not as
+    `scroll-padding-top` on `ScrollArea`'s viewport: that is shared by every
+    scroller, and only a section's header sticks.
+  */
+  .section > div :global(*) {
+    scroll-margin-top: var(--header-h);
+  }
+
   .bar {
     box-sizing: border-box;
     display: flex;
