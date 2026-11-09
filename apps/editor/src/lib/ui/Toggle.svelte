@@ -119,11 +119,13 @@
     box-shadow: 0 0 0 1px var(--color-edge);
   }
 
-  .segment:hover:not(:disabled) {
+  /* Not on the chosen segment: `:hover`/`:active` outrank `[aria-checked]`, and the wash under its
+     white label failed WCAG 1.4.3. The chosen segment is a no-op to press (cursor: default). */
+  .segment:hover:not(:disabled):not([aria-checked="true"]) {
     background: var(--color-hover);
   }
 
-  .segment:active:not(:disabled) {
+  .segment:active:not(:disabled):not([aria-checked="true"]) {
     background: var(--color-pressed);
   }
 

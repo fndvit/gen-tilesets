@@ -14,3 +14,6 @@ Package: no
 - Docs page `editor/ui-collapsible` updated.
 - The heading carries the card's radius (top corners only when open), so a header that is not stuck
   does not show square corners over the ground.
+- Review fix, `Toggle`: the hover and press washes no longer apply to the chosen segment. They
+  outranked `[aria-checked="true"]` and put its white label on a near-white wash (WCAG 1.4.3),
+  which showed on T-01's new Grid switch (session A).
