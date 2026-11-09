@@ -572,3 +572,138 @@ check` are green, and `packages/` is unchanged. A Playwright probe on 5174 check
 
 The gallery labels follow ("Blue 1"). Only `name` changed, not the ids, so generated output is
 unchanged.
+
+## Next session plan: S3c · The tile gallery
+
+**Next session starts here.** First read:
+- "S1 picks" (with Pol's no-visible-name change), "S2 · Docs" and "S3b done";
+- DESIGN_SYSTEM.md § "Starters: templates and the tile gallery" (Add menu, Tile gallery, Field
+  error).
+
+S3c finishes B-016's UI. Stop for Pol at the end. S4, the sweep, comes next.
+
+### What exists (checked 2026-11-09, after 940d9ef)
+
+- **Tiles section** (`lib/sections/TilesSection.svelte`):
+  - The header "+" is `Section`'s own `IconButton` (`lib/Section.svelte`, the `add()` snippet).
+    It first sets `expanded = true`, then calls `onAdd`. `Section` has **no way to anchor a Menu
+    on that "+"**: it takes `onAdd`/`addLabel` or an `actions` snippet.
+  - The full-width `AddBar label="Add tile group"` and the "+" both call `pick(null)`.
+  - A group's "Add variants to …" is `AddBar variant="square"` in `lib/tiles/TileGroup.svelte`
+    (`onAdd` prop → `pick(tile)`).
+  - `pick` opens one hidden file input. `onPick` calls `addGroup(files)` or
+    `addVariants(tile, files)`.
+  - `addGroup` reserves a tile id (`nextTileId` + `heldTileIds` + `reserved`), runs `attachAll`,
+    and names the group `uniqueTileName(session.file, tileNameOf(first.name))`.
+  - Failures go to `reportFailures` → the `attachFailures` notice. The section already has a
+    `report(messages)` Popup ("problems"), used for a taken rename.
+- **`AddBar`** (`lib/ui/AddBar.svelte`) takes `label`, `onclick`, `variant` and `disabled`. It
+  has **no `attach` and no `aria-haspopup`/`aria-expanded`**, so it cannot be a Menu trigger yet.
+- **`Menu`** (`lib/ui/Menu.svelte`) takes `label`, `items: MenuItem[]` (`label`, `icon`,
+  `onSelect`, `disabled?`), `align`, `anchor` and a `trigger` snippet that gets
+  `{ open, toggle, attach }`. `SplitButton` is the worked example of a custom trigger.
+- **Icons** (`lib/ui/icons.ts`): `import` exists, `gallery` does **not** (Lucide layout-grid).
+- **Names** (`document.ts`): `tileNameTaken(file, name, exceptId?)` compares names trimmed and
+  lower-cased; `uniqueTileName` adds " 2", " 3"….
+- **TilePicker** (`controls/TilePicker.svelte`) moves between cells with the arrow keys, Home and
+  End, reading the column count from the layout (`columns()`). Copy that pattern; it is not a
+  shared module.
+- **Starters:**
+  - `loadGalleryFiles(entries, fetch, base)` returns `{ files, failures }` in pick order.
+  - The manifest is held by a module-level `once` in `NewTileset.svelte`'s `<script module>`,
+    with `BASE = import.meta.env.BASE_URL`.
+  - `starters.json` has 21 gallery entries ("Blue 1" … "Solid 1"), each with a 104 px
+    `thumbs/tN-aN.webp`.
+- **`Popup`**: its body scrolls as a whole, and `actions` is a right-aligned flex row.
+
+### Steps
+
+1. **Share the manifest.** Move `BASE` and the `once(loadManifest…)` instance out of
+   `NewTileset.svelte` into one module, e.g. `src/starters-client.ts`, so New and the gallery
+   make one fetch between them. Its docs page goes with it; update `new-tileset.md`.
+2. **`gallery.ts`, pure and tested in `gallery.test.ts`:**
+   - `togglePick(picked, id)`: the picks in **pick order**, since that is the variant order;
+   - `verbOf(mode, n)`: "Add N tiles" / "Add N variants", or "Add tiles" / "Add variants" at 0;
+   - `countOf(n)`: "None picked" / "1 picked" / "N picked";
+   - `checkName(file, name)`: `null`, "Give the new group a name.", or `Another group is already
+     called "<name>". Choose a different name.` (through `tileNameTaken`).
+3. **Icon:** add `gallery` (Lucide layout-grid, same stroke settings as the others).
+4. **Menu triggers:**
+   - **`AddBar`** gains optional `attach` (an `Attachment<HTMLButtonElement>`), `haspopup` and
+     `expanded`, so it can be a Menu trigger. Both variants, bar and square, need them.
+   - **`Section`** gains `addItems?: MenuItem[]`. When it is set, the header "+" is a `Menu`
+     trigger (list right-aligned), and opening it still sets `expanded = true`. `onAdd` stays as
+     it is for the other sections.
+   - The items are **From gallery…** (`gallery`) and **From your computer…** (`import`). The
+     group bar's list aligns left.
+   - Dropping files is unchanged.
+5. **`lib/tiles/TileGallery.svelte`, a Form popup** (DESIGN_SYSTEM.md § Tile gallery):
+   - `mode: { kind: "group" } | { kind: "variants", tile }`. Title, hint, name field and verb
+     follow the S2 table. In variants mode the title is "Add to Blue".
+   - **Name:** an Input, empty, focused first. It is checked **on Add** with `checkName`. A
+     **Field error** sits under it (16 px `alert` in `--color-danger`, ink `.t-body`,
+     `aria-invalid`, `aria-describedby`). The error clears when the field changes, and focus
+     goes back to the field.
+   - **Grid:** cells are toggle buttons (`aria-pressed`, `aria-label` = the entry's label) with
+     **no visible label** (Pol). They hold the 52 px thumbnail in a 64 px cell, with the 2 px ink
+     ring and an 18 px check badge when picked. The grid is one Tab stop with arrow keys, Home
+     and End (copied from TilePicker), and Space or Enter toggles.
+   - Add the tokens `--gallery-cell` 64px and `--gallery-thumb` 52px, and remove their *(S3)*
+     marks in DESIGN_SYSTEM.md.
+   - **Scrolling:** the name and footer stay put while the grid scrolls, so give the grid its own
+     scroller (a max-height inside the body). Popup's body scrolls as a whole today.
+   - **Footer:** "None picked" / "N picked" on the left, in muted mono, as a polite live region.
+     Cancel and the verb are on the right. Below 400 px the footer wraps, with the buttons on
+     their own line.
+   - The manifest loads when the popup opens. Loading and failure use the same
+     `role="status"` lines as New tileset.
+6. **The add path** in `TilesSection`:
+   - On Add: the verb reads "Adding…" and is disabled. Then `loadGalleryFiles(picked…)`.
+   - **Group:** pass the typed name to `addGroup(files, name)`. Re-check
+     `tileNameTaken` after the await, because a group may have been committed meanwhile, and
+     fall back to `uniqueTileName` rather than refusing late.
+   - **Variants:** call `addVariants(tile, files)`.
+   - If **every** picture fails, add nothing, close the popup and use the section's existing
+     `report()` Popup. If **some** fail, add the rest and merge the fetch failures with
+     `attachAll`'s into one `attachFailures` notice.
+   - Gallery pictures get weight 1 (`attachAll` does that).
+7. **Docs:** new pages for `gallery.ts`, `TileGallery.svelte` and the manifest module. Update
+   `tiles-section.md`, `tile-group.md`, `section.md`, `ui-add-bar.mdx`, `ui-menu.mdx`,
+   `ui-icons.md` and `starters.md`. Finish the change entry `B-016.md` (S3c lines), and record
+   "S3c done" here.
+
+### Decisions to make in the session (recommendation first)
+
+- The two triggers above. Rec: **extend `AddBar` and `Section`** rather than wrapping them,
+  because both are already the components DESIGN_SYSTEM.md names.
+- What the gallery shows while its thumbnails load. Rec: **the field-grey cell**, as a template
+  card's thumbnail does.
+- Whether the gallery should hide pictures the target group already holds (variants mode). Rec:
+  **no**. Adding a duplicate is legal, and the gallery cannot know what the group's pictures
+  were made from.
+
+### Verification
+
+- `pnpm test`, `pnpm typecheck`, docs coverage and `pnpm changelog check` are green, and
+  `git diff --stat origin/dev -- packages/` is empty.
+- A Playwright probe on 5174 (headless shell at
+  `~/Library/Caches/ms-playwright/chromium_headless_shell-1243/…`; scripts in the scratchpad)
+  checks that:
+  - a fresh load makes no starters request;
+  - the header "+", the "Add tile group" bar and a group's "+" each open the two-item Menu, and
+    From your computer still opens the file picker;
+  - in group mode, Add with an empty name and with a taken name ("blue") shows the Field error
+    and adds nothing. Picking Blue 1, Pink 2 and Solid 1 with the name "Mix" adds a group "Mix"
+    with three variants in pick order that draw. Only those three pictures are fetched in full;
+  - in variants mode on an existing group, two pictures are appended;
+  - a 404 on one picture adds the rest and shows the attach-failure notice; 404s on all of them
+    show the Popup and add nothing;
+  - the keyboard works: one Tab stop for the grid, the arrows move, Space toggles, and the count
+    is announced;
+  - at 320 px and with a 400 px sidebar, nothing overflows and the footer wraps;
+  - Export → Import round-trips a document with gallery tiles.
+
+### Exit
+
+Record "S3c done" here, commit, update the memory status line, and stop for Pol. Next is **S4**,
+the sweep (see "Part 1"), then Pol closes B-016.
