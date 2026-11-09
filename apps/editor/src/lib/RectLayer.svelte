@@ -185,22 +185,27 @@
     unfilled, leaving the fill to `SelectionOverlay`; that read as a cursor, and
     authors did not see that dragging set the Selection.
 
-    The fill is light enough that stacked on the overlay's it still shows the
-    tile. The two still differ past the grid's edge, where this keeps going and
-    the overlay stops (D-01): there the marquee is alone and visibly paler, and
-    that paler band is exactly what was not selected.
+    30%, not lighter: it sits on `SelectionOverlay`'s 12% wash, and a first try
+    at 15% (with an edge like the overlay's own cell borders) disappeared into
+    it, reading as the overlay getting slightly darker (Pol). The edge is 1px
+    at full strength with a 1px paper ring outside, so it stands apart from
+    the overlay's 60% cell borders and from dark tiles alike. Past the grid's
+    edge, where this keeps going and the overlay stops (D-01), the marquee is
+    alone and paler, and that band is exactly what was not selected.
   */
   .outline {
     position: absolute;
     box-sizing: border-box;
-    border: var(--rule-w) solid var(--color-selection);
-    background: color-mix(in srgb, var(--color-selection) 15%, transparent);
+    border: 1px solid var(--color-selection);
+    box-shadow: 0 0 0 1px var(--color-paper);
+    background: color-mix(in srgb, var(--color-selection) 30%, transparent);
     pointer-events: none;
   }
 
   /* Weaker than the marquee, so hovering never looks like a drag. */
   .outline.hover {
     border-style: dashed;
+    box-shadow: none;
     border-color: color-mix(in srgb, var(--color-selection) 80%, transparent);
     background: color-mix(in srgb, var(--color-selection) 8%, transparent);
   }

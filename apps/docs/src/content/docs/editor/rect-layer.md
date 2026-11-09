@@ -28,8 +28,8 @@ Like the paint layer, it writes into the operation draft, never into the documen
 
 The component is the **gesture** only, on the same terms as [PaintLayer](/editor/paint-layer/):
 the selected cells are `SelectionOverlay`'s (**E7**, **E8**), resolved by the package's
-`selection()` from the four numbers this writes. What it draws is a marquee (solid edge,
-low-opacity fill) of the rectangle the pointer traced, and a dashed one-cell hover outline when no
+`selection()` from the four numbers this writes. What it draws is a marquee (1px solid edge,
+30% fill) of the rectangle the pointer traced, and a dashed one-cell hover outline when no
 drag is under way.
 
 ### Which Selection gets it
