@@ -247,7 +247,7 @@ page (in the session scratchpad, not the repo) plus Pol's picks, recorded here a
   the library also adds a group, and stays "from your computer".
 - **Primitives to reuse:** `ui/Popup.svelte` (modal form popup), `Dialog.svelte`, `Menu.svelte`
   (`align`/`anchor`/`trigger`), `SplitButton.svelte`, `RadioList.svelte`, `GlyphGrid.svelte`, and
-  the tile picker's thumbnail grid (`lib/operations/…/TilePicker`, see its docs page
+  the tile picker's thumbnail grid (`apps/editor/src/controls/TilePicker.svelte`, see its docs page
   `apps/docs/src/content/docs/editor/tile-picker.md`).
 - **Content:** `../tileset-files/picsBackground/` has 21 SVGs in `tiles/t1..t6/`. The groups are
   blau, verd, rosa, groc, gris and solid red; `t6/a1.svg` is a 149-byte flat colour. Use the
