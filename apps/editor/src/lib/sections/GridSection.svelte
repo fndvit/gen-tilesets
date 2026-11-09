@@ -23,6 +23,13 @@
   "14" does not first rebuild the grid at 1 row (Pol, W4 review). The preview
   does not follow the typing in those three. Alignment is a toggle: a click is a
   commit.
+
+  Under the fields, a folded "Details" group lists what the file implies but
+  the author does not type (`grid-details.ts`): the column count, the grid's
+  size, the bleed, the counts and the versions. It was a section of its own,
+  "Derived", until batch 01 (T-03, D-02 A) put the numbers next to the fields
+  that change them. It is the same `Collapsible` group a breakpoint rule or a
+  tile group uses, closed by default as the Derived section was.
 -->
 <script lang="ts">
   import type { Operation } from "@vit-foundation/gen-tilesets";
@@ -39,7 +46,9 @@
   import NumericInput from "../NumericInput.svelte";
   import Section from "../Section.svelte";
   import FieldRow from "../ui/FieldRow.svelte";
+  import Collapsible from "../ui/Collapsible.svelte";
   import Toggle from "../ui/Toggle.svelte";
+  import { gridDetails } from "./grid-details.js";
 
   interface Props {
     /** The coordinate-bound Operations a resize would affect (`orphans.ts` `atRisk`). */
@@ -68,6 +77,11 @@
   /** What the header says while the section is closed: the values below, in one line. */
   const summary = $derived(
     `${layout.cellSize} px · ${config.rows} rows · ${layout.referenceWidth} wide · ${layout.horizontalAlignment}`,
+  );
+
+  const details = $derived(gridDetails(session.file));
+  const detailsSummary = $derived(
+    `${config.columns} columns · ${config.columns * layout.cellSize} × ${config.rows * layout.cellSize} px`,
   );
 
   const alignments = [
@@ -131,6 +145,19 @@
         />
       {/snippet}
     </FieldRow>
+
+    <div class="details">
+      <Collapsible title="Details" variant="group" open={false} summary={detailsSummary}>
+        <dl>
+          {#each details as [term, value] (term)}
+            <div class="row">
+              <dt class="t-label">{term}</dt>
+              <dd class="t-console">{value}</dd>
+            </div>
+          {/each}
+        </dl>
+      </Collapsible>
+    </div>
   </div>
 </Section>
 
@@ -139,5 +166,32 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
+  }
+
+  /* A little more room above than between fields: the read-only part starts here. */
+  .details {
+    margin-top: var(--space-3);
+  }
+
+  /* Read-only rows in the field-row shape: the label column, then the value in the console face. */
+  dl {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+    margin: 0;
+    padding: var(--space-2) var(--space-5) var(--space-5);
+    color: var(--color-ink);
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: var(--field-label-w) minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--space-4);
+  }
+
+  dd {
+    margin: 0;
+    padding-left: var(--space-4);
   }
 </style>

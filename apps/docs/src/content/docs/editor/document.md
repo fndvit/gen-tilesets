@@ -66,7 +66,10 @@ transition of its own: it is committed with the rest of the Operation by `replac
 
 #### Operation stack
 
-`addOperation`, `removeOperation`, `replaceOperation`, `moveOperation`.
+`addOperation`, `removeOperation`, `replaceOperation`, `moveOperation`, and (batch 01, T-05)
+`trimToGrid`, which drops a painted list's cells outside the grid: the orphan notice's "Remove N
+cells outside the grid". It is not §9.4's refused migration: nothing is moved or guessed, and a cell
+outside the grid draws nowhere, so no picture changes.
 
 #### Breakpoints (responsive rules)
 
@@ -106,6 +109,7 @@ returns no errors.
 | `removeOperation(id)` | `→ Transition` | no Operation has that id |
 | `replaceOperation(op)` | `→ Transition` | rules present and result invalid |
 | `moveOperation(id, index)` | `→ Transition` | unknown id, index out of range, or same index |
+| `trimToGrid(id)` | `→ Transition` | unknown id, a Selection with no painted list, or no cell outside the grid |
 | `addRule()` | `→ Transition` | neither candidate rule validates |
 | `removeRule(index)` | `→ Transition` | index out of range; result invalid |
 | `moveRule(index, to)` | `→ Transition` | either index out of range, or equal; result invalid |
@@ -202,6 +206,7 @@ committed with the rest of the Operation by `replaceOperation`, and only a test 
 
 Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseReferenceWidth`,
 `parseYOffset`, `parseWeight`, `RULE_PARSERS` (`fields.ts`); `nextSalt` (`reseed.ts`);
+`outsideCells` (`orphans.ts`, for `trimToGrid`);
 `memorableSeed` (`seed.ts`); [`validate`](/api/index/functions/validate/) and
 [`shapeOf`](/api/index/functions/shapeof/) from the engine.
 

@@ -16,6 +16,12 @@
   - **Chips: where and how.** One per other step: Selection, Pattern and Blend,
     each a muted step name over its answer. A chip opens its own step. They wrap
     rather than clip, so a long answer or a narrow sidebar never hides one.
+  - **Reseed on load chip, last** (batch 01, T-11, B-021). Where the Pattern is
+    random-based (`reseedOnLoad` given), a chip shows the flag as On or Off and
+    toggles it on press, without opening the card. It is a switch to assistive
+    tech (`role="switch"`, `aria-checked`) and wears the other chips' look; On
+    is the ink-on-white selected state, as in a `Toggle`. Absent where the
+    toggle is absent inside the card.
   - **Actions, right.** Re-seed stays visible because it is the operation's
     everyday action. Move earlier, Move later and Delete sit in a "more" menu,
     so they are a click away without crowding every row; the moves are still
@@ -51,6 +57,14 @@
     onMoveDown: () => void;
     canMoveUp: boolean;
     canMoveDown: boolean;
+    /**
+     * The Reseed on load flag, for the closed card's chip; `undefined` where
+     * the Pattern is not random-based and the chip is absent
+     * (`reseed.ts` `reseedOnLoadChip`).
+     */
+    reseedOnLoad?: boolean | undefined;
+    /** Sets the flag from the chip. The chip is absent without it. */
+    onReseedOnLoad?: ((on: boolean) => void) | undefined;
     /** Id of the open body, for `aria-controls`. */
     panelId?: string | undefined;
     /** The stepper, shown while open. */
@@ -70,6 +84,8 @@
     onMoveDown,
     canMoveUp,
     canMoveDown,
+    reseedOnLoad,
+    onReseedOnLoad,
     panelId,
     children,
   }: Props = $props();
@@ -142,6 +158,21 @@
           </button>
         </li>
       {/each}
+      {#if reseedOnLoad !== undefined && onReseedOnLoad}
+        <li>
+          <!-- Space and Enter both press a button, which is what a switch needs. -->
+          <button
+            type="button"
+            role="switch"
+            class="chip switch"
+            aria-checked={reseedOnLoad}
+            onclick={() => onReseedOnLoad(!reseedOnLoad)}
+          >
+            <span class="key">Reseed on load</span>
+            <span class="value t-console">{reseedOnLoad ? "On" : "Off"}</span>
+          </button>
+        </li>
+      {/if}
     </ul>
   {/if}
 </article>
@@ -295,6 +326,20 @@
 
   .chip:active {
     background: var(--color-secondary-hover);
+  }
+
+  /* On: the selected state, ink with white text, as a chosen `Toggle` segment. */
+  .switch[aria-checked="true"] {
+    background: var(--color-selected);
+    color: var(--color-on-selected);
+  }
+
+  .switch[aria-checked="true"]:hover {
+    background: var(--color-primary-hover);
+  }
+
+  .switch[aria-checked="true"] .key {
+    color: inherit;
   }
 
   .key {

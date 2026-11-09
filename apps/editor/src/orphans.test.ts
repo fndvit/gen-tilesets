@@ -10,7 +10,7 @@
 import { selections, type Operation, type TilesetConfig } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { newDocument } from "./document.js";
-import { atRisk, needsConfirmation, orphans } from "./orphans.js";
+import { atRisk, cameWithFile, needsConfirmation, orphans, outsideCells } from "./orphans.js";
 
 const op = (id: string, selection: Operation["selection"]): Operation => ({
   id,
@@ -139,5 +139,66 @@ describe("§9.4 — orphans are reported, never migrated", () => {
     // it is a rule, and it survives a resize by definition (`04` §4.4).
     const c = config([op("none", { type: "random", density: 0 })]);
     expect(orphans(c, SEED)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Batch 01, T-05 (B-014): painted cells outside the grid
+// ---------------------------------------------------------------------------
+
+const painted = (id: string, cells: [number, number][]): Operation => op(id, { type: "cellList", cells });
+const fileOf = (c: TilesetConfig) => ({ ...newDocument(), config: c });
+
+describe("outsideCells", () => {
+  it("lists the painted cells past either edge of the grid, and nothing else", () => {
+    const c = config([], { columns: 4, rows: 3 });
+    const list = painted("op1", [[0, 0], [3, 2], [4, 0], [0, 3], [-1, 1]]);
+    expect(outsideCells(list, c)).toEqual([[4, 0], [0, 3], [-1, 1]]);
+  });
+
+  it("is empty for a Selection with no countable list", () => {
+    const c = config([], { columns: 4, rows: 3 });
+    expect(outsideCells(op("op1", { type: "rect", x: 10, y: 10, width: 2, height: 2 }), c)).toEqual([]);
+  });
+});
+
+describe("cameWithFile — whether the notice may offer Undo", () => {
+  const opened = fileOf(config([painted("op1", [[0, 0], [9, 0]])], { columns: 4, rows: 3 }));
+
+  it("is false in a session that opened nothing", () => {
+    const c = opened.config;
+    expect(cameWithFile(c.operations[0]!, c, null)).toBe(false);
+  });
+
+  it("is true for cells that were already outside the grid of the opened file", () => {
+    const c = opened.config;
+    expect(cameWithFile(c.operations[0]!, c, opened)).toBe(true);
+  });
+
+  it("stays true after edits that leave those cells as they were", () => {
+    const c = config([painted("op1", [[0, 0], [1, 1], [9, 0]])], { columns: 4, rows: 3 });
+    expect(cameWithFile(c.operations[0]!, c, opened)).toBe(true);
+  });
+
+  it("is false once a resize here pushes a cell out", () => {
+    // [3, 0] was inside 4 columns; at 3 columns it is outside, and Undo would bring it back.
+    const before = fileOf(config([painted("op1", [[3, 0], [9, 0]])], { columns: 4, rows: 3 }));
+    const after = config(before.config.operations, { columns: 3, rows: 3 });
+    expect(cameWithFile(after.operations[0]!, after, before)).toBe(false);
+  });
+
+  it("does not match another document's operation that only shares its id", () => {
+    const other = config([painted("op1", [[5, 5]])], { columns: 4, rows: 3 });
+    expect(cameWithFile(other.operations[0]!, other, opened)).toBe(false);
+  });
+
+  it("for a rect: true while it and the grid are as opened, false after either changes", () => {
+    const rect = op("op1", { type: "rect", x: 10, y: 0, width: 2, height: 2 });
+    const asOpened = fileOf(config([rect], { columns: 4, rows: 3 }));
+    expect(cameWithFile(rect, asOpened.config, asOpened)).toBe(true);
+    const resized = config([rect], { columns: 6, rows: 3 });
+    expect(cameWithFile(rect, resized, asOpened)).toBe(false);
+    const moved = op("op1", { type: "rect", x: 11, y: 0, width: 2, height: 2 });
+    expect(cameWithFile(moved, config([moved], { columns: 4, rows: 3 }), asOpened)).toBe(false);
   });
 });
