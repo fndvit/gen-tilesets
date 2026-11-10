@@ -1340,3 +1340,75 @@ is untouched.
    so it jumps).
 
 **Next: O3c** ("?" after Undo, Undo icon-only below 40rem, `returnFocus` for the replay).
+
+## Next session plan: O3c · "?" and Undo (detail)
+
+**Next session starts here.** Branch `starters-onboarding`, last commit "O3b, the tour". Read "O1
+picks" (item 5), "O3b done" above, and DESIGN_SYSTEM.md § "Onboarding: the tour", "Behaviour" and
+'"?" (Show the tour)'. Then `lib/Tour.svelte`, `lib/sections/SidebarTopBar.svelte` and the Tour call
+site in `App.svelte`. O3c ends with the replay working. Stop for Pol at the end; O4 is the sweep.
+
+### What exists (checked 2026-11-10, after 0cd39e1)
+
+- **`Tour.svelte`** takes `run`, `onEnd` and `returnFocus?: HTMLElement`. Without `returnFocus`,
+  focus goes to the Grid & size header (`[data-tour="grid"] button`), the first-visit rule.
+- **`App.svelte`** holds `let touring = $state<TourRun | null>(tourRun)` and renders
+  `{#if touring !== null}<Tour run={touring} onEnd={() => (touring = null)} />{/if}` after `</main>`.
+  `SidebarTopBar` is rendered at `App.svelte:476` with `onNew` and `draft`.
+- **`SidebarTopBar.svelte`**: `.file` (New, Import, Export) at the left, then a tertiary `Button`
+  "Undo" with the `undo` icon (`disabled={!session.canUndo}`, `onclick={() => session.undo()}`).
+  The bar is `flex-wrap: wrap; justify-content: space-between`.
+- **The `help` icon** is in `icons.ts` (O3b). `IconButton` has `haspopup`, `label` and a bindable
+  `element`.
+- O1 measured the bar at 375px: already full, and a "?" overflows by 24px. Hence Undo icon-only
+  below 40rem.
+
+### Steps
+
+1. **"?" in `SidebarTopBar`**, after Undo, at the bar's right: `IconButton icon="help"
+   label="Show the tour" haspopup="dialog"`, `bind:element` to keep the trigger. A new prop
+   `onTour: (trigger: HTMLElement) => void`. Group Undo and "?" in one element (e.g. `.history`)
+   so `space-between` keeps them together at the right. Write at the point of use why "?" sits with
+   Undo, not with New/Import/Export: it isn't a document action (DESIGN_SYSTEM.md).
+2. **Undo icon-only below 40rem.** Render both the labelled `Button` and an `IconButton icon="undo"
+   label="Undo"`, with the same `disabled` and `onclick`, and show one by a `@media (max-width:
+   40rem)` rule (`display: none` on the other, so it leaves Tab order and the accessibility tree).
+   Say why at the point of use. Rejected: a `matchMedia` rune, which is more code for the same
+   result and can disagree with the CSS breakpoint for a frame.
+3. **Wire the replay in `App.svelte`**: `let tourTrigger = $state<HTMLElement | undefined>()`;
+   `onTour={(t) => { tourTrigger = t; touring = "replay"; }}`; pass `returnFocus={touring ===
+   "replay" ? tourTrigger : undefined}` to `Tour`. Pressing "?" while a tour runs can't happen (the
+   editor is inert), so no guard is needed; say so in a line.
+4. **Replay over an open draft.** A replay has no step 6, so the tour never opens or closes a card.
+   Check by hand in the probe that an open operation draft survives a replay unchanged (it should:
+   `closeExample` only acts on a card the tour opened). If it doesn't, fix it in `Tour.svelte`.
+5. **DESIGN_SYSTEM.md**: drop any remaining *(O3)* marks for "?" and Undo; nothing else should
+   change. Check the Layout / top bar paragraph still describes the bar.
+6. **Docs**: `sidebar-top-bar.md` (the "?" and `onTour`, Undo's two forms, the right-hand group);
+   `tour-dialog.md` (`returnFocus` is now used; "?" is the replay's opener); `app.md` if it lists
+   `SidebarTopBar`'s props or the tour state. `pnpm --filter @vit-foundation/tileset-docs build`.
+7. **Changelog**: `pnpm changelog check`.
+
+### Verification
+
+- `pnpm test` and `pnpm typecheck` at the root; the docs build passes.
+- Playwright probe in the scratchpad (reuse the patterns of O3b's `o3b/walk.mjs` and
+  `o3b/cases.mjs`, copied from that session's scratchpad if it is still there; axe from
+  `axe.min.js`, 4.10.2). Dev server on 5174:
+  - With the seen flag set (no tour at load), "?" starts a replay: 8 steps, the replay's Welcome
+    ("The next seven steps…") and last-step text ("…keep working on this one."), no "An operation".
+  - Done, Skip tour and Esc each end it and **return focus to "?"**.
+  - A replay over an empty tileset: Tile group falls back to the Tiles header.
+  - A replay with an operation draft open (and changed): the draft is still open and unchanged
+    afterwards; no "Discard your changes?" dialog appeared.
+  - Top bar at 1440, 641 and 640, 375 and 320 px wide: screenshots; at 640 and below Undo is
+    icon-only and nothing wraps or overflows at 375; at 320 any wrap is tidy (WCAG 1.4.10).
+    Above 40rem, Undo keeps its word.
+  - Undo (both forms) still undoes, and is disabled with an empty history.
+  - axe-core: no violations on the top bar and with a replay open.
+- `git diff --stat origin/dev -- packages/` is empty.
+
+### Exit
+
+Commit ("Starters and onboarding: O3c, Show the tour and the narrow Undo"), write "O3c done" here
+with any decisions for Pol to check, update the memory, and stop. Next: O4 (the sweep).
