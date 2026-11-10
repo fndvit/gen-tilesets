@@ -39,7 +39,7 @@ Layout and the Selection artwork still come from the Figma file **Tileset Creato
 | Group | Tokens | Notes |
 |---|---|---|
 | Colour, primitive | `--white` · `--grey-50 100 200 300 400 450 500 600 800` · `--black` (#111) · `--black-6/10/12` washes · `--pink` (#cd1957) · `--pink-10` · `--berry` (#8e294c) · `--red-600` | Only `tokens.css` reads these |
-| Colour, surfaces | `--color-ground` (grey-100) · `--color-card` and `--color-panel` (white) · `--color-well` (grey-50) · `--color-field` / `--color-field-hover` · `--color-edge` (grey-500, a field's bottom edge) | A container can reset `--color-field` (white fields in a grey well) |
+| Colour, surfaces | `--color-ground` (grey-100) · `--color-card` and `--color-panel` (white) · `--color-well` (grey-50) · `--color-field` / `--color-field-hover` · `--color-edge` (grey-500, a field's bottom edge) | A container can reset `--color-field` (white fields in a grey well). `--color-scrim` *(O3)*, 40% ink: the tour's backdrop (*Onboarding*); the Popup's backdrop stays 24% |
 | Colour, text | `--color-ink` · `--color-muted` (grey-600, 6.5:1 on white) · `--color-disabled` (grey-450) · `--color-paper` | |
 | Colour, actions | `--color-primary` / `-hover` / `--color-on-primary` · `--color-secondary` / `-hover` / `-pressed` · `--color-hover` / `--color-pressed` (washes for tertiary, icons and headers) · `--color-selected` / `--color-on-selected` (ink) | |
 | Colour, accent | `--color-accent` · `--color-accent-wash` (the active step's row) · `--color-selection` (`--berry` #8e294c, kin to the accent): the preview's selected and painted cells (N3) · `--color-erase` | |
@@ -47,7 +47,7 @@ Layout and the Selection artwork still come from the Figma file **Tileset Creato
 | Status | `--color-danger` (= `--red-600`) | Only the alert icon of a failure notice or of a **Field error**. There is no warning colour: an advisory is ink |
 | Font | `--font-ui` (Helvetica, standing in for Neue Haas Grotesk) · `--font-mono` (Roboto Mono 400 and 500, self-hosted via `@fontsource`) | |
 | Space | `--space-1…7` = 2 / 4 / 6 / 8 / 10 / 12 / 16 px | 2px base |
-| Size | `--control-h` 30 · `--header-h` 52 (a section header) · `--preview-bar-h` 52 (both top bars) · `--group-h` 34 · `--add-h` 32 · `--icon` 16 · `--icon-button` 28 · `--op-index` 24 · `--step-dot` 20 · `--menu-w` 200 · `--thumb` 32 · `--thumb-sm` 16 · `--thumb-lg` 48 (Constant's one tile) · `--share-measured-w` 48 (a "≈68%") · `--slider-thumb` 16 · `--glyph-w` 72 · `--glyph-slot` 43 · `--badge` 16 · `--field-label-w` 38% (`-compact` 116px in an operation) · `--width-chip-w` 48 · `--swatch-w` 30 · `--sidebar-w` clamp(400, 30vw, 560) · the preview handle sizes | |
+| Size | `--control-h` 30 · `--header-h` 52 (a section header) · `--preview-bar-h` 52 (both top bars) · `--group-h` 34 · `--add-h` 32 · `--icon` 16 · `--icon-button` 28 · `--op-index` 24 · `--step-dot` 20 · `--menu-w` 200 · `--thumb` 32 · `--thumb-sm` 16 · `--thumb-lg` 48 (Constant's one tile) · `--share-measured-w` 48 (a "≈68%") · `--slider-thumb` 16 · `--glyph-w` 72 · `--glyph-slot` 43 · `--badge` 16 · `--field-label-w` 38% (`-compact` 116px in an operation) · `--width-chip-w` 48 · `--swatch-w` 30 · `--sidebar-w` clamp(400, 30vw, 560) · the preview handle sizes · `--tour-welcome-w` 380 *(O3)* (the tour's Welcome card) | |
 | Shape | `--radius-xs` 3 (thumbnails, index squares) · `--radius-sm` 6 (fields, buttons, segments, icon buttons) · `--radius` 8 (cards, wells) · `--radius-lg` 12 (popups) · `--radius-round` · `--rule-w` 1 · `--rule-strong` 2 · `--accent-edge` 3 | |
 | Elevation | `--shadow-raised` (a raised control on a track) · `--shadow-float` (popups, menus, notices) | |
 | Focus | `--focus-w` 2 · `--focus-offset` 2, in `--color-accent` | |
@@ -77,7 +77,8 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
   subgrid on `main`). They are always the same height, even when the preview bar wraps, and one
   ink hairline (`--color-bar-rule`) runs under both.
   - The sidebar bar (`SidebarTopBar`) holds the document: New (which opens **New tileset**), Import and Export (the primary,
-    a **Split button**) on the left; Undo on the right. The document's actions come first, and
+    a **Split button**) on the left; Undo and **"?"** (Show the tour, *Onboarding*) on the right.
+    Below 40rem Undo is an Icon button, so "?" fits. The document's actions come first, and
     Export's menu then opens left-aligned under it (Pol, X1). It also takes dropped zips.
   - The preview bar holds the width readout, the breakpoints, the grid toggle, the sizes and the
     background swatch.
@@ -132,6 +133,7 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
 | **Popup** | A white panel, radius 12, `--shadow-float`, with no frame or black title bar | Reports after an action where nothing happened: an import refused, an export failed, a Tiles refusal (a taken name, a tile in use, the last variant, the last non-zero weight), a palette refusal (the last entry, the last non-zero weight) |
 | **Explainer popover** | A non-modal popover like the Tile picker's (white, radius 12, `--shadow-float`, `--space-6` padding, placed as in *Explainer placement*, at most 340px wide): a `.t-title` heading with a ✕, then `.t-body` running text, each param as a `.t-title` name over a muted explanation, small ink-and-grey bars for measured figures, and a muted note under a hairline. Esc, ✕ or a click outside closes it, and focus returns to the trigger. It explains; it never holds a control. It is the one exception to "explanations are hints": an explanation too long for a hint and needed without a mouse goes here | "How noise works" (the Pattern step under Noise): patches, Cells per feature (patch size, not shares), Octaves (the middle bias, measured: equal entries paint about 23/52/26, 15/68/17, 12/75/14 for 1, 2, 3), the ends advice (about 3× under 2 octaves), and that the ≈% belongs to the position in the list |
 | **Explainer placement** (batch 02, T-03) | Placed from the panel's measured size, never a guess. In the sidebar it opens **beside the sidebar**, over the preview, `--space-4` from the sidebar's edge, level with its trigger's top, moved up just enough to stay `--space-4` inside the window; a panel taller than the window sits at the top margin and scrolls. It covers only its own width of the preview, never the whole picture (Pol, D-04). Where it does not fit beside the sidebar (the stacked layout below 40rem, or a preview column narrower than the panel), it hangs below its trigger, or above when it does not fit below and above has more room, right edge to the trigger's right edge; it scrolls when taller than that side. The heading names what it explains, because beside the sidebar it no longer touches its button | "How operations work", "How randomness works", "How noise works" |
+| **Tour** (`Tour`, `tour.ts`) | A native modal `<dialog>` over the whole window: a 40% ink scrim with the target cut out and ringed in ink, and a step bubble (an Explainer-like panel: the step's name and "3 of 6", the text, then Skip tour, Back and Next). Step 1 is a centred Welcome card. See *Onboarding: the tour* | First visit, and "?" in the top bar |
 | **Notice** (`Notice`, `NoticeStack`, `notices` store, `advisories.ts`) | A 360px white card, radius 8, `--shadow-float`, never blocking. It holds a 16px icon, then the title in `.t-title`, data (file names, numbers) in ink `.t-console`, a muted `.t-body` explanation, optional tertiary actions, and a 28px ✕. An advisory has the `info` icon in ink. A failure has the `alert` icon in `--color-danger`, which is its only colour: no edge, no fill. ✕ dismisses it until its condition changes. A notice goes away by itself when its condition does | Asset load failures (one notice for all), files that did not attach in Tiles (one notice per drop), advisories 1, 2, 3, 4, 5 and 7, an import's upgrade and unreadable pictures |
 | **Inline advisory** (`Advisory`) | A muted `info` icon and a muted `.t-body` line under the control it is about. No box, no colour, no ✕. It shows only while its condition holds. Constant's kept-entries line in the palette uses it too | Advisories about one control: duplicate tile names (6) and rotation ends (9). Advisory 8 (palette reordered under random) is retired: under Random the palette has no order to change |
 | **Dialog** (`Dialog`) | The Popup panel asking one question. The title is the question ("Change columns to 8?"), and the body says what changes and how to undo it, with any affected operations listed in a well. Buttons: Cancel (secondary), then the verb that names the action (primary, at the far right: "Change columns", not "OK"). Danger is in the words, never in red. Focus starts on Cancel, Esc cancels, and focus returns to the trigger | Destructive resize (E12), unsaved changes. New is now the **New tileset** Form popup |
@@ -146,7 +148,7 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
 There is one outline family, made of Lucide paths (ISC licence). They are drawn on a 24-unit
 grid, rendered at 16px with a 1.5px stroke and round caps and joins, in `currentColor`.
 - The set: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`, `export`,
-  `new`, `more`, `check`, `info` (an advisory), `alert` (a failure; also a **Field error**), `upload` (the Tile gallery's Upload…, Lucide upload; added with S3c), `grip` (drag to reorder, Lucide grip-vertical), `swap` (change a palette entry's tile, Lucide arrow-right-left), `archive` (the zip, Lucide archive), `image` (a PNG, Lucide image). A Split button's chevron reuses `fold`.
+  `new`, `more`, `check`, `info` (an advisory), `alert` (a failure; also a **Field error**), `upload` (the Tile gallery's Upload…, Lucide upload; added with S3c), `grip` (drag to reorder, Lucide grip-vertical), `swap` (change a palette entry's tile, Lucide arrow-right-left), `archive` (the zip, Lucide archive), `image` (a PNG, Lucide image), `help` *(O3)* (Show the tour, Lucide circle-help). A Split button's chevron reuses `fold`.
 - An icon names an action, sits beside a word or inside a named control, and is never
   decorative.
 - Add an icon only in the same family and grid.
@@ -219,6 +221,8 @@ image follows these rules (Pol, X0):
 | Each gallery grid (My tiles, Collection) is one Tab stop with arrow-key movement (roving `tabindex`), like the Tile picker. Space or Enter toggles | 2.1.1, 2.4.3 | 21 cells, and later more, would otherwise be 21 Tab stops |
 | The gallery's "N picked" line is a polite live region | 4.1.3 | It says what a toggle did without moving focus |
 | A Field error names the problem in words, is tied to the field (`aria-invalid`, `aria-describedby`), and takes focus to the field | 3.3.1, 3.3.2, 4.1.2 | Shown on Add, never while typing |
+| The tour is a modal `<dialog>`: the editor behind it is inert, Tab stays in the bubble, Esc skips, and focus returns to "?" after a replay. Each step is announced by a polite live region, because focus lands on the same Next button every time | 2.1.2, 2.4.3, 4.1.3 | Skip tour is on every step but the last, where Done ends it the same way |
+| The tour's ring is ink with a white halo on a 40% ink scrim, and the bubble's text is on white, so its contrast is the editor's own (ink 18.9:1, muted 6.5:1) | 1.4.3, 1.4.11 | The ring is not the accent, so it is never mistaken for the focus ring on Next |
 | Notices are announced without taking focus: advisories in a polite live region, failures in an assertive one. A failure is told apart by its icon's shape and its words, not by colour alone | 4.1.3, 1.4.1 | Dialogs are modal `<dialog>`s with `role="alertdialog"` |
 
 ## Naming
@@ -231,6 +235,7 @@ Components are PascalCase nouns (`Section`, `TileGroup`, `TileAsset`, `Operation
   `motion.ts`.
   Also `reveal.ts`.
 - Sidebar sections, the top bar and the footer live in `src/lib/sections/`.
+- The tour is `src/lib/Tour.svelte`, with its step model and seen flag in `src/tour.ts` *(O3)*.
 - Tile rows live in `src/lib/tiles/`.
 - The operation card, body and labels live in `src/lib/operations/`.
 
@@ -397,3 +402,107 @@ in ink `.t-body`. The field gets `aria-invalid="true"` and is described by the m
 the second use of the danger colour, and like the first, the colour is only on the icon, so the
 words and the shape carry the meaning. It differs from a refusal Popup, because the action has
 not happened yet and the user is still in the form to fix it.
+
+## Onboarding: the tour (B-017, O2)
+
+Picked by Pol at O0 and O1 (`docs/plans/starters-onboarding.md`, "O0 answers" and "O1 picks").
+Tokens marked *(O3)* are added to `tokens.css` when the tour is built.
+
+### When it shows
+
+- **First visit:** no kept tileset and no seen flag. Collage opens (through the same path as New →
+  From template), then the tour starts on Welcome. If Collage fails, the editor opens empty, the
+  failure goes to the usual notice, and the tour still runs.
+- **Seen flag:** in `localStorage`, read and written through a try/catch wrapper. Finishing
+  (Done) or skipping (Skip tour, Esc) sets it. Blocked storage means the tour can show again on
+  the next visit; it never breaks the editor.
+- **Replay:** the top bar's **"?"** starts it again over whatever is open. It never replaces the
+  user's tileset.
+
+### Steps
+
+| # | Step | Target (the cut-out) | Text |
+|---|---|---|---|
+| 1 | Welcome | none: a centred card | First visit: "This is Collage, an example tileset. The next five steps show how it is made. You can skip the tour at any time." Replay: "Make a tileset in five steps. You can skip this tour at any time." |
+| 2 | Grid & size | the Grid & size section header | "Set the cell size and the number of rows. The columns follow from the design width." |
+| 3 | Tiles | the Tiles section header's "+" (Add tile group) | "Add tile groups. Pick pictures from the gallery, or upload your own." |
+| 4 | Operations | the Operations section header's "+" (Add operation) | "Operations decide which tile goes in each cell. They run from top to bottom." |
+| 5 | Breakpoints | the Breakpoints section header | "Change how the tileset looks at different screen sizes. Only useful if you export it for a website." |
+| 6 | Randomness | the footer's New seed button | "Every picture follows from the seed. Press New seed to get a different one." |
+
+- Tiles and Operations point at the header's "+", not the Add row at the end of the section: the
+  "+" is always on screen, open or closed.
+- A target that is missing points at its section's header instead (O0).
+- A target out of view is scrolled into view in its own scroller first (`ui/reveal.ts`), then the
+  cut-out and bubble are placed. They follow a resize or a reflow.
+- The tour only points. Next always works, and the user doesn't have to do the step.
+
+### The scrim and the cut-out
+
+- **Scrim:** the whole window in `--color-scrim` *(O3)*, 40% ink
+  (`color-mix(in srgb, var(--color-ink) 40%, transparent)`). It is darker than the Popup's 24%
+  backdrop, because here it has to say "only the cut-out is live". The bubble is white on top of
+  it, so its text contrast does not depend on it. A press on the scrim does nothing: it does not
+  skip, so a stray click doesn't end the tour.
+- **Cut-out:** the target's box plus `--space-2` (4px) on every side, radius `--radius` (8px).
+  Nothing in it is dimmed.
+- **Ring:** 2px ink (`--rule-strong`, `--color-ink`) on the cut-out's edge, with a 2px white halo
+  outside it so it reads on the scrim. It is ink, not the accent: the accent means focus and
+  "editing now", and Next has the focus ring while the target's ring shows (Pol, O1).
+- The target is **seen, not used**: the whole editor behind the tour, the cut-out included, is
+  inert until the tour ends.
+
+### The step bubble
+
+An Explainer-like panel: white, `--radius-lg`, `--shadow-float`, `--space-7` padding, `--space-6`
+between its rows, `--explainer-w` (340px) wide, and no arrow.
+
+1. **Header:** the step's name in `.t-title` at the left, and the count in muted `.t-console` at
+   the right: "3 of 6" (Pol, O1). The count includes Welcome, so the pointing steps are 2 to 6.
+2. **Text:** `.t-body`, ink, `--leading-hint`.
+3. **Footer:** **Skip tour** (tertiary) at the left; **Back** (secondary) and **Next** (primary) at
+   the right.
+   - On Grid & size (2 of 6), Back is shown and goes back to Welcome, so every pointing step has
+     the same footer (Pol, O1).
+   - On the last step (Randomness), Next reads **Done** and Skip tour is not shown: Done and Skip
+     would end the tour the same way.
+
+### The Welcome card
+
+The same panel, 380px wide (`--tour-welcome-w` *(O3)*), centred in the window, `--space-7`
+between rows: a `.t-section` "Welcome", the text in `.t-body`, then **Skip tour** (secondary) and
+**Start tour** (primary) at the right. It has no count (it is the cover) and nothing is cut out.
+Below 40rem it is the window's width less 16px on each side.
+
+### Placement
+
+The bubble is placed from its measured size, as the **Explainer placement** places an Explainer:
+- **Two columns:** beside the sidebar, over the preview, `--space-4` from the sidebar's edge, level
+  with the cut-out's top, and moved up just enough to stay `--space-4` inside the window.
+- **Stacked (below 40rem), or where it doesn't fit beside:** below the cut-out, `--space-4` under
+  it; above it when it doesn't fit below. It is the window's width less 16px on each side.
+
+### Behaviour
+
+- **Modal.** The tour is a native modal `<dialog>` that covers the window, holding the scrim, the
+  ring and the bubble. The top layer puts it over every popover (the Explainer, Menu and Tile
+  picker's z-index 20) with no z-index of its own, and `showModal()` makes the editor behind it
+  inert. This replaces O0's "a z-index above 20 and `inert` on the editor".
+- **Keyboard.** Esc skips. Focus starts on **Start tour** on Welcome and on **Next** on every
+  other step, and moves there again on each step. Tab stays inside the bubble.
+- **Announcing a step.** The dialog is named by the step's name and count and described by its
+  text. A polite live region in the bubble says "<step>, <n> of 6. <text>" on each step, because
+  focus moving to the same Next button would not announce the change.
+- **When it ends** (Done, Skip tour, Esc), the dialog closes. After a replay, focus returns to
+  "?". After a first-visit tour, it goes to the sidebar's first section header.
+- **Motion:** the cut-out and the bubble move to the next step over `--dur-fast` with `--ease`;
+  under `prefers-reduced-motion` they jump.
+
+### "?" (Show the tour)
+
+An **Icon button** at the right of the top bar, after Undo, with the `help` icon (Lucide
+circle-help) and the label "Show the tour" (`aria-haspopup="dialog"`). It is not a document action,
+so it sits with Undo, not with New, Import and Export.
+- Below 40rem the top bar has no room for it beside a labelled Undo (it overflows by 24px at
+  375px), so **Undo becomes an Icon button** there, labelled "Undo". Above 40rem Undo keeps its
+  word.

@@ -952,3 +952,47 @@ measured positions of the real controls. None of it is in the repo.
 placement, the step count, the footer and its last-step variant, keyboard (Esc skips, focus starts on
 Next/Start tour, `inert` behind), the "?" IconButton and Undo's icon-only form below 40rem, and the
 `help` icon in the Icons list. Write no editor code. Then stop for Pol; O3 implements.
+
+## O2 · Docs (2026-11-10)
+
+The patterns are in `apps/editor/DESIGN_SYSTEM.md` § "Onboarding: the tour (B-017, O2)": when it
+shows, the six steps and their targets, the scrim and cut-out, the step bubble, the Welcome card,
+placement, behaviour, and "?". Cross-references were added to the token table (`--color-scrim`,
+`--tour-welcome-w`), the top bar in Layout, the patterns table (**Tour**), the icons (`help`), the
+accessibility table and Naming. Tokens and files that O3 adds are marked *(O3)*.
+
+**Decisions made in O2, for Pol to check:**
+- **The tour is a native modal `<dialog>`** covering the window, holding the scrim, the ring and the
+  bubble. The top layer puts it above the Explainer, Menu and Tile picker (z-index 20) with no
+  z-index of its own, and `showModal()` makes the editor inert and keeps Tab in the bubble. This
+  replaces O0's "a z-index above 20 and `inert` on the editor": the browser does both, the way
+  `Popup` already relies on it.
+- **Operations points at its header's "+"**, like Tiles (O1), so both targets are on screen
+  whether the section is open or closed.
+- **Focus** starts on Start tour (Welcome) and on Next (every other step), and moves there on each
+  step. A polite live region announces "<step>, <n> of 6. <text>", because landing on the same
+  Next button again would say nothing new.
+- **After the tour**, focus returns to "?" after a replay. After a first-visit tour, which no
+  button opened, it goes to the sidebar's first section header (Grid & size).
+- **Motion:** the cut-out and bubble move between steps over `--dur-fast`, and jump under reduced
+  motion.
+- **The Welcome card** is the window's width less 16px on each side below 40rem.
+
+## Next session plan: O3 · Implement
+
+**Next session starts here.** Read "O0 answers", "O1 picks", "O2 · Docs" above and the
+DESIGN_SYSTEM.md section "Onboarding: the tour". Split into blocks and stop after each:
+
+- **O3a · Model.** `apps/editor/src/tour.ts`, pure and tested: the six steps (id, title, text,
+  target key; Welcome's two texts), next/back/skip/done transitions, and the seen flag behind a
+  try/catch `localStorage` wrapper. The first-visit rule (no kept tileset and no seen flag) in
+  `main.ts`, which already runs `keeping.restore()` before `mount` (`main.ts:11`); a first visit
+  opens Collage through `loadTemplate` → `prepareArchive` → `adopt`. Docs page for `tour.ts`.
+- **O3b · Tour.svelte + tokens.** `--color-scrim`, `--tour-welcome-w` in `tokens.css`; the `help`
+  icon in `icons.ts`. `src/lib/Tour.svelte` as a modal `<dialog>`: an SVG scrim with the cut-out,
+  the ring, the bubble placed with `placeBeside` / `placeOnLargerSide` (`lib/ui/popover.ts`),
+  targets revealed with `revealInScroller` (`lib/ui/reveal.ts`), re-placed on resize. Targets found
+  by a `data-tour` attribute on the five controls. Docs page.
+- **O3c · "?" and Undo.** "?" `IconButton` after Undo in `SidebarTopBar.svelte`; Undo an
+  `IconButton` below 40rem. Wire the tour into `App.svelte`.
+- Verification as in "Verification (every implementation block)". O4 is the sweep.
