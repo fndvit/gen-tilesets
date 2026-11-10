@@ -29,7 +29,7 @@ import type { TourRun } from "./tour.js";
 
 /**
  * The template a first visit opens. By id, not "the first in the manifest":
- * the tour's step 6 describes Collage's operation 4, so another template
+ * the tour's step 6 describes Collage's operation 3, so another template
  * listed first must not take its place.
  */
 export const FIRST_VISIT_TEMPLATE = "collage";

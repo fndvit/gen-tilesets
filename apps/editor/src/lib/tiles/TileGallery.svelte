@@ -37,6 +37,12 @@
 
   Each grid is one Tab stop: the arrow keys, Home and End move between cells
   (TilePicker's pattern, with a roving tabindex), and Space or Enter toggles.
+
+  ## The Collection is one grid
+
+  Every picture, Collage's then the shapes, in manifest order. Rejected: tabs
+  (Images and Shapes, batch 03 D-04). They were built and then removed by Pol,
+  who wants every picture in the same place.
 -->
 <script lang="ts" module>
   import { once } from "../../starters.js";

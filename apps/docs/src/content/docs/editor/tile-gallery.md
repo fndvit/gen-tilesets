@@ -94,5 +94,8 @@ Callees: [gallery.ts](/editor/gallery/); `openShelf`, `upload`, `fileOf`
   legal, and the gallery can't know what a group's pictures were made from.
 - **The section re-checks the name** after the fetch (`uniqueTileName`), because a group may have
   been made meanwhile. It becomes "Mix 2" rather than being refused after the work is done.
+- **Rejected: tabs in the Collection** (Images and Shapes, batch 03 D-04). They were built and
+  then removed by Pol: every picture, Collage's then the shapes, is in the one Collection grid,
+  in manifest order.
 - `svelte-ignore a11y_no_noninteractive_element_interactions` on the grid: the keys are handled
   on the group because they move between its cells, and every cell is itself a button.

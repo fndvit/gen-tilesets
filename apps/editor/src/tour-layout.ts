@@ -171,7 +171,7 @@ export function placeBubble(input: BubbleInput): BubblePlacement {
  * The bubble's top: `margin` under `anchor` if it fits there, else `margin`
  * over it if it fits there, else at the window's bottom, `margin` inside it.
  *
- * Fitting on neither side means the cut-out is tall: on step 6, operation 4's
+ * Fitting on neither side means the cut-out is tall: on step 6, operation 3's
  * open card fills the sidebar. The bubble then has to cover part of it, and
  * the bottom covers its end, where the palette runs on, rather than its head,
  * which names the operation the text is about. Rejected: the side with more
