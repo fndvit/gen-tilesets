@@ -1578,3 +1578,74 @@ B-017.** After that, the PR against `dev` carries B-016 and B-017 together (see 
 Draft its body from the two change entries. Claude may not push to `dev` or merge, so give Pol the
 `! git push …` and `! gh pr create …` commands rather than running them if they are refused.
 BACKLOG.md moves B-016 and B-017 to Done only after the merge.
+
+## O4 done (2026-11-10)
+
+The sweep found one real gap and fixed it (9b62e58); one exception is left, by Pol's choice. The
+probe is `o4/sweep.mjs` in the session scratchpad (`lib.mjs` beside it), with screenshots in
+`o4/shots/`. The final run: **64 checks pass, 2 fail, both the accepted exception.**
+
+- **A. B-017's own words:** the first visit has the 9 steps in order and covers Grid & size, Tiles,
+  Tile group, Operations and Randomness. Skip tour is on every step but the last, and Done is the
+  last step's primary. Every pointing step rings its target (step 6 two). Esc ends the tour on all
+  9 steps, Welcome and the last included, and sets the flag.
+- **B. Every step points at a visible target,** both runs, at 1440 × 900, 1000 × 800, 375 × 812
+  and 320 × 700. Each ring is inside the window and within 4px of its target's visible box, and the
+  bubble is inside the window and doesn't scroll. On step 6 in two columns the bubble covers the
+  card's end at the window's bottom, with the head visible, as designed. Stacked, step 6 cuts out
+  the picture alone (the fix below). **Exception:** Tile group at 320 × 700 (below).
+- **C. The flag:** Done, Skip tour on step 3 and Esc on Welcome each set it, and a reload shows no
+  tour. With `localStorage` throwing, the tour shows, all three end it, and there is no page error.
+- **D. Network:** a first visit fetches 23 starters requests (the manifest, `tileset.json`, the 21
+  pictures). A reload of that profile fetches none, and neither does the seen flag with nothing kept,
+  which opens empty with no tour.
+- **E. A replay never touches the file:** over Collage, Export is byte-identical before and after a
+  full replay, and Undo stays disabled. Over an empty tileset, Tile group rings the Tiles header and
+  there is no An operation. **Over a changed draft** (operation 4, Yellow's weight 5 → 4.98), the
+  card is still open after the replay, the value is kept, and no dialog appeared.
+- **F. The tour never edits the file:** after the first-visit tour, Export matches the committed
+  Collage, its JSON and all 21 pictures, except `engineVersion` (0.11.0). The same after Back and
+  Esc on step 6, with no card left open.
+- **G. Keyboard and focus:** focus starts on Start tour; the tour runs on Enter; Shift+Tab from
+  Next reaches Back, Back works, and focus returns to Next. Tab cycles Skip tour, Back, Next and the
+  browser's own stop (as in every modal Popup). A press on the scrim or in the cut-out leaves focus
+  on Next. At the end, focus is on the Grid & size header after a first visit, and on "?" after a
+  replay.
+- **H. Templates blocked:** the notice, then 8 steps with the replay's Welcome and last-step text.
+- **I. Reduced motion:** the holes and the bubble have a 0s transition, so they jump; without it,
+  0.12s.
+- **J. Text spacing and zoom:** with the 1.4.12 spacing at 375 × 812, and at 720 × 450 (200%
+  zoom), both runs: no clipped text, and every button can be reached.
+- **K. axe-core 4.10.2, `wcag22aa`:** no violations on Welcome and every step, both runs, at
+  1440 × 900 and 375 × 812; on the top bar alone at 320, 375, 640 and 1440; and right after a
+  1440 → 320 → 1440 resize and 500ms later. O3c's transient `target-size` did not come back.
+- **L. No overflow** at 320 and 1000 on any step, both runs.
+
+**Fixed (9b62e58, Pol's pick): stacked, step 6 cuts out the picture alone.** Below 40rem the open
+card fills the window and the picture is a window's height below it, so step 6's second ring was
+off screen and "outlined on the picture" pointed at nothing. O3b's probe checked only the first
+ring. Where a step's targets can't share one window (`oneWindow` in `tour-layout.ts`, measured), its
+`alone` target (`tour.ts`) is cut out instead. Two more fixes came with it, in `Tour.svelte`'s
+`reveal`, because this is the first step that scrolls the page:
+- a target with no scroller was clipped to the window before the page scrolled, so one past the
+  edge collapsed onto it: the picture stopped at the window's bottom edge, and New, on the last
+  step, was never scrolled back in;
+- the page scroll now keeps room for the cut-out's pad and the ring, which were 5px off the edge.
+
+**For Pol:**
+1. **Known exception (Pol):** at 320 × 700, Tile group's bubble fits neither below nor above Blue,
+   so it sits at the window's bottom and covers Blue's third slider. The head and the first two
+   sliders show.
+2. **A suggestion for BACKLOG** (Claude doesn't edit it): at 641px the top-bar row is 126px tall,
+   because the preview's top bar wraps in its 240px column. It predates B-017.
+3. **Decided while fixing:** `oneWindow` compares the targets' *visible* boxes (clipped to their
+   scrollers) with the window. If a phone is rotated while step 6 is showing, the step keeps its
+   targets until the next step; a resize re-measures but doesn't re-choose.
+4. The probe's own errors, fixed in the probe: an extra Tab in G, a mask rect measuring as an empty
+   box (the overlap test never fired in O3b's probe either), and `text-box` trim read as clipping.
+
+Change entry: `docs/changes/starters-onboarding/B-017.md`. `pnpm test` (1284), `pnpm typecheck`,
+the docs build and `pnpm changelog check` pass, and `packages/` is untouched.
+
+**Next:** Pol closes B-017. Then the joint B-016 + B-017 PR against `dev`, its body drafted from the
+two change entries.
