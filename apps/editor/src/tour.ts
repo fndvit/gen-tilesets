@@ -12,7 +12,8 @@
  *
  * The first visit opens Collage and runs every step. A replay ("?") runs over
  * whatever is open, so it leaves out the step that describes Collage's
- * operation 4 and says "six" rather than "seven" on Welcome. A first visit
+ * operation 4, says "seven" rather than "eight" on Welcome, and its last step
+ * says "this one" rather than Collage. A first visit
  * whose Collage failed to open runs as a replay, because there is no Collage
  * to describe (`first-visit.ts`).
  */
@@ -30,7 +31,8 @@ export type TargetKey =
   | "op-example"
   | "preview"
   | "breakpoints"
-  | "footer";
+  | "footer"
+  | "new";
 
 export type TourRun = "first" | "replay";
 
@@ -51,8 +53,14 @@ const WELCOME_SHARED =
   "This is the generative tileset editor. A tileset is a grid of pictures, laid out by operations that each change part of the grid, one on top of another. Use the gallery's pictures or upload your own, then export the tileset for a website or as an image.";
 
 const WELCOME_SECOND: Record<TourRun, string> = {
-  first: "This is Collage, an example tileset. The next seven steps show how it is made. You can skip the tour at any time.",
-  replay: "The next six steps show how a tileset is made. You can skip the tour at any time.",
+  first: "This is Collage, an example tileset. The next eight steps show how it is made. You can skip the tour at any time.",
+  replay: "The next seven steps show how a tileset is made. You can skip the tour at any time.",
+};
+
+/** The last step names Collage only when Collage is what is open (Pol, after O3a). */
+const OWN_TEXT: Record<TourRun, string> = {
+  first: "Start building your own tileset with New, or close this and keep exploring Collage.",
+  replay: "Start building your own tileset with New, or close this and keep working on this one.",
 };
 
 /** Every step after Welcome, in order. */
@@ -113,10 +121,11 @@ const POINTING: readonly TourStep[] = [
   },
 ];
 
-/** The run's steps, Welcome first: eight on a first visit, seven on a replay. */
+/** The run's steps, Welcome first: nine on a first visit, eight on a replay. */
 export function stepsFor(run: TourRun): TourStep[] {
   const welcome: TourStep = { id: "welcome", title: "Welcome", text: [WELCOME_SHARED, WELCOME_SECOND[run]], targets: [] };
-  return [welcome, ...POINTING.filter((step) => run === "first" || !step.firstVisitOnly)];
+  const own: TourStep = { id: "own", title: "Your own tileset", text: [OWN_TEXT[run]], targets: ["new"] };
+  return [welcome, ...POINTING.filter((step) => run === "first" || !step.firstVisitOnly), own];
 }
 
 /** Where a tour is. `null` is a tour that has ended (or never started). */
@@ -149,7 +158,7 @@ export function back(state: TourState): TourState {
   return state.index === 0 ? state : { ...state, index: state.index - 1 };
 }
 
-/** "3 of 8". The count includes Welcome, so the pointing steps are 2 to 8 (2 to 7 on a replay). */
+/** "3 of 9". The count includes Welcome, so the pointing steps are 2 to 9 (2 to 8 on a replay). */
 export function count(state: TourState): string {
   return `${state.index + 1} of ${state.steps.length}`;
 }

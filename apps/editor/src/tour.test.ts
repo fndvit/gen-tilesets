@@ -34,16 +34,23 @@ function memoryStorage(): Pick<Storage, "getItem" | "setItem"> & { items: Map<st
 }
 
 describe("stepsFor", () => {
-  it("has eight steps on the first visit, An operation among them", () => {
+  it("has nine steps on the first visit, An operation among them", () => {
     expect(stepsFor("first").map((s) => s.id)).toEqual([
-      "welcome", "grid", "tiles", "tile-group", "operations", "operation", "breakpoints", "randomness",
+      "welcome", "grid", "tiles", "tile-group", "operations", "operation", "breakpoints", "randomness", "own",
     ]);
   });
 
-  it("has seven on a replay, without the step that describes Collage", () => {
+  it("has eight on a replay, without the step that describes Collage", () => {
     expect(stepsFor("replay").map((s) => s.id)).toEqual([
-      "welcome", "grid", "tiles", "tile-group", "operations", "breakpoints", "randomness",
+      "welcome", "grid", "tiles", "tile-group", "operations", "breakpoints", "randomness", "own",
     ]);
+  });
+
+  it("ends on New, naming Collage only on the first visit", () => {
+    const own = (run: "first" | "replay") => stepsFor(run).at(-1)!;
+    expect(own("first").targets).toEqual(["new"]);
+    expect(own("first").text[0]).toMatch(/keep exploring Collage\.$/);
+    expect(own("replay").text[0]).not.toMatch(/Collage/);
   });
 
   it("gives Welcome the shared paragraph and the run's own second one", () => {
@@ -51,8 +58,8 @@ describe("stepsFor", () => {
     const [replay] = stepsFor("replay");
     expect(first!.targets).toEqual([]);
     expect(first!.text[0]).toBe(replay!.text[0]);
-    expect(first!.text[1]).toMatch(/^This is Collage.*next seven steps/);
-    expect(replay!.text[1]).toMatch(/^The next six steps/);
+    expect(first!.text[1]).toMatch(/^This is Collage.*next eight steps/);
+    expect(replay!.text[1]).toMatch(/^The next seven steps/);
   });
 
   it("cuts out the card and the picture on An operation, and falls back to the Tiles header", () => {
@@ -63,12 +70,12 @@ describe("stepsFor", () => {
 });
 
 describe("moving through a tour", () => {
-  it("counts Welcome, so Breakpoints is 7 of 8, or 6 of 7 on a replay", () => {
-    expect(count(start("first"))).toBe("1 of 8");
+  it("counts Welcome, so Breakpoints is 7 of 9, or 6 of 8 on a replay", () => {
+    expect(count(start("first"))).toBe("1 of 9");
     expect(current(at("first", 6)).id).toBe("breakpoints");
-    expect(count(at("first", 6))).toBe("7 of 8");
+    expect(count(at("first", 6))).toBe("7 of 9");
     expect(current(at("replay", 5)).id).toBe("breakpoints");
-    expect(count(at("replay", 5))).toBe("6 of 7");
+    expect(count(at("replay", 5))).toBe("6 of 8");
   });
 
   it("goes back to Welcome from Grid & size, and nowhere from Welcome", () => {
@@ -79,11 +86,13 @@ describe("moving through a tour", () => {
   it("labels the primary button Start tour, Next, then Done, and hides Skip on the last", () => {
     expect(primaryLabel(start("first"))).toBe("Start tour");
     expect(primaryLabel(at("first", 1))).toBe("Next");
-    const last = at("first", 7);
+    const last = at("first", 8);
+    expect(current(last).id).toBe("own");
     expect(isLast(last)).toBe(true);
     expect(primaryLabel(last)).toBe("Done");
     expect(showsSkip(last)).toBe(false);
-    expect(showsSkip(at("first", 6))).toBe(true);
+    expect(primaryLabel(at("first", 7))).toBe("Next");
+    expect(showsSkip(at("first", 7))).toBe(true);
     expect(next(last)).toBeNull();
   });
 });

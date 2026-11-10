@@ -16,8 +16,9 @@ The steps and their text come from DESIGN_SYSTEM.md § "Onboarding: the tour", w
 They are copied into the code, and no test pins the two together. To change the text, change the
 doc first, then the code.
 
-A **first visit** opens Collage and runs eight steps. A **replay** ("?") runs seven, because it
-leaves out "An operation", which describes Collage's operation 4. A first visit whose Collage
+A **first visit** opens Collage and runs nine steps. A **replay** ("?") runs eight, because it
+leaves out "An operation", which describes Collage's operation 4. Both end on "Your own tileset",
+which points at New. A first visit whose Collage
 failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 
 ## In detail
@@ -26,14 +27,14 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 
 | Export | Kind | Meaning |
 | --- | --- | --- |
-| `TargetKey` | type | The `data-tour` value a step cuts out: `grid`, `tiles-add`, `tiles-header`, `tile-group`, `ops-add`, `op-example`, `preview`, `breakpoints`, `footer`. |
+| `TargetKey` | type | The `data-tour` value a step cuts out: `grid`, `tiles-add`, `tiles-header`, `tile-group`, `ops-add`, `op-example`, `preview`, `breakpoints`, `footer`, `new`. |
 | `TourRun` | type | `"first"` or `"replay"`. |
 | `TourStep` | interface | `{ id, title, text, targets, firstVisitOnly?, fallback? }`. `text` holds one string per paragraph. |
-| `stepsFor(run)` | function | The run's steps, Welcome first: 8 or 7. |
+| `stepsFor(run)` | function | The run's steps, Welcome first: 9 or 8. |
 | `TourState` | interface | `{ run, steps, index }`. Index 0 is Welcome. |
 | `start(run)`, `current(state)` | functions | A tour on Welcome, and the step it is on. |
 | `next(state)`, `back(state)` | functions | `next` returns `null` past the last step. `back` from Grid & size goes to Welcome, and from Welcome it stays put. |
-| `count(state)` | function | "3 of 8". Welcome counts. |
+| `count(state)` | function | "3 of 9". Welcome counts. |
 | `isLast`, `primaryLabel`, `showsSkip` | functions | "Start tour" on Welcome, "Done" on the last step, "Next" otherwise. Skip tour is shown on every step but the last. |
 | `SEEN_KEY` | const | `gen-tilesets.editor.tourSeen`. |
 | `seenStore(storage?)` | function | `get()` and `set()` on `localStorage`, each behind a try/catch. |
@@ -43,7 +44,10 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 ### Behaviour
 
 - **Welcome** has no target. Its text is the paragraph every run shares, then the run's own
-  paragraph ("…The next seven steps…" or "The next six steps…").
+  paragraph ("…The next eight steps…" or "The next seven steps…").
+- **Your own tileset** is the last step in both runs, and points at the top bar's New. Its text
+  names Collage on the first visit ("…or close this and keep exploring Collage."). On a replay it
+  says "…keep working on this one.", because a replay runs over whatever is open (Pol, after O3a).
 - **Tile group** falls back to `tiles-header` when there are no groups (O0).
 - **An operation** cuts out two targets: the opened card (`op-example`) and the picture (`preview`).
 - **The seen flag never breaks the editor.** A missing or blocked `localStorage`, or one that throws
@@ -53,7 +57,7 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 ### Tests
 
 `tour.test.ts`: both runs' step ids; Welcome's paragraphs; step 6's two targets and step 4's
-fallback; the counts (Breakpoints is 7 of 8, or 6 of 7 on a replay); Back from Grid & size; the
+fallback; the last step's target and its two texts; the counts (Breakpoints is 7 of 9, or 6 of 8 on a replay); Back from Grid & size; the
 labels and Skip on the last step; `end` sets the flag; a throwing store reads as not seen and never
 throws; `isFirstVisit`'s four cases.
 

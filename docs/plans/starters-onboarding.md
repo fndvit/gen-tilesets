@@ -1151,4 +1151,22 @@ the docs build and `pnpm changelog check` pass (it asked for no line). `packages
 7. **Not part of O3a:** the docs build had been failing since "After S4" (9fb4cf1), because
    `LossWarning.svelte` had no page. I added `loss-warning.md`.
 
+### After O3a: a last step (Pol, 2026-11-10)
+
+Pol added a final step pointing at **New**: "Start building your own tileset with 'New', or close
+this and keep exploring Collage". Claude asked about replays, and Pol answered:
+- **It is in every run.** On a replay (and on a first visit whose Collage failed) its text is
+  "Start building your own tileset with New, or close this and keep working on this one."
+- **The title is "Your own tileset".**
+- So the tour is **9 steps on a first visit and 8 on a replay** again. Those are the doc's original
+  numbers, which now match its table. Welcome says "The next eight steps…" or "The next seven
+  steps…". Breakpoints is "7 of 9" or "6 of 8". Done and the missing Skip tour move to the new step.
+- Target key `new`: in O3b, the top bar's New `Button` (`SidebarTopBar.svelte:92`) carries
+  `data-tour="new"`.
+- Claude wrote "New" without quotation marks, as the other steps write the editor's labels
+  ("New seed", "Re-seed").
+
+DESIGN_SYSTEM.md (row 9 of the Steps table, the counts, the last-step footer), `tour.ts`, its test
+and `tour.md` are updated. Item 1 above is replaced by this.
+
 **Next: O3b** (`Tour.svelte`, the tokens, the `help` icon).
