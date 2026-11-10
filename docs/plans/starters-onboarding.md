@@ -1037,3 +1037,81 @@ each:
 - **O3c · "?" and Undo.** "?" `IconButton` after Undo in `SidebarTopBar.svelte`; Undo an
   `IconButton` below 40rem. Wire the tour into `App.svelte`.
 - Verification as in "Verification (every implementation block)". O4 is the sweep.
+
+## Next session plan: O3a · Model and first visit (detail)
+
+**Next session starts here.** Branch `starters-onboarding`, last commit "O2, the tour's text
+revised". Read, in order: "O0 answers", "O1 picks", "O2 · Docs", "Tour text, revised", the O3
+overview above, and DESIGN_SYSTEM.md § "Onboarding: the tour". O3a writes **no Svelte UI**: the
+tour does not show yet. Stop for Pol at the end.
+
+### What exists (checked 2026-11-10)
+
+- `src/main.ts` runs `keeping.restore()` and then `mount(App)`. `restore()` (`keeping.svelte.ts:104`)
+  returns `Promise<void>` and returns early when nothing was kept (`snapshot === null`, `:111`).
+  It never throws.
+- Opening a template: `manifest()` (`starters-client.ts:21`, fetched once) → `loadTemplate(entry,
+  fetch, BASE)` (`starters.ts:155`) → `prepareArchive` → `adopt(prepared)` (`adopt.ts:32`), as
+  `NewTileset.svelte` does ("A template opens exactly as an import of it would"). A refusal there is
+  reported through `ImportRefused`; on a first visit it goes to a notice instead (O0).
+- Opening an operation card: `drafting.edit(op)`; closing: `drafting.discard()`
+  (`drafting.svelte.ts`). `OperationsSection.svelte:85` wraps it in `guard`, which asks first when
+  another draft has changes. Needed in O3b, not here.
+- `localStorage` is used nowhere yet. `browser-db.ts` is IndexedDB.
+- Every new `.ts` under `src/` needs a docs page in `apps/docs/src/content/docs/editor/` (e.g.
+  `keep.md`, `starters.md` are the pattern), or the docs coverage check fails.
+
+### Steps
+
+1. **`src/tour.ts`**, pure, no Svelte, no DOM:
+   - `TourStep` = `{ id, title, text, targets: TargetKey[], firstVisitOnly?: true, fallback?: TargetKey }`.
+     Target keys name `data-tour` values for O3b: `grid`, `tiles-add`, `tile-group`, `ops-add`,
+     `op-example` + `preview`, `breakpoints`, `footer`. Welcome has no target.
+   - The texts exactly as DESIGN_SYSTEM.md's Steps table (copy them; a test pins them to the doc
+     is **not** wanted, the doc is the source and the code cites it).
+   - `stepsFor(run: "first" | "replay")` → the run's list (8 or 9). The "Collage failed" case is
+     `"replay"`.
+   - Welcome's text: the shared paragraph plus the run's second paragraph.
+   - A small state machine: `start`, `next`, `back`, `skip`, `done`; `count(state)` → "3 of 9";
+     Back on step 2 goes to Welcome; the last step's primary label is "Done" and it has no Skip.
+   - The seen flag: `seenStore(storage = () => globalThis.localStorage)` with `get()` / `set()`,
+     every access in try/catch (a blocked store reads as "not seen" and a failed write is silent,
+     per DESIGN_SYSTEM.md). Key: `gen-tilesets.editor.tourSeen` (or similar; say why at the
+     point of use).
+   - `isFirstVisit(keptSomething: boolean, seen: boolean)` → `!keptSomething && !seen`.
+2. **`src/tour.test.ts`**: step lists for both runs (ids, totals, step 6 only on "first"),
+   counts, Back from step 2, Done on the last, skip/done set the flag, a throwing storage reads
+   as not seen and never throws, `isFirstVisit`'s four cases.
+3. **`keeping.restore()` returns whether it reopened something** (`Promise<boolean>`): `true`
+   only when a kept tileset was adopted. Update its comment and `keep`/`keeping` docs page if it
+   states the return. Check every caller (`grep -rn "restore()" src`).
+4. **First visit in `main.ts`**: after `restore()`, if `isFirstVisit(...)`, open Collage before
+   mounting: manifest → its first template → `loadTemplate` → `prepareArchive` → `adopt`. On any
+   failure, push the usual notice and carry on empty. Record which run the tour will be
+   (`"first"` if Collage opened, else `"replay"`) somewhere App can read in O3b (a tiny exported
+   store in `tour.ts` or a mount prop; decide and write why). Keep the logic in a testable `.ts`
+   function (`firstVisit.ts` or inside `tour.ts`) taking its loaders as arguments, with a test for
+   success and for each failure. Adopting must not reach undo (it doesn't for a reload; check that
+   the same holds here, per "After S4").
+5. **Docs pages** for each new `.ts` file; `pnpm --filter @vit-foundation/tileset-docs build`.
+6. **Changelog:** `pnpm changelog check`; add an editor line only if that check asks for one.
+
+### Verification
+
+- `pnpm test` and `pnpm typecheck` at the root.
+- Docs build passes the coverage check.
+- Playwright probe in the scratchpad (pattern: an earlier session's `s3b/probe.mjs`, using
+  `playwright-core` from the repo's `node_modules/.pnpm` and the cached headless shell), dev server
+  on 5174:
+  - a fresh profile (no IndexedDB, no localStorage) opens with Collage, and fetches `starters.json`
+    plus Collage (about 0.86 MB);
+  - with `localStorage` holding the seen flag and nothing kept → opens empty, no starters fetched;
+  - with a kept tileset → reopens it, no starters fetched;
+  - Collage's fetch blocked (route abort) → opens empty with a notice; nothing thrown.
+  The flag isn't set by anything yet (the tour UI is O3b), so set it by hand in the probe.
+- `git diff --stat origin/dev -- packages/` is empty.
+
+### Exit
+
+Commit ("Starters and onboarding: O3a, the tour's model and the first visit"), write "O3a done"
+here with any decisions for Pol to check, update the memory, and stop. Next: O3b (Tour.svelte).
