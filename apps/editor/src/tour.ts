@@ -63,6 +63,12 @@ export interface TourStep {
    * Tiles header; no Collage operation 4 → the Operations "+".
    */
   fallback?: TargetKey;
+  /**
+   * Cut out alone where the targets can't be seen in one window (`oneWindow`):
+   * step 6 stacked, where the open card fills the window and the picture is
+   * below it (O4).
+   */
+  alone?: TargetKey;
 }
 
 const WELCOME_SHARED = [
@@ -133,6 +139,10 @@ const POINTING: readonly TourStep[] = [
     // Only Collage's own operation 4 carries `op-example` (`exampleOperation`).
     // In a Collage changed since this text was written, point at the stack instead.
     fallback: "ops-add",
+    // Stacked, the picture rather than the card: it shows the rectangle the text is about,
+    // and the card is still open, drawing it (Pol, O4). Rejected: the card alone, which left
+    // "outlined on the picture" pointing at nothing on screen.
+    alone: "preview",
   },
   {
     id: "breakpoints",

@@ -22,7 +22,8 @@
   **On each step**, in order: close the card "An operation" opened if this is
   another step; open it if this is that step, then wait out its slide; find
   the targets by `data-tour` (`Section.svelte` says why), with the step's
-  fallback; scroll the first into view in its scroller and then the page;
+  fallback, or its `alone` target where they can't share the window
+  (`oneWindow`); scroll the first into view in its scroller and then the page;
   measure and place; focus the primary button; announce the step. A resize, or
   a target that changes size, measures again. Every scroll is instant: the
   hole and the bubble are what move, and measuring after a smooth scroll would
@@ -35,7 +36,7 @@
   import { drafting } from "../drafting.svelte.js";
   import { opening } from "../opening.svelte.js";
   import { session } from "../session.svelte.js";
-  import { clip, cutout, placeBubble, resolveTargets, scrollDelta, type Box, type BubblePlacement } from "../tour-layout.js";
+  import { clip, cutout, oneWindow, placeBubble, resolveTargets, scrollDelta, type Box, type BubblePlacement } from "../tour-layout.js";
   import {
     back,
     count,
@@ -128,8 +129,15 @@
       const delta = scrollDelta(visibleIn(el), el.getBoundingClientRect(), stuckOver(el));
       if (delta !== 0) scroller.scrollBy({ top: delta, behavior: "instant" });
     }
-    // Its visible part: a card taller than the sidebar would otherwise scroll the top bar off the page.
-    const delta = scrollDelta({ top: 0, bottom: window.innerHeight }, clip(el.getBoundingClientRect(), visibleIn(el)));
+    // Its visible part in its scroller: a card taller than the sidebar would otherwise scroll the top
+    // bar off the page. Not with no scroller, where `visibleIn` is the window: clipped to the window,
+    // a target past it collapses onto the window's edge, and the page never brings it in (step 6's
+    // picture, stacked, and then New above it on the last step; O4).
+    // Room for the cut-out's pad and the ring with its halo (`ring(hole, 3)`, a 2px stroke), so a
+    // target brought in from above or below isn't ringed off the window's edge.
+    const room = px("--space-2") + 4;
+    const box = el.getBoundingClientRect();
+    const delta = scrollDelta({ top: room, bottom: window.innerHeight - room }, scroller ? clip(box, visibleIn(el)) : box);
     if (delta !== 0) window.scrollBy({ top: delta, behavior: "instant" });
   }
 
@@ -196,6 +204,11 @@
     if (mine !== generation) return;
 
     targets = resolveTargets(now, find);
+    const view = { width: window.innerWidth, height: window.innerHeight };
+    if (now.alone !== undefined && !oneWindow(targets.map((t) => clip(t.getBoundingClientRect(), visibleIn(t))), view)) {
+      const alone = find(now.alone);
+      if (alone) targets = [alone];
+    }
     if (targets[0]) reveal(targets[0]);
     observer?.disconnect();
     observer = new ResizeObserver(() => measure());

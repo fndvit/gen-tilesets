@@ -22,6 +22,7 @@ The rules are DESIGN_SYSTEM.md § "Onboarding: the tour", "The scrim and the cut
 | Export | Kind | Meaning |
 | --- | --- | --- |
 | `resolveTargets(step, find)` | function | The elements a step cuts out. `find` looks a `TargetKey` up (a `data-tour` query in the app). When the first target is missing, the step's `fallback` alone; otherwise whatever was found. |
+| `oneWindow(boxes, viewport)` | function | Whether the boxes' span fits the window. When it doesn't, `Tour.svelte` cuts out the step's `alone` target instead (step 6 stacked). |
 | `cutout(box, pad)` | function | The box grown by `pad` (`--space-2`) on every side: the hole. |
 | `clip(box, within)` | function | The part of `box` inside `within`: a target's visible part in its scroller. |
 | `scrollDelta(view, target, topInset)` | function | The px to scroll so `target` shows below `topInset`. Negative scrolls up. |
@@ -47,7 +48,7 @@ the width (`--explainer-w`), the margin (`--space-4`), the gutter (16px), `inSid
 
 ### Tests
 
-`tour-layout.test.ts`: targets found, with a fallback, and with neither; the cut-out; `clip`, and a
+`tour-layout.test.ts`: targets found, with a fallback, and with neither; `oneWindow` for one box, two in two columns, two stacked, and too wide; the cut-out; `clip`, and a
 box wholly outside; `scrollDelta` in view, down, past a tall target, and up under a stuck header;
 `aboveOrBelow` below, above, on neither side, and taller than the window; `placeBubble` beside,
 moved up inside the window, step 6 below and above its card, stacked (measured at its own width),
@@ -65,5 +66,9 @@ step 6 stacked, and a preview column too narrow for the bubble.
   palette instead.
 - **`revealDelta` alone was not enough.** It never scrolls up, because a user who just pressed
   something has it on screen. Back on the tour returns to a target the last step scrolled past.
+- **Step 6 stacked is measured, not the 40rem media query** (`oneWindow`), as two columns is.
+  Stacked, the card fills the window and the picture is a window's height below it; its ring was
+  off screen until O4. Rejected: the card alone (Pol), which left "outlined on the picture"
+  pointing at nothing on screen.
 - **A cut-out is clipped to its scroller.** Operation 4's open card is taller than the sidebar,
   and its ring ran on over the footer.

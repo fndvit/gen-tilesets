@@ -58,9 +58,12 @@ trigger, so focus goes to the Grid & size header as after any first-visit tour.
 2. Entering it, open Collage's operation 4 through `opening.open(id, "attribute")`, as pressing the
    card's title does, if `exampleOperation` finds it. Then wait out the card's slide.
 3. Find the targets by `data-tour` (`resolveTargets`, with the step's fallback). An element that
-   isn't drawn counts as missing.
+   isn't drawn counts as missing. Where the targets' visible parts can't share the window
+   (`oneWindow`), the step's `alone` target instead: step 6 stacked cuts out the picture (O4).
 4. Scroll the first target into view in its scroller, below a stuck section header, then in the
-   page (below 40rem the page scrolls too). Every scroll is instant: the hole and the bubble are
+   page (below 40rem the page scrolls too). In the page it keeps room for the cut-out's pad and
+   the ring, and a target with no scroller is not clipped to the window first: clipped, a target
+   past the window's edge collapsed onto it, and the page never brought it in (O4). Every scroll is instant: the hole and the bubble are
    what move, and measuring after a smooth scroll would have to guess when it ends.
 5. Measure: each target's box, clipped to its scroller and grown by `--space-2`; then
    `placeBubble`.

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { aboveOrBelow, clip, cutout, placeBubble, resolveTargets, scrollDelta, type BubbleInput } from "./tour-layout.js";
+import { aboveOrBelow, clip, cutout, oneWindow, placeBubble, resolveTargets, scrollDelta, type BubbleInput } from "./tour-layout.js";
 import type { TargetKey } from "./tour.js";
 
 const box = (left: number, top: number, w: number, h: number) => ({ left, top, right: left + w, bottom: top + h });
@@ -31,6 +31,28 @@ describe("resolveTargets", () => {
   it("finds nothing when neither the target nor its fallback is there", () => {
     expect(resolveTargets({ targets: ["tile-group"], fallback: "tiles-header" }, present())).toEqual([]);
     expect(resolveTargets({ targets: ["grid"] }, present())).toEqual([]);
+  });
+});
+
+describe("oneWindow", () => {
+  const view = { width: 375, height: 812 };
+
+  it("is true for one box, or none", () => {
+    expect(oneWindow([], view)).toBe(true);
+    expect(oneWindow([box(24, 104, 327, 2000)], view)).toBe(true);
+  });
+
+  it("is true when the boxes' span fits the window: step 6 in two columns", () => {
+    expect(oneWindow([box(16, 60, 400, 780), box(460, 120, 900, 500)], { width: 1440, height: 900 })).toBe(true);
+  });
+
+  it("is false when the span is taller than the window: step 6 stacked", () => {
+    // The open card's visible part, then the picture a window's height down (measured at 375 × 812).
+    expect(oneWindow([box(24, 104, 327, 708), box(36, 1161, 303, 212)], view)).toBe(false);
+  });
+
+  it("is false when the span is wider than the window", () => {
+    expect(oneWindow([box(0, 0, 200, 100), box(300, 0, 200, 100)], view)).toBe(false);
   });
 });
 

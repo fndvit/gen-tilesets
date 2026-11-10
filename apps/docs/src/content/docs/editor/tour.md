@@ -30,7 +30,7 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 | --- | --- | --- |
 | `TargetKey` | type | The `data-tour` value a step cuts out: `grid`, `tiles-add`, `tiles-header`, `tile-group`, `ops-add`, `op-example`, `preview`, `breakpoints`, `footer`, `new`. |
 | `TourRun` | type | `"first"` or `"replay"`. |
-| `TourStep` | interface | `{ id, title, text, aside?, targets, firstVisitOnly?, fallback? }`. `text` holds one string per paragraph, with `**…**` marking a bold term. `aside` is a closing line, drawn muted. |
+| `TourStep` | interface | `{ id, title, text, aside?, targets, firstVisitOnly?, fallback?, alone? }`. `alone` is cut out by itself where the targets can't share the window (`oneWindow`). `text` holds one string per paragraph, with `**…**` marking a bold term. `aside` is a closing line, drawn muted. |
 | `Span` | interface | `{ text, strong }`: one piece of a paragraph. |
 | `spans(paragraph)` | function | The paragraph cut at its `**` marks, empty pieces left out. An odd number of marks throws. |
 | `plain(step)` | function | The step's text without marks, the aside last: what the live region says. |
@@ -61,6 +61,9 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
   back to `ops-add` when Collage's operation 4 isn't there (`exampleOperation` is `null`), so a
   Collage edited later can't have the tour open a card its text doesn't describe.
 - **An operation** cuts out two targets: the opened card (`op-example`) and the picture (`preview`).
+  Stacked, where the open card fills the window and the picture is below it, it cuts out the
+  picture alone (`alone: "preview"`, Pol, O4): it shows the rectangle the text is about, and the
+  card, still open, is what draws it.
 - **The seen flag never breaks the editor.** A missing or blocked `localStorage`, or one that throws
   on a read, reads as "not seen". A failed write is ignored, and the tour shows again on the next
   visit. `storage` is passed as a function, so that reaching `localStorage` at all is inside the try.

@@ -462,7 +462,8 @@ visit and 6 of 8 on a replay, where the steps after step 5 move up one.
   edits the file and never leaves a draft open.
 - **If Collage fails to load** on the first visit, the tour runs as a replay does: the replay's
   Welcome and last-step text and no step 6, eight steps in all, because there is no Collage to describe.
-- A target out of view is scrolled into view in its own scroller first (`ui/reveal.ts`), then the
+- A target out of view is scrolled into view in its own scroller first (`ui/reveal.ts`), then in
+  the page (stacked), leaving room inside the window for the cut-out and its ring. Then the
   cut-out and bubble are placed. They follow a resize or a reflow.
 - The tour only points. Next always works, and the user doesn't have to do the step.
 
@@ -475,7 +476,10 @@ visit and 6 of 8 on a replay, where the steps after step 5 move up one.
   skip, so a stray click doesn't end the tour.
 - **Cut-out:** the target's box plus `--space-2` (4px) on every side, radius `--radius` (8px).
   Nothing in it is dimmed. A step has one cut-out, except step 6, which has two: the opened card
-  and the preview's picture.
+  and the preview's picture. **Stacked**, where the open card fills the window and the picture is
+  a window's height below it, step 6 cuts out the picture alone: it shows the rectangle the text
+  is about, and the card, still open, is what draws it (Pol, O4). Whether the two fit one window
+  is measured, as two columns is.
 - **Ring:** 2px ink (`--rule-strong`, `--color-ink`) on each cut-out's edge, with a 2px white halo
   outside it so it reads on the scrim. It is ink, not the accent: the accent means focus and
   "editing now", and Next has the focus ring while the target's ring shows (Pol, O1).

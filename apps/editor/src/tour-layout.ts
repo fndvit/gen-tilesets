@@ -39,6 +39,23 @@ export function resolveTargets<T>(step: Pick<TourStep, "targets" | "fallback">, 
 }
 
 /**
+ * Whether the boxes (the targets' visible parts) can be seen in one window:
+ * their span fits its height and width. When they can't, `Tour.svelte` cuts
+ * out the step's `alone` target instead. Step 6's card and picture share the
+ * window in two columns; stacked, the open card fills the window and the
+ * picture is a window's height below it, so its ring would be off screen (O4).
+ * Measured, not the 40rem media query, as `placeBubble` measures two columns.
+ */
+export function oneWindow(boxes: readonly Box[], viewport: Viewport): boolean {
+  if (boxes.length < 2) return true;
+  const top = Math.min(...boxes.map((b) => b.top));
+  const bottom = Math.max(...boxes.map((b) => b.bottom));
+  const left = Math.min(...boxes.map((b) => b.left));
+  const right = Math.max(...boxes.map((b) => b.right));
+  return bottom - top <= viewport.height && right - left <= viewport.width;
+}
+
+/**
  * The target's box grown by `pad` on every side (`--space-2`): the hole the
  * ring is drawn on.
  *
