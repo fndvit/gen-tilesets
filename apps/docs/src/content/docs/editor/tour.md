@@ -9,7 +9,8 @@ sidebar:
 
 ## Overview
 
-The tour (B-017) is drawn by `lib/Tour.svelte` (O3b). This module is its pure half: which steps a
+The tour (B-017) is drawn by [Tour.svelte](/editor/tour-dialog/), with its geometry in
+[tour-layout.ts](/editor/tour-layout/). This module is its pure half: which steps a
 run has, where a tour is, and whether it has been seen. It holds no Svelte and touches no DOM.
 
 The steps and their text come from DESIGN_SYSTEM.md § "Onboarding: the tour", which is the source.
@@ -40,6 +41,7 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 | `seenStore(storage?)` | function | `get()` and `set()` on `localStorage`, each behind a try/catch. |
 | `end(seen)` | function | Ends a tour by Done, Skip tour or Esc alike. It sets the flag and returns `null`. |
 | `isFirstVisit(kept, seen)` | function | `!kept && !seen`. |
+| `exampleOperation(operations)` | function | The id "An operation" opens: the 4th operation, if it is `op6` with a rectangle Selection, as in Collage. Otherwise `null`. |
 
 ### Behaviour
 
@@ -48,7 +50,9 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 - **Your own tileset** is the last step in both runs, and points at the top bar's New. Its text
   names Collage on the first visit ("…or close this and keep exploring Collage."). On a replay it
   says "…keep working on this one.", because a replay runs over whatever is open (Pol, after O3a).
-- **Tile group** falls back to `tiles-header` when there are no groups (O0).
+- **Tile group** falls back to `tiles-header` when there are no groups (O0). **An operation** falls
+  back to `ops-add` when Collage's operation 4 isn't there (`exampleOperation` is `null`), so a
+  Collage edited later can't have the tour open a card its text doesn't describe.
 - **An operation** cuts out two targets: the opened card (`op-example`) and the picture (`preview`).
 - **The seen flag never breaks the editor.** A missing or blocked `localStorage`, or one that throws
   on a read, reads as "not seen". A failed write is ignored, and the tour shows again on the next
@@ -56,10 +60,11 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 
 ### Tests
 
-`tour.test.ts`: both runs' step ids; Welcome's paragraphs; step 6's two targets and step 4's
-fallback; the last step's target and its two texts; the counts (Breakpoints is 7 of 9, or 6 of 8 on a replay); Back from Grid & size; the
+`tour.test.ts`: both runs' step ids; Welcome's paragraphs; step 6's two targets and the two
+fallbacks; the last step's target and its two texts; the counts (Breakpoints is 7 of 9, or 6 of 8 on a replay); Back from Grid & size; the
 labels and Skip on the last step; `end` sets the flag; a throwing store reads as not seen and never
-throws; `isFirstVisit`'s four cases.
+throws; `isFirstVisit`'s four cases; `exampleOperation` on Collage, and `null` for a reordered stack, a
+non-rectangle op6, or too few operations.
 
 ### Gotchas & rejected alternatives
 

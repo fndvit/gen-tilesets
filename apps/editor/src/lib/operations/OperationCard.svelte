@@ -81,6 +81,8 @@
     panelId?: string | undefined;
     /** The stepper, shown while open. */
     children?: Snippet | undefined;
+    /** `data-tour`, for the onboarding tour (`Section.svelte` says why). */
+    tour?: string | undefined;
   }
 
   let {
@@ -102,6 +104,7 @@
     onReseedOnLoad,
     panelId,
     children,
+    tour,
   }: Props = $props();
 
   const writes = $derived(writesOf(parts, tiles));
@@ -114,7 +117,13 @@
   const name = $derived(`operation ${index}`);
 </script>
 
-<article class="card" class:open class:hidden aria-label="Operation {index}{hidden ? ', hidden' : ''}">
+<article
+  class="card"
+  class:open
+  class:hidden
+  aria-label="Operation {index}{hidden ? ', hidden' : ''}"
+  data-tour={tour}
+>
   <div class="head">
     <span class="index t-console" aria-hidden="true">{index}</span>
     <button

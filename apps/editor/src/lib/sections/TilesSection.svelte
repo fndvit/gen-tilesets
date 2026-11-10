@@ -220,7 +220,15 @@
   }
 </script>
 
-<Section title="Tiles" {summary} addLabel="Add tile group" addHaspopup="dialog" onAdd={() => openGallery(null)}>
+<Section
+  title="Tiles"
+  {summary}
+  addLabel="Add tile group"
+  addHaspopup="dialog"
+  onAdd={() => openGallery(null)}
+  tourAdd="tiles-add"
+  tourHeading="tiles-header"
+>
   <div
     class="library"
     class:armed
@@ -233,9 +241,10 @@
     ondragleave={() => (armed = false)}
     ondrop={onDrop}
   >
-    {#each tiles as tile (tile.id)}
+    {#each tiles as tile, index (tile.id)}
       <TileGroup
         {tile}
+        tour={index === 0 ? "tile-group" : undefined}
         note={isDuplicate(tile) ? `(${tile.id})` : undefined}
         advisory={isDuplicate(tile)
           ? `Another tile group is also named ${tile.name}, so both show their id. Rename one to tell them apart.`

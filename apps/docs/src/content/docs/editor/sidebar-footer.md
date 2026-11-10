@@ -28,7 +28,8 @@ zip.
 
 ### Public surface
 
-No props. §8.5's load-preview value is `preview.loadSalt` in
+No props. The `.fixed` card carries `data-tour="footer"`, which the [tour](/editor/tour-dialog/)'s
+Randomness step cuts out whole (B-017). §8.5's load-preview value is `preview.loadSalt` in
 [view.svelte.ts](/editor/preview-width/), because `<Tileset>`, the footer and the palette's
 measured coverage all read it.
 

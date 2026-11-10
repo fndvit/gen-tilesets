@@ -1294,3 +1294,49 @@ replay are O3c. Stop for Pol at the end.
 
 Commit ("Starters and onboarding: O3b, the tour"), write "O3b done" here with any decisions for Pol
 to check, update the memory, and stop. Next: O3c ("?" and the icon-only Undo).
+
+## O3b done (2026-11-10)
+
+Built as planned: `--color-scrim` and `--tour-welcome-w` in `tokens.css`, the `help` icon,
+`data-tour` props, `tour-layout.ts` (tested), `lib/Tour.svelte`, and the tour wired into `App.svelte`
+(`touring`, seeded from `tourRun`). The tour now **shows on a first visit**. Docs pages
+`tour-layout.md` and `tour-dialog.md`; the new props are on the pages of Section, Collapsible,
+IconButton, Button, OperationCard, TileGroup, SidebarFooter and PreviewFrame. `pnpm test` (1273),
+`pnpm typecheck`, the docs build and `pnpm changelog check` (no line asked for) pass. `packages/`
+is untouched.
+
+**Browser probe** (scratchpad `o3b/walk.mjs` and `o3b/cases.mjs`, dev server 5174):
+- 1440 × 900 and 375 × 800: Welcome over Collage with focus on Start tour; all 9 steps with the
+  right counts, each ring on its target, and no bubble over its cut-out except step 6 (below).
+- Step 6 opens operation 4 and the rectangle shows on the picture. Back and Esc there close the
+  card; after the tour no card is open and Undo is still disabled.
+- The last step reads Done, has no Skip tour, and rings New. Done and Esc set the flag; a reload
+  shows no tour.
+- A press on the scrim, or inside a cut-out, does nothing, and focus stays on Next.
+- Templates blocked: the notice, then 8 steps with the replay's Welcome and last-step text, and
+  Tile group falls back to the Tiles header (the tileset is empty).
+- axe-core 4.10.2: no violations on Welcome, on Tiles, or on An operation.
+
+**Decided while building, for Pol to check:**
+1. **The holes are `<rect>`s in an SVG mask**, not one evenodd `path` (the plan). A path's `d`
+   transitions only in Chromium, so the hole would have jumped while the bubble slid.
+2. **Step 6 at 1440 × 900:** operation 4's open card fills the sidebar, so the bubble fits neither
+   below nor above it. It sits at the window's bottom, over the end of the palette and the footer,
+   so the card's head ("4 Tile …") stays visible. The first try put it over the head. The rule is
+   now in DESIGN_SYSTEM.md "Placement".
+3. **A cut-out is clipped to its scroller**, so the open card's ring doesn't run on over the footer.
+4. **"An operation" falls back to the Operations "+"** (`fallback: "ops-add"`) when
+   `exampleOperation` doesn't find Collage's op6 rectangle at position 4. `exampleOperation` is in
+   `tour.ts`, and `OperationsSection` puts `op-example` only on that card.
+5. **The tour scrolls both ways** (`scrollDelta`): `revealInScroller` only scrolls down, and Back
+   returns to targets above. Every scroll is instant; the hole and the bubble are what move.
+6. **Single-instance targets carry `data-tour` directly** (the footer's `.fixed`, PreviewFrame's
+   `.frame`, the picture's own scaled box rather than `.stage`, which fills the column). Shared
+   components take a `tour` prop.
+7. **Tab** cycles Skip tour, Back, Next and the browser's own stop, as in every modal `Popup`.
+8. **Text to look at:** operation 4's card names its Selection "Drag", and step 6 says "Its Selection
+   is a rectangle". Both are right, but the words differ.
+9. Not checked: the glide under `prefers-reduced-motion` (base.css zeroes every transition there,
+   so it jumps).
+
+**Next: O3c** ("?" after Undo, Undo icon-only below 40rem, `returnFocus` for the replay).

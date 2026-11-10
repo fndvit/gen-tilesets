@@ -138,6 +138,8 @@
   /* Starters (B-016): the New tileset popup. */
   --radio-described-h: 52px; /* a described Radio list row: label over a line of description */
   --template-thumb-w: 96px; /* a template's thumbnail, 16:10 */
+  /* Onboarding (B-017): the tour. */
+  --tour-welcome-w: 380px; /* the Welcome card, wider than a step's bubble (--explainer-w) */
   /* Starters (B-016 S3c): the Tile gallery. */
   --gallery-cell: 64px; /* a cell: a target well above 24px (2.5.8) */
   --gallery-thumb: 52px; /* its thumbnail, inside the cell's 6px of wash */
@@ -220,6 +222,12 @@
   --color-erase: var(--red-600); /* cells a stroke removes */
   /* A failure notice's icon, and nothing else. An advisory has no colour: it is ink (E16). */
   --color-danger: var(--red-600);
+  /*
+    The tour's backdrop (B-017, Pol, O1): darker than a Popup's 24%, because it
+    has to say "only the cut-out is live". The tour's bubble is white on it, so
+    no text contrast depends on it.
+  */
+  --color-scrim: color-mix(in srgb, var(--color-ink) 40%, transparent);
 
   /* The preview's handles draw in these. */
   --color-rule: var(--color-edge);

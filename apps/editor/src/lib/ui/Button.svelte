@@ -31,6 +31,8 @@
     /** The side whose corners are square, where it joins another part. */
     squared?: "left" | "right" | undefined;
     element?: HTMLButtonElement | undefined;
+    /** `data-tour`, for the onboarding tour to find it (`Section.svelte` says why). */
+    tour?: string | undefined;
   }
 
   let {
@@ -44,6 +46,7 @@
     expanded,
     squared,
     element = $bindable(),
+    tour,
   }: Props = $props();
 </script>
 
@@ -57,6 +60,7 @@
   class:squared-right={squared === "right"}
   aria-describedby={describedby}
   aria-expanded={expanded}
+  data-tour={tour}
   {disabled}
   {onclick}
 >

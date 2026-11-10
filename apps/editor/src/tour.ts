@@ -18,6 +18,8 @@
  * to describe (`first-visit.ts`).
  */
 
+import type { Operation } from "@vit-foundation/gen-tilesets";
+
 /**
  * What a step cuts out, as the `data-tour` value O3b looks for. Each names one
  * element; `tiles-header` is only a fallback.
@@ -45,7 +47,10 @@ export interface TourStep {
   targets: readonly TargetKey[];
   /** Describes Collage, so it is left out of a replay. */
   firstVisitOnly?: true;
-  /** Cut out instead when the target is missing (O0): no tile groups → the Tiles header. */
+  /**
+   * Cut out instead when the first target is missing (O0): no tile groups → the
+   * Tiles header; no Collage operation 4 → the Operations "+".
+   */
   fallback?: TargetKey;
 }
 
@@ -104,6 +109,9 @@ const POINTING: readonly TourStep[] = [
     ],
     targets: ["op-example", "preview"],
     firstVisitOnly: true,
+    // Only Collage's own operation 4 carries `op-example` (`exampleOperation`).
+    // In a Collage changed since this text was written, point at the stack instead.
+    fallback: "ops-add",
   },
   {
     id: "breakpoints",
@@ -223,6 +231,19 @@ export function seenStore(storage: () => Pick<Storage, "getItem" | "setItem"> = 
 export function end(seen: SeenStore): null {
   seen.set();
   return null;
+}
+
+/**
+ * The operation "An operation" opens: Collage's operation 4, `op6`, a
+ * rectangle Selection, as the step's text describes it. Found by position
+ * **and** checked by id and Selection, so that a Collage edited later can't
+ * have the tour open a card the text doesn't describe; `null` then, and the
+ * step points at the Operations "+" (its `fallback`). Rejected: by id alone,
+ * which would survive a reorder that makes "operation 4" wrong.
+ */
+export function exampleOperation(operations: readonly Pick<Operation, "id" | "selection">[]): string | null {
+  const op = operations[3];
+  return op !== undefined && op.id === "op6" && op.selection.type === "rect" ? op.id : null;
 }
 
 /** A first visit: nothing was kept from an earlier one, and the tour has not been seen. */

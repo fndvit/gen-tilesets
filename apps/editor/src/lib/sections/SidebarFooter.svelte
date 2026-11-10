@@ -60,7 +60,8 @@
   );
 </script>
 
-<div class="fixed">
+<!-- `data-tour`: the onboarding tour's Randomness step cuts out the whole footer. -->
+<div class="fixed" data-tour="footer">
   <div class="heading">
     <h2 class="title t-title">Randomness</h2>
     <IconButton

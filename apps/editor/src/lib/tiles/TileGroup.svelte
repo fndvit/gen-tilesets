@@ -47,6 +47,8 @@
     onAdd: () => void;
     /** Files dropped on the group, to add as variants. */
     onFiles: (files: File[]) => void;
+    /** `data-tour`, for the onboarding tour: the first group carries it (`Section.svelte` says why). */
+    tour?: string | undefined;
   }
 
   let {
@@ -62,6 +64,7 @@
     onResetWeights,
     onAdd,
     onFiles,
+    tour,
   }: Props = $props();
 
   let open = $state(true);
@@ -98,6 +101,7 @@
   class:armed
   role="group"
   aria-label="Tile group {tile.name}"
+  data-tour={tour}
   ondragover={onDragOver}
   ondragleave={() => (armed = false)}
   ondrop={onDrop}

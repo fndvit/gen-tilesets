@@ -58,3 +58,4 @@ Open, the card turns white with an accent edge, and its `children` (the
 | `onReseedOnLoad?(on)` | Sets the flag from the chip; the chip is absent without it. |
 | `panelId?` | The open body's id, for the title's `aria-controls`. |
 | `children?` | The stepper, shown while open. |
+| `tour?` | `data-tour` on the `<article>`. `OperationsSection` sets `op-example` on Collage's operation 4 (`exampleOperation` in [tour.ts](/editor/tour/)), which the [tour](/editor/tour-dialog/)'s "An operation" opens and cuts out (B-017). |

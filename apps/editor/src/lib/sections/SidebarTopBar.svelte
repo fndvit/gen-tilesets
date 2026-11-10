@@ -89,7 +89,7 @@
 
 <div class="top-bar" class:over bind:this={root}>
   <div class="file">
-    <Button label="New" icon="new" variant="tertiary" onclick={onNew} />
+    <Button label="New" icon="new" variant="tertiary" onclick={onNew} tour="new" />
     <!--
       **E14**'s inverse. It discards the current document and cannot be
       undone (`session.open`), so it asks first unless the tileset is blank.

@@ -43,6 +43,7 @@ ends is visible (Pol, Block F review).
 | `addHaspopup` | `"dialog"` | none | `aria-haspopup` on the "+", when it opens a dialog rather than adding at once. Tiles' "+" opens the [Tile gallery](/editor/tile-gallery/) (B-016 S3c). |
 | `actions` | `Snippet` | – | Header controls before the "+", outside the disclosure button, so pressing one does not fold the section. The Operations section's (i) (batch 01, T-07). |
 | `reveal` | `number` | `0` | A counter. Each change unfolds the section, for something outside that asks to show an item in it (Stage 2 W4: `opening.revealed`, from the orphan notice's "Open op-2"). |
+| `tour`, `tourHeading`, `tourAdd` | `string` | none | `data-tour` on the card, its header and its "+". The [tour](/editor/tour-dialog/) finds what it points at by this attribute, so a change of label or class can't break it (B-017). Rejected: finding targets by `aria-label` or by class. |
 | `children` | `Snippet` | required | The content, rendered only while open. |
 
 No events, no bindings.

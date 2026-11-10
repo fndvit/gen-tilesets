@@ -30,6 +30,14 @@
   the place to put it. So it lives in `Collapsible`, per session, and neither
   reads nor writes the file.
 
+  `tour`, `tourHeading` and `tourAdd` put a `data-tour` value on the card, its
+  header and its "+", for the onboarding tour (B-017, `lib/Tour.svelte`). The
+  tour finds what it points at by that attribute, so renaming a label or a
+  class can't break it. Rejected: finding targets by `aria-label`, which is
+  text for people and changes with the wording, or by class, which is styling.
+  `Collapsible`, `IconButton`, `Button`, `TileGroup` and `OperationCard` take
+  the same optional prop for the same reason; undefined, it draws nothing.
+
   There is no destructive look. A section whose edits can damage work is
   protected by the confirmation gate in `App.svelte` (§9.3), not by its colour.
 -->
@@ -54,10 +62,27 @@
     reveal?: number;
     /** Header controls before the "+" (an (i) that opens an explainer). Outside the disclosure button. */
     actions?: Snippet | undefined;
+    /** `data-tour` on the card, its header and its "+" (see above). */
+    tour?: string | undefined;
+    tourHeading?: string | undefined;
+    tourAdd?: string | undefined;
     children: Snippet;
   }
 
-  let { title, open = true, summary, onAdd, addLabel, addHaspopup, reveal = 0, actions, children }: Props = $props();
+  let {
+    title,
+    open = true,
+    summary,
+    onAdd,
+    addLabel,
+    addHaspopup,
+    reveal = 0,
+    actions,
+    tour,
+    tourHeading,
+    tourAdd,
+    children,
+  }: Props = $props();
 
   // `open` seeds the state once. A later change to the prop would reopen a
   // section the author had just closed.
@@ -79,6 +104,7 @@
     icon="plus"
     label={addLabel ?? `Add to ${title}`}
     haspopup={addHaspopup}
+    tour={tourAdd}
     onclick={() => {
       expanded = true;
       onAdd?.();
@@ -86,7 +112,15 @@
   />
 {/snippet}
 
-<Collapsible {title} {summary} variant="section" bind:open={expanded} actions={onAdd || actions ? header : undefined}>
+<Collapsible
+  {title}
+  {summary}
+  variant="section"
+  bind:open={expanded}
+  actions={onAdd || actions ? header : undefined}
+  {tour}
+  {tourHeading}
+>
   <div class="content">
     {@render children()}
   </div>

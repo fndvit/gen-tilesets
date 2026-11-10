@@ -9,6 +9,7 @@ import {
   count,
   current,
   end,
+  exampleOperation,
   isFirstVisit,
   isLast,
   next,
@@ -62,9 +63,10 @@ describe("stepsFor", () => {
     expect(replay!.text[1]).toMatch(/^The next seven steps/);
   });
 
-  it("cuts out the card and the picture on An operation, and falls back to the Tiles header", () => {
+  it("cuts out the card and the picture on An operation, and says where each step falls back to", () => {
     const steps = stepsFor("first");
     expect(steps.find((s) => s.id === "operation")!.targets).toEqual(["op-example", "preview"]);
+    expect(steps.find((s) => s.id === "operation")!.fallback).toBe("ops-add");
     expect(steps.find((s) => s.id === "tile-group")!.fallback).toBe("tiles-header");
   });
 });
@@ -132,5 +134,20 @@ describe("isFirstVisit", () => {
     expect(isFirstVisit(true, false)).toBe(false);
     expect(isFirstVisit(false, true)).toBe(false);
     expect(isFirstVisit(true, true)).toBe(false);
+  });
+});
+
+describe("exampleOperation", () => {
+  const op = (id: string, type: string) => ({ id, selection: { type } }) as Parameters<typeof exampleOperation>[0][number];
+  const collage = [op("op1", "all"), op("op2", "all"), op("op5", "all"), op("op6", "rect"), op("op7", "cellList")];
+
+  it("is Collage's operation 4, op6, a rectangle", () => {
+    expect(exampleOperation(collage)).toBe("op6");
+  });
+
+  it("is null when the fourth operation is not op6, or not a rectangle, or missing", () => {
+    expect(exampleOperation([collage[0]!, collage[1]!, collage[3]!, collage[2]!])).toBeNull();
+    expect(exampleOperation([...collage.slice(0, 3), op("op6", "all")])).toBeNull();
+    expect(exampleOperation(collage.slice(0, 3))).toBeNull();
   });
 });

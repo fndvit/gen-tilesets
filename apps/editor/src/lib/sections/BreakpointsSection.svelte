@@ -77,6 +77,7 @@
 
 <Section
   title="Breakpoints"
+  tourHeading="breakpoints"
   open={rules.length > 0}
   {summary}
   addLabel="Add breakpoint"

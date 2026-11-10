@@ -32,6 +32,8 @@
     pressed?: boolean | undefined;
     haspopup?: "menu" | "dialog" | undefined;
     element?: HTMLButtonElement | undefined;
+    /** `data-tour`, for the onboarding tour to find it (`Section.svelte` says why). */
+    tour?: string | undefined;
   }
 
   let {
@@ -44,6 +46,7 @@
     pressed,
     haspopup,
     element = $bindable(),
+    tour,
   }: Props = $props();
 </script>
 
@@ -57,6 +60,7 @@
   aria-pressed={pressed}
   aria-haspopup={haspopup}
   title={label}
+  data-tour={tour}
   {disabled}
   {onclick}
 >

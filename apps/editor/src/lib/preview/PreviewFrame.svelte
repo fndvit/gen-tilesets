@@ -145,8 +145,10 @@
 -->
 <div class="track" bind:clientWidth={preview.available}>
   <div class="viewport" style="height: {frameHeight * zoom}px;">
+    <!-- `data-tour`: the picture, which the tour's "An operation" step cuts out. -->
     <div
       class="frame"
+      data-tour="preview"
       style="width: {width}px; transform: scale({zoom});
              --zoom: {zoom};"
     >

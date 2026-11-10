@@ -39,7 +39,7 @@ Layout and the Selection artwork still come from the Figma file **Tileset Creato
 | Group | Tokens | Notes |
 |---|---|---|
 | Colour, primitive | `--white` · `--grey-50 100 200 300 400 450 500 600 800` · `--black` (#111) · `--black-6/10/12` washes · `--pink` (#cd1957) · `--pink-10` · `--berry` (#8e294c) · `--red-600` | Only `tokens.css` reads these |
-| Colour, surfaces | `--color-ground` (grey-100) · `--color-card` and `--color-panel` (white) · `--color-well` (grey-50) · `--color-field` / `--color-field-hover` · `--color-edge` (grey-500, a field's bottom edge) | A container can reset `--color-field` (white fields in a grey well). `--color-scrim` *(O3)*, 40% ink: the tour's backdrop (*Onboarding*); the Popup's backdrop stays 24% |
+| Colour, surfaces | `--color-ground` (grey-100) · `--color-card` and `--color-panel` (white) · `--color-well` (grey-50) · `--color-field` / `--color-field-hover` · `--color-edge` (grey-500, a field's bottom edge) | A container can reset `--color-field` (white fields in a grey well). `--color-scrim`, 40% ink: the tour's backdrop (*Onboarding*); the Popup's backdrop stays 24% |
 | Colour, text | `--color-ink` · `--color-muted` (grey-600, 6.5:1 on white) · `--color-disabled` (grey-450) · `--color-paper` | |
 | Colour, actions | `--color-primary` / `-hover` / `--color-on-primary` · `--color-secondary` / `-hover` / `-pressed` · `--color-hover` / `--color-pressed` (washes for tertiary, icons and headers) · `--color-selected` / `--color-on-selected` (ink) | |
 | Colour, accent | `--color-accent` · `--color-accent-wash` (the active step's row) · `--color-selection` (`--berry` #8e294c, kin to the accent): the preview's selected and painted cells (N3) · `--color-erase` | |
@@ -47,7 +47,7 @@ Layout and the Selection artwork still come from the Figma file **Tileset Creato
 | Status | `--color-danger` (= `--red-600`) | Only the alert icon of a failure notice or of a **Field error**. There is no warning colour: an advisory is ink |
 | Font | `--font-ui` (Helvetica, standing in for Neue Haas Grotesk) · `--font-mono` (Roboto Mono 400 and 500, self-hosted via `@fontsource`) | |
 | Space | `--space-1…7` = 2 / 4 / 6 / 8 / 10 / 12 / 16 px | 2px base |
-| Size | `--control-h` 30 · `--header-h` 52 (a section header) · `--preview-bar-h` 52 (both top bars) · `--group-h` 34 · `--add-h` 32 · `--icon` 16 · `--icon-button` 28 · `--op-index` 24 · `--step-dot` 20 · `--menu-w` 200 · `--thumb` 32 · `--thumb-sm` 16 · `--thumb-lg` 48 (Constant's one tile) · `--share-measured-w` 48 (a "≈68%") · `--slider-thumb` 16 · `--glyph-w` 72 · `--glyph-slot` 43 · `--badge` 16 · `--field-label-w` 38% (`-compact` 116px in an operation) · `--width-chip-w` 48 · `--swatch-w` 30 · `--sidebar-w` clamp(400, 30vw, 560) · the preview handle sizes · `--tour-welcome-w` 380 *(O3)* (the tour's Welcome card) | |
+| Size | `--control-h` 30 · `--header-h` 52 (a section header) · `--preview-bar-h` 52 (both top bars) · `--group-h` 34 · `--add-h` 32 · `--icon` 16 · `--icon-button` 28 · `--op-index` 24 · `--step-dot` 20 · `--menu-w` 200 · `--thumb` 32 · `--thumb-sm` 16 · `--thumb-lg` 48 (Constant's one tile) · `--share-measured-w` 48 (a "≈68%") · `--slider-thumb` 16 · `--glyph-w` 72 · `--glyph-slot` 43 · `--badge` 16 · `--field-label-w` 38% (`-compact` 116px in an operation) · `--width-chip-w` 48 · `--swatch-w` 30 · `--sidebar-w` clamp(400, 30vw, 560) · the preview handle sizes · `--tour-welcome-w` 380 (the tour's Welcome card) | |
 | Shape | `--radius-xs` 3 (thumbnails, index squares) · `--radius-sm` 6 (fields, buttons, segments, icon buttons) · `--radius` 8 (cards, wells) · `--radius-lg` 12 (popups) · `--radius-round` · `--rule-w` 1 · `--rule-strong` 2 · `--accent-edge` 3 | |
 | Elevation | `--shadow-raised` (a raised control on a track) · `--shadow-float` (popups, menus, notices) | |
 | Focus | `--focus-w` 2 · `--focus-offset` 2, in `--color-accent` | |
@@ -148,7 +148,7 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
 There is one outline family, made of Lucide paths (ISC licence). They are drawn on a 24-unit
 grid, rendered at 16px with a 1.5px stroke and round caps and joins, in `currentColor`.
 - The set: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`, `export`,
-  `new`, `more`, `check`, `info` (an advisory), `alert` (a failure; also a **Field error**), `upload` (the Tile gallery's Upload…, Lucide upload; added with S3c), `grip` (drag to reorder, Lucide grip-vertical), `swap` (change a palette entry's tile, Lucide arrow-right-left), `archive` (the zip, Lucide archive), `image` (a PNG, Lucide image), `help` *(O3)* (Show the tour, Lucide circle-help). A Split button's chevron reuses `fold`.
+  `new`, `more`, `check`, `info` (an advisory), `alert` (a failure; also a **Field error**), `upload` (the Tile gallery's Upload…, Lucide upload; added with S3c), `grip` (drag to reorder, Lucide grip-vertical), `swap` (change a palette entry's tile, Lucide arrow-right-left), `archive` (the zip, Lucide archive), `image` (a PNG, Lucide image), `help` (Show the tour, Lucide circle-help). A Split button's chevron reuses `fold`.
 - An icon names an action, sits beside a word or inside a named control, and is never
   decorative.
 - Add an icon only in the same family and grid.
@@ -235,7 +235,7 @@ Components are PascalCase nouns (`Section`, `TileGroup`, `TileAsset`, `Operation
   `motion.ts`.
   Also `reveal.ts`.
 - Sidebar sections, the top bar and the footer live in `src/lib/sections/`.
-- The tour is `src/lib/Tour.svelte`, with its step model and seen flag in `src/tour.ts` *(O3)*.
+- The tour is `src/lib/Tour.svelte`, with its step model and seen flag in `src/tour.ts`.
 - Tile rows live in `src/lib/tiles/`.
 - The operation card, body and labels live in `src/lib/operations/`.
 
@@ -406,7 +406,7 @@ not happened yet and the user is still in the form to fix it.
 ## Onboarding: the tour (B-017, O2)
 
 Picked by Pol at O0 and O1, and the text revised by Pol after O2 (`docs/plans/starters-onboarding.md`,
-"O0 answers", "O1 picks" and "Tour text, revised"). Tokens marked *(O3)* are added to `tokens.css` when the tour is built.
+"O0 answers", "O1 picks" and "Tour text, revised"). Built in O3.
 
 ### When it shows
 
@@ -459,7 +459,7 @@ visit and 6 of 8 on a replay, where the steps after step 5 move up one.
 
 ### The scrim and the cut-out
 
-- **Scrim:** the whole window in `--color-scrim` *(O3)*, 40% ink
+- **Scrim:** the whole window in `--color-scrim`, 40% ink
   (`color-mix(in srgb, var(--color-ink) 40%, transparent)`). It is darker than the Popup's 24%
   backdrop, because here it has to say "only the cut-out is live". The bubble is white on top of
   it, so its text contrast does not depend on it. A press on the scrim does nothing: it does not
@@ -491,7 +491,7 @@ between its rows, `--explainer-w` (340px) wide, and no arrow.
 
 ### The Welcome card
 
-The same panel, 380px wide (`--tour-welcome-w` *(O3)*), centred in the window, `--space-7`
+The same panel, 380px wide (`--tour-welcome-w`), centred in the window, `--space-7`
 between rows: a `.t-section` "Welcome", the two paragraphs in `.t-body`, then **Skip tour** (secondary) and
 **Start tour** (primary) at the right. It has no count (it is the cover) and nothing is cut out.
 Below 40rem it is the window's width less 16px on each side.
@@ -506,6 +506,11 @@ The bubble is placed from its measured size, as the **Explainer placement** plac
 - **Step 6, in two columns:** beside the sidebar would cover the picture it cuts out, so the bubble
   stays in the sidebar column instead: below the opened card, or above it when it doesn't fit
   below, left-aligned with the card.
+- **Fitting neither below nor above** (a cut-out taller than the window less the bubble: operation
+  4's open card at 1440 × 900), the bubble sits at the window's bottom, `--space-4` inside it. It
+  covers the cut-out's end, not its head, which names what the text is about (O3b).
+- **A cut-out is the target's visible part** in its scroller, so a card taller than the sidebar
+  doesn't ring the footer too (O3b).
 
 ### Behaviour
 

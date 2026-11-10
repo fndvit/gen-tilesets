@@ -61,6 +61,7 @@
   import Dialog from "./lib/ui/Dialog.svelte";
   import ScrollArea from "./lib/ui/ScrollArea.svelte";
   import SelectionOverlay from "./lib/SelectionOverlay.svelte";
+  import Tour from "./lib/Tour.svelte";
   import { rectParams, type Cell, type Rect } from "./paint.js";
   import { keeping } from "./keeping.svelte.js";
   import { notices } from "./notices.svelte.js";
@@ -69,9 +70,13 @@
 
   /**
    * The tour to start at mount, from `main.ts`: `null` when this is not a first
-   * visit. Read by the tour in O3b.
+   * visit.
    */
   let { tourRun = null }: { tourRun?: TourRun | null } = $props();
+
+  /** The tour showing now, if any. Seeded once from the mount prop; "?" sets it to a replay (O3c). */
+  // svelte-ignore state_referenced_locally
+  let touring = $state<TourRun | null>(tourRun);
 
   const file = $derived(session.file);
   const config = $derived(file.config);
@@ -606,6 +611,11 @@
   </section>
 
 </main>
+
+<!-- B-017. After everything else, though as a modal dialog it is in the top layer wherever it sits. -->
+{#if touring !== null}
+  <Tour run={touring} onEnd={() => (touring = null)} />
+{/if}
 
 <!--
   **E12** — explicit confirmation, naming the Operations that will be affected
