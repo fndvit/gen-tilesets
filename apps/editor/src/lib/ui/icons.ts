@@ -106,6 +106,11 @@ export const ICONS = {
       "M14.08 14.16a3 3 0 0 1-4.24-4.24M17.48 17.5a10.75 10.75 0 0 1-15.42-5.15 1 1 0 0 1 0-.7" +
       " 10.75 10.75 0 0 1 4.45-5.14M2 2l20 20",
   ),
+  /** Copy to the clipboard: the install command after Export (batch 03 T-08). Lucide copy. */
+  copy: icon(
+    "M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2Z" +
+      "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2",
+  ),
 } as const satisfies Record<string, IconDef>;
 
 export type IconName = keyof typeof ICONS;

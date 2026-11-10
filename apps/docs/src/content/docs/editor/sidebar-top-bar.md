@@ -5,7 +5,7 @@ sidebar:
   order: 44
 ---
 
-**Written from:** `apps/editor/src/lib/sections/SidebarTopBar.svelte`, and its call site in
+**Written from:** `apps/editor/src/lib/sections/SidebarTopBar.svelte`, `export-next.ts`, and its call site in
 `App.svelte`.
 
 ## Overview
@@ -43,6 +43,31 @@ the document draws nothing (`drawsNothing`), §12.2's fifth advisory is pushed a
 so there is nothing to answer. The bar
 also takes dropped zips and folders for Import, and outlines itself in the accent while one is
 over it.
+
+### After a zip export: "Your tileset is downloading"
+
+Batch 03, T-08 (B-030). When `exportZip` succeeds, a [Popup](/editor/ui-popup/) opens that says in
+general terms what to do with the file: that `tileset.zip` holds `tileset.json` and a `tiles/`
+folder, then three steps: install the package (the command, with a **Copy** button), put both in
+the site's public files, load the file and draw it. Under them, a link, "Read the getting-started
+guide", opens the guide in a new tab. The command, the link, the copy and the "Don't show again"
+flag are [export-next.ts](/editor/export-next/)'s.
+
+- **Only the zip opens it**, from the main part or from the menu's Tileset (.zip). Export image
+  never does: a PNG is a picture, not something to install.
+- **A Popup, not a Dialog**: it informs and asks nothing. Its actions are **Don't show again**
+  (tertiary) and **Close**. Per Pol's D-06 B it shows on every export until Don't show again,
+  which `hideStore()` keeps in `localStorage`, so it holds across reloads.
+- **Copy** says "Copied" (with `check`) or "Couldn't copy", and a `role="status"` region says the
+  same once, since a label that changes under focus is not reliably announced. The state resets
+  to "Copy" each time the window opens. The command is selectable text (`user-select: all`), so a
+  refused clipboard still leaves a way to copy it.
+- **Focus returns to Export** when it closes (`refocusExport`), by hand. The main part is
+  disabled while the zip is written, which drops focus to the body, so the dialog's own focus
+  return would land nowhere. The split is wrapped in a `display: contents` span only to find its
+  first button.
+- The link is the editor's first text link: ink, underlined (1px, thicker on hover), so it is told
+  from text by more than colour (WCAG 1.4.1).
 
 ### Props
 

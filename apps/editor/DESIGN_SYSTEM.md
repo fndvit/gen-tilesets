@@ -591,3 +591,21 @@ white text (Pol, D-02 A).
 - **Popups keep the page's theme.** "How randomness works" is rendered outside the card, and the
   tour is its own modal; both stay white. The tour's Randomness step still cuts out the whole card
   (`data-tour="footer"` is unchanged).
+
+## After Export: "Your tileset is downloading" (batch 03, T-08, B-030)
+
+A **Popup** (informational, so not a Dialog) opened only by a successful zip export, from
+Export's main part or its menu's Tileset (.zip); never by Export image. It shows on every export
+until **Don't show again** (Pol, D-06 B), kept in `localStorage` (`export-next.ts`).
+
+- **Body**, `--space-6` between blocks: one `.t-body` line naming what the zip holds (file names
+  in `.t-value`), a numbered list of three steps (`--space-4` apart), and the guide link.
+- **The command** is `.t-value` on a `--color-field` chip, `--radius-sm`, selectable as one piece
+  (`user-select: all`), and wraps rather than widening the popup (1.4.10). Beside it a tertiary
+  **Copy** Button with the `copy` icon; after a copy it reads **Copied** with `check`, or
+  **Couldn't copy**, and a status region says it once.
+- **Text link** (the editor's first): ink, underlined at 1px with a 3px offset, 2px under the
+  pointer. Underlined so it is told from text by more than colour (1.4.1). A link that leaves the
+  editor opens a new tab and says so to assistive tech ("(opens in a new tab)").
+- **Actions:** **Don't show again** (tertiary), then **Close** (secondary). Esc and Close close it;
+  focus returns to Export.
