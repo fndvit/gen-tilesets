@@ -37,6 +37,21 @@
 
   Each grid is one Tab stop: the arrow keys, Home and End move between cells
   (TilePicker's pattern, with a roving tabindex), and Space or Enter toggles.
+
+  ## The Collection has tabs (batch 03, D-04)
+
+  **Images** (Collage's pictures) and **Shapes** (the flat geometric tiles),
+  in the manifest's `tab` field, split by `byTab`. The tablist sits in the
+  Collection's head, at its right, and one grid below shows the chosen tab.
+  It is the ARIA tabs pattern with automatic activation: one Tab stop on the
+  chosen tab, the arrow keys, Home and End move and choose, then Tab goes on
+  into the grid. It looks like a segmented control (`Toggle`), the editor's
+  one-of-few look, but it is not a `Toggle`: that is a radio group that sets a
+  value, and this switches what is shown. Picks are keys, so they survive a
+  switch and keep their order; the tab itself is kept across openings, so
+  the author comes back to where they were. A long tab scrolls in the one
+  scroller the shelves already share, so the name and footer stay put.
+  Rejected: a second scroller for the Collection, which would nest scrolls.
 -->
 <script lang="ts" module>
   import { once } from "../../starters.js";
@@ -52,12 +67,14 @@
   import { fileOf, upload, type MyTile, type TileShelf } from "../../my-tiles.js";
   import { session } from "../../session.svelte.js";
   import { BASE, manifest } from "../../starters-client.js";
-  import { loadGalleryFiles, type GalleryEntry } from "../../starters.js";
+  import { GALLERY_TABS, loadGalleryFiles, type GalleryEntry, type GalleryTab } from "../../starters.js";
   import Button from "../ui/Button.svelte";
   import Dialog from "../ui/Dialog.svelte";
   import Icon from "../ui/Icon.svelte";
   import Popup from "../ui/Popup.svelte";
+  import { rovingIndex } from "../ui/keys.js";
   import {
+    byTab,
     checkName,
     countOf,
     filesOf,
@@ -85,6 +102,10 @@
   let { open = $bindable(false), mode, onAdd }: Props = $props();
 
   let entries = $state<GalleryEntry[] | null>(null);
+  const tabs = $derived(entries === null ? null : byTab(entries));
+  let tab = $state<GalleryTab>("images");
+  let tabButtons: HTMLButtonElement[] = $state([]);
+  const TAB_LABELS: Record<GalleryTab, string> = { images: "Images", shapes: "Shapes" };
   let loadError = $state<string | null>(null);
 
   let store = $state<TileShelf | null>(null);
@@ -249,6 +270,15 @@
     for (const cell of Array.from(grid.querySelectorAll<HTMLButtonElement>(".cell"))) cell.tabIndex = cell === focused ? 0 : -1;
   }
 
+  /** The tabs pattern, automatic activation: an arrow key moves the choice and the focus together. */
+  function onTabKeydown(event: KeyboardEvent, i: number): void {
+    const next = rovingIndex(event.key, i, GALLERY_TABS.length);
+    if (next === null || event.key === "ArrowUp" || event.key === "ArrowDown") return;
+    event.preventDefault();
+    tab = GALLERY_TABS[next]!;
+    tabButtons[next]?.focus();
+  }
+
   function firstCell(): HTMLElement | null | undefined {
     return body?.querySelector<HTMLElement>(".cell");
   }
@@ -350,6 +380,26 @@
       <section class="shelf" aria-labelledby="{nameId}-collection">
         <div class="shelf-head">
           <h3 class="t-label" id="{nameId}-collection">Collection</h3>
+          {#if tabs !== null}
+            <div class="tabs" role="tablist" aria-labelledby="{nameId}-collection">
+              {#each GALLERY_TABS as t, i (t)}
+                <button
+                  bind:this={tabButtons[i]}
+                  type="button"
+                  role="tab"
+                  class="tab t-xs"
+                  id="{nameId}-tab-{t}"
+                  aria-selected={t === tab}
+                  aria-controls="{nameId}-panel"
+                  tabindex={t === tab ? 0 : -1}
+                  onclick={() => (tab = t)}
+                  onkeydown={(event) => onTabKeydown(event, i)}
+                >
+                  {TAB_LABELS[t]}
+                </button>
+              {/each}
+            </div>
+          {/if}
         </div>
         {#if loadError !== null}
           <p class="status t-body" role="status">
@@ -358,11 +408,15 @@
           </p>
         {:else if entries === null}
           <p class="t-body muted" role="status">Loading the gallery…</p>
-        {:else}
-          {@render grid(
-            "Collection",
-            entries.map((e) => ({ key: galleryKey(e.id), label: e.label, src: BASE + e.thumb })),
-          )}
+        {:else if tabs !== null}
+          <div role="tabpanel" id="{nameId}-panel" aria-labelledby="{nameId}-tab-{tab}">
+            {#key tab}
+              {@render grid(
+                TAB_LABELS[tab],
+                tabs[tab].map((e) => ({ key: galleryKey(e.id), label: e.label, src: BASE + e.thumb })),
+              )}
+            {/key}
+          </div>
         {/if}
       </section>
     </div>
@@ -485,11 +539,19 @@
     The grids scroll on their own, so the name above and the footer below stay
     put (Popup's body would otherwise scroll as a whole). The height leaves the
     popup's bar, name and footer on a short window.
+
+    A fixed height, not a max-height (batch 03, tabs): the popup is centred,
+    so a max-height let it grow when Shapes (57 cells) replaced Images (21),
+    and the tabs jumped out from under the pointer that had just pressed one.
+    Capped at 560px, about seven rows of cells, so a tall window doesn't get a
+    mostly empty popup. `align-content: start` keeps the shelves at the top of
+    the spare room rather than spread through it.
   */
   .shelves {
     display: grid;
+    align-content: start;
     gap: var(--space-7);
-    max-height: max(calc(var(--gallery-cell) * 2), calc(100dvh - 360px));
+    height: max(calc(var(--gallery-cell) * 2), min(560px, calc(100dvh - 360px)));
     overflow-y: auto;
     overscroll-behavior: contain;
     margin: 0 calc(-1 * var(--space-2));
@@ -511,6 +573,57 @@
 
   h3 {
     margin: 0;
+  }
+
+  /*
+    The Collection's tabs, drawn as a segmented control (Toggle's track and
+    segments, DESIGN_SYSTEM.md): a grey track, the chosen tab ink with white
+    text. Sized to its labels, not the row, so it sits at the head's right.
+    Segments are 26px tall, above the 24px target floor (2.5.8).
+  */
+  .tabs {
+    display: flex;
+    box-sizing: border-box;
+    min-height: var(--control-h);
+    padding: var(--space-1);
+    gap: var(--space-1);
+    border-radius: var(--radius-sm);
+    background: var(--color-field);
+  }
+
+  .tab {
+    min-width: 0;
+    padding: 0 var(--space-5);
+    border: 0;
+    border-radius: calc(var(--radius-sm) - var(--space-1));
+    background: transparent;
+    color: var(--color-ink);
+    white-space: nowrap;
+    line-height: normal;
+    text-box: none;
+    cursor: pointer;
+    transition:
+      background-color var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
+  }
+
+  /* As in Toggle: no wash under the chosen tab's white label (1.4.3), and it is a no-op to press. */
+  .tab:hover:not([aria-selected="true"]) {
+    background: var(--color-hover);
+  }
+
+  .tab:active:not([aria-selected="true"]) {
+    background: var(--color-pressed);
+  }
+
+  .tab[aria-selected="true"] {
+    background: var(--color-selected);
+    color: var(--color-on-selected);
+    cursor: default;
+  }
+
+  .tab:focus-visible {
+    outline-offset: 0;
   }
 
   .grid {

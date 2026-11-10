@@ -17,10 +17,10 @@
  *
  * ## The gallery points into the template's files
  *
- * Today every gallery picture is one of Collage's, and the manifest names it by
- * path rather than holding a copy. The manifest is what decouples the two: when
- * the gallery grows past Collage (Pol, S1), its new entries simply point
- * somewhere else, and no consumer changes.
+ * The Images tab's pictures are Collage's, and the manifest names them by path
+ * rather than holding a copy. The manifest is what decouples the two: the
+ * Shapes tab (batch 03, D-04) points at `gallery/shapes/` instead, and no
+ * consumer changed.
  *
  * ## Failure is loud
  *
@@ -36,7 +36,9 @@
  * as WebP, quality 90, at the same pixel size (10.8 MB → 0.86 MB). Pol approved
  * that by eye against a side-by-side page (S3a). Lossless WebP was
  * pixel-identical but 5.7 MB, and rejected for the size. `starters.md` has the
- * procedure for re-doing it with new pictures.
+ * procedure for re-doing it with new pictures. The Shapes tab's two photos
+ * (`real-a`, `real-b`) went through the same procedure (1.45 MB → 77 KB, 0 px
+ * over the threshold); every other shape is copied as it came.
  */
 
 import { FILE_NAME } from "./export.js";
@@ -58,6 +60,13 @@ export interface TemplateEntry {
   summary: string;
 }
 
+/**
+ * The gallery's tabs, in the order the tablist shows them (D-04, batch 03):
+ * **Images**, Collage's pictures, and **Shapes**, the flat geometric tiles.
+ */
+export const GALLERY_TABS = ["images", "shapes"] as const;
+export type GalleryTab = (typeof GALLERY_TABS)[number];
+
 /** One picture the tile gallery offers. */
 export interface GalleryEntry {
   id: string;
@@ -66,6 +75,11 @@ export interface GalleryEntry {
    * visible label (Pol, 2026-11-09).
    */
   label: string;
+  /**
+   * The tab it is listed under. Required, and refused when unknown: an entry
+   * with no tab would be in no grid, so it would be a picture nobody can pick.
+   */
+  tab: GalleryTab;
   /** The full picture, fetched only on Add. */
   src: string;
   /** A committed 104 px square thumbnail. */
@@ -119,7 +133,13 @@ export function parseManifest(json: unknown): Manifest {
       if (!entry.path.endsWith("/")) fail(`${at}.path`, "must end in /");
       return entry;
     }),
-    gallery: list(gallery, "gallery", (item, at) => strings(item, at, ["id", "label", "src", "thumb"] as const)),
+    gallery: list(gallery, "gallery", (item, at) => {
+      const entry = strings(item, at, ["id", "label", "tab", "src", "thumb"] as const);
+      if (!(GALLERY_TABS as readonly string[]).includes(entry.tab)) {
+        fail(`${at}.tab`, `must be one of ${GALLERY_TABS.map((t) => `"${t}"`).join(", ")}`);
+      }
+      return { ...entry, tab: entry.tab as GalleryTab };
+    }),
   };
 }
 

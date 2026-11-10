@@ -15,6 +15,20 @@
 
 import type { TilesetFile } from "@vit-foundation/gen-tilesets";
 import { tileNameTaken } from "../../document.js";
+import { GALLERY_TABS, type GalleryEntry, type GalleryTab } from "../../starters.js";
+
+/**
+ * The collection split into its tabs (D-04, batch 03), every tab present even
+ * when empty, each in manifest order. The Collection shows one tab's grid at a
+ * time; picks are keys, not positions, so switching tabs keeps them and their
+ * order. Rejected: filtering in the component, which `.svelte` tests can't
+ * reach (CLAUDE.md).
+ */
+export function byTab(gallery: readonly GalleryEntry[]): Record<GalleryTab, GalleryEntry[]> {
+  const tabs = Object.fromEntries(GALLERY_TABS.map((tab) => [tab, [] as GalleryEntry[]])) as Record<GalleryTab, GalleryEntry[]>;
+  for (const entry of gallery) tabs[entry.tab].push(entry);
+  return tabs;
+}
 
 export type PickKey = `gallery:${string}` | `mine:${string}`;
 
