@@ -13,6 +13,15 @@ with `dropped: <reason>`.
 - **B-009** The ‘EveryNth’ selection does not work how I imagine it. For me ‘everyNth’ means that every N cells, a cell is selected, and changing a row does not reset that count. The current behaviour acts more as a ‘Row’ or ‘Column’ selection, which is fine to have, but with another name. This means: change the behaviour of everyNth so it works like it should, and create another selection for ‘Row/Column’;
 - **B-010** Bug: In an operation where we configure a constant tileId in a cell, after another operation that configures rotation, it looks like rotation affects the tileId even if the tileId operation comes after. TLDR: a rotation operation affects operations that go after it; — *Open: batch-01 T-07 (PR #20) only explains the behaviour in "How operations work"; the engine fix is T-12, not yet scheduled.*
 - **B-013** Bug: I have been able to scroll past the editor — *Open: batch-01 T-04 (PR #20) fixed the one case it reproduced (horizontal scroll from the "Preview size" hint at 660 px). No vertical scroll reproduced; needs the file or state it happened in.*
+- **B-024** Switching 'Reseed on load' on or off shouldn't reseed the preview, only set the parameter value. The user might not want to change the current tileset appearance;
+- **B-025** Add a small (i) info button in the Tiles section, like the one in Operations. It should explain how the user can add tiles, what tile groups are, and what the weights inside them mean;
+- **B-026** The fixed 'Randomness' section should be visually distinguishable from the sections above at all times (both are white, which is confusing when they sit together). Propose different ways to do it — e.g. inverting the colours so the Randomness background is black;
+- **B-027** The automatic scrolling that happens when opening a section header that doesn't fit should also happen when opening an operation that doesn't fit;
+- **B-028** The automatic scrolling when closing a section is much more sudden than when opening. Make it as smooth as the opening, only a little faster;
+- **B-029** The 'Reseed on load' pill looks like the other pills and sits in a different place on every operation. Make it a checkbox in a fixed position instead; the 'Reseed on load' label must still appear;
+- **B-030** After the user clicks 'Export' as a tileset file, a modal should explain what to do with it next, in general terms (not too detailed): show the `npm install` command and link to the documentation that explains more;
+- **B-031** Add more tiles and another template;
+- **B-032** Fix the Collage template: its first operation does nothing and may confuse the user — remove it;
 
 ## Done
 
