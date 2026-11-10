@@ -14,14 +14,6 @@ with `dropped: <reason>`.
 - **B-010** Bug: In an operation where we configure a constant tileId in a cell, after another operation that configures rotation, it looks like rotation affects the tileId even if the tileId operation comes after. TLDR: a rotation operation affects operations that go after it; — *Open: batch-01 T-07 (PR #20) only explains the behaviour in "How operations work"; the engine fix is T-12, not yet scheduled.*
 - **B-013** Bug: I have been able to scroll past the editor — *Open: batch-01 T-04 (PR #20) fixed the one case it reproduced (horizontal scroll from the "Preview size" hint at 660 px). No vertical scroll reproduced; needs the file or state it happened in.*
 - **B-024** Switching 'Reseed on load' on or off shouldn't reseed the preview, only set the parameter value. The user might not want to change the current tileset appearance;
-- **B-025** Add a small (i) info button in the Tiles section, like the one in Operations. It should explain how the user can add tiles, what tile groups are, and what the weights inside them mean;
-- **B-026** The fixed 'Randomness' section should be visually distinguishable from the sections above at all times (both are white, which is confusing when they sit together). Propose different ways to do it — e.g. inverting the colours so the Randomness background is black;
-- **B-027** The automatic scrolling that happens when opening a section header that doesn't fit should also happen when opening an operation that doesn't fit;
-- **B-028** The automatic scrolling when closing a section is much more sudden than when opening. Make it as smooth as the opening, only a little faster;
-- **B-029** The 'Reseed on load' pill looks like the other pills and sits in a different place on every operation. Make it a checkbox in a fixed position instead; the 'Reseed on load' label must still appear;
-- **B-030** After the user clicks 'Export' as a tileset file, a modal should explain what to do with it next, in general terms (not too detailed): show the `npm install` command and link to the documentation that explains more;
-- **B-031** Add more tiles and another template;
-- **B-032** Fix the Collage template: its first operation does nothing and may confuse the user — remove it;
 
 ## Done
 
@@ -41,3 +33,11 @@ with `dropped: <reason>`.
 - **B-021** Reseed on load from a closed card: batch-01 T-11, PR #20
 - **B-022** Chosen Toggle segment readable on hover: batch-01 review, 537507b
 - **B-023** Explainer opens where it fits: batch-02 T-03, PR #21
+- **B-025** Tiles (i) explainer: batch-03 T-03, PR #25
+- **B-026** Randomness footer set apart by a gap and a hairline edge: batch-03 T-04, PR #25
+- **B-027** Scroll an opened operation into view: batch-03 T-06, PR #26
+- **B-028** Smooth scroll when a section closes: batch-03 T-05, PR #26
+- **B-029** Reseed on load as a checkbox in a fixed place: batch-03 T-07, PR #26
+- **B-030** After Export: what to do with tileset.zip: batch-03 T-08, PR #25
+- **B-031** More tiles (Shapes in the gallery) and the Mosaic template: batch-03 T-02, PR #24
+- **B-032** Collage template without its no-op operation: batch-03 T-01, PR #24
