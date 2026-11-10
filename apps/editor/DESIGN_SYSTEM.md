@@ -407,10 +407,6 @@ the second use of the danger colour, and like the first, the colour is only on t
 words and the shape carry the meaning. It differs from a refusal Popup, because the action has
 not happened yet and the user is still in the form to fix it.
 
-| Addition | Rule | Why |
-|---|---|---|
-| **Collection tabs** (batch 03, D-04) | The Collection is no longer one flat list: it has two tabs, **Images** (Collage's pictures) and **Shapes** (the flat geometric tiles, colourway by colourway, then the lettered shapes), each in manifest order (`tab` in `starters.json`). The tablist sits at the right of the Collection's head, where My tiles has Remove picked…, and one grid under it shows the chosen tab. It **looks like a Segmented control** (grey track, the chosen tab ink with white text, 26px segments, hover washes, the chosen one doesn't react) but is a `tablist`: one Tab stop on the chosen tab, the arrow keys, Home and End move and choose (automatic activation), then Tab goes on into the grid. Picks survive a switch and keep their order; the chosen tab is kept across openings. The grids' scroller has a **fixed height** (at most 560px, less on a short window) instead of a max-height, so switching to the longer tab doesn't grow the centred popup and move the tabs from under the pointer | A `Toggle` is a radio group that sets a value; tabs switch what is shown, so the role differs while the look stays the editor's one-of-few control. One scroller for both shelves, as before, rather than a second one for the Collection |
-
 ## Onboarding: the tour (B-017, O2)
 
 Picked by Pol at O0 and O1, and the text revised by Pol after O2 (`docs/plans/starters-onboarding.md`,

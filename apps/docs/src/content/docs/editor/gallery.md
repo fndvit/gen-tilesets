@@ -23,7 +23,6 @@ becomes the variant order of what is added (`a1, a2…`).
 
 | Export | Type | Meaning |
 | --- | --- | --- |
-| `byTab(gallery)` | function | The collection split by its `tab` (batch 03, D-04): `{ images, shapes }`, every tab present even when empty, keys in `GALLERY_TABS` order, each list in manifest order. |
 | `PickKey` | type | `` `gallery:${id}` `` or `` `mine:${id}` ``. |
 | `galleryKey(id)`, `mineKey(id)` | functions | Make a key. |
 | `sourceOf(key)` | function | `{ source: "gallery" \| "mine", id }`; splits at the first `:`. |
@@ -38,13 +37,11 @@ becomes the variant order of what is added (`a1, a2…`).
 
 ### Callers / callees
 
-Called by `lib/tiles/TileGallery.svelte`. Callees: `tileNameTaken` ([document.ts](/editor/document/));
-`GALLERY_TABS` ([starters.ts](/editor/starters/)).
+Called by `lib/tiles/TileGallery.svelte`. Callees: `tileNameTaken` ([document.ts](/editor/document/)).
 
 ### Tests
 
-`gallery.test.ts`: `byTab` splits by tab in manifest order, and has every tab in order even when
-one is empty; keys split back, including an id with a `:`; pick order through toggles; a
+`gallery.test.ts`: keys split back, including an id with a `:`; pick order through toggles; a
 re-pick goes last; `pickAll` adds once each; verbs and counts at 0, 1 and many in both modes;
 empty, blank, taken (case and spaces) and free names; `filesOf` keeps pick order across both
 sources when the first pick finishes last, and gathers failures.

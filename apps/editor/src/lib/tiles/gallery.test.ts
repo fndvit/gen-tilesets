@@ -1,23 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addTiles, newDocument } from "../../document.js";
-import type { GalleryEntry, GalleryTab } from "../../starters.js";
-import { byTab, checkName, countOf, filesOf, galleryKey, mineKey, pickAll, sourceOf, togglePick, verbOf } from "./gallery.js";
-
-describe("byTab", () => {
-  const entry = (id: string, tab: GalleryTab): GalleryEntry => ({ id, label: id, tab, src: `${id}.svg`, thumb: `${id}.webp` });
-
-  it("splits the collection by tab, each in manifest order", () => {
-    const tabs = byTab([entry("a", "shapes"), entry("b", "images"), entry("c", "shapes"), entry("d", "images")]);
-    expect(tabs.images.map((e) => e.id)).toEqual(["b", "d"]);
-    expect(tabs.shapes.map((e) => e.id)).toEqual(["a", "c"]);
-  });
-
-  it("has every tab, in the tablist's order, even an empty one", () => {
-    const tabs = byTab([entry("a", "images")]);
-    expect(Object.keys(tabs)).toEqual(["images", "shapes"]);
-    expect(tabs.shapes).toEqual([]);
-  });
-});
+import { checkName, countOf, filesOf, galleryKey, mineKey, pickAll, sourceOf, togglePick, verbOf } from "./gallery.js";
 
 describe("pick keys", () => {
   it("keep the two sources apart and split back", () => {

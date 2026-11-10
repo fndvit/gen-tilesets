@@ -15,10 +15,9 @@ and [my-tiles.ts](/editor/my-tiles/), both tested, and it was checked in the bro
 group" bar, and a group's square "+". It replaced the two-item Add menu S2 had planned. Dropping
 files still adds at once, because a drop has already chosen.
 
-It shows two shelves of thumbnails:
+It shows two grids of thumbnails:
 - **My tiles**, the pictures the author uploaded with **Upload…**, kept across reloads;
-- **Collection**, the editor's own pictures from `starters.json`, in two tabs: **Images**
-  (Collage's pictures) and **Shapes** (flat geometric tiles), batch 03 D-04.
+- **Collection**, the editor's own pictures from `starters.json`.
 
 The author picks any number from either and presses Add. From Add tile group, the picks become
 **one new group** under the name typed at the top. From a group's "+", they become **variants**
@@ -50,14 +49,6 @@ of that group. The order they were picked in is the variant order.
   2px ink ring and a check badge. Each grid is one Tab stop: a roving `tabindex` follows focus
   (`focusin`), and the arrow keys, Home and End move within the grid, reading the column count
   from the layout as the Tile picker does.
-- **Collection tabs** are the ARIA tabs pattern: a `tablist` named by the Collection heading,
-  two `tab` buttons (`aria-selected`, `aria-controls`), and one `tabpanel` labelled by the chosen
-  tab, holding that tab's grid. Activation is automatic: the arrow keys, Home and End (through
-  `rovingIndex` from [keys.ts](/editor/ui-keys/)) move focus **and** choose, so the tablist is one
-  Tab stop and the next Tab enters the grid. The entries come from `byTab`
-  ([gallery.ts](/editor/gallery/)). The grid is re-made per tab (`{#key tab}`), so its roving
-  `tabindex` starts on the first cell. Picks are keys, so they survive a switch in pick order.
-  The chosen tab is not reset on closing.
 - **Upload…** opens a hidden `<input type="file" multiple accept="image/*">`. The files go
   through `upload(shelf, files, check)`, where `check` is `measure` from
   [assets.ts](/editor/assets/) on an object URL. Accepted files join My tiles **picked**
@@ -76,12 +67,7 @@ of that group. The order they were picked in is the variant order.
 
 ### Look
 
-- The grids share one scroller with a **fixed height** (`max(2 cells, min(560px, 100dvh −
-  360px))`), so the name and the footer stay put, and a long tab scrolls inside it. It was a
-  `max-height` until the tabs: the popup is centred, so switching from Images (21 cells) to Shapes
-  (57) grew it and moved the tabs from under the pointer.
-- The tabs are drawn as a segmented control (`Toggle`'s track and segments, local CSS): grey
-  track, the chosen tab ink with white text, 26px tall.
+- The grids share one scroller with its own `max-height`, so the name and the footer stay put.
 - The footer is Popup's `actions` with `divided` (a hairline). Upload… and the count ("None
   picked", in muted mono, a `role="status"` region) sit on the left; Cancel and the verb on the
   right. It wraps when it doesn't fit, with the verbs on their own line at the right.
@@ -93,10 +79,9 @@ of that group. The order they were picked in is the variant order.
 | --- | --- |
 | `lib/sections/TilesSection.svelte` | `<TileGallery bind:open={galleryOpen} mode={…} onAdd={addFromGallery} />` |
 
-Callees: [gallery.ts](/editor/gallery/) (`byTab` and the pick helpers); `rovingIndex`
-([keys.ts](/editor/ui-keys/)); `openShelf`, `upload`, `fileOf`
+Callees: [gallery.ts](/editor/gallery/); `openShelf`, `upload`, `fileOf`
 ([my-tiles.ts](/editor/my-tiles/)); `BASE`, `manifest` ([starters-client.ts](/editor/starters-client/));
-`GALLERY_TABS`, `loadGalleryFiles`, `once` ([starters.ts](/editor/starters/)); `measure`, `tileNameOf`
+`loadGalleryFiles`, `once` ([starters.ts](/editor/starters/)); `measure`, `tileNameOf`
 ([assets.ts](/editor/assets/)); `session.file`; `ui/Popup`, `ui/Dialog`, `ui/Button`, `ui/Icon`.
 
 ### Gotchas & rejected alternatives
@@ -109,9 +94,8 @@ Callees: [gallery.ts](/editor/gallery/) (`byTab` and the pick helpers); `rovingI
   legal, and the gallery can't know what a group's pictures were made from.
 - **The section re-checks the name** after the fetch (`uniqueTileName`), because a group may have
   been made meanwhile. It becomes "Mix 2" rather than being refused after the work is done.
-- **Rejected: `Toggle` for the tabs.** It is a radio group that sets a value; the tabs switch
-  what is shown, so the role is `tablist`, while the look stays the editor's segmented control.
-- **Rejected: a second scroller for the Collection.** Nested scrolls; the one the shelves share
-  already keeps the name and footer in view (D-04's "make it scrollable").
+- **Rejected: tabs in the Collection** (Images and Shapes, batch 03 D-04). They were built and
+  then removed by Pol: every picture, Collage's then the shapes, is in the one Collection grid,
+  in manifest order.
 - `svelte-ignore a11y_no_noninteractive_element_interactions` on the grid: the keys are handled
   on the group because they move between its cells, and every cell is itself a button.

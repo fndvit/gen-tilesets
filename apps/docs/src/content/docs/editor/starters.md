@@ -18,7 +18,7 @@ The editor ships content a new user can start from, so nobody needs their own pi
 - **Templates** are whole tilesets that New can open: **Collage**, which the first visit opens,
   and **Mosaic** (batch 03, D-05), listed after it.
 - **The tile gallery** is a set of single pictures the user can add as a tile group, or as
-  variants of one, in two tabs: **Images** and **Shapes** (batch 03, D-04).
+  variants of one: Collage's pictures, then the shapes added in batch 03, in one list.
 
 Both are listed in one file, `starters.json`. This module describes that file, checks it, and
 fetches what it points at. Nothing is downloaded when the editor starts. The list is fetched when
@@ -36,13 +36,13 @@ apps/editor/public/
     tileset.json            the template, in export layout
     tiles/tN/aN.svg         21 pictures
     thumb.webp              192 × 120, the template's picture
-    thumbs/tN-aN.webp       104 × 104, one per Images picture
+    thumbs/tN-aN.webp       104 × 104, one per gallery picture of Collage's
   templates/mosaic/
     tileset.json            the template, in export layout (from Pol, already schemaVersion 4)
     tiles/tN/aN.svg|png     16 assets
     thumb.webp              192 × 120
   gallery/shapes/
-    <id>.svg|png            57 Shapes pictures
+    <id>.svg|png            57 shapes
     thumbs/<id>.webp        104 × 104, one each
 ```
 
@@ -50,8 +50,8 @@ Collage comes from `../tileset-files/picsBackground`. Its `tileset.json` was mig
 package's own `migrate()` (2 → 4, which changed only `schemaVersion`). No version number was
 written by hand (**E2**). It has 6 tile groups, 21 pictures and 5 operations.
 
-The Images tab points into Collage's files rather than copying them. The manifest is what keeps
-the two apart: the Shapes tab's entries point at `gallery/shapes/` instead.
+Collage's gallery entries point into its files rather than copying them. The manifest is what
+keeps the two apart: the shapes' entries point at `gallery/shapes/` instead.
 
 **Mosaic** is Pol's (D-05), committed as it came: 5 tile groups, 16 assets, 3 operations, two of
 them `reseedOnLoad` and the file `reseedAssetsOnLoad`. Its asset ids (`a4`, `a5`–`a7`) were not
@@ -59,9 +59,10 @@ renumbered. Its thumbnail is the editor's Export image of it at the design width
 scaled to cover 192 × 120 and centre-cropped; being reseeded on load, the editor may open it on
 a different draw than the thumbnail shows.
 
-**The Shapes tab** (D-04) is the 57 files of `../tiles/`, copied to `gallery/shapes/` under clean
+**The shapes** (D-04) are the 57 files of `../tiles/`, copied to `gallery/shapes/` under clean
 kebab-case ids (`ce-circle-C.svg.svg` → `circle-c.svg`, `circle2Blue.svg` → `circle-2-blue.svg`).
-In manifest order: colourway by colourway (Atlas A, Atlas B, Atlas C, Beige, Blue, Pink, Purple),
+They follow Collage's pictures in the one Collection list (Pol removed D-04's Images and Shapes
+tabs after review). In manifest order: colourway by colourway (Atlas A, Atlas B, Atlas C, Beige, Blue, Pink, Purple),
 labelled shape and colour ("Circle 2 · Blue"; `circle05` is "Circle 0.5", its stroke width), the
 three flower PNGs with their colours; then the 13 in no named colourway, labelled shape and letter
 ("Circle · A", "Real · B"), and "Stripes". The demo's Atlas and Kelp *tilesets* are not used.
@@ -72,8 +73,7 @@ three flower PNGs with their colours; then the 13 in no named colourway, labelle
 | --- | --- | --- |
 | `MANIFEST_PATH` | const | `"starters.json"`, relative to the app's base URL. |
 | `TemplateEntry` | interface | `{ id, label, path, thumb, summary }`. `path` is the template's folder and ends in `/`. `summary` is the muted line, e.g. "6 tile groups · 5 operations". |
-| `GALLERY_TABS` | const | `["images", "shapes"]`, the tabs in the tablist's order. `GalleryTab` is one of them. |
-| `GalleryEntry` | interface | `{ id, label, tab, src, thumb }`. `tab` is required and must be one of `GALLERY_TABS`: an entry with no tab would be in no grid. `label` ("Blue 1") is the cell's **accessible name only**; the cells show no visible label (Pol, 2026-11-09). |
+| `GalleryEntry` | interface | `{ id, label, src, thumb }`. `label` ("Blue 1") is the cell's **accessible name only**; the cells show no visible label (Pol, 2026-11-09). |
 | `Manifest` | interface | `{ templates, gallery }`. |
 | `Fetch` | type | The part of `fetch` the loaders use. The real one fits. |
 | `parseManifest(json)` | function | Checks the shape and returns only the typed fields. Throws on anything malformed, naming the field: `starters.json: templates[0].label must be a non-empty string`. A repeated id and a template `path` without a trailing `/` are refused too. |
@@ -120,7 +120,7 @@ How it was checked, so it can be repeated for new pictures:
 3. Pol compared every picture side by side and chose q90 (S3a). Lossless WebP was
    pixel-identical but 5.7 MB, and was rejected for size.
 
-**The Shapes tab** went through step 1 in batch 03. Only `real-a` and `real-b` embed a picture
+**The shapes** went through step 1 in batch 03. Only `real-a` and `real-b` embed a picture
 (PNGs of 574 × 586 and 580 × 590, 1.45 MB together); at WebP q90 they are 77 KB, with 0 pixels
 over the threshold. Every other shape is a few hundred bytes of plain SVG, or a 128 px flower PNG
 of about 2.5 KB, and was copied unchanged. The Shapes pictures and thumbnails add 181 KB, and
@@ -137,8 +137,8 @@ live, because that would fetch the whole template to show a picture.
 ### Tests: `starters.test.ts`
 
 - `parseManifest` accepts a good manifest and drops unknown keys. It refuses, naming the field: a
-  non-object, missing `templates`, a missing label, an empty string, a path without `/`, a
-  repeated id, a gallery entry with no `tab`, and an unknown `tab`.
+  non-object, missing `templates`, a missing label, an empty string, a path without `/`, and a
+  repeated id.
 - `loadManifest` fetches under the base URL, and throws on a 404 and on bad JSON.
 - `loadTemplate` builds an archive that `prepareArchive` readies. It fetches a shared picture
   once, and throws naming the missing URL.
@@ -147,8 +147,7 @@ live, because that would fetch the whole template to show a picture.
   rest arrive.
 - **The committed starters**, read from `public/` through the same loaders: every template is at
   the current `SCHEMA_VERSION`, validates, needs no upgrade, has every picture and its thumbnail,
-  and its `summary` matches its counts. Every gallery picture and thumbnail exists, and every tab
-lists at least one picture. A future
+  and its `summary` matches its counts. Every gallery picture and thumbnail exists. A future
   schema bump fails here until the template is migrated again, with `migrate()`.
 
 ### Gotchas & rejected alternatives

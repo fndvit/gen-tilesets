@@ -14,7 +14,6 @@ import { describe, expect, it } from "vitest";
 import { FILE_NAME } from "./export.js";
 import { prepareArchive } from "./import.js";
 import {
-  GALLERY_TABS,
   loadGalleryFiles,
   loadManifest,
   loadTemplate,
@@ -83,7 +82,7 @@ const served = {
 describe("parseManifest", () => {
   const good = () => ({
     templates: [{ ...template }],
-    gallery: [{ id: "t1-a1", label: "leaf 1", tab: "images", src: "templates/demo/tiles/t1/a1.svg", thumb: "x.webp" }],
+    gallery: [{ id: "t1-a1", label: "leaf 1", src: "templates/demo/tiles/t1/a1.svg", thumb: "x.webp" }],
   });
 
   it("accepts a well-formed manifest and drops unknown keys", () => {
@@ -98,8 +97,6 @@ describe("parseManifest", () => {
     ["an empty string", { ...good(), templates: [{ ...template, thumb: "" }] }, /templates\[0\]\.thumb/],
     ["a path without a trailing slash", { ...good(), templates: [{ ...template, path: "templates/demo" }] }, /must end in \//],
     ["a repeated gallery id", { ...good(), gallery: [good().gallery[0], good().gallery[0]] }, /gallery\[1\]\.id repeats "t1-a1"/],
-    ["a gallery entry with no tab", { ...good(), gallery: [{ ...good().gallery[0], tab: undefined }] }, /gallery\[0\]\.tab must be a non-empty string/],
-    ["an unknown tab", { ...good(), gallery: [{ ...good().gallery[0], tab: "photos" }] }, /gallery\[0\]\.tab must be one of "images", "shapes"/],
   ])("refuses %s, naming the field", (_, json, message) => {
     expect(() => parseManifest(json)).toThrow(message);
   });
@@ -150,9 +147,9 @@ describe("loadTemplate", () => {
 
 describe("loadGalleryFiles", () => {
   const entries: GalleryEntry[] = [
-    { id: "t1-a2", label: "leaf 2", tab: "images", src: "templates/demo/tiles/t1/a2.svg", thumb: "x" },
-    { id: "t9-a1", label: "gone 1", tab: "images", src: "templates/demo/tiles/t9/a1.svg", thumb: "x" },
-    { id: "t1-a1", label: "leaf 1", tab: "shapes", src: "templates/demo/tiles/t1/a1.svg", thumb: "x" },
+    { id: "t1-a2", label: "leaf 2", src: "templates/demo/tiles/t1/a2.svg", thumb: "x" },
+    { id: "t9-a1", label: "gone 1", src: "templates/demo/tiles/t9/a1.svg", thumb: "x" },
+    { id: "t1-a1", label: "leaf 1", src: "templates/demo/tiles/t1/a1.svg", thumb: "x" },
   ];
 
   it("returns Files in pick order, named by id, with the failures by label", async () => {
@@ -229,8 +226,6 @@ describe("the committed starters", () => {
   it("every gallery entry's picture and thumbnail exist", () => {
     const manifest = parseManifest(JSON.parse(readFileSync(new URL(MANIFEST_PATH, PUBLIC), "utf8")));
     expect(manifest.gallery.length).toBeGreaterThan(0);
-    // An empty tab would be a tab with nothing to pick.
-    for (const tab of GALLERY_TABS) expect(manifest.gallery.some((e) => e.tab === tab), tab).toBe(true);
     for (const entry of manifest.gallery) {
       expect(exists(entry.src), entry.src).toBe(true);
       expect(exists(entry.thumb), entry.thumb).toBe(true);
