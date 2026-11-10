@@ -43,9 +43,11 @@
     end,
     exampleOperation,
     next,
+    plain,
     primaryLabel,
     seenStore,
     showsSkip,
+    spans,
     start,
     type TargetKey,
     type TourRun,
@@ -155,7 +157,7 @@
       viewport,
       sidebar: document.querySelector("aside")?.getBoundingClientRect() ?? { top: 0, bottom: 0, left: 0, right: 0 },
       holes,
-      width: px("--explainer-w"),
+      width: px("--tour-bubble-w"),
       margin: px("--space-4"),
       gutter: px("--space-7"),
       // Only when the card was found: on its fallback, step 6 points at the "+" like any step.
@@ -207,7 +209,7 @@
     // because focus landing on the same Next again says nothing new.
     if (mine > 1) {
       const head = state.index === 0 ? now.title : `${now.title}, ${count(state)}`;
-      announcement = `${head}. ${now.text.join(" ")}`;
+      announcement = `${head}. ${plain(now)}`;
     }
   }
 
@@ -308,14 +310,19 @@
       <h2 class="t-section" id="{ids}-title">{step.title}</h2>
     {:else}
       <div class="head">
-        <h2 class="t-title" id="{ids}-title">{step.title}</h2>
+        <h2 class="t-section" id="{ids}-title">{step.title}</h2>
         <span class="count t-console" id="{ids}-count">{count(tour)}</span>
       </div>
     {/if}
     <div class="text" id="{ids}-text">
       {#each step.text as paragraph, i (i)}
-        <p class="t-body">{paragraph}</p>
+        <p>
+          {#each spans(paragraph) as span, j (j)}{#if span.strong}<strong>{span.text}</strong>{:else}{span.text}{/if}{/each}
+        </p>
       {/each}
+      {#if step.aside !== undefined}
+        <p class="aside">{step.aside}</p>
+      {/if}
     </div>
     <div class="foot">
       {#if showsSkip(tour)}
@@ -386,10 +393,10 @@
     position: absolute;
     box-sizing: border-box;
     display: grid;
-    gap: var(--space-6);
+    gap: var(--space-7);
     max-height: calc(100% - 2 * var(--space-4));
     overflow-y: auto;
-    padding: var(--space-7);
+    padding: var(--tour-pad);
     border-radius: var(--radius-lg);
     background: var(--color-panel);
     box-shadow: var(--shadow-float);
@@ -401,11 +408,10 @@
       left var(--dur-fast) var(--ease);
   }
 
-  /* The cover: centred, wider, more room between its rows. */
+  /* The cover: centred and wider. */
   .bubble.welcome {
     top: 50%;
     left: 50%;
-    gap: var(--space-7);
     width: min(var(--tour-welcome-w), calc(100% - 2 * var(--space-7)));
     transform: translate(-50%, -50%);
   }
@@ -432,15 +438,30 @@
     color: var(--color-muted);
   }
 
+  /*
+    A step larger than `.t-body` and roomier (tokens.css says why). Not a
+    `.t-*` class: the tour is the one place that reads as prose.
+  */
   .text {
     display: grid;
-    gap: var(--space-4);
+    gap: var(--space-6);
+    font-family: var(--font-ui);
+    font-size: var(--text-tour-size);
+    font-weight: var(--weight-regular);
+    line-height: var(--leading-tour);
   }
 
   p {
     margin: 0;
-    line-height: var(--leading-hint);
     text-box: none;
+  }
+
+  strong {
+    font-weight: var(--weight-semibold);
+  }
+
+  .aside {
+    color: var(--color-muted);
   }
 
   /* Skip tour at the left, Back and the primary at the right; on Welcome, both at the right. */

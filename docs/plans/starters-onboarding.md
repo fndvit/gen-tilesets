@@ -1412,3 +1412,53 @@ site in `App.svelte`. O3c ends with the replay working. Stop for Pol at the end;
 
 Commit ("Starters and onboarding: O3c, Show the tour and the narrow Undo"), write "O3c done" here
 with any decisions for Pol to check, update the memory, and stop. Next: O4 (the sweep).
+
+## O3c done (2026-11-10)
+
+Built as planned, plus Pol's addition at the start of the session: **the tour's text read flat**,
+so it is a step larger and split up, with bold terms (Pol picked bold run-in terms over subheaders).
+
+- **"?"** is in `SidebarTopBar`, after Undo, in a `.history` group with Undo (`onTour(trigger)`).
+  **Undo is icon-only at 40rem and below**: both forms are rendered and a media rule shows one.
+  `App.svelte` keeps `tourTrigger` and sets `touring = "replay"`, and `returnFocus` is passed on a
+  replay only.
+- **Text:** DESIGN_SYSTEM.md's Steps table is re-cut into a lead and short paragraphs, `**…**` for
+  bold, and an `aside` closing line drawn muted. `tour.ts` copies it, with `spans` (an unbalanced
+  `**` throws) and `plain` (for the live region). It is 15px at 1.5 leading (`--text-tour-size`,
+  `--leading-tour`), and the step name is `.t-section`. The bubble is 380px wide
+  (`--tour-bubble-w`), Welcome is 440px, padding is 20px (`--tour-pad`), with 16px between rows
+  and 12px between paragraphs.
+- Docs: `sidebar-top-bar.md`, `tour-dialog.md`, `tour.md`, `app.md`. `pnpm test` (1280),
+  `pnpm typecheck`, the docs build and `pnpm changelog check` pass. `packages/` is untouched.
+
+**Browser probe** (scratchpad `o3c/probe.mjs`, dev server 5174, at 1440 × 900 and 375 × 812):
+- First visit: 9 steps, all 15px. No bubble scrolls inside itself or leaves the window, and no `*`
+  shows. The bold terms and the muted aside are where the table puts them. The live region has no
+  marks. On step 6 at 1440 × 900 the card's head ("4 Tile …") is still visible above the bubble.
+- Replay from "?": 8 steps, with the replay's Welcome and last-step text and no "An operation".
+  Done, Skip tour and Esc each return focus to "?". An open operation card is still open after a
+  replay, and no discard dialog appeared.
+- Top bar: one row at 1440, 641, 640 and 375 px. Undo has its word above 640px and is an icon at
+  640px and below. Both forms undo, and both are disabled with an empty history. At 320px Undo and
+  "?" wrap onto a second row, at the right (`margin-left: auto`, added after the first screenshot
+  put them at the left). Nothing overflows.
+- axe-core 4.10.2: no violations with a replay open, or on the editor at either size. One run
+  reported 3 `target-size` nodes at the end, after resizing down to 320 and back. Three fresh runs
+  did not reproduce it (Collage, with operation 4 open, and after the same resizes), so it was
+  probably read mid-reflow. O4's sweep should look again.
+
+**Decided while building, for Pol to check:**
+1. **"variants" is bold** on Tile group, beside **sliders**: it is the term the step introduces.
+   The plan's text had it plain.
+2. **The Welcome card's run line is its aside** (muted): "This is Collage… You can skip the tour
+   at any time." It reads as a note on the two paragraphs above it.
+3. **Bold is `**…**` in plain strings**, not HTML, so `{@html}` is never used.
+4. **Step 6 at 1440 × 900:** the taller bubble now covers the card down to its palette rows
+   (Yellow, Blue). The card's head and stepper stay visible.
+5. **At 641px the top-bar row is 126px tall.** The preview's top bar wraps in its 240px column, and
+   the sidebar's bar shares that row. This was there before O3c; the sidebar's bar is one row.
+   Leave it for O4?
+6. Screenshots of every step at both sizes are in the session scratchpad,
+   `o3c/shots/` (`wide-first-*`, `narrow-first-*`, `*-replay-*`, `*-bar-*`).
+
+**Next: O4** (the sweep).

@@ -4,7 +4,8 @@
   (iteration 2). One hairline runs under both.
 
   Left, the document: New, Import and Export, Export being the area's one
-  primary. Right, the edit history: Undo. The document's actions come first
+  primary. Right, the edit history, Undo, then "?" (Show the tour, B-017 O3c),
+  which is not a document action either. The document's actions come first
   (Pol, X1), and Export's menu then opens left-aligned under it, inside the
   sidebar. They moved here from the footer, which now holds only the seed, so
   "what happens to the file" and "how it is drawn" are two places instead of
@@ -41,6 +42,7 @@
   import { session } from "../../session.svelte.js";
   import ImportPanel from "../ImportPanel.svelte";
   import Button from "../ui/Button.svelte";
+  import IconButton from "../ui/IconButton.svelte";
   import Popup from "../ui/Popup.svelte";
   import SplitButton from "../ui/SplitButton.svelte";
   import ExportImage from "./ExportImage.svelte";
@@ -50,9 +52,13 @@
     onNew: () => void;
     /** Whether the preview draws a draft: Export image says it is left out. */
     draft: boolean;
+    /** Starts a replay of the tour; `trigger` is "?", where focus returns when it ends. */
+    onTour: (trigger: HTMLElement) => void;
   }
 
-  let { onNew, draft }: Props = $props();
+  let { onNew, draft, onTour }: Props = $props();
+
+  let help = $state<HTMLButtonElement | undefined>(undefined);
 
   let imaging = $state(false);
 
@@ -112,13 +118,32 @@
     is outside the stack. §9.4 makes it *the repair* for an orphaned Selection:
     nothing is migrated, because migration has to guess.
   -->
-  <Button
-    label="Undo"
-    icon="undo"
-    variant="tertiary"
-    disabled={!session.canUndo}
-    onclick={() => session.undo()}
-  />
+  <!--
+    "?" sits with Undo, not with New, Import and Export: it changes nothing in
+    the file (DESIGN_SYSTEM.md, '"?" (Show the tour)'). One group, so
+    `space-between` keeps the two together at the right when the bar wraps.
+  -->
+  <div class="history">
+    <!--
+      **E6**: undo restores a previous `TilesetFile` in full, and no editor action
+      is outside the stack. §9.4 makes it *the repair* for an orphaned Selection:
+      nothing is migrated, because migration has to guess.
+
+      Two forms, one shown by the media rule below: at 375px the bar has no room
+      for "?" beside a labelled Undo (O1), so below 40rem Undo is an icon. The
+      hidden one is `display: none`, so it is out of the Tab order and the
+      accessibility tree. Rejected: a `matchMedia` rune choosing one, which is
+      more code and can disagree with the CSS breakpoint for a frame.
+    -->
+    <span class="undo-wide">
+      <Button label="Undo" icon="undo" variant="tertiary" disabled={!session.canUndo} onclick={() => session.undo()} />
+    </span>
+    <span class="undo-narrow">
+      <IconButton icon="undo" label="Undo" disabled={!session.canUndo} onclick={() => session.undo()} />
+    </span>
+    <!-- No guard against a second tour: while one runs, the editor behind its modal dialog is inert. -->
+    <IconButton icon="help" label="Show the tour" haspopup="dialog" bind:element={help} onclick={() => help && onTour(help)} />
+  </div>
 </div>
 
 <ExportImage bind:open={imaging} {draft} onFailed={imageFailed} />
@@ -152,5 +177,32 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
+  }
+
+  /* `margin-left: auto`: wrapped onto a row of its own (320px), `space-between` alone would put it at the left. */
+  .history {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-left: auto;
+  }
+
+  .undo-wide,
+  .undo-narrow {
+    display: contents;
+  }
+
+  .undo-narrow {
+    display: none;
+  }
+
+  @media (max-width: 40rem) {
+    .undo-wide {
+      display: none;
+    }
+
+    .undo-narrow {
+      display: contents;
+    }
   }
 </style>

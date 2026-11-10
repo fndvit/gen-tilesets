@@ -47,7 +47,7 @@ Layout and the Selection artwork still come from the Figma file **Tileset Creato
 | Status | `--color-danger` (= `--red-600`) | Only the alert icon of a failure notice or of a **Field error**. There is no warning colour: an advisory is ink |
 | Font | `--font-ui` (Helvetica, standing in for Neue Haas Grotesk) · `--font-mono` (Roboto Mono 400 and 500, self-hosted via `@fontsource`) | |
 | Space | `--space-1…7` = 2 / 4 / 6 / 8 / 10 / 12 / 16 px | 2px base |
-| Size | `--control-h` 30 · `--header-h` 52 (a section header) · `--preview-bar-h` 52 (both top bars) · `--group-h` 34 · `--add-h` 32 · `--icon` 16 · `--icon-button` 28 · `--op-index` 24 · `--step-dot` 20 · `--menu-w` 200 · `--thumb` 32 · `--thumb-sm` 16 · `--thumb-lg` 48 (Constant's one tile) · `--share-measured-w` 48 (a "≈68%") · `--slider-thumb` 16 · `--glyph-w` 72 · `--glyph-slot` 43 · `--badge` 16 · `--field-label-w` 38% (`-compact` 116px in an operation) · `--width-chip-w` 48 · `--swatch-w` 30 · `--sidebar-w` clamp(400, 30vw, 560) · the preview handle sizes · `--tour-welcome-w` 380 (the tour's Welcome card) | |
+| Size | `--control-h` 30 · `--header-h` 52 (a section header) · `--preview-bar-h` 52 (both top bars) · `--group-h` 34 · `--add-h` 32 · `--icon` 16 · `--icon-button` 28 · `--op-index` 24 · `--step-dot` 20 · `--menu-w` 200 · `--thumb` 32 · `--thumb-sm` 16 · `--thumb-lg` 48 (Constant's one tile) · `--share-measured-w` 48 (a "≈68%") · `--slider-thumb` 16 · `--glyph-w` 72 · `--glyph-slot` 43 · `--badge` 16 · `--field-label-w` 38% (`-compact` 116px in an operation) · `--width-chip-w` 48 · `--swatch-w` 30 · `--sidebar-w` clamp(400, 30vw, 560) · the preview handle sizes · `--tour-bubble-w` 380 (a tour step's bubble) · `--tour-welcome-w` 440 (its Welcome card) · `--tour-pad` 20 (their padding) | |
 | Shape | `--radius-xs` 3 (thumbnails, index squares) · `--radius-sm` 6 (fields, buttons, segments, icon buttons) · `--radius` 8 (cards, wells) · `--radius-lg` 12 (popups) · `--radius-round` · `--rule-w` 1 · `--rule-strong` 2 · `--accent-edge` 3 | |
 | Elevation | `--shadow-raised` (a raised control on a track) · `--shadow-float` (popups, menus, notices) | |
 | Focus | `--focus-w` 2 · `--focus-offset` 2, in `--color-accent` | |
@@ -68,6 +68,10 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
 | `.t-body` | Helvetica 13 / 400 | Running text, hints |
 | `.t-xs` | Helvetica 13 / 500 | Buttons, segments, menu items |
 | `.t-console` | Roboto Mono 12 / 400 | Section summaries, chip answers, captions, glyph labels |
+
+The tour's text is the one exception: Helvetica 15 / 400 at 1.5 leading (`--text-tour-size`,
+`--leading-tour`), with its terms at 600. It is prose read once, not text scanned beside the
+controls, so it gets a step up (Pol, O3c). See *Onboarding: the tour*, "The step bubble".
 
 ## Layout
 
@@ -424,17 +428,22 @@ Picked by Pol at O0 and O1, and the text revised by Pol after O2 (`docs/plans/st
 The first visit has nine steps. A replay has eight: step 6 describes Collage, so it is in the
 first-visit tour only.
 
+Each step's text is a lead sentence, then short paragraphs, then, on some steps, a closing line in
+the muted colour (*aside*). **Bold** marks the name of a control or a term the paragraph is about
+(Pol, O3c: run-in bold rather than subheaders, which made the bubble taller). Paragraphs are
+separated by " / " below.
+
 | # | Step | Target (the cut-out) | Text |
 |---|---|---|---|
-| 1 | Welcome | none: a centred card | Two paragraphs. The first is the same on every run: "This is the generative tileset editor. A tileset is a grid of pictures, laid out by operations that each change part of the grid, one on top of another. Use the gallery's pictures or upload your own, then export the tileset for a website or as an image." The second, on the first visit: "This is Collage, an example tileset. The next eight steps show how it is made. You can skip the tour at any time." On a replay: "The next seven steps show how a tileset is made. You can skip the tour at any time." |
-| 2 | Grid & size | the whole Grid & size section | "Set the cell size and the number of rows. Design width is the page width you design for: the grid gets just enough columns to cover it, and the whole tileset scales with the page at other widths." |
+| 1 | Welcome | none: a centred card | "This is the generative tileset editor. A tileset is a grid of pictures, laid out by operations that each change part of the grid, one on top of another." / "Use the gallery's pictures or upload your own, then export the tileset for a website or as an image." Aside, on the first visit: "This is Collage, an example tileset. The next eight steps show how it is made. You can skip the tour at any time." On a replay: "The next seven steps show how a tileset is made. You can skip the tour at any time." |
+| 2 | Grid & size | the whole Grid & size section | "Set the cell size and the number of rows." / "**Design width** is the page width you design for: the grid gets just enough columns to cover it, and the whole tileset scales with the page at other widths." |
 | 3 | Tiles | the Tiles section header's "+" (Add tile group) | "Add tile groups. Pick pictures from the gallery, or upload your own." |
-| 4 | Tile group | the first tile group (Blue in Collage) | "A tile group is one tile with one or more pictures, its variants. Operations decide where the tile goes, and each of those cells draws one of its pictures. The sliders set how often each picture is drawn." |
-| 5 | Operations | the Operations section header's "+" (Add operation) | "Operations fill the grid. Each one changes some cells: their tile, or its rotation, scale, offset or opacity. They run from top to bottom, and a later one paints over an earlier one." |
-| 6 | An operation (first visit only) | Collage's operation 4, opened, **and** the preview's picture | "This is operation 4. Its Selection is a rectangle in the middle of the grid, outlined on the picture. Its Pattern, Random, gives each of those cells a tile: mostly Yellow, sometimes Blue, Pink or Grey. The new tiles keep the rotation and opacity that operations 2 and 3 gave every cell." |
-| 7 | Breakpoints | the Breakpoints section header | "Change how the tileset looks at different screen sizes. Only useful if you export it for a website." |
-| 8 | Randomness | the whole Randomness footer | "Everything random follows from the seed, so the same seed always gives the same picture. New seed redraws every operation, Re-seed on an operation's card redraws only that one, and Reroll assets only swaps pictures within each tile group. ⓘ How randomness works has the rest." |
-| 9 | Your own tileset | the top bar's **New** button | On the first visit: "Start building your own tileset with New, or close this and keep exploring Collage." On a replay: "Start building your own tileset with New, or close this and keep working on this one." (Pol, after O3a) |
+| 4 | Tile group | the first tile group (Blue in Collage) | "A tile group is one tile with one or more pictures, its **variants**." / "Operations decide where the tile goes, and each of those cells draws one of its pictures." / "The **sliders** set how often each picture is drawn." |
+| 5 | Operations | the Operations section header's "+" (Add operation) | "Operations fill the grid. Each one changes some cells: their tile, or its rotation, scale, offset or opacity." / "They run **from top to bottom**, and a later one paints over an earlier one." |
+| 6 | An operation (first visit only) | Collage's operation 4, opened, **and** the preview's picture | "This is operation 4." / "Its **Selection** is a rectangle in the middle of the grid, outlined on the picture." / "Its **Pattern**, Random, gives each of those cells a tile: mostly Yellow, sometimes Blue, Pink or Grey." Aside: "The new tiles keep the rotation and opacity that operations 2 and 3 gave every cell." |
+| 7 | Breakpoints | the Breakpoints section header | "Change how the tileset looks at different screen sizes." Aside: "Only useful if you export it for a website." |
+| 8 | Randomness | the whole Randomness footer | "Everything random follows from the seed: the same seed always gives the same picture." / "**New seed** redraws every operation." / "**Re-seed**, on an operation's card, redraws only that one." / "**Reroll assets** only swaps pictures within each tile group." Aside: "ⓘ How randomness works has the rest." |
+| 9 | Your own tileset | the top bar's **New** button | On the first visit: "Start building your own tileset with **New**, or close this and keep exploring Collage." On a replay: "Start building your own tileset with **New**, or close this and keep working on this one." (Pol, after O3a) |
 
 The count is for the run in progress, "<n> of <total>". So Breakpoints is 7 of 9 on the first
 visit and 6 of 8 on a replay, where the steps after step 5 move up one.
@@ -475,13 +484,17 @@ visit and 6 of 8 on a replay, where the steps after step 5 move up one.
 
 ### The step bubble
 
-An Explainer-like panel: white, `--radius-lg`, `--shadow-float`, `--space-7` padding, `--space-6`
-between its rows, `--explainer-w` (340px) wide, and no arrow.
+An Explainer-like panel: white, `--radius-lg`, `--shadow-float`, `--tour-pad` (20px) padding,
+`--space-7` between its rows, `--tour-bubble-w` (380px) wide, and no arrow. It is roomier than an
+Explainer, and its text a step larger, because it is read once as prose rather than scanned beside
+the controls (Pol, O3c: the 13px text read flat).
 
-1. **Header:** the step's name in `.t-title` at the left, and the count in muted `.t-console` at
+1. **Header:** the step's name in `.t-section` at the left, and the count in muted `.t-console` at
    the right: "3 of 9" (Pol, O1). The count includes Welcome, so the pointing steps are 2 to 9
    (2 to 8 on a replay).
-2. **Text:** `.t-body`, ink, `--leading-hint`.
+2. **Text:** `--text-tour-size` (15px), ink, `--leading-tour` (1.5), `--space-6` between
+   paragraphs. Bold terms are `--weight-semibold`. The aside, last, is the same size in
+   `--color-muted`.
 3. **Footer:** **Skip tour** (tertiary) at the left; **Back** (secondary) and **Next** (primary) at
    the right.
    - On Grid & size (step 2), Back is shown and goes back to Welcome, so every pointing step has
@@ -491,8 +504,8 @@ between its rows, `--explainer-w` (340px) wide, and no arrow.
 
 ### The Welcome card
 
-The same panel, 380px wide (`--tour-welcome-w`), centred in the window, `--space-7`
-between rows: a `.t-section` "Welcome", the two paragraphs in `.t-body`, then **Skip tour** (secondary) and
+The same panel, 440px wide (`--tour-welcome-w`), centred in the window: a `.t-section`
+"Welcome", the text as in a step bubble (two paragraphs and the aside), then **Skip tour** (secondary) and
 **Start tour** (primary) at the right. It has no count (it is the cover) and nothing is cut out.
 Below 40rem it is the window's width less 16px on each side.
 

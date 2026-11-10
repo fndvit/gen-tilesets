@@ -77,6 +77,12 @@
   /** The tour showing now, if any. Seeded once from the mount prop; "?" sets it to a replay (O3c). */
   // svelte-ignore state_referenced_locally
   let touring = $state<TourRun | null>(tourRun);
+  /**
+   * "?", which started the replay, for focus to return to. A first visit whose
+   * Collage failed also runs as "replay", with no trigger: focus then goes to
+   * the first section header, as after any first-visit tour.
+   */
+  let tourTrigger = $state<HTMLElement | undefined>(undefined);
 
   const file = $derived(session.file);
   const config = $derived(file.config);
@@ -473,7 +479,14 @@
       point of **S2**'s single live preview. `.fixed` (the footer) never
       scrolls.
     -->
-    <SidebarTopBar onNew={() => (askingNew = true)} draft={drawn !== null} />
+    <SidebarTopBar
+      onNew={() => (askingNew = true)}
+      draft={drawn !== null}
+      onTour={(trigger) => {
+        tourTrigger = trigger;
+        touring = "replay";
+      }}
+    />
 
     <div class="sidebar-body">
     <div class="scrollable">
@@ -614,7 +627,7 @@
 
 <!-- B-017. After everything else, though as a modal dialog it is in the top layer wherever it sits. -->
 {#if touring !== null}
-  <Tour run={touring} onEnd={() => (touring = null)} />
+  <Tour run={touring} onEnd={() => (touring = null)} returnFocus={touring === "replay" ? tourTrigger : undefined} />
 {/if}
 
 <!--

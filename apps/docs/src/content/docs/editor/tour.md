@@ -30,7 +30,10 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 | --- | --- | --- |
 | `TargetKey` | type | The `data-tour` value a step cuts out: `grid`, `tiles-add`, `tiles-header`, `tile-group`, `ops-add`, `op-example`, `preview`, `breakpoints`, `footer`, `new`. |
 | `TourRun` | type | `"first"` or `"replay"`. |
-| `TourStep` | interface | `{ id, title, text, targets, firstVisitOnly?, fallback? }`. `text` holds one string per paragraph. |
+| `TourStep` | interface | `{ id, title, text, aside?, targets, firstVisitOnly?, fallback? }`. `text` holds one string per paragraph, with `**…**` marking a bold term. `aside` is a closing line, drawn muted. |
+| `Span` | interface | `{ text, strong }`: one piece of a paragraph. |
+| `spans(paragraph)` | function | The paragraph cut at its `**` marks, empty pieces left out. An odd number of marks throws. |
+| `plain(step)` | function | The step's text without marks, the aside last: what the live region says. |
 | `stepsFor(run)` | function | The run's steps, Welcome first: 9 or 8. |
 | `TourState` | interface | `{ run, steps, index }`. Index 0 is Welcome. |
 | `start(run)`, `current(state)` | functions | A tour on Welcome, and the step it is on. |
@@ -45,8 +48,12 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 
 ### Behaviour
 
-- **Welcome** has no target. Its text is the paragraph every run shares, then the run's own
-  paragraph ("…The next eight steps…" or "The next seven steps…").
+- **Welcome** has no target. Its text is the two paragraphs every run shares, then the run's own
+  line as its aside ("…The next eight steps…" or "The next seven steps…").
+- **Bold** (Pol, O3c): the text is split into a lead and short paragraphs, each opening with the
+  control it is about in `**…**`. The strings stay plain so they read beside the doc's table, and
+  a term can sit mid-sentence, which a `{ term, text }` record could not hold. Rejected: HTML in the
+  strings and `{@html}`, an injection path for two tags.
 - **Your own tileset** is the last step in both runs, and points at the top bar's New. Its text
   names Collage on the first visit ("…or close this and keep exploring Collage."). On a replay it
   says "…keep working on this one.", because a replay runs over whatever is open (Pol, after O3a).
@@ -60,7 +67,9 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 
 ### Tests
 
-`tour.test.ts`: both runs' step ids; Welcome's paragraphs; step 6's two targets and the two
+`tour.test.ts`: both runs' step ids; Welcome's paragraphs and aside; every step's marks balanced;
+`spans` (no marks, a term mid-sentence, a leading term, a term left open throws); `plain` with and
+without an aside; step 6's two targets and the two
 fallbacks; the last step's target and its two texts; the counts (Breakpoints is 7 of 9, or 6 of 8 on a replay); Back from Grid & size; the
 labels and Skip on the last step; `end` sets the flag; a throwing store reads as not seen and never
 throws; `isFirstVisit`'s four cases; `exampleOperation` on Collage, and `null` for a reordered stack, a

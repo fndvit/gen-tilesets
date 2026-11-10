@@ -25,7 +25,10 @@ do the step. The look is DESIGN_SYSTEM.md § "Onboarding: the tour".
 | `returnFocus` | `HTMLElement \| undefined` | Where focus goes at the end: "?" after a replay (O3c). Absent, the Grid & size header. |
 
 `App.svelte` holds `touring` (`TourRun | null`), seeded from its `tourRun` mount prop, and renders
-the tour while it is set. `onEnd` clears it.
+the tour while it is set. `onEnd` clears it. The top bar's **"?"** ([SidebarTopBar](/editor/sidebar-top-bar/)'s
+`onTour`) sets `touring = "replay"` and keeps the button as `tourTrigger`, which App passes as
+`returnFocus` on a replay only. A first visit whose Collage failed also runs as `"replay"`, with no
+trigger, so focus goes to the Grid & size header as after any first-visit tour.
 
 ### Structure
 
@@ -36,12 +39,18 @@ the tour while it is set. `onEnd` clears it.
   per hole. Over each hole, a 2px ink ring with a 2px white halo outside it. The holes and rings
   are placed in CSS, so they glide to the next target over `--dur-fast`. A press on the scrim does
   nothing, and its `mousedown` is cancelled so focus stays on Next.
-- **The Welcome card** is centred, `--tour-welcome-w` wide (the window less 16px on each side
+- **The Welcome card** is centred, `--tour-welcome-w` (440px) wide (the window less 16px on each side
   below 40rem), with Skip tour and Start tour at the right and no count.
-- **The step bubble** has the title and count ("3 of 9") in its header, the text, then Skip tour
-  at the left (not on the last step) and Back and Next (or Done) at the right.
+- **The step bubble** is `--tour-bubble-w` (380px) wide with `--tour-pad` padding. It has the
+  title (`.t-section`) and count ("3 of 9") in its header, the text, then Skip tour at the left
+  (not on the last step) and Back and Next (or Done) at the right.
+- **The text** is `--text-tour-size` (15px) at `--leading-tour`, a step above `.t-body`, because it
+  is prose read once (Pol, O3c). Each paragraph is cut by `spans` from [tour.ts](/editor/tour/), and
+  its marked terms are `<strong>` at `--weight-semibold`. The step's `aside`, if any, is a last
+  paragraph in `--color-muted`. No `{@html}`.
 - The dialog is named by the title and count and described by the text. A polite live region
-  announces each later step, because focus landing on the same Next says nothing new.
+  announces each later step, because focus landing on the same Next says nothing new. Its text is
+  `plain(step)`, without the marks.
 
 ### On each step
 

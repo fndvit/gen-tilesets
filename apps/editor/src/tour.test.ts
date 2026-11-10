@@ -13,10 +13,12 @@ import {
   isFirstVisit,
   isLast,
   next,
+  plain,
   primaryLabel,
   SEEN_KEY,
   seenStore,
   showsSkip,
+  spans,
   start,
   stepsFor,
   type TourState,
@@ -51,16 +53,27 @@ describe("stepsFor", () => {
     const own = (run: "first" | "replay") => stepsFor(run).at(-1)!;
     expect(own("first").targets).toEqual(["new"]);
     expect(own("first").text[0]).toMatch(/keep exploring Collage\.$/);
+    expect(own("first").text[0]).toContain("**New**");
     expect(own("replay").text[0]).not.toMatch(/Collage/);
   });
 
-  it("gives Welcome the shared paragraph and the run's own second one", () => {
+  it("gives Welcome the shared paragraphs and the run's own aside", () => {
     const [first] = stepsFor("first");
     const [replay] = stepsFor("replay");
     expect(first!.targets).toEqual([]);
-    expect(first!.text[0]).toBe(replay!.text[0]);
-    expect(first!.text[1]).toMatch(/^This is Collage.*next eight steps/);
-    expect(replay!.text[1]).toMatch(/^The next seven steps/);
+    expect(first!.text).toEqual(replay!.text);
+    expect(first!.aside).toMatch(/^This is Collage.*next eight steps/);
+    expect(replay!.aside).toMatch(/^The next seven steps/);
+  });
+
+  it("marks only balanced terms, in every step of both runs", () => {
+    for (const run of ["first", "replay"] as const) {
+      for (const step of stepsFor(run)) {
+        for (const p of [...step.text, ...(step.aside === undefined ? [] : [step.aside])]) {
+          expect(spans(p).map((s) => s.text).join("")).not.toContain("*");
+        }
+      }
+    }
   });
 
   it("cuts out the card and the picture on An operation, and says where each step falls back to", () => {
@@ -149,5 +162,44 @@ describe("exampleOperation", () => {
     expect(exampleOperation([collage[0]!, collage[1]!, collage[3]!, collage[2]!])).toBeNull();
     expect(exampleOperation([...collage.slice(0, 3), op("op6", "all")])).toBeNull();
     expect(exampleOperation(collage.slice(0, 3))).toBeNull();
+  });
+});
+
+describe("spans", () => {
+  it("is one plain span without marks", () => {
+    expect(spans("Add tile groups.")).toEqual([{ text: "Add tile groups.", strong: false }]);
+  });
+
+  it("cuts a term out of the middle of a sentence", () => {
+    expect(spans("The **sliders** set it.")).toEqual([
+      { text: "The ", strong: false },
+      { text: "sliders", strong: true },
+      { text: " set it.", strong: false },
+    ]);
+  });
+
+  it("leaves out the empty part before a leading term", () => {
+    expect(spans("**New seed** redraws.")).toEqual([
+      { text: "New seed", strong: true },
+      { text: " redraws.", strong: false },
+    ]);
+  });
+
+  it("throws on a term left open", () => {
+    expect(() => spans("The **sliders set it.")).toThrow(/Unbalanced/);
+  });
+});
+
+describe("plain", () => {
+  it("drops the marks and ends with the aside", () => {
+    const randomness = stepsFor("first").find((s) => s.id === "randomness")!;
+    expect(plain(randomness)).toBe(
+      "Everything random follows from the seed: the same seed always gives the same picture. New seed redraws every operation. Re-seed, on an operation's card, redraws only that one. Reroll assets only swaps pictures within each tile group. ⓘ How randomness works has the rest.",
+    );
+  });
+
+  it("is the paragraphs alone on a step without an aside", () => {
+    const tiles = stepsFor("first").find((s) => s.id === "tiles")!;
+    expect(plain(tiles)).toBe("Add tile groups. Pick pictures from the gallery, or upload your own.");
   });
 });

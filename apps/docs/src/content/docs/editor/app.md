@@ -223,6 +223,13 @@ An effect hands every `session.file` to `keeping.schedule` ([keeping](/editor/ke
 writes it to IndexedDB. The kept tileset is reopened in `main.ts` before `App` mounts, so App
 starts with it already open.
 
+#### The tour
+
+`touring` (`TourRun | null`) is seeded once from the `tourRun` mount prop (a first visit) and
+renders [Tour](/editor/tour-dialog/) while it is set; `onEnd` clears it. The top bar's **"?"**
+(`onTour`) keeps its button as `tourTrigger` and sets `touring = "replay"`. `returnFocus` is
+`tourTrigger` on a replay only.
+
 #### New document
 
 The top bar's *New* button sets `askingNew` (passed as `onNew`), which opens the
