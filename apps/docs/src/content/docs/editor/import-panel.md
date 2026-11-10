@@ -7,7 +7,8 @@ sidebar:
 
 **Written from:** `apps/editor/src/lib/ImportPanel.svelte`, and the call site in
 `lib/sections/SidebarFooter.svelte`. The
-pure half it calls is [import.ts](/editor/import/).
+pure half it calls is [import.ts](/editor/import/)'s `prepareArchive`, and the swap is
+[adopt.ts](/editor/adopt/).
 
 ## Overview
 
@@ -33,11 +34,13 @@ entry point. It is the inverse of the download button.
 
 The component turns a dropped zip, a picked zip, or a dropped folder into an `Archive` (a map
 of path to bytes), then runs the sequence read → parse → **migrate** → **validate** → attach →
-swap. Nothing before the last two steps touches editor state, so every refusal leaves the author
-exactly where they were. It calls [`migrate`](/api/index/functions/migrate/) and
-[`validate`](/api/index/functions/validate/) itself rather than the package's
-`loadTilesetFile`, because it needs the migration steps for its advisory and the structured
-[`ValidationError`](/api/index/interfaces/validationerror/) list to show each error at its path.
+swap. Everything up to the swap is `prepareArchive` ([import.ts](/editor/import/)), which is pure;
+the swap is `adopt` ([adopt.ts](/editor/adopt/)). So every refusal leaves the author exactly where
+they were. The New tileset popup's templates (B-016) go through the same pair. `prepareArchive`
+calls [`migrate`](/api/index/functions/migrate/) and [`validate`](/api/index/functions/validate/)
+itself rather than the package's `loadTilesetFile`, because the panel needs the migration steps
+for its advisory and the structured [`ValidationError`](/api/index/interfaces/validationerror/)
+list to show each error at its path.
 
 ### Public surface
 
@@ -46,8 +49,8 @@ exactly where they were. It calls [`migrate`](/api/index/functions/migrate/) and
 | `target` | `HTMLElement \| null` | `null` | The element that takes drops (the footer). Listeners are attached in an `$effect`. |
 | `over` | `boolean` (bindable) | `false` | Whether a drag is over `target`, for the caller to style. |
 
-It reads and writes module state directly:
-[`session`](/editor/session/), [`drafting`](/editor/drafting/) and the asset store in
+It changes editor state only through [`adopt`](/editor/adopt/), which writes
+[`session`](/editor/session/), [`drafting`](/editor/drafting/), the notices and the asset store in
 [assets.ts](/editor/assets/).
 
 ### Inputs → outputs
@@ -70,18 +73,20 @@ It reads and writes module state directly:
 
 #### `open(archive)`
 
-1. `readArchive(archive)` → `{ file, assets }`. Its `missing` list is not used: a `meta.src` the
-   archive did not carry leaves the asset without a file, so it fails to draw and §12.3's
-   failure notice says so.
-2. `migrate(file)`. On `"newer"`, set `newer = outcome.declared` and stop.
-3. Take `outcome.file` if `"migrated"`, else the raw file. `"unrecognized"` has no branch and
-   falls through to `validate()`, which reports it at `/schemaVersion`.
-4. `validate(file)`. Any error: set `errors` and stop.
-5. Wrap each asset's bytes in a `File` (`nameOf`, `mimeOf`) and `await replaceAll(incoming)`.
-6. `session.open(file as TilesetFile)` and `drafting.discard()`.
-7. `notices.clear()`, then `notices.push` each of `importNotices({ upgrades, failed })`
-   (`advisories.ts`): the upgrade advisory for the migration steps, and a failure for pictures
-   that could not be read. A new document starts with no notices, then gets its own.
+1. `prepareArchive(archive)` ([import.ts](/editor/import/)) reads, migrates and validates, and
+   returns one of three outcomes:
+   - `"newer"`: set `newer = prepared.declared` and stop.
+   - `"invalid"`: set `errors = prepared.errors` and stop.
+   - `"ready"`: the validated file, its pictures as `File`s, and the migration steps.
+2. If the current tileset `isBlank` ([document.ts](/editor/document/): no Tiles, no Operations, no
+   responsive rules), `await adopt(prepared)` at once. Otherwise the prepared file waits in
+   `pending` and a `wide` [Dialog](/editor/ui-dialog/) asks "Replace the current tileset?" with
+   the verb **Import** and the shared `LossWarning` line ("Everything in the current tileset is
+   lost, and it can't be undone. Export it first to keep it."). Import calls `confirmImport()`;
+   Cancel drops `pending`.
+3. `adopt(prepared)` ([adopt.ts](/editor/adopt/)): `replaceAll`, `session.open` (a fresh history),
+   `drafting.discard()`, then the notices from `importNotices({ upgrades, failed })`. A new
+   document starts with no notices, then gets its own.
 
 `run()` resets all three outputs, sets `busy` (the button reads "Importing…"), and catches any
 throw (a bad zip, a missing `tileset.json`) into `failure`. When it ends with anything to report,
@@ -90,7 +95,9 @@ popup calls `reset()`.
 
 #### What it shows
 
-Refusals are in the popup, titled "Import refused".
+Refusals are in the popup, titled "Import refused". It is
+[ImportRefused.svelte](/editor/import-refused/), which the New tileset popup also uses for a
+template that fails to open.
 
 | State | Shown |
 | --- | --- |
@@ -119,19 +126,17 @@ Refusals are in the popup, titled "Import refused".
 | --- | --- |
 | `lib/sections/SidebarFooter.svelte` | `<ImportPanel target={root} bind:over />` in the actions row |
 
-Callees: [`migrate`](/api/index/functions/migrate/), [`validate`](/api/index/functions/validate/)
-; `unzipSync` (`fflate`); `replaceAll` (`assets.ts`); `importNotices` (`advisories.ts`);
-`notices.clear`, `notices.push` (`notices.svelte.ts`); `readArchive`, `nameOf`, `mimeOf`
-(`import.ts`); `session.open`, `drafting.discard`; `ui/Button`, `ui/Popup`.
+Callees: `prepareArchive` (`import.ts`); `adopt` (`adopt.ts`); `unzipSync` (`fflate`);
+`isBlank` (`document.ts`); `session.file`; `ui/Button`, `ui/Dialog`, `ImportRefused`,
+`LossWarning`.
 
 ### Tests
 
 No test file for the component. `import.test.ts` covers the panel's whole non-DOM path: its
-`describe("the import path, end to end through a zip")` block (line 155) runs unzip →
-`readArchive` → `migrate` → `validate` through a real `fflate` zip, which its comment calls
-"everything `ImportPanel.svelte` does before it touches the asset store or the session". Other
-blocks pin `readArchive`, `nameOf` and `mimeOf`. The folder walk, `replaceAll` and the swap are
-not tested.
+`describe("prepareArchive")` block pins each outcome (ready, migrated, newer, invalid, a missing
+picture, a throw), and `describe("the import path, end to end through a zip")` runs unzip →
+`readArchive` → `migrate` → `validate` through a real `fflate` zip. The folder walk and `adopt`
+are not tested.
 
 ### Gotchas & rejected alternatives
 
@@ -140,15 +145,15 @@ not tested.
   (Stage 2 W3), not a popup. The "Imported, with notes" popup was removed.
 - **Same gesture as the tile library.** A drop target plus a hidden picker, on purpose: the two
   surfaces that take files from the author should take them the same way.
-- **A refused file costs nothing.** Every early `return` in `open()` is before `replaceAll` and
-  `session.open`.
+- **A refused file costs nothing.** Every early `return` in `open()` is before `adopt`.
+- **It asks only after the file validated.** A question before a refusal would guard nothing.
+  It skips the question for a blank tileset (Pol, 2026-11-09).
 
 ### Review notes
 
-- Undo after an import restores the previous document, but `replaceAll` has already cleared the
-  asset store and revoked the old object URLs, so the restored document's pictures are gone.
-  `session.svelte.ts` documents this gap in its `open()` comment; nothing on screen tells the
-  author. (The footer's comment calls import undoable; that is true of the document only.)
+- Undo after an import used to restore the previous document without its pictures, because
+  `replaceAll` had already swapped the asset store. **Fixed (2026-11-09):** an import is no longer
+  undoable, and the panel asks first unless the current tileset is blank.
 - The header comment's opening says the editor "takes the exported `.zip` or the unzipped folder".
   The picker only accepts `.zip`; a folder can only be dropped. Not wrong, but the button does not
   offer the folder path.

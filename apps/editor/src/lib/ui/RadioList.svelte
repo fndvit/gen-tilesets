@@ -18,13 +18,24 @@
   Options are told apart by `key`, not by the value they stand for: two sizes
   can share a width (a breakpoint bound equal to the design width keeps its own
   row), and a radio group needs one value per row.
+
+  **Described** (`DESIGN_SYSTEM.md` *Radio list, described*, New tileset): an
+  option with a `description` gets a taller row, its label over a muted line
+  that says what choosing it does. `detail` is then usually left out. One list
+  is all described or all plain; the row height follows each option, so a mix
+  would still work, but nothing asks for one.
+
+  `legendHidden` keeps the legend for assistive tech and hides it from sight,
+  for a list whose popup title already says what it chooses.
 -->
 <script lang="ts" generics="K extends string">
   interface Option {
     key: K;
     label: string;
     /** The value at the right, in mono: "768 px". */
-    detail: string;
+    detail?: string;
+    /** A muted line under the label: what choosing this does. */
+    description?: string;
   }
 
   interface Props {
@@ -33,19 +44,30 @@
     name: string;
     options: Option[];
     value: K;
+    /** Hide the legend from sight, not from assistive tech. */
+    legendHidden?: boolean;
   }
 
-  let { legend, name, options, value = $bindable() }: Props = $props();
+  let { legend, name, options, value = $bindable(), legendHidden = false }: Props = $props();
 </script>
 
 <fieldset class="radio-list">
-  <legend class="t-label">{legend}</legend>
+  <legend class="t-label" class:visually-hidden={legendHidden}>{legend}</legend>
   <div class="well">
     {#each options as option (option.key)}
-      <label class="row t-xs" class:chosen={option.key === value}>
+      <label class="row t-xs" class:chosen={option.key === value} class:described={option.description !== undefined}>
         <input type="radio" {name} value={option.key} bind:group={value} />
-        <span class="label">{option.label}</span>
-        <span class="detail t-console">{option.detail}</span>
+        {#if option.description !== undefined}
+          <span class="text">
+            <span class="label">{option.label}</span>
+            <span class="description t-body">{option.description}</span>
+          </span>
+        {:else}
+          <span class="label">{option.label}</span>
+        {/if}
+        {#if option.detail !== undefined}
+          <span class="detail t-console">{option.detail}</span>
+        {/if}
       </label>
     {/each}
   </div>
@@ -136,5 +158,40 @@
 
   .detail {
     flex: none;
+  }
+
+  /*
+    Described: at least 52px, so the label and its line sit apart without
+    crowding, padded --space-5 above and below. The description wraps; the
+    label still truncates.
+  */
+  .row.described {
+    min-height: var(--radio-described-h);
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .text {
+    display: grid;
+    flex: 1 1 auto;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .description {
+    color: var(--color-muted);
+  }
+
+  /* White at 75% on ink: ≈ 13:1, well above 4.5:1 (1.4.3). */
+  .row.chosen .description {
+    color: color-mix(in srgb, var(--color-on-selected) 75%, transparent);
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 </style>

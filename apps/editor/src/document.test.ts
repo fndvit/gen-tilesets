@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  addRule,
+  addTiles,
+  isBlank,
   newDocument,
   rerollSeed,
   setCellSize,
@@ -263,3 +266,16 @@ describe("trimToGrid — the notice's Remove action", () => {
   });
 });
 
+describe("isBlank — whether Import asks first", () => {
+  it("is true for a new document, and after editing only the grid or the seed", () => {
+    expect(isBlank(doc())).toBe(true);
+    expect(isBlank(run(setRows("7"), setCellSize("50"), rerollSeed()))).toBe(true);
+  });
+
+  it("is false once there is a Tile, an Operation or a responsive rule", () => {
+    const tile = { id: "t1", name: "Blue", assets: [{ id: "a1", weight: 1, meta: { src: "tiles/t1/a1.png" } }] };
+    expect(isBlank(run(addTiles([tile])))).toBe(false);
+    expect(isBlank(shaped([painted("op1", [[0, 0]])]))).toBe(false);
+    expect(isBlank(run(addRule()))).toBe(false);
+  });
+});

@@ -75,7 +75,7 @@ No file contains the version number written out by hand. Adding one would be the
 truth that E2 exists to prevent.
 
 **Review note: an imported file keeps its old stamp.** Construction only covers new documents. An
-imported file is opened as it is (`session.svelte.ts:128`, `replaced(history, file)`). Nothing in
+imported file is opened as it is (`session.open`, `historyOf(file)`). Nothing in
 `apps/editor/src` writes `engineVersion` except `newDocument()`. So a file written by 0.6.0,
 imported into the 0.8.0 editor, edited and exported, still says `"0.6.0"`. That is the case E2's
 own quotation warns about. Also listed in [Review findings](/review-findings/). **Fixed in

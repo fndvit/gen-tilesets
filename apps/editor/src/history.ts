@@ -90,18 +90,6 @@ export function settled<T>(history: History<T>): History<T> {
   return rest;
 }
 
-/**
- * Replace the current value outright, keeping it undoable.
- *
- * For the actions that are not transitions of the current file: an import
- * (`session.open`). "New document" used to be one too; it now starts a fresh
- * history instead (`historyOf`), a confirmed exception to **E6** that
- * `session.svelte.ts` `reset` explains.
- */
-export function replaced<T>(history: History<T>, value: T, limit = UNDO_LIMIT): History<T> {
-  return { past: [...history.past, history.current].slice(-limit), current: value };
-}
-
 /** Restore the previous value, whole. A no-op at the bottom of the stack. */
 export function undone<T>(history: History<T>): History<T> {
   const previous = history.past.at(-1);

@@ -64,6 +64,10 @@
     actions?: Snippet | undefined;
     /** Decorative content after the title. It sits inside the button, so nothing in it may be interactive. */
     extras?: Snippet | undefined;
+    /** `data-tour` on the whole card, for the onboarding tour to find it (`Section.svelte` says why). */
+    tour?: string | undefined;
+    /** `data-tour` on the header alone. */
+    tourHeading?: string | undefined;
     children: Snippet;
   }
 
@@ -78,6 +82,8 @@
     summary,
     actions,
     extras,
+    tour,
+    tourHeading,
     children,
   }: Props = $props();
 
@@ -129,12 +135,12 @@
   }
 </script>
 
-<div class="collapsible {variant}" class:open bind:this={root}>
+<div class="collapsible {variant}" class:open bind:this={root} data-tour={tour}>
   <!--
     The heading wraps the controls, not the other way round: the heading stays a
     heading for the outline, and the button carries the disclosure semantics.
   -->
-  <svelte:element this={`h${level}`} class="heading">
+  <svelte:element this={`h${level}`} class="heading" data-tour={tourHeading}>
     <div class="bar">
       {#if onRename}
         <Hint text={hint}>

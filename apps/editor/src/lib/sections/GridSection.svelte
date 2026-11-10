@@ -90,7 +90,7 @@
   ] as const;
 </script>
 
-<Section title="Grid & size" {summary}>
+<Section title="Grid & size" {summary} tour="grid">
   <div class="fields">
     <NumericInput
       label="Cell size"

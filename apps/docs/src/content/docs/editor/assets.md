@@ -17,8 +17,10 @@ exist anywhere a browser can fetch them. So the editor holds every dropped image
 answers the preview's requests for a picture from that memory.
 
 It also measures each picture when it arrives, and refuses one it cannot measure. That way the
-file never records an image without its size. The store lasts only for the browser session, so
-a reload empties it.
+file never records an image without its size. The store lasts only for the browser session. Since
+B-016 S4a the pictures the open tileset names are also kept in IndexedDB ([keep.ts](/editor/keep/)),
+and a reload attaches them back through `replaceAll`, as an import would. This store stays the one
+the preview and export read.
 
 In the editor's pipeline, import → document → draft/history → preview → export, this module
 serves three stages. Import and the tile library put pictures in. The preview draws them. Export
@@ -162,11 +164,11 @@ untested.
   failed. Building to the side keeps the outgoing document intact until the swap.
 - **One undecodable picture is skipped, not fatal.** It is reported as an `AttachFailure` and the
   cell draws nothing.
-- **Undo does not restore bytes across an import.** `session.open` is undoable, but the store
-  was swapped with it. `session.svelte.ts` documents this as a known gap. Undoing a delete is
-  fine, because a delete keeps the bytes. New document avoids the gap differently: it is not
-  undoable at all (see [session](/editor/session/)), so emptying the store loses nothing undo could
-  reach.
+- **Nothing undoes across a store swap.** Import, a template and New document all start a fresh
+  history (see [session](/editor/session/)), so swapping or emptying the store loses nothing undo
+  could reach. (Undo after an import used to restore a document without its bytes; fixed
+  2026-11-09 by making `session.open` not undoable.) Undoing a delete is fine, because a delete
+  keeps the bytes.
 - **Rejected: releasing only the bytes no undo or redo state references.** It needs this module
   to read `session`'s history, and to re-run on every transition that drops a state off the end
   of it. That is a second owner for the store's lifetime, for memory `replaceAll` already

@@ -42,6 +42,9 @@ bars. This component writes `preview.available` (its track's width) and `preview
 | `ratio` | `(Wpx: number) => number` | required | The render box's natural aspect ratio at a width. A function since breakpoints can change `rows`. |
 | `children` | `Snippet<[number]>` | required | Rendered with the current `Wpx`. |
 
+The frame carries `data-tour="preview"`: the picture, which the [tour](/editor/tour-dialog/)'s "An
+operation" step cuts out (B-017). Its box is the scaled render box, so the cut-out follows the zoom.
+
 ### Inputs → outputs
 
 | Name | Value |

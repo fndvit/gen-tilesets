@@ -86,8 +86,9 @@ export function serialize(file: TilesetFile): string {
  * points at one path and the folder holds another, which surfaces as a missing
  * asset on the consuming site long after anyone is looking.
  *
- * **An asset with no bytes is an error, never an omission.** The store is
- * session-scoped (`09` §15 Q8), so this is reachable — and shipping a folder
+ * **An asset with no bytes is an error, never an omission.** An archive that
+ * did not carry a picture, or kept bytes that did not come back after a reload
+ * (`keep.ts`), leave an asset with none, so this is reachable — and shipping a folder
  * that is quietly missing a file is `07` **R3**'s substitution problem moved into
  * the artifact, where no `onAssetError` will ever fire for it.
  */
@@ -119,8 +120,8 @@ export function entries(file: TilesetFile, bytesFor: BytesFor): ExportEntry[] {
       const bytes = bytesFor(tile.id, asset);
       if (bytes === undefined) {
         throw new Error(
-          `no attached bytes for ${tile.id}/${asset.id}. The editor's asset store is ` +
-            `session-scoped and does not survive a reload (09 §15 Q8).`,
+          `no attached bytes for ${tile.id}/${asset.id}. Its picture was never attached ` +
+            `in this session, or did not come back after a reload (09 §15 Q8).`,
         );
       }
 

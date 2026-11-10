@@ -1,6 +1,6 @@
 ---
 title: ui/RadioList.svelte
-description: One choice from a short list whose options need a label and a value, as native radios in a grey well.
+description: One choice from a short list whose options need a label and a value, or a label and a description, as native radios in a grey well.
 sidebar:
   order: 80
 ---
@@ -14,6 +14,9 @@ import UiPrimitivesStory from "../../../stories/UiPrimitivesStory.svelte";
 A list of rows, exactly one chosen, for options that need more than a word: Export image's sizes,
 each a label and a width ("Breakpoint 2", "768 px"). A [segmented control](/editor/ui-toggle/)
 holds a word per option and no more.
+
+A **described** list gives each row a muted line under its label that says what choosing it does,
+as New tileset's Empty / From template.
 
 ## Try it
 
@@ -31,8 +34,9 @@ Generic over `K extends string`.
 | --- | --- | --- |
 | `legend` | `string` | The fieldset's legend, in `.t-label`: the group's name. |
 | `name` | `string` | The radios' shared `name`; unique on the page. |
-| `options` | `{ key: K; label: string; detail: string }[]` | In display order. `detail` is the mono value at the right. |
+| `options` | `{ key: K; label: string; detail?: string; description?: string }[]` | In display order. `detail` is the mono value at the right. `description` makes the row a described one. |
 | `value` | `K` | Bindable: the chosen option's `key`. |
+| `legendHidden` | `boolean` | Default `false`. Hides the legend from sight but not from assistive tech, for a list whose popup title already says what it chooses. |
 
 Options are told apart by `key`, not by the value they stand for: two sizes can share a width (a
 breakpoint bound equal to the design width keeps its own row), and a radio group needs one value
@@ -51,7 +55,11 @@ per row.
   in the text colour, the label, and the `detail` in `.t-console` at the right.
 - The chosen row is ink with white text and a filled white dot, so the choice shows by the dot's
   shape as well as by colour (1.4.1). Other rows wash darker under the pointer.
+- **Described** rows are at least `--radio-described-h` (52px), padded `--space-5` above and
+  below. The label sits over the description in `.t-body`, muted; on the chosen row the
+  description is white at 75% (≈ 13:1 on ink). The description wraps, the label truncates.
 
 ### Callers
 
-`lib/sections/ExportImage.svelte` (Size).
+`lib/sections/ExportImage.svelte` (Size) and `lib/sections/NewTileset.svelte` (Start,
+described, with its legend hidden).

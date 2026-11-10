@@ -144,7 +144,8 @@ describe("the folder — 09 §11.1", () => {
   });
 
   it("refuses to ship a folder missing an asset's bytes", () => {
-    // The store is session-scoped, so this is reachable. A quietly incomplete
+    // An archive missing a picture, or a reload whose kept bytes did not come
+    // back, makes this reachable. A quietly incomplete
     // folder is R3's substitution problem moved into the artifact, where no
     // `onAssetError` ever fires for it.
     const file = docWith([tile("t1", [asset("a1", "tiles/t1/a1.png")])]);

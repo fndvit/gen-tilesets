@@ -55,14 +55,34 @@
   import SidebarFooter from "./lib/sections/SidebarFooter.svelte";
   import SidebarMotif from "./lib/sections/SidebarMotif.svelte";
   import SidebarTopBar from "./lib/sections/SidebarTopBar.svelte";
+  import NewTileset from "./lib/sections/NewTileset.svelte";
   import OperationsSection from "./lib/sections/OperationsSection.svelte";
   import TilesSection from "./lib/sections/TilesSection.svelte";
   import Dialog from "./lib/ui/Dialog.svelte";
   import ScrollArea from "./lib/ui/ScrollArea.svelte";
   import SelectionOverlay from "./lib/SelectionOverlay.svelte";
+  import Tour from "./lib/Tour.svelte";
   import { rectParams, type Cell, type Rect } from "./paint.js";
+  import { keeping } from "./keeping.svelte.js";
   import { notices } from "./notices.svelte.js";
   import { session } from "./session.svelte.js";
+  import type { TourRun } from "./tour.js";
+
+  /**
+   * The tour to start at mount, from `main.ts`: `null` when this is not a first
+   * visit.
+   */
+  let { tourRun = null }: { tourRun?: TourRun | null } = $props();
+
+  /** The tour showing now, if any. Seeded once from the mount prop; "?" sets it to a replay (O3c). */
+  // svelte-ignore state_referenced_locally
+  let touring = $state<TourRun | null>(tourRun);
+  /**
+   * "?", which started the replay, for focus to return to. A first visit whose
+   * Collage failed also runs as "replay", with no trigger: focus then goes to
+   * the first section header, as after any first-visit tour.
+   */
+  let tourTrigger = $state<HTMLElement | undefined>(undefined);
 
   const file = $derived(session.file);
   const config = $derived(file.config);
@@ -202,8 +222,10 @@
 
   /**
    * Starts a new tileset, **confirmed and not undoable** (`session.reset`). It
-   * discards everything, so it asks first (a `Dialog`, Stage 2 W4), and it then
-   * reclaims every picture the session held.
+   * discards everything, so it asks first, and it then reclaims every picture
+   * the session held. The asking is the New tileset popup's (B-016), which
+   * replaced the "Start a new tileset?" Dialog: its Empty choice calls this, and
+   * its templates open through Import's sequence instead.
    *
    * Reset first, then empty the store: the outgoing document is then already
    * gone from the preview, so no `<img>` draws an object URL `replaceAll` has
@@ -326,13 +348,17 @@
     ),
   );
 
-  const current = $derived(
-    documentNotices(file, orphaned, liveFailures, {
+  const current = $derived([
+    ...documentNotices(file, orphaned, liveFailures, {
       onOpen: openOperation,
       onRemove: trimOperation,
       cameWithFile: cameWith,
     }),
-  );
+    // "Changes won't be kept across reloads" (B-016 S4a). A condition rather
+    // than a pushed notice, so New and Import, which clear pushed notices, do
+    // not hide a problem that is still there.
+    ...(keeping.notice === null ? [] : [keeping.notice]),
+  ]);
 
   /**
    * The conditions as of the last committed value. A numeric field commits on
@@ -346,6 +372,9 @@
     if (!entry.active) conditions = next;
   });
   $effect(() => notices.forget(conditions));
+
+  /** Every document is kept across reloads, written as it changes (`keeping.svelte.ts`). */
+  $effect(() => keeping.schedule(session.file));
 
   /**
    * The draft's `cellList` parameter, if the Selection it is building has one.
@@ -450,7 +479,14 @@
       point of **S2**'s single live preview. `.fixed` (the footer) never
       scrolls.
     -->
-    <SidebarTopBar onNew={() => (askingNew = true)} draft={drawn !== null} />
+    <SidebarTopBar
+      onNew={() => (askingNew = true)}
+      draft={drawn !== null}
+      onTour={(trigger) => {
+        tourTrigger = trigger;
+        touring = "replay";
+      }}
+    />
 
     <div class="sidebar-body">
     <div class="scrollable">
@@ -589,6 +625,11 @@
 
 </main>
 
+<!-- B-017. After everything else, though as a modal dialog it is in the top layer wherever it sits. -->
+{#if touring !== null}
+  <Tour run={touring} onEnd={() => (touring = null)} returnFocus={touring === "replay" ? tourTrigger : undefined} />
+{/if}
+
 <!--
   **E12** — explicit confirmation, naming the Operations that will be affected
   (Stage 2 W4: a `Dialog`, asked once the value is committed). It is a *held
@@ -618,9 +659,7 @@
   </ul>
 </Dialog>
 
-<Dialog title="Start a new tileset?" confirmLabel="Start new" bind:open={askingNew} onConfirm={newTileset}>
-  <p class="t-body">Everything in this one is lost, and this can't be undone. Export it first to keep it.</p>
-</Dialog>
+<NewTileset bind:open={askingNew} onEmpty={newTileset} />
 
 <style>
   /*

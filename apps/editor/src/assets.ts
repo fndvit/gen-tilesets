@@ -24,8 +24,14 @@
  *
  * In memory, for the session, as a `Blob` behind an object URL. `09` §15 Q8
  * leaves this **open** — "IndexedDB, the file system, a server" — and it is
- * recorded in `DECISIONS.md` D2. Nothing survives a reload, which is consistent
- * with everything else in this build.
+ * recorded in `DECISIONS.md` D2.
+ *
+ * Since B-016 S4a the bytes the open document names are *also* kept in
+ * IndexedDB (`keep.ts`), and a reload attaches them back through `replaceAll`,
+ * as an import would. This store stays the one the preview and export read:
+ * the kept copy is a backup of it, never a second source. A picture whose kept
+ * bytes did not come back (blocked storage, a failed decode) is absent here,
+ * and the provider says so.
  *
  * **Invariant R2** — for the duration of a render session the same `AssetRef`
  * resolves to the same `Drawable`. It holds structurally here: one object URL is
@@ -354,8 +360,8 @@ export const editorProvider: AssetProvider = (ref: AssetRef): Drawable => {
   const found = store.get(assetKey(ref.tileId, ref.assetId));
   if (found === undefined) {
     throw new Error(
-      `no attached file for ${ref.tileId}/${ref.assetId}. The editor's store is ` +
-        `session-scoped (09 §15 Q8) and does not survive a reload.`,
+      `no attached file for ${ref.tileId}/${ref.assetId}. Its bytes were never ` +
+        `attached in this session, or did not come back after a reload (09 §15 Q8).`,
     );
   }
   return { src: found.url };

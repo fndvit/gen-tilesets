@@ -7,6 +7,9 @@
   guessed. It is a tertiary action: text on the panel, a grey wash under the
   pointer. `square` is a grey `--thumb` square with the plus alone, lined up
   with a tile group's thumbnails; its `label` is then its accessible name.
+
+  `haspopup` marks one that opens a dialog first (B-016 S3c: Tiles' bars open
+  the Tile gallery), so a screen reader announces it before it is pressed.
 -->
 <script lang="ts">
   import Icon from "./Icon.svelte";
@@ -16,18 +19,28 @@
     onclick: (event: MouseEvent) => void;
     variant?: "bar" | "square";
     disabled?: boolean;
+    /** Set when it opens a dialog rather than adding at once: Tiles' bars open the Tile gallery. */
+    haspopup?: "dialog" | undefined;
   }
 
-  let { label, onclick, variant = "bar", disabled = false }: Props = $props();
+  let { label, onclick, variant = "bar", disabled = false, haspopup }: Props = $props();
 </script>
 
 {#if variant === "bar"}
-  <button type="button" class="add bar t-xs" {disabled} {onclick}>
+  <button type="button" class="add bar t-xs" aria-haspopup={haspopup} {disabled} {onclick}>
     <Icon name="plus" />
     <span>{label}</span>
   </button>
 {:else}
-  <button type="button" class="add square" aria-label={label} title={label} {disabled} {onclick}>
+  <button
+    type="button"
+    class="add square"
+    aria-label={label}
+    aria-haspopup={haspopup}
+    title={label}
+    {disabled}
+    {onclick}
+  >
     <Icon name="plus" />
   </button>
 {/if}

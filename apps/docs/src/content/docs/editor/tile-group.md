@@ -33,8 +33,9 @@ adds them as variants, and the group is outlined while files are dragged over it
 | `onWeight` | `(assetId, weight) => void` | A slider was released, or stepped with a key. |
 | `onDeleteAsset` | `(assetId) => void` | A variant's badge. |
 | `onResetWeights` | `() => void` | "Reset weights". Disabled while every weight is already 1. |
-| `onAdd` | `() => void` | The square "+". The section opens the picker. |
+| `onAdd` | `() => void` | The square "+" (`haspopup="dialog"`). The section opens the [Tile gallery](/editor/tile-gallery/) for this group (B-016 S3c). |
 | `onFiles` | `(files) => void` | Files dropped on the group. |
+| `tour` | `string \| undefined` | `data-tour` on the group. `TilesSection` sets `tile-group` on the first group, for the [tour](/editor/tour-dialog/)'s "Tile group" step (B-017). |
 
 ### Inputs → outputs
 

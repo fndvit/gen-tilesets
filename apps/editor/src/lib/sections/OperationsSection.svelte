@@ -43,6 +43,7 @@
   import Explainer from "../ui/Explainer.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import { OPERATIONS_EXPLAINER } from "./operations-explainer.js";
+  import { exampleOperation } from "../../tour.js";
   import Dialog from "../ui/Dialog.svelte";
 
   const operations = $derived(session.file.config.operations);
@@ -67,6 +68,9 @@
   });
 
   const guard = opening.guard;
+
+  /** The card the tour's "An operation" step opens and cuts out (`tour.ts`). */
+  const example = $derived(exampleOperation(operations));
 
   /** After `opening.open`, bring the opened card into view once the section has unfolded. */
   $effect(() => {
@@ -144,6 +148,7 @@
     : `${operations.length} ${operations.length === 1 ? "operation" : "operations"}`}
   addLabel="Add operation"
   onAdd={create}
+  tourAdd="ops-add"
   reveal={opening.revealed}
 >
   <div class="stack">
@@ -167,6 +172,7 @@
         canMoveUp={index > 0}
         canMoveDown={index < operations.length - 1}
         panelId={open ? bodyId : undefined}
+        tour={op.id === example ? "op-example" : undefined}
       >
         {#if open && draft}
           <OperationBody {draft} editing id={bodyId} onClose={() => drafting.discard()} />

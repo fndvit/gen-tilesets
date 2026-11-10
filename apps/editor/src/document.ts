@@ -33,7 +33,7 @@
  *
  * Transient UI state lives **beside** the file, keyed by the identifiers the file
  * already carries — `Operation.id`, `Tile.id`, `TileAsset.id` (§4.1). It is
- * session-scoped and does not survive a reload.
+ * session-scoped and does not survive a reload. The file does (`keep.ts`).
  */
 
 import {
@@ -162,6 +162,20 @@ export function newDocument(): TilesetFile {
       horizontalAlignment: NEW_ALIGNMENT,
     },
   };
+}
+
+/**
+ * Whether `file` holds nothing an author would miss: no Tiles, no Operations
+ * and no responsive rules. Import replaces such a file without asking (Pol,
+ * 2026-11-09), because the question would guard nothing.
+ *
+ * The grid's numbers and the seed are left out on purpose. Every file has
+ * them, so counting them would make a fresh New → Empty with its random seed
+ * "not blank" and the question would come back for the one case it was meant
+ * to skip. Losing a row count is not what "Everything … is lost" warns about.
+ */
+export function isBlank(file: TilesetFile): boolean {
+  return file.config.tiles.length === 0 && file.config.operations.length === 0 && (file.responsive ?? []).length === 0;
 }
 
 // ---------------------------------------------------------------------------

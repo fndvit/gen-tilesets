@@ -60,6 +60,8 @@ export const ICONS = {
     "m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4" +
       "a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2",
   ),
+  /** Upload pictures from the computer into the Tile gallery's My tiles (Lucide upload). */
+  upload: icon("M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"),
   /** Save the tileset out as a file. */
   export: icon("M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"),
   /** Start a new tileset. */
@@ -89,6 +91,8 @@ export const ICONS = {
   check: icon("M20 6 9 17l-5-5"),
   /** An advisory: something worth knowing that blocks nothing (a notice, an inline advisory). */
   info: icon("M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 16v-4M12 8h.01"),
+  /** Show the tour (B-017). Lucide circle-help. */
+  help: icon("M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"),
   /** A failure: something that did not work (a picture that did not load). */
   alert: icon("m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3M12 9v4M12 17h.01"),
   /** An operation drawn in the preview; press to hide it (batch 02 T-02). Lucide eye. */

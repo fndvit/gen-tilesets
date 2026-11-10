@@ -24,12 +24,15 @@
  * outside* structural: `apply` is already the only mutator, so an action that
  * escaped the stack would have to escape the document too.
  *
- * **One exception, on purpose: `reset()`**, the confirmed New document. It
- * starts a fresh history rather than pushing onto this one; its comment says why.
+ * **Two exceptions, on purpose: `reset()`**, the confirmed New document, and
+ * **`open()`**, a document opened whole (Import, a template, the tileset
+ * reopened after a reload). Both start a fresh history rather than pushing onto
+ * this one; their comments say why.
  *
  * **Transient UI state** (§4.1) — the create-operation draft, which panel is
  * open, a muted Operation — lives *beside* this, keyed by the identifiers the
  * file already carries. It is session-scoped and does not survive a reload.
+ * The file itself does since B-016 S4a (`keep.ts`), but its history does not.
  * Never in `meta` (**E4**), and never in the file.
  *
  * The draft is deliberately **not** undone with the file. §4.4 restores a
@@ -39,7 +42,7 @@
 
 import type { TilesetFile } from "@vit-foundation/gen-tilesets";
 import { newDocument, type Transition } from "./document.js";
-import { applied, appliedLive, historyOf, replaced, settled, undone, type History } from "./history.js";
+import { applied, appliedLive, historyOf, settled, undone, type History } from "./history.js";
 
 /**
  * The document and everything it has been.
@@ -57,8 +60,7 @@ let history = $state<History<TilesetFile>>(historyOf(newDocument()));
  *
  * **Read-only bookkeeping beside the history, not part of it.** The orphan
  * notice must not offer "Undo puts the grid back" for cells that were outside
- * the grid in the file as opened: there, Undo goes back to the previous
- * document. The history keeps no mark of where an open happened, and adding
+ * the grid in the file as opened: Undo cannot reach past the open. The history keeps no mark of where an open happened, and adding
  * one would change the write path, which T-05 may not. So `open()` notes the
  * file here and `orphans.ts` `cameWithFile` compares against it. Undo does not
  * rewind it; `cameWithFile`'s cell-by-cell test is what keeps a document from
@@ -134,8 +136,8 @@ export const session = {
   /**
    * Discard the document and start again from `08` §3.4's valid skeleton.
    *
-   * **The one action outside the undo stack** — a deliberate exception to
-   * **E6**. It used to be undoable, but undo restored a file whose pictures it
+   * **Outside the undo stack** — a deliberate exception to **E6**, which
+   * `open()` shares. It used to be undoable, but undo restored a file whose pictures it
    * could not restore: the bytes live in the asset store (`assets.ts`), outside
    * the file. Keeping them for undo meant the store was never reclaimed and grew
    * with every new document; reclaiming them meant undo brought back a document
@@ -148,19 +150,25 @@ export const session = {
   },
 
   /**
-   * Open an imported document, whole — §12.4.
+   * Open a document, whole, with a **fresh history** — §12.4. Import, a
+   * template from New tileset (B-016) and the tileset kept from the last visit
+   * (`keep.ts`, S4a) all come through here, by way of `adopt.ts`.
    *
-   * `reset()` was the precedent and this is the same shape: a *replacement*
-   * rather than a transition, because there is no function from the outgoing
-   * file to the incoming one and pretending otherwise would put a `() => file`
-   * on the stack that ignores its argument.
+   * A *replacement* rather than a transition, as `reset()` is: there is no
+   * function from the outgoing file to the incoming one, and pretending
+   * otherwise would put a `() => file` on the stack that ignores its argument.
    *
-   * **Undoable**, again by **E6** — an import replaces everything the author had,
-   * so it is exactly the action that most needs to be reversible. Undo restores
-   * the previous document; it does **not** restore that document's asset bytes,
-   * which live in the session store outside the file and were swapped with it.
-   * That is `09` §15 Q8's session-scoped store showing through, not a defect in
-   * the undo stack, and it is the same gap a reload has always had.
+   * **Not undoable**, the exception to **E6** that `reset()` makes and for the
+   * same reason. The caller has just swapped the asset store (`replaceAll`), so
+   * Undo could bring back the outgoing file but not its pictures: a document of
+   * holes. Import used to be undoable on exactly those terms; Pol saw the holes
+   * after a template (2026-11-09) and chose this instead. In exchange, Import
+   * now asks before replacing a tileset that holds anything (`isBlank`,
+   * `document.ts`), as New tileset always has. At boot the outgoing file is the empty skeleton
+   * the author never saw, so there was nothing to undo to anyway.
+   *
+   * `opened` notes the file as opened, so cells it already held outside the
+   * grid are not offered back by an Undo that cannot reach them.
    *
    * **The file is validated before it gets here.** §12.4 refuses to open a file
    * with any `ValidationError`, and **S3** requires the host to hold a valid file
@@ -168,7 +176,7 @@ export const session = {
    * proved it is one.
    */
   open(file: TilesetFile): void {
-    history = replaced(history, file);
+    history = historyOf(file);
     opened = file;
   },
 };

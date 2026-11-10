@@ -1,0 +1,139 @@
+{
+  "templates": [
+    {
+      "id": "collage",
+      "label": "Collage",
+      "path": "templates/collage/",
+      "thumb": "templates/collage/thumb.webp",
+      "summary": "6 tile groups · 6 operations"
+    }
+  ],
+  "gallery": [
+    {
+      "id": "t1-a1",
+      "label": "Blue 1",
+      "src": "templates/collage/tiles/t1/a1.svg",
+      "thumb": "templates/collage/thumbs/t1-a1.webp"
+    },
+    {
+      "id": "t1-a2",
+      "label": "Blue 2",
+      "src": "templates/collage/tiles/t1/a2.svg",
+      "thumb": "templates/collage/thumbs/t1-a2.webp"
+    },
+    {
+      "id": "t1-a3",
+      "label": "Blue 3",
+      "src": "templates/collage/tiles/t1/a3.svg",
+      "thumb": "templates/collage/thumbs/t1-a3.webp"
+    },
+    {
+      "id": "t2-a1",
+      "label": "Green 1",
+      "src": "templates/collage/tiles/t2/a1.svg",
+      "thumb": "templates/collage/thumbs/t2-a1.webp"
+    },
+    {
+      "id": "t2-a2",
+      "label": "Green 2",
+      "src": "templates/collage/tiles/t2/a2.svg",
+      "thumb": "templates/collage/thumbs/t2-a2.webp"
+    },
+    {
+      "id": "t2-a3",
+      "label": "Green 3",
+      "src": "templates/collage/tiles/t2/a3.svg",
+      "thumb": "templates/collage/thumbs/t2-a3.webp"
+    },
+    {
+      "id": "t2-a4",
+      "label": "Green 4",
+      "src": "templates/collage/tiles/t2/a4.svg",
+      "thumb": "templates/collage/thumbs/t2-a4.webp"
+    },
+    {
+      "id": "t3-a1",
+      "label": "Pink 1",
+      "src": "templates/collage/tiles/t3/a1.svg",
+      "thumb": "templates/collage/thumbs/t3-a1.webp"
+    },
+    {
+      "id": "t3-a2",
+      "label": "Pink 2",
+      "src": "templates/collage/tiles/t3/a2.svg",
+      "thumb": "templates/collage/thumbs/t3-a2.webp"
+    },
+    {
+      "id": "t3-a3",
+      "label": "Pink 3",
+      "src": "templates/collage/tiles/t3/a3.svg",
+      "thumb": "templates/collage/thumbs/t3-a3.webp"
+    },
+    {
+      "id": "t3-a4",
+      "label": "Pink 4",
+      "src": "templates/collage/tiles/t3/a4.svg",
+      "thumb": "templates/collage/thumbs/t3-a4.webp"
+    },
+    {
+      "id": "t3-a5",
+      "label": "Pink 5",
+      "src": "templates/collage/tiles/t3/a5.svg",
+      "thumb": "templates/collage/thumbs/t3-a5.webp"
+    },
+    {
+      "id": "t4-a1",
+      "label": "Yellow 1",
+      "src": "templates/collage/tiles/t4/a1.svg",
+      "thumb": "templates/collage/thumbs/t4-a1.webp"
+    },
+    {
+      "id": "t4-a2",
+      "label": "Yellow 2",
+      "src": "templates/collage/tiles/t4/a2.svg",
+      "thumb": "templates/collage/thumbs/t4-a2.webp"
+    },
+    {
+      "id": "t4-a3",
+      "label": "Yellow 3",
+      "src": "templates/collage/tiles/t4/a3.svg",
+      "thumb": "templates/collage/thumbs/t4-a3.webp"
+    },
+    {
+      "id": "t4-a4",
+      "label": "Yellow 4",
+      "src": "templates/collage/tiles/t4/a4.svg",
+      "thumb": "templates/collage/thumbs/t4-a4.webp"
+    },
+    {
+      "id": "t4-a5",
+      "label": "Yellow 5",
+      "src": "templates/collage/tiles/t4/a5.svg",
+      "thumb": "templates/collage/thumbs/t4-a5.webp"
+    },
+    {
+      "id": "t5-a1",
+      "label": "Grey 1",
+      "src": "templates/collage/tiles/t5/a1.svg",
+      "thumb": "templates/collage/thumbs/t5-a1.webp"
+    },
+    {
+      "id": "t5-a2",
+      "label": "Grey 2",
+      "src": "templates/collage/tiles/t5/a2.svg",
+      "thumb": "templates/collage/thumbs/t5-a2.webp"
+    },
+    {
+      "id": "t5-a3",
+      "label": "Grey 3",
+      "src": "templates/collage/tiles/t5/a3.svg",
+      "thumb": "templates/collage/thumbs/t5-a3.webp"
+    },
+    {
+      "id": "t6-a1",
+      "label": "Solid 1",
+      "src": "templates/collage/tiles/t6/a1.svg",
+      "thumb": "templates/collage/thumbs/t6-a1.webp"
+    }
+  ]
+}
