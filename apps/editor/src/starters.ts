@@ -17,10 +17,9 @@
  *
  * ## The gallery points into the template's files
  *
- * Today every gallery picture is one of Collage's, and the manifest names it by
- * path rather than holding a copy. The manifest is what decouples the two: when
- * the gallery grows past Collage (Pol, S1), its new entries simply point
- * somewhere else, and no consumer changes.
+ * Collage's pictures are named by path into the template rather than copied.
+ * The manifest is what decouples the two: the shapes added in batch 03 point
+ * at `gallery/shapes/` instead, and no consumer changed.
  *
  * ## Failure is loud
  *
@@ -36,7 +35,9 @@
  * as WebP, quality 90, at the same pixel size (10.8 MB → 0.86 MB). Pol approved
  * that by eye against a side-by-side page (S3a). Lossless WebP was
  * pixel-identical but 5.7 MB, and rejected for the size. `starters.md` has the
- * procedure for re-doing it with new pictures.
+ * procedure for re-doing it with new pictures. The shapes' two photos
+ * (`real-a`, `real-b`) went through the same procedure (1.45 MB → 77 KB, 0 px
+ * over the threshold); every other shape is copied as it came.
  */
 
 import { FILE_NAME } from "./export.js";
@@ -54,7 +55,7 @@ export interface TemplateEntry {
   path: string;
   /** A committed picture of the template, 192 × 120. */
   thumb: string;
-  /** The muted line under the label: "6 tile groups · 6 operations". */
+  /** The muted line under the label: "6 tile groups · 5 operations". */
   summary: string;
 }
 

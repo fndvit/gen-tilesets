@@ -152,16 +152,16 @@ describe("isFirstVisit", () => {
 
 describe("exampleOperation", () => {
   const op = (id: string, type: string) => ({ id, selection: { type } }) as Parameters<typeof exampleOperation>[0][number];
-  const collage = [op("op1", "all"), op("op2", "all"), op("op5", "all"), op("op6", "rect"), op("op7", "cellList")];
+  const collage = [op("op2", "all"), op("op5", "all"), op("op6", "rect"), op("op7", "cellList")];
 
-  it("is Collage's operation 4, op6, a rectangle", () => {
+  it("is Collage's operation 3, op6, a rectangle", () => {
     expect(exampleOperation(collage)).toBe("op6");
   });
 
-  it("is null when the fourth operation is not op6, or not a rectangle, or missing", () => {
-    expect(exampleOperation([collage[0]!, collage[1]!, collage[3]!, collage[2]!])).toBeNull();
-    expect(exampleOperation([...collage.slice(0, 3), op("op6", "all")])).toBeNull();
-    expect(exampleOperation(collage.slice(0, 3))).toBeNull();
+  it("is null when the third operation is not op6, or not a rectangle, or missing", () => {
+    expect(exampleOperation([collage[0]!, collage[2]!, collage[1]!, collage[3]!])).toBeNull();
+    expect(exampleOperation([...collage.slice(0, 2), op("op6", "all")])).toBeNull();
+    expect(exampleOperation(collage.slice(0, 2))).toBeNull();
   });
 });
 

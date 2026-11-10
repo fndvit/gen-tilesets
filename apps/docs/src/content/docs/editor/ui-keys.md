@@ -32,8 +32,8 @@ components so it can be tested.
 
 ### Callers / callees
 
-Callers: `lib/ui/Toggle.svelte`, `lib/ui/TabBar.svelte` (which ignores Up and Down),
-`lib/ui/GlyphGrid.svelte`, `lib/ui/Slider.svelte` (`sliderStep`). No callees.
+Callers: `lib/ui/Toggle.svelte`, `lib/ui/GlyphGrid.svelte`, `lib/ui/Slider.svelte` (`sliderStep`).
+No callees.
 
 ### Tests
 

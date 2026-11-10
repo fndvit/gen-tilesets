@@ -5,7 +5,14 @@
       "label": "Collage",
       "path": "templates/collage/",
       "thumb": "templates/collage/thumb.webp",
-      "summary": "6 tile groups · 6 operations"
+      "summary": "6 tile groups · 5 operations"
+    },
+    {
+      "id": "mosaic",
+      "label": "Mosaic",
+      "path": "templates/mosaic/",
+      "thumb": "templates/mosaic/thumb.webp",
+      "summary": "5 tile groups · 3 operations"
     }
   ],
   "gallery": [
@@ -134,6 +141,348 @@
       "label": "Solid 1",
       "src": "templates/collage/tiles/t6/a1.svg",
       "thumb": "templates/collage/thumbs/t6-a1.webp"
+    },
+    {
+      "id": "circle-05-atlas-a",
+      "label": "Circle 0.5 · Atlas A",
+      "src": "gallery/shapes/circle-05-atlas-a.svg",
+      "thumb": "gallery/shapes/thumbs/circle-05-atlas-a.webp"
+    },
+    {
+      "id": "circle-2-atlas-a",
+      "label": "Circle 2 · Atlas A",
+      "src": "gallery/shapes/circle-2-atlas-a.svg",
+      "thumb": "gallery/shapes/thumbs/circle-2-atlas-a.webp"
+    },
+    {
+      "id": "circle-4-atlas-a",
+      "label": "Circle 4 · Atlas A",
+      "src": "gallery/shapes/circle-4-atlas-a.svg",
+      "thumb": "gallery/shapes/thumbs/circle-4-atlas-a.webp"
+    },
+    {
+      "id": "solid-circle-atlas-a",
+      "label": "Solid circle · Atlas A",
+      "src": "gallery/shapes/solid-circle-atlas-a.svg",
+      "thumb": "gallery/shapes/thumbs/solid-circle-atlas-a.webp"
+    },
+    {
+      "id": "solid-atlas-a",
+      "label": "Solid · Atlas A",
+      "src": "gallery/shapes/solid-atlas-a.svg",
+      "thumb": "gallery/shapes/thumbs/solid-atlas-a.webp"
+    },
+    {
+      "id": "circle-05-atlas-b",
+      "label": "Circle 0.5 · Atlas B",
+      "src": "gallery/shapes/circle-05-atlas-b.svg",
+      "thumb": "gallery/shapes/thumbs/circle-05-atlas-b.webp"
+    },
+    {
+      "id": "circle-2-atlas-b",
+      "label": "Circle 2 · Atlas B",
+      "src": "gallery/shapes/circle-2-atlas-b.svg",
+      "thumb": "gallery/shapes/thumbs/circle-2-atlas-b.webp"
+    },
+    {
+      "id": "circle-4-atlas-b",
+      "label": "Circle 4 · Atlas B",
+      "src": "gallery/shapes/circle-4-atlas-b.svg",
+      "thumb": "gallery/shapes/thumbs/circle-4-atlas-b.webp"
+    },
+    {
+      "id": "solid-circle-atlas-b",
+      "label": "Solid circle · Atlas B",
+      "src": "gallery/shapes/solid-circle-atlas-b.svg",
+      "thumb": "gallery/shapes/thumbs/solid-circle-atlas-b.webp"
+    },
+    {
+      "id": "solid-atlas-b",
+      "label": "Solid · Atlas B",
+      "src": "gallery/shapes/solid-atlas-b.svg",
+      "thumb": "gallery/shapes/thumbs/solid-atlas-b.webp"
+    },
+    {
+      "id": "circle-05-atlas-c",
+      "label": "Circle 0.5 · Atlas C",
+      "src": "gallery/shapes/circle-05-atlas-c.svg",
+      "thumb": "gallery/shapes/thumbs/circle-05-atlas-c.webp"
+    },
+    {
+      "id": "circle-2-atlas-c",
+      "label": "Circle 2 · Atlas C",
+      "src": "gallery/shapes/circle-2-atlas-c.svg",
+      "thumb": "gallery/shapes/thumbs/circle-2-atlas-c.webp"
+    },
+    {
+      "id": "circle-4-atlas-c",
+      "label": "Circle 4 · Atlas C",
+      "src": "gallery/shapes/circle-4-atlas-c.svg",
+      "thumb": "gallery/shapes/thumbs/circle-4-atlas-c.webp"
+    },
+    {
+      "id": "solid-circle-atlas-c",
+      "label": "Solid circle · Atlas C",
+      "src": "gallery/shapes/solid-circle-atlas-c.svg",
+      "thumb": "gallery/shapes/thumbs/solid-circle-atlas-c.webp"
+    },
+    {
+      "id": "solid-atlas-c",
+      "label": "Solid · Atlas C",
+      "src": "gallery/shapes/solid-atlas-c.svg",
+      "thumb": "gallery/shapes/thumbs/solid-atlas-c.webp"
+    },
+    {
+      "id": "circle-05-beige",
+      "label": "Circle 0.5 · Beige",
+      "src": "gallery/shapes/circle-05-beige.svg",
+      "thumb": "gallery/shapes/thumbs/circle-05-beige.webp"
+    },
+    {
+      "id": "circle-2-beige",
+      "label": "Circle 2 · Beige",
+      "src": "gallery/shapes/circle-2-beige.svg",
+      "thumb": "gallery/shapes/thumbs/circle-2-beige.webp"
+    },
+    {
+      "id": "circle-4-beige",
+      "label": "Circle 4 · Beige",
+      "src": "gallery/shapes/circle-4-beige.svg",
+      "thumb": "gallery/shapes/thumbs/circle-4-beige.webp"
+    },
+    {
+      "id": "solid-circle-beige",
+      "label": "Solid circle · Beige",
+      "src": "gallery/shapes/solid-circle-beige.svg",
+      "thumb": "gallery/shapes/thumbs/solid-circle-beige.webp"
+    },
+    {
+      "id": "quarter-beige",
+      "label": "Quarter · Beige",
+      "src": "gallery/shapes/quarter-beige.svg",
+      "thumb": "gallery/shapes/thumbs/quarter-beige.webp"
+    },
+    {
+      "id": "filled-quarter-beige",
+      "label": "Filled quarter · Beige",
+      "src": "gallery/shapes/filled-quarter-beige.svg",
+      "thumb": "gallery/shapes/thumbs/filled-quarter-beige.webp"
+    },
+    {
+      "id": "split-beige",
+      "label": "Split · Beige",
+      "src": "gallery/shapes/split-beige.svg",
+      "thumb": "gallery/shapes/thumbs/split-beige.webp"
+    },
+    {
+      "id": "solid-beige",
+      "label": "Solid · Beige",
+      "src": "gallery/shapes/solid-beige.svg",
+      "thumb": "gallery/shapes/thumbs/solid-beige.webp"
+    },
+    {
+      "id": "flower-beige",
+      "label": "Flower · Beige",
+      "src": "gallery/shapes/flower-beige.png",
+      "thumb": "gallery/shapes/thumbs/flower-beige.webp"
+    },
+    {
+      "id": "circle-05-blue",
+      "label": "Circle 0.5 · Blue",
+      "src": "gallery/shapes/circle-05-blue.svg",
+      "thumb": "gallery/shapes/thumbs/circle-05-blue.webp"
+    },
+    {
+      "id": "circle-2-blue",
+      "label": "Circle 2 · Blue",
+      "src": "gallery/shapes/circle-2-blue.svg",
+      "thumb": "gallery/shapes/thumbs/circle-2-blue.webp"
+    },
+    {
+      "id": "circle-4-blue",
+      "label": "Circle 4 · Blue",
+      "src": "gallery/shapes/circle-4-blue.svg",
+      "thumb": "gallery/shapes/thumbs/circle-4-blue.webp"
+    },
+    {
+      "id": "solid-circle-blue",
+      "label": "Solid circle · Blue",
+      "src": "gallery/shapes/solid-circle-blue.svg",
+      "thumb": "gallery/shapes/thumbs/solid-circle-blue.webp"
+    },
+    {
+      "id": "quarter-blue",
+      "label": "Quarter · Blue",
+      "src": "gallery/shapes/quarter-blue.svg",
+      "thumb": "gallery/shapes/thumbs/quarter-blue.webp"
+    },
+    {
+      "id": "filled-quarter-blue",
+      "label": "Filled quarter · Blue",
+      "src": "gallery/shapes/filled-quarter-blue.svg",
+      "thumb": "gallery/shapes/thumbs/filled-quarter-blue.webp"
+    },
+    {
+      "id": "split-blue",
+      "label": "Split · Blue",
+      "src": "gallery/shapes/split-blue.svg",
+      "thumb": "gallery/shapes/thumbs/split-blue.webp"
+    },
+    {
+      "id": "solid-blue",
+      "label": "Solid · Blue",
+      "src": "gallery/shapes/solid-blue.svg",
+      "thumb": "gallery/shapes/thumbs/solid-blue.webp"
+    },
+    {
+      "id": "flower-blue",
+      "label": "Flower · Blue",
+      "src": "gallery/shapes/flower-blue.png",
+      "thumb": "gallery/shapes/thumbs/flower-blue.webp"
+    },
+    {
+      "id": "circle-05-pink",
+      "label": "Circle 0.5 · Pink",
+      "src": "gallery/shapes/circle-05-pink.svg",
+      "thumb": "gallery/shapes/thumbs/circle-05-pink.webp"
+    },
+    {
+      "id": "circle-2-pink",
+      "label": "Circle 2 · Pink",
+      "src": "gallery/shapes/circle-2-pink.svg",
+      "thumb": "gallery/shapes/thumbs/circle-2-pink.webp"
+    },
+    {
+      "id": "circle-4-pink",
+      "label": "Circle 4 · Pink",
+      "src": "gallery/shapes/circle-4-pink.svg",
+      "thumb": "gallery/shapes/thumbs/circle-4-pink.webp"
+    },
+    {
+      "id": "solid-circle-pink",
+      "label": "Solid circle · Pink",
+      "src": "gallery/shapes/solid-circle-pink.svg",
+      "thumb": "gallery/shapes/thumbs/solid-circle-pink.webp"
+    },
+    {
+      "id": "quarter-pink",
+      "label": "Quarter · Pink",
+      "src": "gallery/shapes/quarter-pink.svg",
+      "thumb": "gallery/shapes/thumbs/quarter-pink.webp"
+    },
+    {
+      "id": "filled-quarter-pink",
+      "label": "Filled quarter · Pink",
+      "src": "gallery/shapes/filled-quarter-pink.svg",
+      "thumb": "gallery/shapes/thumbs/filled-quarter-pink.webp"
+    },
+    {
+      "id": "split-pink",
+      "label": "Split · Pink",
+      "src": "gallery/shapes/split-pink.svg",
+      "thumb": "gallery/shapes/thumbs/split-pink.webp"
+    },
+    {
+      "id": "solid-pink",
+      "label": "Solid · Pink",
+      "src": "gallery/shapes/solid-pink.svg",
+      "thumb": "gallery/shapes/thumbs/solid-pink.webp"
+    },
+    {
+      "id": "flower-pink",
+      "label": "Flower · Pink",
+      "src": "gallery/shapes/flower-pink.png",
+      "thumb": "gallery/shapes/thumbs/flower-pink.webp"
+    },
+    {
+      "id": "quarter-purple",
+      "label": "Quarter · Purple",
+      "src": "gallery/shapes/quarter-purple.svg",
+      "thumb": "gallery/shapes/thumbs/quarter-purple.webp"
+    },
+    {
+      "id": "filled-quarter-purple",
+      "label": "Filled quarter · Purple",
+      "src": "gallery/shapes/filled-quarter-purple.svg",
+      "thumb": "gallery/shapes/thumbs/filled-quarter-purple.webp"
+    },
+    {
+      "id": "circle-a",
+      "label": "Circle · A",
+      "src": "gallery/shapes/circle-a.svg",
+      "thumb": "gallery/shapes/thumbs/circle-a.webp"
+    },
+    {
+      "id": "circle-b",
+      "label": "Circle · B",
+      "src": "gallery/shapes/circle-b.svg",
+      "thumb": "gallery/shapes/thumbs/circle-b.webp"
+    },
+    {
+      "id": "circle-c",
+      "label": "Circle · C",
+      "src": "gallery/shapes/circle-c.svg",
+      "thumb": "gallery/shapes/thumbs/circle-c.webp"
+    },
+    {
+      "id": "quarter-a",
+      "label": "Quarter · A",
+      "src": "gallery/shapes/quarter-a.svg",
+      "thumb": "gallery/shapes/thumbs/quarter-a.webp"
+    },
+    {
+      "id": "quarter-b",
+      "label": "Quarter · B",
+      "src": "gallery/shapes/quarter-b.svg",
+      "thumb": "gallery/shapes/thumbs/quarter-b.webp"
+    },
+    {
+      "id": "quarter-c",
+      "label": "Quarter · C",
+      "src": "gallery/shapes/quarter-c.svg",
+      "thumb": "gallery/shapes/thumbs/quarter-c.webp"
+    },
+    {
+      "id": "split-a",
+      "label": "Split · A",
+      "src": "gallery/shapes/split-a.svg",
+      "thumb": "gallery/shapes/thumbs/split-a.webp"
+    },
+    {
+      "id": "square-a",
+      "label": "Square · A",
+      "src": "gallery/shapes/square-a.svg",
+      "thumb": "gallery/shapes/thumbs/square-a.webp"
+    },
+    {
+      "id": "square-b",
+      "label": "Square · B",
+      "src": "gallery/shapes/square-b.svg",
+      "thumb": "gallery/shapes/thumbs/square-b.webp"
+    },
+    {
+      "id": "square-c",
+      "label": "Square · C",
+      "src": "gallery/shapes/square-c.svg",
+      "thumb": "gallery/shapes/thumbs/square-c.webp"
+    },
+    {
+      "id": "real-a",
+      "label": "Real · A",
+      "src": "gallery/shapes/real-a.svg",
+      "thumb": "gallery/shapes/thumbs/real-a.webp"
+    },
+    {
+      "id": "real-b",
+      "label": "Real · B",
+      "src": "gallery/shapes/real-b.svg",
+      "thumb": "gallery/shapes/thumbs/real-b.webp"
+    },
+    {
+      "id": "stripes",
+      "label": "Stripes",
+      "src": "gallery/shapes/stripes.svg",
+      "thumb": "gallery/shapes/thumbs/stripes.webp"
     }
   ]
 }
