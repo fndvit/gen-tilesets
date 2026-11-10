@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 4,
+  "engineVersion": "0.11.0",
+  "config": {
+    "rows": 10,
+    "columns": 18,
+    "defaultSeed": "vivid-nook-78",
+    "assetSalt": 105,
+    "reseedAssetsOnLoad": true,
+    "tiles": [
+      {
+        "id": "t1",
+        "name": "Filled Quarter",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a2",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a2.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a4",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t1/a4.svg",
+              "width": 64,
+              "height": 64
+            }
+          }
+        ]
+      },
+      {
+        "id": "t2",
+        "name": "Quarter",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t2/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a2",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t2/a2.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a4",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t2/a4.svg",
+              "width": 64,
+              "height": 64
+            }
+          }
+        ]
+      },
+      {
+        "id": "t3",
+        "name": "Square",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a2",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a2.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a3",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t3/a3.svg",
+              "width": 12,
+              "height": 12
+            }
+          }
+        ]
+      },
+      {
+        "id": "t4",
+        "name": "Filled Split",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t4/a1.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a2",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t4/a2.svg",
+              "width": 12,
+              "height": 12
+            }
+          },
+          {
+            "id": "a3",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t4/a3.svg",
+              "width": 64,
+              "height": 64
+            }
+          }
+        ]
+      },
+      {
+        "id": "t5",
+        "name": "Special",
+        "assets": [
+          {
+            "id": "a1",
+            "weight": 0.26,
+            "meta": {
+              "src": "tiles/t5/a1.svg",
+              "width": 39,
+              "height": 39
+            }
+          },
+          {
+            "id": "a5",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t5/a5.png",
+              "width": 128,
+              "height": 128
+            }
+          },
+          {
+            "id": "a6",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t5/a6.png",
+              "width": 128,
+              "height": 128
+            }
+          },
+          {
+            "id": "a7",
+            "weight": 1,
+            "meta": {
+              "src": "tiles/t5/a7.png",
+              "width": 128,
+              "height": 128
+            }
+          }
+        ]
+      }
+    ],
+    "operations": [
+      {
+        "id": "op1",
+        "salt": 184,
+        "reseedOnLoad": true,
+        "selection": {
+          "type": "all"
+        },
+        "source": {
+          "type": "valueNoise",
+          "cellsPerFeature": 5,
+          "octaves": 3
+        },
+        "target": "tileId",
+        "mapping": {
+          "palette": [
+            {
+              "tileId": "t1",
+              "weight": 1.38
+            },
+            {
+              "tileId": "t2",
+              "weight": 0.31
+            },
+            {
+              "tileId": "t3",
+              "weight": 0.32
+            },
+            {
+              "tileId": "t4",
+              "weight": 1.71
+            }
+          ]
+        },
+        "blend": "set"
+      },
+      {
+        "id": "op4",
+        "salt": 141,
+        "reseedOnLoad": true,
+        "selection": {
+          "type": "all"
+        },
+        "source": {
+          "type": "random"
+        },
+        "target": "rotation",
+        "mapping": {
+          "range": [
+            0,
+            270
+          ],
+          "steps": 4
+        },
+        "blend": "set"
+      },
+      {
+        "id": "op5",
+        "salt": 0,
+        "reseedOnLoad": false,
+        "selection": {
+          "type": "random",
+          "density": 0.03
+        },
+        "source": {
+          "type": "constant"
+        },
+        "target": "tileId",
+        "mapping": {
+          "palette": [
+            {
+              "tileId": "t5",
+              "weight": 1
+            }
+          ]
+        },
+        "blend": "set"
+      }
+    ]
+  },
+  "layout": {
+    "cellSize": 60,
+    "referenceWidth": 1024,
+    "yOffset": 0,
+    "horizontalAlignment": "gutter"
+  }
+}
