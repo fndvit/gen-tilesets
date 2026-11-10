@@ -1,6 +1,10 @@
 <!--
   The sidebar's fixed footer, "Randomness": below the scrolling sections, never
-  scrolled or collapsed. A white card on the ground, like a section.
+  scrolled or collapsed. **A black card** (`.theme-ink`, batch 03, T-04, B-026,
+  Pol's D-02 A): both were white cards, so where a section's end met the footer
+  they read as one. The scope inverts the semantic tokens, so the controls
+  inside are the ordinary ones; the Explainer it opens is rendered outside the
+  card and keeps the page's theme.
 
   It holds only what decides the picture's randomness: the seed and the three
   ways to draw again. The document's actions (Undo, New, Import, Export) moved
@@ -61,7 +65,7 @@
 </script>
 
 <!-- `data-tour`: the onboarding tour's Randomness step cuts out the whole footer. -->
-<div class="fixed" data-tour="footer">
+<div class="fixed theme-ink" data-tour="footer">
   <div class="heading">
     <h2 class="title t-title">Randomness</h2>
     <IconButton

@@ -243,3 +243,73 @@
   --color-inactive: var(--color-disabled);
   --rule: var(--rule-w) solid var(--color-rule);
 }
+
+/*
+  `.theme-ink`: the editor inverted, for the one card that must never read as
+  part of what scrolls past it, the fixed Randomness footer (batch 03, T-04,
+  B-026, Pol's D-02 A). It is the one large black surface in the editor, the
+  written exception to "ink only for primary or selected" (`DESIGN_SYSTEM.md`
+  *Ink footer*). Like `.theme-default` it redefines only semantic tokens, so
+  the footer's controls are not edited: each reads its job's token and gets
+  the ink version.
+
+  Every step is one step **lighter** than the surface under it, the light
+  theme's rule mirrored: card black, field one step up, field hover and the
+  secondary button one more. Measured (WCAG 2.2 AA): text white 18.9:1 on the
+  card, 15.1:1 on a field, 12.6:1 on a secondary button, 9.3:1 on its hover,
+  6.5:1 pressed; muted text 10.6:1 on the card, 8.5:1 on a field; the field's
+  edge 6.0:1 on the field, 5.0:1 on its hover (1.4.11). Disabled is grey-500,
+  2.9:1 on a secondary button, clearly dimmed and never read, as grey-450 is on
+  the light ground. The washes are white, since a black wash cannot darken
+  black.
+
+  The accent is Pol's own #e94b82, not `--pink`: `--pink` was darkened to pass
+  as text on white, and on black it is only 3.5:1. #e94b82 is 5.2:1 on the
+  card, 4.2:1 on a field and 3.6:1 against a chosen (white) segment, so the
+  focus ring clears 3:1 against everything it can touch here (1.4.11).
+
+  Selected inverts too: a chosen segment is white with black text. A hint is
+  ink on paper, so it turns white with black text: inside the black card it
+  stands out the way a black hint does on a white one. Popups opened from here
+  (the Explainer, the tour) are not inside this scope and keep the page's
+  theme.
+*/
+.theme-ink {
+  --ink-field: #262626; /* a field on the ink card: one step up from black */
+  --ink-raised: #474747; /* a secondary button under the pointer: one step up from grey-800 */
+  --ink-accent: #e94b82; /* Pol's accent, undarkened: it passes on black */
+  --white-10: rgb(255 255 255 / 0.1);
+  --white-18: rgb(255 255 255 / 0.18);
+
+  --color-ink: var(--white);
+  --color-paper: var(--black);
+  --color-muted: var(--grey-400);
+  --color-disabled: var(--grey-500);
+
+  --color-card: var(--black);
+  --color-panel: var(--black);
+  --color-field: var(--ink-field);
+  --color-field-hover: var(--grey-800);
+  --color-edge: var(--grey-450);
+
+  --color-primary: var(--white);
+  --color-primary-hover: var(--grey-200);
+  --color-on-primary: var(--black);
+  --color-secondary: var(--grey-800);
+  --color-secondary-hover: var(--ink-raised);
+  --color-secondary-pressed: var(--grey-600);
+  --color-hover: var(--white-10);
+  --color-pressed: var(--white-18);
+
+  --color-selected: var(--white);
+  --color-on-selected: var(--black);
+  --color-track: var(--grey-800);
+
+  --color-accent: var(--ink-accent);
+  /*
+    Re-stated, not inherited: a custom property that reads another is resolved
+    where it is declared, so `:root`'s `--color-rule` would keep the light edge.
+  */
+  --color-rule: var(--color-edge);
+  --rule: var(--rule-w) solid var(--color-rule);
+}
