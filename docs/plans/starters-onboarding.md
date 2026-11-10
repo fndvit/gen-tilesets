@@ -1170,3 +1170,127 @@ DESIGN_SYSTEM.md (row 9 of the Steps table, the counts, the last-step footer), `
 and `tour.md` are updated. Item 1 above is replaced by this.
 
 **Next: O3b** (`Tour.svelte`, the tokens, the `help` icon).
+
+## Next session plan: O3b · Tour.svelte (detail)
+
+**Next session starts here.** Branch `starters-onboarding`, last commit "the tour ends on New".
+Read, in order: "O1 picks", "Tour text, revised", "O3a done" and "After O3a: a last step" above,
+then DESIGN_SYSTEM.md § "Onboarding: the tour" (all of it: Steps, the scrim and the cut-out, the
+step bubble, the Welcome card, Placement, Behaviour). Read `tour.ts` and `first-visit.ts`; they are
+the model, and O3b only draws it. O3b ends with the tour **showing on a first visit**. "?" and the
+replay are O3c. Stop for Pol at the end.
+
+### What exists (checked 2026-11-10)
+
+- **The model**, `src/tour.ts`: `start(run)`, `current`, `next` (`null` past the last), `back`,
+  `count` ("3 of 9"), `primaryLabel`, `showsSkip`, `end(seenStore())` (sets the flag, returns
+  `null`). `TargetKey` lists the nine `data-tour` values, and `TourStep.fallback` is used by Tile
+  group (→ `tiles-header`).
+- **The run**: `App.svelte` has the prop `tourRun: TourRun | null` from `main.ts` (null when this is
+  not a first visit). Nothing reads it yet.
+- **Placement helpers**, `lib/ui/popover.ts`: `placeBeside(sidebar, anchor, viewport, size,
+  margin)` returns `{top, left, maxHeight}`, or `undefined` when there is no room beside the sidebar
+  (it measures, with no media query). `placeOnLargerSide(anchor, viewport, height)` returns
+  `{top, left, right, up}`. Both are already tested (`popover.test.ts`). `Explainer.svelte` is the
+  pattern for using them.
+- **Revealing**: `revealInScroller(element, topInset, behavior)` in `lib/ui/reveal.ts`.
+  `Collapsible.svelte` `stuckAbove()` shows how to work out the sticky header's inset.
+- **A modal `<dialog>`**: `lib/ui/Popup.svelte:76` calls `showModal()`. Follow it for focus
+  return and Esc (`cancel` event → skip, with `preventDefault` so the tour closes the dialog itself).
+- **Nothing takes a `data-tour` attribute yet, and no component spreads rest props.** Each target
+  needs a small optional prop:
+  | Key | Element | How |
+  |---|---|---|
+  | `grid` | Grid & size's whole card | `Collapsible` root, via a new `Section`/`Collapsible` prop `tour` |
+  | `tiles-add` | the Tiles header's "+" | `Section` `tourAdd` → a new `IconButton` prop `tour` |
+  | `tiles-header` | the Tiles header | `Collapsible` `.heading`, via a new prop `tourHeading` |
+  | `tile-group` | the first `TileGroup` | `TilesSection.svelte:237`, on the first group's root |
+  | `ops-add` | the Operations header's "+" | as `tiles-add` (`OperationsSection.svelte:130` is its own `IconButton`; check which "+" is the header's) |
+  | `op-example` | Collage's operation 4, `op6` (the `rect` one) | `OperationCard.svelte:117` `<article>`, a `tour` prop set by `OperationsSection` on the 4th card |
+  | `preview` | the picture | `.stage` in `App.svelte` (around the `<Tileset>`, `bind:box={renderBox}`) |
+  | `breakpoints` | the Breakpoints header | `tourHeading` on its `Section` |
+  | `footer` | the Randomness card | `SidebarFooter.svelte:63` `.fixed` |
+  | `new` | the top bar's New | `SidebarTopBar.svelte:92`, a new `Button` prop `tour` |
+  Keep these as plain optional props (`tour?: string`) and write the reason once, in `Section.svelte`:
+  the tour finds its targets by attribute, so a label change can't break it. Rejected: finding
+  them by `aria-label` or by class.
+- **Opening operation 4**: `opening.open(id, "attribute")` (`opening.svelte.ts`), which is what
+  pressing the card's title does (`OperationCard.svelte:126` → `onSelect("attribute")`). It goes
+  through `guard` and asks Operations to reveal the card. Closing: `drafting.discard()`. On a first
+  visit no draft is open, so `guard` never asks. Find the op by position (the 4th) **and** check
+  that it is `op6` with a `rect` selection. If not, skip the opening and point at the Operations
+  header, so a changed Collage can't open the wrong card.
+
+### Steps
+
+1. **Tokens and icon.** In `tokens.css`, add `--color-scrim:
+   color-mix(in srgb, var(--color-ink) 40%, transparent)` and `--tour-welcome-w: 380px`. In
+   `icons.ts`, add `help` (Lucide circle-help), as DESIGN_SYSTEM lists it. `icons.test.ts` may count
+   the icons; update it if so. Remove the *(O3)* marks in DESIGN_SYSTEM.md for what is now built.
+2. **`data-tour` props** as in the table. Each is optional and undefined by default, so no output
+   changes.
+3. **`src/tour-layout.ts`** (pure, tested) for the geometry, so that `Tour.svelte` holds no logic
+   worth a test (CLAUDE.md, Testing):
+   - `cutout(box, pad)` gives the box grown by `--space-2` (4px).
+   - `scrimPath(viewport, cutouts, radius)` gives the SVG path: the window with rounded holes, using
+     `fill-rule="evenodd"`.
+   - `placeBubble(...)` gives `{top, left, width}`. In two columns it calls `placeBeside`. Stacked,
+     or with no room beside, it goes below the cut-out, or above it when it doesn't fit, at the
+     window's width less 16px on each side. On step 6 in two columns it stays in the sidebar column,
+     below the card or above it, left-aligned with it.
+   - `resolveTarget(step, find)` gives the elements to cut out, using `fallback` when the target is
+     missing. `find` is injected, so the tests need no DOM.
+   - Write `tour-layout.test.ts` for all of these.
+4. **`src/lib/Tour.svelte`**: props `run: TourRun` and `onEnd: () => void`.
+   - On mount, `showModal()`. Inside the dialog: a full-window SVG (the scrim path, plus a 2px ink
+     ring with a 2px white halo on each cut-out; the ring is not the accent), then the bubble or
+     the Welcome card.
+   - **The bubble.** The header has the title in `.t-title` and `count()` in muted `.t-console`.
+     Then the text in `.t-body`. The footer has Skip tour (tertiary, left; only if `showsSkip`),
+     then Back (secondary) and the primary button (`primaryLabel`).
+   - **The Welcome card** is centred and `--tour-welcome-w` wide, with "Welcome" in `.t-section`,
+     the two paragraphs, then Skip tour (secondary) and Start tour (primary). It has no count.
+   - **On each step:** reveal the target in its scroller (`revealInScroller`, `instant` under
+     reduced motion), then measure and place. Re-place on `resize`, and with a `ResizeObserver` on
+     the targets so a reflow moves the cut-out. Move focus to the primary button. Update a polite
+     live region with "<title>, <n> of <total>. <text>".
+   - **Step 6:** on entry, `opening.open(op6, "attribute")` and wait a `tick` plus the slide before
+     measuring. On leaving by any way (Next, Back, Skip, Esc, Done), `drafting.discard()`.
+   - **Ending:** `end(seenStore())`, `dialog.close()`, then `onEnd()`. A click on the scrim does
+     nothing.
+   - Name the dialog with `aria-labelledby` (title and count) and describe it with
+     `aria-describedby` (the text).
+5. **Wire it into `App.svelte`**: `let touring = $state(tourRun)`, and render
+   `{#if touring}<Tour run={touring} onEnd={() => (touring = null)} />{/if}`. The `TourRun` type
+   already allows O3c to set `touring = "replay"` from "?".
+6. **Docs pages** `tour-layout.md` and `ui-tour.md` (or whatever name the coverage check expects
+   for `lib/Tour.svelte`; look at an existing `lib/*.svelte` page such as `import-refused.md`).
+   Add the new props to the pages of `Section`, `Collapsible`, `IconButton`, `Button`,
+   `OperationCard` and `SidebarFooter` where those pages list props. Run `pnpm --filter
+   @vit-foundation/tileset-docs build`.
+7. **Changelog**: `pnpm changelog check`.
+
+### Verification
+
+- `pnpm test` and `pnpm typecheck` at the root. The docs build passes.
+- A Playwright probe in the scratchpad (pattern: this session's `o3a/probe.mjs`, which resets the
+  profile per case with a new browser context; dev server on 5174). Take screenshots at 1440×900
+  and at 375×800:
+  - A fresh profile shows Welcome over Collage with the first-visit text and focus on Start tour.
+    Next goes through all 9 steps. Each count is right, each cut-out lands on its target, and the
+    bubble doesn't cover the cut-out.
+  - Step 6 opens operation 4 and the rectangle shows on the picture. Next closes the card, and so
+    do Back and Esc there. No draft is left (the card is closed and Undo is still disabled).
+  - The last step reads Done, has no Skip tour, and cuts out New.
+  - Esc on any step ends the tour and sets the flag; a reload shows no tour. Done does the same.
+  - A click on the scrim does nothing. Tab stays in the bubble.
+  - Templates blocked: the notice, then a tour of 8 steps with the replay's Welcome and last-step
+    text.
+  - Stacked (375 wide): the bubble is below or above the cut-out, full width less 16px on each side.
+  - axe-core 4.10.2 (from the scratchpad, as S4 used it) reports no violations with the tour open.
+- `git diff --stat origin/dev -- packages/` is empty.
+
+### Exit
+
+Commit ("Starters and onboarding: O3b, the tour"), write "O3b done" here with any decisions for Pol
+to check, update the memory, and stop. Next: O3c ("?" and the icon-only Undo).
