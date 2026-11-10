@@ -173,6 +173,8 @@
   /* ── Motion ────────────────────────────────────────────────────────── */
   --dur-fast: 120ms;
   --dur-slow: 300ms;
+  /* Closing a section or group: the fold and the scroll that leads it (batch 03 T-05). */
+  --dur-close: 220ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --marquee-speed: 40px; /* per second */
   --scrollbar-opacity: 0.6;

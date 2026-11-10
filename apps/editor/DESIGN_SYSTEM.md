@@ -553,3 +553,20 @@ so it sits with Undo, not with New, Import and Export.
 - Below 40rem the top bar has no room for it beside a labelled Undo (it overflows by 24px at
   375px), so **Undo becomes an Icon button** there, labelled "Undo". Above 40rem Undo keeps its
   word.
+
+## Sidebar motion and controls (batch 03, session B)
+
+### Opening and closing scroll (B-028, T-05)
+
+| What | Duration | Curve |
+|---|---|---|
+| A section or group's body slides open | `--dur-fast` (120ms) | `slide`'s own |
+| Then the sidebar scrolls until the opened part shows (`reveal.ts`) | `--dur-slow` (300ms) | `--ease` |
+| A body slides shut, and the sidebar scrolls up with it when it is near its bottom | `--dur-close` (220ms) | `--ease` |
+
+- **Closing is a little faster than opening**, because nothing new appears: it only has to move
+  the sidebar back. The scroll that leads the close and the fold share one duration and one curve,
+  so the browser never clamps the scroll (that clamp was the jump B-028 reports).
+- Both scrolls are driven by `tweenScroll`, not `scrollBy({ behavior: "smooth" })`, whose
+  duration the browser picks. A wheel or drag during one stops it.
+- Under `prefers-reduced-motion` both are instant, like the slides.
