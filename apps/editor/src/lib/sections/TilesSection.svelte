@@ -30,6 +30,11 @@
   `grass 2` when `grass` is taken. The schema still allows duplicates (`06`
   §5.3), so an imported file may hold some: those show their id after the
   title, with a hint (§12.2's sixth advisory).
+
+  **"How tiles work"** (batch 03, T-03, B-025, D-01) is wired exactly as the
+  Operations section wires "How operations work": an (i) in the header before
+  the "+", opening an `Explainer` beside the sidebar. It explains the library
+  as a whole, so it hangs from the section's header, not from any one group.
 -->
 <script lang="ts">
   import type { Tile } from "@vit-foundation/gen-tilesets";
@@ -54,7 +59,10 @@
   import TileGallery from "../tiles/TileGallery.svelte";
   import TileGroup from "../tiles/TileGroup.svelte";
   import AddBar from "../ui/AddBar.svelte";
+  import Explainer from "../ui/Explainer.svelte";
+  import IconButton from "../ui/IconButton.svelte";
   import Popup from "../ui/Popup.svelte";
+  import { TILES_EXPLAINER } from "./tiles-explainer.js";
 
   const tiles = $derived(session.file.config.tiles);
 
@@ -218,10 +226,25 @@
     const files = Array.from(event.dataTransfer?.files ?? []);
     if (files.length > 0) void addGroup(files);
   }
+
+  /** The (i)'s popover: its trigger while open, else `undefined` (`OperationsSection` is the pattern). */
+  let explaining = $state<HTMLButtonElement | undefined>(undefined);
+  let explainTrigger = $state<HTMLButtonElement | undefined>(undefined);
 </script>
+
+{#snippet info()}
+  <IconButton
+    icon="info"
+    label="How tiles work"
+    expanded={explaining !== undefined}
+    bind:element={explainTrigger}
+    onclick={() => (explaining = explaining === undefined ? explainTrigger : undefined)}
+  />
+{/snippet}
 
 <Section
   title="Tiles"
+  actions={info}
   {summary}
   addLabel="Add tile group"
   addHaspopup="dialog"
@@ -262,6 +285,18 @@
     <AddBar label="Add tile group" haspopup="dialog" onclick={() => openGallery(null)} />
   </div>
 </Section>
+
+{#if explaining !== undefined}
+  <Explainer
+    anchor={explaining}
+    content={TILES_EXPLAINER}
+    onClose={(refocus) => {
+      const trigger = explaining;
+      explaining = undefined;
+      if (refocus) trigger?.focus();
+    }}
+  />
+{/if}
 
 <TileGallery
   bind:open={galleryOpen}

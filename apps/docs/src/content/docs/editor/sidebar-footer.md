@@ -20,6 +20,12 @@ Since iteration 2 it holds only what decides the picture's randomness:
 - **Preview a fresh load:** preview another visitor's load. It is disabled when nothing reseeds
   on load.
 
+**It is set apart from the sections** (batch 03, T-04, B-026): 12px of the grey ground above it
+and a 1px grey-500 edge round it (`--color-edge`), so a section cut off by the scroll edge ends on
+grey and never reads as one card with the footer. Its colours are the page's own; an inverted
+black card was built first and rejected because the controls inside swapped their colours. See
+`DESIGN_SYSTEM.md` *Footer edge*.
+
 The two actions wear the re-seed icon: the shape, not a colour, says "draw again". Undo, New,
 Import and Export moved to the [sidebar top bar](/editor/sidebar-top-bar/), and so did dropping a
 zip.
@@ -52,9 +58,10 @@ preview's stack (`advisories.ts`, Stage 2 W3), not a clause in this hint.
 
 ### Look
 
-A white card on the sidebar ground (`--color-card`), 8px from the edges, with 12px of padding
-above and 16px at the sides and below. Its heading is a `.t-title`. The two actions share a row,
-and stack in a narrow sidebar.
+A white card on the sidebar ground with a 1px `--color-edge` hairline (an inset shadow, so it takes
+no space), 12px below the scroll area and 8px from the other edges, with 12px of padding above and
+16px at the sides and below. Its heading is a `.t-title`. The two actions share a row, and stack
+in a narrow sidebar.
 
 ### Invariants
 

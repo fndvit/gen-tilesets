@@ -13,9 +13,9 @@ sidebar:
 paper" (2026-11-06) they are one outline family, Lucide's paths (ISC licence), on a 24-unit grid,
 drawn at 16px with a 1.5px stroke and round caps and joins.
 
-There are twenty-three: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`,
+There are twenty-four: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`, `undo`, `import`,
 `upload`, `export`, `new`, `more`, `grip`, `swap`, `archive`, `image`, `check`, `info`, `help`,
-`alert`, `eye` and `eye-off`.
+`alert`, `eye`, `eye-off` and `copy`.
 
 ## In detail
 
@@ -47,6 +47,7 @@ There are twenty-three: `fold`, `up`, `down`, `plus`, `close`, `trash`, `reseed`
 | `help` | Show the tour: the top bar's "?" (B-017; Lucide circle-help) |
 | `alert` | A failure: a `Notice` of kind `failure`, drawn in `--color-danger` |
 | `eye` / `eye-off` | An operation drawn in the preview / hidden from it: the operation card's hide toggle (batch 02 T-02) |
+| `copy` | Copy to the clipboard: the install command in "Your tileset is downloading", after Export (batch 03 T-08; Lucide copy) |
 
 ### Invariants
 

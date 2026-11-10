@@ -33,9 +33,19 @@
 
   The bar takes dropped zips and folders for Import, and outlines itself while
   one is over it.
+  **After a zip export, "Your tileset is downloading"** (batch 03, T-08,
+  B-030): a `Popup` saying in general terms how the file gets onto a website,
+  with the install command to copy and a link to the getting-started guide. A
+  `Popup`, not a `Dialog`: it informs and asks nothing. Only the zip opens it;
+  an image is a picture, not something to install. It shows on every export
+  until "Don't show again" (Pol, D-06 B), whose flag and copy are
+  `export-next.ts`'s. Focus goes back to Export when it closes, by hand: the
+  button is disabled while the zip is written, which drops focus to the body,
+  so the dialog's own return would land nowhere.
 -->
 <script lang="ts">
   import { exportZip } from "../../download.js";
+  import { COPY_LABELS, GETTING_STARTED_URL, INSTALL_COMMAND, copyText, hideStore, type CopyState } from "../../export-next.js";
   import { exportedEmpty } from "../../advisories.js";
   import { drawsNothing } from "../../export.js";
   import { notices } from "../../notices.svelte.js";
@@ -79,12 +89,31 @@
       await exportZip(file);
       // §12.2's fifth advisory. **E16**: it never blocks the export.
       if (empty) notices.push(exportedEmpty);
+      if (!nextHidden.get()) {
+        copied = "idle";
+        telling = true;
+      }
     } catch (cause) {
       exportError = String(cause instanceof Error ? cause.message : cause);
     } finally {
       exporting = false;
       reporting = exportError !== null;
     }
+  }
+
+  /** "Your tileset is downloading" (T-08). */
+  const nextHidden = hideStore();
+  let telling = $state(false);
+  let copied = $state<CopyState>("idle");
+  let exportPart = $state<HTMLElement | null>(null);
+
+  async function copyCommand(): Promise<void> {
+    copied = await copyText(INSTALL_COMMAND);
+  }
+
+  /** Export's main part: the first button in its split. */
+  function refocusExport(): void {
+    exportPart?.querySelector("button")?.focus();
   }
 
   function imageFailed(message: string): void {
@@ -101,17 +130,20 @@
       undone (`session.open`), so it asks first unless the tileset is blank.
     -->
     <ImportPanel target={root} bind:over />
-    <SplitButton
-      label={exporting ? "Exporting…" : "Export"}
-      icon="export"
-      disabled={exporting}
-      onclick={runExport}
-      menuLabel="More export options"
-      items={[
-        { label: "Tileset (.zip)", icon: "archive", onSelect: runExport },
-        { label: "Image (.png)…", icon: "image", onSelect: () => (imaging = true) },
-      ]}
-    />
+    <!-- `display: contents`: a handle on the split for `refocusExport`, with no box of its own. -->
+    <span class="export" bind:this={exportPart}>
+      <SplitButton
+        label={exporting ? "Exporting…" : "Export"}
+        icon="export"
+        disabled={exporting}
+        onclick={runExport}
+        menuLabel="More export options"
+        items={[
+          { label: "Tileset (.zip)", icon: "archive", onSelect: runExport },
+          { label: "Image (.png)…", icon: "image", onSelect: () => (imaging = true) },
+        ]}
+      />
+    </span>
   </div>
   <!--
     **E6**: undo restores a previous `TilesetFile` in full, and no editor action
@@ -152,6 +184,47 @@
   <p class="t-body">{exportError}</p>
 </Popup>
 
+<Popup title="Your tileset is downloading" bind:open={telling} onClose={refocusExport}>
+  <div class="next">
+    <p class="t-body">
+      <span class="t-value">tileset.zip</span> holds <span class="t-value">tileset.json</span> and a
+      <span class="t-value">tiles/</span> folder. To draw it on a website:
+    </p>
+    <ol class="steps t-body">
+      <li>
+        Install the package:
+        <span class="command">
+          <code class="t-value">{INSTALL_COMMAND}</code>
+          <Button label={COPY_LABELS[copied]} icon={copied === "copied" ? "check" : "copy"} variant="tertiary" onclick={copyCommand} />
+        </span>
+      </li>
+      <li>
+        Put <span class="t-value">tiles/</span> and <span class="t-value">tileset.json</span> in your site's
+        public files.
+      </li>
+      <li>Load the file and draw it. The guide shows how, for plain JavaScript and for Svelte.</li>
+    </ol>
+    <p class="t-body">
+      <a class="link" href={GETTING_STARTED_URL} target="_blank" rel="noopener noreferrer"
+        >Read the getting-started guide<span class="sr"> (opens in a new tab)</span></a
+      >
+    </p>
+  </div>
+  <!-- The button's new word, said once: a label that changes under focus is not reliably announced. -->
+  <span class="sr" role="status">{copied === "idle" ? "" : `${COPY_LABELS[copied]}.`}</span>
+  {#snippet actions(close)}
+    <Button
+      label="Don't show again"
+      variant="tertiary"
+      onclick={() => {
+        nextHidden.set();
+        close();
+      }}
+    />
+    <Button label="Close" onclick={close} />
+  {/snippet}
+</Popup>
+
 <style>
   .top-bar {
     box-sizing: border-box;
@@ -185,6 +258,64 @@
     align-items: center;
     gap: var(--space-2);
     margin-left: auto;
+  }
+
+  .export {
+    display: contents;
+  }
+
+  .next {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .next p {
+    margin: 0;
+  }
+
+  .steps {
+    display: grid;
+    gap: var(--space-4);
+    margin: 0;
+    padding-left: var(--space-7);
+  }
+
+  /* The command and its copy button; the command wraps rather than widening the popup (1.4.10). */
+  .command {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  code {
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-sm);
+    background: var(--color-field);
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+
+  /* The editor's first text link: ink and underlined, so it is told from text by more than colour (1.4.1). */
+  .link {
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-decoration-thickness: var(--rule-w);
+    text-underline-offset: 3px;
+  }
+
+  .link:hover {
+    text-decoration-thickness: var(--focus-w);
+  }
+
+  .sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .undo-wide,

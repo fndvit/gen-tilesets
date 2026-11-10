@@ -1,6 +1,11 @@
 <!--
   The sidebar's fixed footer, "Randomness": below the scrolling sections, never
-  scrolled or collapsed. A white card on the ground, like a section.
+  scrolled or collapsed. A white card on the ground, like a section, set apart
+  by a gap of ground above it and a hairline edge (batch 03, T-04, B-026): the
+  scroll area's edge sat on the card, so a section cut off there met it white
+  on white and the two read as one. An inverted black card was built first and
+  rejected (Pol): every control inside it swapped colours, so selected, a
+  secondary button and a hint meant the opposite of what they mean elsewhere.
 
   It holds only what decides the picture's randomness: the seed and the three
   ways to draw again. The document's actions (Undo, New, Import, Export) moved
@@ -172,10 +177,13 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
-    margin: 0 var(--space-4) var(--space-4);
+    /* Twice the gap between sections, so a cut-off section ends on ground before the card begins. */
+    margin: var(--space-6) var(--space-4) var(--space-4);
     padding: var(--space-6) var(--space-7) var(--space-7);
     border-radius: var(--radius);
     background: var(--color-card);
+    /* The one card with an edge: the one always on screen. Inset, so it takes no space. */
+    box-shadow: inset 0 0 0 var(--rule-w) var(--color-edge);
     color: var(--color-ink);
   }
 

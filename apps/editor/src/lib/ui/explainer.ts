@@ -28,6 +28,6 @@ export interface ExplainerContent {
   sharesBy: string;
   /** Running text after the bars. */
   advice: string;
-  /** A muted note under a hairline, last. */
+  /** A muted note under a hairline, last. `""` draws neither. */
   note: string;
 }

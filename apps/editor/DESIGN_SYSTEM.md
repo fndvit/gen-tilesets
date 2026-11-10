@@ -145,7 +145,7 @@ controls, so it gets a step up (Pol, O3c). See *Onboarding: the tour*, "The step
 | **Radio list** | One choice from a short list whose options need more than a word. A field-grey well (`--color-field`, radius 6) of 30px rows, each a 12px ring dot, the label, and a mono value at the right. The chosen row is ink with white text and a filled white dot. Hover darkens a row one step. It is a `radiogroup` of native radios: Tab enters on the chosen row, the arrow keys move and choose | Export image's size |
 | **Export image** (a Form popup) | **Size** (a Radio list): first `Design width · 1000 px` (the saved file's design width, `layout.referenceWidth`, the Grid & size field; not the preview's width, so the handles never change the image. Pol, X3b), then one row per breakpoint bound (`boundsOf(rules)`, ascending), named by the rule that sets it, using the sidebar's "Rule N" number: `Breakpoint 2 · 768 px`. A rule with both a min and a max width names two bounds; both rows carry its number and the px tells them apart. A bound that two rules name lists both: `Breakpoint 2 + 3 · 1024 px`. There is no "base" or "rule N" label at the right. A bound equal to the design width keeps its own breakpoint row, because the rule number is what the author looks for. With no breakpoints, Design width is the one row, still shown. It opens on the size used last in the session, else Design width.<br>**Background** (Preview colour / Transparent) and **Density** (1× / 2×, 2× by default): two segmented controls side by side. The Preview colour segment carries a small swatch of `preview.background`, which keeps its own colour on the chosen ink segment.<br>While the preview draws a draft, an Inline advisory: "Draft not included: this is the saved tileset".<br>A **File** line: `.t-label` "File", then in mono the name and pixel size, for example `tileset-1000px@2x.png · 2000 × 1194 px`.<br>Buttons: Cancel, Download PNG. The rules for the image itself are under **Export** below | Export's Image (.png)… |
 | **Width choices, swatch** | Segments on a white track in the preview bar; the chosen one is ink. The swatch is a 30px rounded square with an edge | Preview top bar |
-| **Footer: Randomness** | A white card with a `.t-title` heading. It holds the seed field and a strong re-seed button; Assets on load; then Reroll assets and Preview a fresh load as two secondary buttons with the re-seed icon | Sidebar foot |
+| **Footer: Randomness** | A white card with a hairline edge and a gap of ground above it (*Footer edge*), with a `.t-title` heading. It holds the seed field and a strong re-seed button; Assets on load; then Reroll assets and Preview a fresh load as two secondary buttons with the re-seed icon | Sidebar foot |
 
 ### Icons (`src/lib/ui/icons.ts`)
 
@@ -577,3 +577,39 @@ so it sits with Undo, not with New, Import and Export.
 |---|---|---|
 | **Checkbox** (`Checkbox`) | One on/off setting with its label always visible. A native checkbox, drawn as a `--checkbox` (16px) square with a 1.5px edge in the text colour (as the Radio list's ring; ink on white or the well is ≥ 15:1, 1.4.11), radius `--radius-xs`, white inside; checked, it fills ink with a white `check` (12px). The label is `.t-body` in ink; the whole label is the target, at least `--target-min` (24px) tall with `--space-2` side padding (2.5.8). Hover washes the label `--color-hover`, press `--color-pressed`; keyboard focus rings the whole label in the accent. Space toggles it. An optional `hint` opens on hovering the label. Use it for one setting being on; a **Segmented control** chooses between named values | Reseed on load: a closed operation card (its own row under the chips) and the open card's Pattern step |
 
+## Footer edge (batch 03, T-04, B-026)
+
+The Randomness footer never scrolls; the sections scroll above it, inside a scroll area whose
+bottom edge sat directly on the footer. A section cut off by that edge is white, so where it met
+the white footer the two read as one card. The footer keeps the page's colours and gets two marks
+of its own:
+
+- **A gap of ground above it** (`margin-top: var(--space-6)`, 12px, twice the 6px between
+  sections). A cut-off section now visibly ends on grey before the footer begins.
+- **A hairline round the card** (`--color-edge`, grey-500, drawn as an inset 1px shadow so it
+  takes no space): 3.6:1 against the ground. It is the one card with a border, which marks it
+  as the card that is always there. Principle 1's "almost no borders" allows it; it is not ink,
+  so principle 2 is untouched.
+
+**Rejected: an inverted, black card** (D-02 A, built first). It told the two apart most strongly,
+but every control inside swapped its colours (selected white, secondary buttons dark, hints
+white), so the footer's controls meant the opposite of the same controls everywhere else (Pol).
+**Rejected: a grey card** (D-02 B): grey is also the ground, so it reads as "no card".
+
+## After Export: "Your tileset is downloading" (batch 03, T-08, B-030)
+
+A **Popup** (informational, so not a Dialog) opened only by a successful zip export, from
+Export's main part or its menu's Tileset (.zip); never by Export image. It shows on every export
+until **Don't show again** (Pol, D-06 B), kept in `localStorage` (`export-next.ts`).
+
+- **Body**, `--space-6` between blocks: one `.t-body` line naming what the zip holds (file names
+  in `.t-value`), a numbered list of three steps (`--space-4` apart), and the guide link.
+- **The command** is `.t-value` on a `--color-field` chip, `--radius-sm`, selectable as one piece
+  (`user-select: all`), and wraps rather than widening the popup (1.4.10). Beside it a tertiary
+  **Copy** Button with the `copy` icon; after a copy it reads **Copied** with `check`, or
+  **Couldn't copy**, and a status region says it once.
+- **Text link** (the editor's first): ink, underlined at 1px with a 3px offset, 2px under the
+  pointer. Underlined so it is told from text by more than colour (1.4.1). A link that leaves the
+  editor opens a new tab and says so to assistive tech ("(opens in a new tab)").
+- **Actions:** **Don't show again** (tertiary), then **Close** (secondary). Esc and Close close it;
+  focus returns to Export.
