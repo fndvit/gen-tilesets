@@ -36,3 +36,13 @@ One choice beyond the plan: `OperationCard` reads `opening.asking` (read-only) s
 waited on the dialog and was answered Keep editing is dropped. Without it, a later open of that
 card from the orphan notice would scroll twice. The alternative was a prop from
 `OperationsSection`, which is editor-shell, outside this task's areas.
+
+## T-07 "Reseed on load" as a checkbox in a fixed place
+
+Done, as planned (D-03 A). Checked with Playwright at the 400 px sidebar (window 1280 and 800):
+on all four random operations of Collage the box sits at the same x (under the index square), no
+card overflows, Space on the focused checkbox toggles it, and the focus ring circles the whole
+label. The open card's Pattern step shows the same checkbox in place of the Off/On toggle.
+
+Not touched: `OperationsSection.svelte`'s comment on `setReseedOnLoad` still says "chip"
+(editor-shell, outside this task's areas); its behaviour is unchanged.

@@ -78,11 +78,10 @@
   import { session } from "../../session.svelte.js";
   import { preview } from "../preview/view.svelte.js";
   import Button from "../ui/Button.svelte";
+  import Checkbox from "../ui/Checkbox.svelte";
   import Explainer from "../ui/Explainer.svelte";
-  import FieldRow from "../ui/FieldRow.svelte";
   import GlyphGrid from "../ui/GlyphGrid.svelte";
   import Hint from "../ui/Hint.svelte";
-  import Toggle from "../ui/Toggle.svelte";
   import {
     draftParts,
     labelFor,
@@ -464,23 +463,15 @@
           />
         {/if}
         {#if stochastic}
-          <FieldRow
-            label="Reseed on load"
-            hint="Each page load draws this operation with a new seed. Saved with the operation."
-            align="center"
-          >
-            {#snippet children()}
-              <Toggle
-                options={[
-                  { value: false, label: "Off" },
-                  { value: true, label: "On" },
-                ]}
-                value={draft.reseedOnLoad}
-                onChange={(on) => (draft.reseedOnLoad = on)}
-                label="Reseed on load"
-              />
-            {/snippet}
-          </FieldRow>
+          <!-- The closed card's control too (batch 03 T-07): one setting, one control. -->
+          <div class="reseed">
+            <Checkbox
+              label="Reseed on load"
+              hint="Each page load draws this operation with a new seed. Saved with the operation."
+              checked={draft.reseedOnLoad}
+              onChange={(on) => (draft.reseedOnLoad = on)}
+            />
+          </div>
         {/if}
       {/snippet}
       {#snippet action()}
@@ -574,6 +565,11 @@
 {/snippet}
 
 <style>
+  /* The box lines up with the field labels; the checkbox's hover wash hangs out by its padding. */
+  .reseed {
+    margin-left: calc(-1 * var(--space-2));
+  }
+
   .body {
     display: flex;
     flex-direction: column;

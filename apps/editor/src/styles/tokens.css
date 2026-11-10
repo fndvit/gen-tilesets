@@ -81,6 +81,7 @@
   --sidebar-w: clamp(400px, 30vw, 560px);
   /* Pointer targets (WCAG 2.2, 2.5.8): nothing that acts is smaller than this. */
   --target-min: 24px;
+  --checkbox: 16px; /* the box; its label row is the target, at least --target-min (batch 03 T-07) */
   --control-h: 30px; /* fields, segments, buttons */
   --header-h: 52px; /* a section header: title over its summary; also the two top bars */
   --group-h: 34px; /* a nested group's header (rule, tile group) */
