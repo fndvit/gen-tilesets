@@ -54,7 +54,7 @@ export interface TemplateEntry {
   path: string;
   /** A committed picture of the template, 192 × 120. */
   thumb: string;
-  /** The muted line under the label: "6 tile groups · 6 operations". */
+  /** The muted line under the label: "6 tile groups · 5 operations". */
   summary: string;
 }
 

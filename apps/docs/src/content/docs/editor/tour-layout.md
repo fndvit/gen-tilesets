@@ -62,7 +62,7 @@ step 6 stacked, and a preview column too narrow for the bubble.
   transition.
 - **Fitting on neither side goes to the bottom, not to the side with more room.** Step 6's open
   card fills the sidebar at 1440 × 900. With the bubble on the side with more room, clamped, it
-  sat over the card's head, which names operation 4. At the bottom it covers the end of the
+  sat over the card's head, which names operation 3. At the bottom it covers the end of the
   palette instead.
 - **`revealDelta` alone was not enough.** It never scrolls up, because a user who just pressed
   something has it on screen. Back on the tour returns to a target the last step scrolled past.

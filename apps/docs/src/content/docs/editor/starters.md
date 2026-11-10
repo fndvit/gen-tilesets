@@ -39,7 +39,7 @@ apps/editor/public/
 
 Collage comes from `../tileset-files/picsBackground`. Its `tileset.json` was migrated with the
 package's own `migrate()` (2 → 4, which changed only `schemaVersion`). No version number was
-written by hand (**E2**). It has 6 tile groups, 21 pictures and 6 operations.
+written by hand (**E2**). It has 6 tile groups, 21 pictures and 5 operations.
 
 The gallery points into Collage's files rather than copying them. The manifest is what keeps the
 two apart: when the gallery grows past Collage, its new entries point somewhere else.
@@ -49,7 +49,7 @@ two apart: when the gallery grows past Collage, its new entries point somewhere 
 | Export | Kind | Meaning |
 | --- | --- | --- |
 | `MANIFEST_PATH` | const | `"starters.json"`, relative to the app's base URL. |
-| `TemplateEntry` | interface | `{ id, label, path, thumb, summary }`. `path` is the template's folder and ends in `/`. `summary` is the muted line, e.g. "6 tile groups · 6 operations". |
+| `TemplateEntry` | interface | `{ id, label, path, thumb, summary }`. `path` is the template's folder and ends in `/`. `summary` is the muted line, e.g. "6 tile groups · 5 operations". |
 | `GalleryEntry` | interface | `{ id, label, src, thumb }`. `label` ("Blue 1") is the cell's **accessible name only**; the cells show no visible label (Pol, 2026-11-09). |
 | `Manifest` | interface | `{ templates, gallery }`. |
 | `Fetch` | type | The part of `fetch` the loaders use. The real one fits. |

@@ -236,27 +236,6 @@
     ],
     "operations": [
       {
-        "id": "op1",
-        "salt": 43,
-        "reseedOnLoad": false,
-        "selection": {
-          "type": "all"
-        },
-        "source": {
-          "type": "constant"
-        },
-        "target": "tileId",
-        "mapping": {
-          "palette": [
-            {
-              "tileId": "t4",
-              "weight": 1
-            }
-          ]
-        },
-        "blend": "set"
-      },
-      {
         "id": "op2",
         "salt": 31,
         "reseedOnLoad": false,

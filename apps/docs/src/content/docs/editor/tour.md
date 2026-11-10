@@ -18,7 +18,7 @@ They are copied into the code, and no test pins the two together. To change the 
 doc first, then the code.
 
 A **first visit** opens Collage and runs nine steps. A **replay** ("?") runs eight, because it
-leaves out "An operation", which describes Collage's operation 4. Both end on "Your own tileset",
+leaves out "An operation", which describes Collage's operation 3. Both end on "Your own tileset",
 which points at New. A first visit whose Collage
 failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 
@@ -58,7 +58,7 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
   names Collage on the first visit ("…or close this and keep exploring Collage."). On a replay it
   says "…keep working on this one.", because a replay runs over whatever is open (Pol, after O3a).
 - **Tile group** falls back to `tiles-header` when there are no groups (O0). **An operation** falls
-  back to `ops-add` when Collage's operation 4 isn't there (`exampleOperation` is `null`), so a
+  back to `ops-add` when Collage's operation 3 isn't there (`exampleOperation` is `null`), so a
   Collage edited later can't have the tour open a card its text doesn't describe.
 - **An operation** cuts out two targets: the opened card (`op-example`) and the picture (`preview`).
   Stacked, where the open card fills the window and the picture is below it, it cuts out the

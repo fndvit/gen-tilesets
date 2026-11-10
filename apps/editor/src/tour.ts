@@ -21,7 +21,7 @@
  *
  * The first visit opens Collage and runs every step. A replay ("?") runs over
  * whatever is open, so it leaves out the step that describes Collage's
- * operation 4, says "seven" rather than "eight" on Welcome, and its last step
+ * operation 3, says "seven" rather than "eight" on Welcome, and its last step
  * says "this one" rather than Collage. A first visit
  * whose Collage failed to open runs as a replay, because there is no Collage
  * to describe (`first-visit.ts`).
@@ -60,7 +60,7 @@ export interface TourStep {
   firstVisitOnly?: true;
   /**
    * Cut out instead when the first target is missing (O0): no tile groups → the
-   * Tiles header; no Collage operation 4 → the Operations "+".
+   * Tiles header; no Collage operation 3 → the Operations "+".
    */
   fallback?: TargetKey;
   /**
@@ -129,14 +129,14 @@ const POINTING: readonly TourStep[] = [
     id: "operation",
     title: "An operation",
     text: [
-      "This is operation 4.",
+      "This is operation 3.",
       "Its **Selection** is a rectangle in the middle of the grid, outlined on the picture.",
       "Its **Pattern**, Random, gives each of those cells a tile: mostly Yellow, sometimes Blue, Pink or Grey.",
     ],
-    aside: "The new tiles keep the rotation and opacity that operations 2 and 3 gave every cell.",
+    aside: "The new tiles keep the rotation and opacity that operations 1 and 2 gave every cell.",
     targets: ["op-example", "preview"],
     firstVisitOnly: true,
-    // Only Collage's own operation 4 carries `op-example` (`exampleOperation`).
+    // Only Collage's own operation 3 carries `op-example` (`exampleOperation`).
     // In a Collage changed since this text was written, point at the stack instead.
     fallback: "ops-add",
     // Stacked, the picture rather than the card: it shows the rectangle the text is about,
@@ -292,15 +292,15 @@ export function end(seen: SeenStore): null {
 }
 
 /**
- * The operation "An operation" opens: Collage's operation 4, `op6`, a
+ * The operation "An operation" opens: Collage's operation 3, `op6`, a
  * rectangle Selection, as the step's text describes it. Found by position
  * **and** checked by id and Selection, so that a Collage edited later can't
  * have the tour open a card the text doesn't describe; `null` then, and the
  * step points at the Operations "+" (its `fallback`). Rejected: by id alone,
- * which would survive a reorder that makes "operation 4" wrong.
+ * which would survive a reorder that makes "operation 3" wrong.
  */
 export function exampleOperation(operations: readonly Pick<Operation, "id" | "selection">[]): string | null {
-  const op = operations[3];
+  const op = operations[2];
   return op !== undefined && op.id === "op6" && op.selection.type === "rect" ? op.id : null;
 }
 

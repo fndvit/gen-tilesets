@@ -440,7 +440,7 @@ separated by " / " below.
 | 3 | Tiles | the Tiles section header's "+" (Add tile group) | "Add tile groups. Pick pictures from the gallery, or upload your own." |
 | 4 | Tile group | the first tile group (Blue in Collage) | "A tile group is one tile with one or more pictures, its **variants**." / "Operations decide where the tile goes, and each of those cells draws one of its pictures." / "The **sliders** set how often each picture is drawn." |
 | 5 | Operations | the Operations section header's "+" (Add operation) | "Operations fill the grid. Each one changes some cells: their tile, or its rotation, scale, offset or opacity." / "They run **from top to bottom**, and a later one paints over an earlier one." |
-| 6 | An operation (first visit only) | Collage's operation 4, opened, **and** the preview's picture | "This is operation 4." / "Its **Selection** is a rectangle in the middle of the grid, outlined on the picture." / "Its **Pattern**, Random, gives each of those cells a tile: mostly Yellow, sometimes Blue, Pink or Grey." Aside: "The new tiles keep the rotation and opacity that operations 2 and 3 gave every cell." |
+| 6 | An operation (first visit only) | Collage's operation 3, opened, **and** the preview's picture | "This is operation 3." / "Its **Selection** is a rectangle in the middle of the grid, outlined on the picture." / "Its **Pattern**, Random, gives each of those cells a tile: mostly Yellow, sometimes Blue, Pink or Grey." Aside: "The new tiles keep the rotation and opacity that operations 1 and 2 gave every cell." |
 | 7 | Breakpoints | the Breakpoints section header | "Change how the tileset looks at different screen sizes." Aside: "Only useful if you export it for a website." |
 | 8 | Randomness | the whole Randomness footer | "Everything random follows from the seed: the same seed always gives the same picture." / "**New seed** redraws every operation." / "**Re-seed**, on an operation's card, redraws only that one." / "**Reroll assets** only swaps pictures within each tile group." Aside: "ⓘ How randomness works has the rest." |
 | 9 | Your own tileset | the top bar's **New** button | On the first visit: "Start building your own tileset with **New**, or close this and keep exploring Collage." On a replay: "Start building your own tileset with **New**, or close this and keep working on this one." (Pol, after O3a) |
@@ -456,7 +456,7 @@ visit and 6 of 8 on a replay, where the steps after step 5 move up one.
   "turn" or "fade" (Pol).
 - A target that is missing points at its section's header instead (O0). With no tile groups,
   step 4 points at the Tiles header.
-- **Step 6** opens operation 4's card, as pressing its title does, so the stepper shows and the
+- **Step 6** opens operation 3's card, as pressing its title does, so the stepper shows and the
   preview draws the selection overlay (the rectangle, in `--color-selection`). Leaving the step
   by any way (Next, Back, Skip tour, Esc) closes the card again without saving: the tour never
   edits the file and never leaves a draft open.
