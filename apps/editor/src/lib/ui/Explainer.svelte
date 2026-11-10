@@ -127,7 +127,8 @@
     </ul>
   {/if}
   <p class="t-body">{content.advice}</p>
-  <p class="note t-body">{content.note}</p>
+  <!-- An empty note draws nothing, not a bare hairline (the Tiles explainer has none, D-01). -->
+  {#if content.note !== ""}<p class="note t-body">{content.note}</p>{/if}
 </div>
 
 <style>

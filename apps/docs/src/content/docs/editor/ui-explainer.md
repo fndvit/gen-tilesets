@@ -32,7 +32,8 @@ button. Tabbing out of it closes it too.
 
 `explainer.ts` holds the content's shape: `title`, `intro`, `params` (`{ name, text }`), `shares`
 (`{ label, shares }` rows, drawn by ratio), `sharesBy` (what a row's label counts, for screen
-readers), `advice` and `note`.
+readers), `advice` and `note`. An empty `note` (`""`) draws nothing, not a bare hairline; the Tiles explainer has
+none (batch 03, T-03).
 
 `noise-explainer.ts` holds `NOISE_EXPLAINER`, the N1 mock's text. Its bars are the shares three
 equal entries paint under Octaves 1, 2 and 3 (23/52/26, 15/68/17, 12/75/14), measured in N1 with

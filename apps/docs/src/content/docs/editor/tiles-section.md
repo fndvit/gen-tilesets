@@ -1,11 +1,11 @@
 ---
 title: sections/TilesSection.svelte
-description: The Tiles section. Opens the Tile gallery to add a group or variants, adds a tile group from N dropped files, renames, weights and deletes, explains every refusal in a popup, and pushes a failure notice for files that did not attach.
+description: The Tiles section. Explains itself from an (i), opens the Tile gallery to add a group or variants, adds a tile group from N dropped files, renames, weights and deletes, explains every refusal in a popup, and pushes a failure notice for files that did not attach.
 sidebar:
   order: 44
 ---
 
-**Written from:** `apps/editor/src/lib/sections/TilesSection.svelte`, `assets.test.ts`,
+**Written from:** `apps/editor/src/lib/sections/TilesSection.svelte`, `tiles-explainer.ts`, `assets.test.ts`,
 `library.test.ts`, and its call site in `App.svelte`.
 
 ## Overview
@@ -23,6 +23,11 @@ editor. Each Tile is a [tile group](/editor/tile-group/), and each picture in it
 - Rename a group by clicking its title, delete it with its trash icon, delete a variant with the
   badge on its thumbnail, and set a variant's weight with its slider. "Reset weights" puts every
   variant of a group back to the same weight in one step.
+
+- **How tiles work:** the (i) before the header's "+" opens an [Explainer](/editor/ui-explainer/)
+  beside the sidebar, with [tiles-explainer.ts](/editor/tiles-explainer/)'s text: adding tiles,
+  groups and weights (batch 03, T-03, B-025). Esc, ✕ or a press outside closes it; Esc and ✕
+  return focus to the (i).
 
 When something cannot be done, for example deleting a group an operation still uses, a popup
 says why once the attempt is over. Nothing is printed in the section itself.
@@ -73,6 +78,14 @@ after the work is done.
 There is no file input here any more: pictures from the computer come in through the gallery's
 Upload… (into My tiles) or by a drop.
 
+#### How tiles work
+
+`explaining` is the (i)'s trigger while its popover is open, else `undefined`; `explainTrigger`
+is bound to the `IconButton` (`expanded` follows). The `info` snippet goes to `Section` as
+`actions`, which draws it before the "+". The `Explainer` is rendered only while `explaining` is
+set, and its `onClose(refocus)` refocuses the trigger after Esc or ✕. This is
+`OperationsSection.svelte`'s wiring, unchanged.
+
 #### Edits and refusals
 
 | Gesture | Transition | Refusal (popup) |
@@ -117,8 +130,8 @@ apart." This is §12.2's sixth advisory, and it is display only.
 Called by `App.svelte` (`<TilesSection />` in `.scrollable`). Callees: `attachAll`,
 `heldTileIds`, `tileNameOf` (`assets.ts`); `attachFailures` (`advisories.ts`); `notices.push`
 (`notices.svelte.ts`); the library transitions from `document.ts`; `nextTileId` (`ids.ts`);
-`Section` (with `addHaspopup="dialog"`), `tiles/TileGroup`, `tiles/TileGallery`, `ui/AddBar`,
-`ui/Popup`.
+`Section` (with `addHaspopup="dialog"` and `actions`), `tiles/TileGroup`, `tiles/TileGallery`,
+`ui/AddBar`, `ui/Explainer`, `ui/IconButton`, `ui/Popup`; `TILES_EXPLAINER` (`tiles-explainer.ts`).
 
 ### Tests
 
