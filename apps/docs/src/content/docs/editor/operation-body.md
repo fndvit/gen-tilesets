@@ -95,9 +95,12 @@ from [pattern-art.ts](#pattern-artts), handed to [GlyphGrid](/editor/ui-glyph-gr
 `artwork` snippet (`createRawSnippet` over the SVG string). A Source with no art keeps a
 label-only cell (**E9**). `chooseSource(name)` sets `sourceType` and
 resets `sourceParams` to defaults. When the registry marks the Source `stochastic`, a
-[FieldRow](/editor/ui-field-row/) "Reseed on load" holds an Off / On [Toggle](/editor/ui-toggle/)
-bound to `draft.reseedOnLoad`, with the hint "Each page load draws this operation with a new
-seed. Saved with the operation." The parameters and the toggle share one options block, shown
+[Checkbox](/editor/ui-checkbox/) "Reseed on load" (batch 03 T-07, B-029: the closed card's
+control too, so one setting has one control) is bound to `draft.reseedOnLoad`, with the hint
+"Each page load draws this operation with a new seed. Saved with the operation." It sits at the
+fields' left edge, its hover wash hanging out by its padding (`.reseed`). It replaced an Off / On
+[Toggle](/editor/ui-toggle/) in a [FieldRow](/editor/ui-field-row/). The parameters and the
+checkbox share one options block, shown
 when the Source has parameters, is stochastic, or has a field preview.
 
 The well opens with the [field preview](/editor/field-preview/) (`previewed`: every Pattern but
@@ -184,8 +187,8 @@ Callees: [`acceptedBlends`](/api/index/functions/acceptedblends/),
 [NumericMapping](/editor/numeric-mapping/), [PaletteList](/editor/palette-list/),
 [ParamFields](/editor/param-fields/); `addOperation`, `replaceOperation` (`document.ts`);
 `defaultParams`, `isComplete`, `retarget`, `STEPS`, `toOperation` (`draft.svelte.ts`); `session`;
-[Button](/editor/ui-button/), [FieldRow](/editor/ui-field-row/),
-[GlyphGrid](/editor/ui-glyph-grid/), [Hint](/editor/ui-hint/), [Toggle](/editor/ui-toggle/);
+[Button](/editor/ui-button/), [Checkbox](/editor/ui-checkbox/),
+[GlyphGrid](/editor/ui-glyph-grid/), [Hint](/editor/ui-hint/);
 `labelFor` ([labels.ts](/editor/operation-labels/)).
 
 ### Tests

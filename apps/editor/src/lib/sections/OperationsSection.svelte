@@ -108,12 +108,13 @@
   }
 
   /**
-   * The closed card's Reseed on load chip (batch 01, T-11, B-021): a file edit
-   * made at once, through the existing `replaceOperation`, so it is one undo
-   * entry. An open draft of the same Operation takes the value too, as
-   * `reseed` copies the salt, so its Save does not undo the toggle. (The chip
-   * shows only on a closed card, so today that draft is never open; the copy
-   * keeps the rule true if that changes.)
+   * The closed card's Reseed on load control (batch 01, T-11, B-021; a
+   * checkbox since batch 03 T-07, B-029): a file edit made at once, through
+   * the existing `replaceOperation`, so it is one undo entry. An open draft of
+   * the same Operation takes the value too, as `reseed` copies the salt, so its
+   * Save does not undo the toggle. (This control shows only on a closed card;
+   * the open card's checkbox writes the draft. So today that draft is never
+   * open; the copy keeps the rule true if that changes.)
    */
   function setReseedOnLoad(op: Operation, on: boolean): void {
     session.apply(replaceOperation(withReseedOnLoad(op, on)));
