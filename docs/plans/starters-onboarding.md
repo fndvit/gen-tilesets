@@ -908,3 +908,47 @@ Draw:
 Questions to put with the mock:
 - The backdrop's darkness (the scrim token, if one exists, else a value decided by contrast).
 - Where the step count sits, and whether Back is shown on the first pointing step.
+
+## O1 picks (Pol, 2026-11-10)
+
+The mock was a scratch page in the session scratchpad: real screenshots of the editor with Collage
+open (1440 × 900 and 375 × 812), with the tour drawn over them in the editor's tokens at the
+measured positions of the real controls. None of it is in the repo.
+
+1. **Scrim: 40% ink**, `color-mix(in srgb, var(--color-ink) 40%, transparent)`. There was no scrim
+   token; the Popup's `::backdrop` (24%) was too light to say "only the cut-out is live". The
+   bubble is white either way, so its text contrast does not depend on it. O2 adds a token.
+2. **The step count sits in the bubble's header, at the right** (Pol's pick over the recommended
+   footer-left): the step's name in `.t-title`, then a muted `.t-console` "3 of 6". The footer
+   holds Skip tour (tertiary) at the left, then Back (secondary) and Next (primary) at the right.
+3. **Back is shown on the first pointing step** (Grid & size) and goes back to Welcome, so every
+   pointing step has the same footer.
+4. **The ring is ink**, 2px (`--rule-strong`), 4px outside the target, with a 2px white halo so it
+   reads on the dark scrim. The accent stays for focus and "editing now" (principle 3): Next has
+   focus while the ring shows, and two pink rings would compete.
+5. **"?" is an `IconButton` at the right of the top bar, after Undo**, with a new `help` icon
+   (Lucide circle-help) and the label "Show the tour". At 375 px the bar is already full (a "?"
+   overflows by 24 px), so **below 40rem Undo becomes icon-only** (an `IconButton` labelled
+   "Undo").
+
+**Decided in the mock, for Pol to check:**
+- Welcome has **no step count** (it is the cover), a `.t-section` "Welcome" heading, and Skip tour
+  (secondary) and Start tour (primary) at the right. It is centred, 380px wide.
+- **The count includes Welcome**: Grid & size is 2 of 6, Tiles 3 of 6, Randomness 6 of 6. (O0's
+  draft said "2 of 6" for Tiles, which was off by one.)
+- **The last step has no Skip tour**: Done and Skip would end the tour the same way.
+- **Tiles points at the section header's "+"**, not the "Add tile group" bar: the "+" is always on
+  screen, while the bar sits at the end of an open, long section.
+- **Placement is the Explainer's**: beside the sidebar over the preview, level with the target and
+  moved up to stay inside the window; below 40rem it hangs below the target (above if it doesn't
+  fit), full width less 16 px gutters. The bubble is `--explainer-w` (340 px) wide, `--space-7`
+  padding, radius 12, `--shadow-float`, with no arrow.
+
+## Next session plan: O2 · Docs
+
+**Next session starts here.** Read "O0 answers" and "O1 picks" above. Add a section to
+`apps/editor/DESIGN_SYSTEM.md` ("Onboarding: the tour (B-017, O2)"): the scrim token (in
+`tokens.css`'s table, value 40% ink), the Tour bubble and Welcome card anatomy, the cut-out and ring,
+placement, the step count, the footer and its last-step variant, keyboard (Esc skips, focus starts on
+Next/Start tour, `inert` behind), the "?" IconButton and Undo's icon-only form below 40rem, and the
+`help` icon in the Icons list. Write no editor code. Then stop for Pol; O3 implements.
