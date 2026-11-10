@@ -133,7 +133,7 @@ alphabetic`); a title that clips for an ellipsis is untrimmed, with `--leading-t
 | **Popup** | A white panel, radius 12, `--shadow-float`, with no frame or black title bar | Reports after an action where nothing happened: an import refused, an export failed, a Tiles refusal (a taken name, a tile in use, the last variant, the last non-zero weight), a palette refusal (the last entry, the last non-zero weight) |
 | **Explainer popover** | A non-modal popover like the Tile picker's (white, radius 12, `--shadow-float`, `--space-6` padding, placed as in *Explainer placement*, at most 340px wide): a `.t-title` heading with a ✕, then `.t-body` running text, each param as a `.t-title` name over a muted explanation, small ink-and-grey bars for measured figures, and a muted note under a hairline. Esc, ✕ or a click outside closes it, and focus returns to the trigger. It explains; it never holds a control. It is the one exception to "explanations are hints": an explanation too long for a hint and needed without a mouse goes here | "How noise works" (the Pattern step under Noise): patches, Cells per feature (patch size, not shares), Octaves (the middle bias, measured: equal entries paint about 23/52/26, 15/68/17, 12/75/14 for 1, 2, 3), the ends advice (about 3× under 2 octaves), and that the ≈% belongs to the position in the list |
 | **Explainer placement** (batch 02, T-03) | Placed from the panel's measured size, never a guess. In the sidebar it opens **beside the sidebar**, over the preview, `--space-4` from the sidebar's edge, level with its trigger's top, moved up just enough to stay `--space-4` inside the window; a panel taller than the window sits at the top margin and scrolls. It covers only its own width of the preview, never the whole picture (Pol, D-04). Where it does not fit beside the sidebar (the stacked layout below 40rem, or a preview column narrower than the panel), it hangs below its trigger, or above when it does not fit below and above has more room, right edge to the trigger's right edge; it scrolls when taller than that side. The heading names what it explains, because beside the sidebar it no longer touches its button | "How operations work", "How randomness works", "How noise works" |
-| **Tour** (`Tour`, `tour.ts`) | A native modal `<dialog>` over the whole window: a 40% ink scrim with the target cut out and ringed in ink (two targets on step 6), and a step bubble (an Explainer-like panel: the step's name and "3 of 9", the text, then Skip tour, Back and Next). Step 1 is a centred Welcome card. See *Onboarding: the tour* | First visit, and "?" in the top bar |
+| **Tour** (`Tour`, `tour.ts`) | A native modal `<dialog>` over the whole window: a 40% ink scrim with the target cut out and ringed in ink (two targets on step 6), and a step bubble (an Explainer-like panel: the step's name and "3 of 8", the text, then Skip tour, Back and Next). Step 1 is a centred Welcome card. See *Onboarding: the tour* | First visit, and "?" in the top bar |
 | **Notice** (`Notice`, `NoticeStack`, `notices` store, `advisories.ts`) | A 360px white card, radius 8, `--shadow-float`, never blocking. It holds a 16px icon, then the title in `.t-title`, data (file names, numbers) in ink `.t-console`, a muted `.t-body` explanation, optional tertiary actions, and a 28px ✕. An advisory has the `info` icon in ink. A failure has the `alert` icon in `--color-danger`, which is its only colour: no edge, no fill. ✕ dismisses it until its condition changes. A notice goes away by itself when its condition does | Asset load failures (one notice for all), files that did not attach in Tiles (one notice per drop), advisories 1, 2, 3, 4, 5 and 7, an import's upgrade and unreadable pictures |
 | **Inline advisory** (`Advisory`) | A muted `info` icon and a muted `.t-body` line under the control it is about. No box, no colour, no ✕. It shows only while its condition holds. Constant's kept-entries line in the palette uses it too | Advisories about one control: duplicate tile names (6) and rotation ends (9). Advisory 8 (palette reordered under random) is retired: under Random the palette has no order to change |
 | **Dialog** (`Dialog`) | The Popup panel asking one question. The title is the question ("Change columns to 8?"), and the body says what changes and how to undo it, with any affected operations listed in a well. Buttons: Cancel (secondary), then the verb that names the action (primary, at the far right: "Change columns", not "OK"). Danger is in the words, never in red. Focus starts on Cancel, Esc cancels, and focus returns to the trigger | Destructive resize (E12), unsaved changes. New is now the **New tileset** Form popup |
@@ -421,12 +421,12 @@ Picked by Pol at O0 and O1, and the text revised by Pol after O2 (`docs/plans/st
 
 ### Steps
 
-The first visit has nine steps. A replay has eight: step 6 describes Collage, so it is in the
+The first visit has eight steps. A replay has seven: step 6 describes Collage, so it is in the
 first-visit tour only.
 
 | # | Step | Target (the cut-out) | Text |
 |---|---|---|---|
-| 1 | Welcome | none: a centred card | Two paragraphs. The first is the same on every run: "This is the generative tileset editor. A tileset is a grid of pictures, laid out by operations that each change part of the grid, one on top of another. Use the gallery's pictures or upload your own, then export the tileset for a website or as an image." The second, on the first visit: "This is Collage, an example tileset. The next eight steps show how it is made. You can skip the tour at any time." On a replay: "The next seven steps show how a tileset is made. You can skip the tour at any time." |
+| 1 | Welcome | none: a centred card | Two paragraphs. The first is the same on every run: "This is the generative tileset editor. A tileset is a grid of pictures, laid out by operations that each change part of the grid, one on top of another. Use the gallery's pictures or upload your own, then export the tileset for a website or as an image." The second, on the first visit: "This is Collage, an example tileset. The next seven steps show how it is made. You can skip the tour at any time." On a replay: "The next six steps show how a tileset is made. You can skip the tour at any time." |
 | 2 | Grid & size | the whole Grid & size section | "Set the cell size and the number of rows. Design width is the page width you design for: the grid gets just enough columns to cover it, and the whole tileset scales with the page at other widths." |
 | 3 | Tiles | the Tiles section header's "+" (Add tile group) | "Add tile groups. Pick pictures from the gallery, or upload your own." |
 | 4 | Tile group | the first tile group (Blue in Collage) | "A tile group is one tile with one or more pictures, its variants. Operations decide where the tile goes, and each of those cells draws one of its pictures. The sliders set how often each picture is drawn." |
@@ -435,8 +435,8 @@ first-visit tour only.
 | 7 | Breakpoints | the Breakpoints section header | "Change how the tileset looks at different screen sizes. Only useful if you export it for a website." |
 | 8 | Randomness | the whole Randomness footer | "Everything random follows from the seed, so the same seed always gives the same picture. New seed redraws every operation, Re-seed on an operation's card redraws only that one, and Reroll assets only swaps pictures within each tile group. ⓘ How randomness works has the rest." |
 
-The count is for the run in progress, "<n> of <total>". So Breakpoints is 7 of 9 on the first
-visit and 6 of 8 on a replay, where the steps after step 5 move up one.
+The count is for the run in progress, "<n> of <total>". So Breakpoints is 7 of 8 on the first
+visit and 6 of 7 on a replay, where the steps after step 5 move up one.
 
 - Tiles and Operations point at the header's "+", not the Add row at the end of the section: the
   "+" is always on screen, open or closed.
@@ -451,7 +451,7 @@ visit and 6 of 8 on a replay, where the steps after step 5 move up one.
   by any way (Next, Back, Skip tour, Esc) closes the card again without saving: the tour never
   edits the file and never leaves a draft open.
 - **If Collage fails to load** on the first visit, the tour runs as a replay does: the replay's
-  Welcome text and no step 6, eight steps in all, because there is no Collage to describe.
+  Welcome text and no step 6, seven steps in all, because there is no Collage to describe.
 - A target out of view is scrolled into view in its own scroller first (`ui/reveal.ts`), then the
   cut-out and bubble are placed. They follow a resize or a reflow.
 - The tour only points. Next always works, and the user doesn't have to do the step.
@@ -478,8 +478,8 @@ An Explainer-like panel: white, `--radius-lg`, `--shadow-float`, `--space-7` pad
 between its rows, `--explainer-w` (340px) wide, and no arrow.
 
 1. **Header:** the step's name in `.t-title` at the left, and the count in muted `.t-console` at
-   the right: "3 of 9" (Pol, O1). The count includes Welcome, so the pointing steps are 2 to 9
-   (2 to 8 on a replay).
+   the right: "3 of 8" (Pol, O1). The count includes Welcome, so the pointing steps are 2 to 8
+   (2 to 7 on a replay).
 2. **Text:** `.t-body`, ink, `--leading-hint`.
 3. **Footer:** **Skip tour** (tertiary) at the left; **Back** (secondary) and **Next** (primary) at
    the right.

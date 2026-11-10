@@ -65,6 +65,13 @@
   import { keeping } from "./keeping.svelte.js";
   import { notices } from "./notices.svelte.js";
   import { session } from "./session.svelte.js";
+  import type { TourRun } from "./tour.js";
+
+  /**
+   * The tour to start at mount, from `main.ts`: `null` when this is not a first
+   * visit. Read by the tour in O3b.
+   */
+  let { tourRun = null }: { tourRun?: TourRun | null } = $props();
 
   const file = $derived(session.file);
   const config = $derived(file.config);

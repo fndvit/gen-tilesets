@@ -100,15 +100,25 @@ export const keeping = {
   /**
    * Opens the store and reopens what it kept. Never throws: a kept tileset
    * that will not open leaves the empty document and a notice (Pol).
+   *
+   * Returns whether the store **held** a tileset, opened or not, so `main.ts`
+   * can tell a first visit (`tour.ts` `isFirstVisit`). A held one that was
+   * refused counts: opening Collage then would clear the refusal's notice,
+   * and its first save would overwrite the kept file, and that person is not
+   * new. Rejected: "true only when reopened", which did both. A read that
+   * throws counts as held too: something may be there, and the same two
+   * harms apply.
    */
-  async restore(): Promise<void> {
+  async restore(): Promise<boolean> {
     store = await openStore();
     if (!store.persistent) problem = notKeptNotice(null);
 
+    let held = false;
     let refusal: Parameters<typeof refusedNotice>[0] | null = null;
     try {
       const snapshot = await store.read();
-      if (snapshot === null) return;
+      if (snapshot === null) return false;
+      held = true;
       const prepared = prepareArchive(await archiveOf(snapshot));
       if (prepared.kind !== "ready") {
         refusal = prepared;
@@ -129,9 +139,11 @@ export const keeping = {
         savedFile = session.file;
       }
     } catch (cause) {
+      held = true;
       refusal = { kind: "unreadable", reason: cause instanceof Error ? cause.message : String(cause) };
     }
     if (refusal !== null) notices.push(refusedNotice(refusal));
+    return held;
   },
 
   /** Saves `file` now, or as soon as the write in flight ends. */

@@ -983,11 +983,11 @@ accessibility table and Naming. Tokens and files that O3 adds are marked *(O3)*.
 Pol proposed richer text after O2. Claude reviewed and reworded it, and Pol approved the result.
 The full table is in DESIGN_SYSTEM.md § "Onboarding: the tour", "Steps". In short:
 
-- **Nine steps on the first visit, eight on a replay:** Welcome, Grid & size, Tiles, **Tile group**
+- **Eight steps on the first visit, seven on a replay** (corrected at O3a: this said nine and eight, one too many): Welcome, Grid & size, Tiles, **Tile group**
   (new), Operations, **An operation** (new, first visit only), Breakpoints, Randomness.
 - **Welcome** has two paragraphs. The first introduces the editor (operations, the gallery or your
   own pictures, export for a website or as an image). The second is the Collage line on the first
-  visit, or "The next seven steps show how a tileset is made." on a replay.
+  visit, or "The next six steps show how a tileset is made." on a replay.
 - **Grid & size** explains Design width (the page width you design for; just enough columns to
   cover it; the tileset scales at other widths) and cuts out the whole section.
 - **Tile group** points at the first group: a tile with one or more pictures (variants), and the
@@ -1019,7 +1019,7 @@ The full table is in DESIGN_SYSTEM.md § "Onboarding: the tour", "Steps". In sho
 above and the DESIGN_SYSTEM.md section "Onboarding: the tour". Split into blocks and stop after
 each:
 
-- **O3a · Model.** `apps/editor/src/tour.ts`, pure and tested: the nine steps (id, title, text,
+- **O3a · Model.** `apps/editor/src/tour.ts`, pure and tested: the eight steps (id, title, text,
   target keys, a `firstVisitOnly` flag on step 6; Welcome's shared paragraph and its two second
   paragraphs), the run's step list (first visit with Collage, or replay), next/back/skip/done
   transitions, the count "<n> of <total>", and the seen flag behind a try/catch `localStorage`
@@ -1069,10 +1069,10 @@ tour does not show yet. Stop for Pol at the end.
      `op-example` + `preview`, `breakpoints`, `footer`. Welcome has no target.
    - The texts exactly as DESIGN_SYSTEM.md's Steps table (copy them; a test pins them to the doc
      is **not** wanted, the doc is the source and the code cites it).
-   - `stepsFor(run: "first" | "replay")` → the run's list (8 or 9). The "Collage failed" case is
+   - `stepsFor(run: "first" | "replay")` → the run's list (7 or 8). The "Collage failed" case is
      `"replay"`.
    - Welcome's text: the shared paragraph plus the run's second paragraph.
-   - A small state machine: `start`, `next`, `back`, `skip`, `done`; `count(state)` → "3 of 9";
+   - A small state machine: `start`, `next`, `back`, `skip`, `done`; `count(state)` → "3 of 8";
      Back on step 2 goes to Welcome; the last step's primary label is "Done" and it has no Skip.
    - The seen flag: `seenStore(storage = () => globalThis.localStorage)` with `get()` / `set()`,
      every access in try/catch (a blocked store reads as "not seen" and a failed write is silent,
@@ -1115,3 +1115,40 @@ tour does not show yet. Stop for Pol at the end.
 
 Commit ("Starters and onboarding: O3a, the tour's model and the first visit"), write "O3a done"
 here with any decisions for Pol to check, update the memory, and stop. Next: O3b (Tour.svelte).
+
+## O3a done (2026-11-10)
+
+Built as planned: `tour.ts` (steps, state machine, count, seen flag), `first-visit.ts` (opens
+Collage before mount, else a notice and a replay), `keeping.restore()` now returns a boolean, and
+`main.ts` passes the run to `App` as the `tourRun` mount prop (unused until O3b). Tests, typecheck,
+the docs build and `pnpm changelog check` pass (it asked for no line). `packages/` is untouched.
+
+**Browser probe** (scratchpad `o3a/probe.mjs`, dev server 5174):
+- A fresh profile opens Collage, and Undo is disabled. 23 starters requests: the manifest,
+  `tileset.json` and the 21 pictures (0.88 MB on disk).
+- A reload of that profile reopens the kept Collage and fetches no starters.
+- With the seen flag set and nothing kept, the editor opens empty and fetches no starters.
+- With templates blocked, it opens empty with the notice "The example tileset couldn't be opened ·
+  Failed to fetch". No page error.
+- With `localStorage` throwing, it is still a first visit and Collage opens. No page error.
+
+**For Pol to check:**
+1. **The step count was wrong in the docs; fixed (Pol, this session).** 8 steps on the first visit,
+   7 on a replay. Welcome says "The next seven steps…" or "The next six steps…". Breakpoints is
+   "7 of 8" or "6 of 7". DESIGN_SYSTEM.md and this doc are corrected.
+2. **`restore()` returns whether the store *held* a tileset, not whether it reopened it.** A kept
+   tileset that was refused (or a read that threw) is not a first visit. Opening Collage over it
+   would clear the "couldn't be reopened" notice, and Collage's first save would overwrite the kept
+   file. The O3a plan said "true only when adopted".
+3. **The first-visit failure notice:** title "The example tileset couldn't be opened", the reason as
+   data, then "You're starting with an empty tileset. New → From template can open it later."
+4. **Collage is found by id (`"collage"`), not as the manifest's first template,** because step 6
+   describes it.
+5. **The run reaches App as a mount prop** (`tourRun: "first" | "replay" | null`), not as a store in
+   `tour.ts`, so the model stays pure.
+6. **The seen flag is in `localStorage`, key `gen-tilesets.editor.tourSeen`, value `"1"`.**
+   `end(seen)` sets it for Done, Skip tour and Esc alike.
+7. **Not part of O3a:** the docs build had been failing since "After S4" (9fb4cf1), because
+   `LossWarning.svelte` had no page. I added `loss-warning.md`.
+
+**Next: O3b** (`Tour.svelte`, the tokens, the `help` icon).
