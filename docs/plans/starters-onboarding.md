@@ -2,6 +2,8 @@
 
 Progress record for the big-task session. The plan below was approved by Pol on 2026-11-09. Answers to each block are recorded under it as they come.
 
+**Closed.** Merged into `dev` as PR #23 (d60fe45) on 2026-11-10; B-016 and B-017 moved to Done in `BACKLOG.md`.
+
 
 ## Context
 

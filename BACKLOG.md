@@ -14,11 +14,6 @@ with `dropped: <reason>`.
 - **B-010** Bug: In an operation where we configure a constant tileId in a cell, after another operation that configures rotation, it looks like rotation affects the tileId even if the tileId operation comes after. TLDR: a rotation operation affects operations that go after it; — *Open: batch-01 T-07 (PR #20) only explains the behaviour in "How operations work"; the engine fix is T-12, not yet scheduled.*
 - **B-013** Bug: I have been able to scroll past the editor — *Open: batch-01 T-04 (PR #20) fixed the one case it reproduced (horizontal scroll from the "Preview size" hint at 660 px). No vertical scroll reproduced; needs the file or state it happened in.*
 
-## Additions
-
-- **B-016** We want to create a set of ‘Example tiles’ and ‘Example tilesets’ (find a better word than ‘example’), so the user can use the tool right away without having to create tiles from the beginning. This should be implemented in a way that makes the user experience logical, which might include changing how the current ‘add tiles’ functionality works;
-- **B-017** We need to create a brief Onboarding explaining the steps to create a Tileset. It should include: how to configure the tileset dimension, how to add tiles, how to add operations, how to randomize (a brief step for every section). The user must be able to opt-out at any time, and the onboarding must make use of the typical UI that points to the places where the user must look at every step;
-
 ## Done
 
 - **B-001** Re-order sections: batch-01 T-03, PR #20
@@ -29,6 +24,8 @@ with `dropped: <reason>`.
 - **B-012** Hide/unhide operations: batch-02 T-02, PR #22
 - **B-014** Painted cells outside the grid: batch-01 T-05, PR #20
 - **B-015** Fresh-load hint points at "Assets on load": batch-01 T-02, PR #20
+- **B-016** Templates and the tile gallery: starters-onboarding, PR #23
+- **B-017** Onboarding: the tour: starters-onboarding, PR #23
 - **B-018** Operations (i) explainer: batch-01 T-07, PR #20
 - **B-019** Randomness (i) explainer: batch-01 T-07, PR #20
 - **B-020** Scroll opened content clear of the footer: batch-01 T-09, PR #19

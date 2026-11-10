@@ -267,7 +267,16 @@ State is the file itself. There is no second document model (**E3**).
 | `document.ts` | Every transition — `TilesetFile → TilesetFile`. Includes `moveOperation`. |
 | `history.ts` | Whole-file snapshots (**E6**). No inverse operations, because there is nothing beside the file to roll back. |
 | `draft.svelte.ts` / `drafting.svelte.ts` | The create/edit-operation draft. Split for a tooling reason — see below. |
-| `assets.ts` | The editor's asset store and its provider. Blobs plus object URLs, session-scoped. |
+| `assets.ts` | The editor's asset store and its provider. Blobs plus object URLs, held in the tab; `keep.ts` is what carries them across a reload. |
+| `adopt.ts` | Swapping a prepared document in, once `prepareArchive` (`import.ts`) says it is `ready`. Import, a template and the reopening after a reload all go through it, and each starts a fresh history. |
+| `starters.ts` / `starters-client.ts` | Templates and the Tile gallery's pictures, listed in `public/starters.json`. `starters.ts` is the pure half (manifest shape, parser, fetch passed in); `starters-client.ts` binds the real `fetch` and base URL. |
+| `lib/tiles/gallery.ts` | The Tile gallery's logic: picks from the starters and from My tiles, into one new group or an existing one. |
+| `browser-db.ts` | The editor's one IndexedDB database, shared by `my-tiles.ts` and `keep.ts`. |
+| `my-tiles.ts` | My tiles: the author's gallery uploads, kept across reloads. |
+| `keep.ts` / `keeping.svelte.ts` | Keeping the open tileset and its pictures across reloads. `keep.ts` holds the rules and is tested; `keeping.svelte.ts` holds the store, the save timer and the rune. Undo starts empty after a reload. |
+| `tour.ts` | The tour's model: its steps (text in `DESIGN_SYSTEM.md` § "Onboarding: the tour"), where it is, and whether it has been seen. `lib/Tour.svelte` draws it. |
+| `tour-layout.ts` | Where the tour draws: the cut-outs, the holes in the scrim, the scroll to a target, the bubble's place. Pure; `Tour.svelte` measures and passes numbers in. |
+| `first-visit.ts` | The first visit: Collage opens before the editor mounts, then the tour runs over it. |
 | `export.ts` / `download.ts` / `import.ts` | `tileset.json` plus an asset folder, as a zip (**E14**), and its inverse. Import matches assets by reading `meta.src` back, never by parsing a path. |
 | `orphans.ts` | The destructive re-derive: at-risk before, orphaned after (**E12**). |
 | `reseed.ts` / `seed.ts` | Seed, both salts, the load flags, and the memorable seed generator. |
