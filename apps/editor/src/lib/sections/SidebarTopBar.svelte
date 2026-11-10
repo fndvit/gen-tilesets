@@ -132,17 +132,17 @@
     <ImportPanel target={root} bind:over />
     <!-- `display: contents`: a handle on the split for `refocusExport`, with no box of its own. -->
     <span class="export" bind:this={exportPart}>
-    <SplitButton
-      label={exporting ? "Exporting…" : "Export"}
-      icon="export"
-      disabled={exporting}
-      onclick={runExport}
-      menuLabel="More export options"
-      items={[
-        { label: "Tileset (.zip)", icon: "archive", onSelect: runExport },
-        { label: "Image (.png)…", icon: "image", onSelect: () => (imaging = true) },
-      ]}
-    />
+      <SplitButton
+        label={exporting ? "Exporting…" : "Export"}
+        icon="export"
+        disabled={exporting}
+        onclick={runExport}
+        menuLabel="More export options"
+        items={[
+          { label: "Tileset (.zip)", icon: "archive", onSelect: runExport },
+          { label: "Image (.png)…", icon: "image", onSelect: () => (imaging = true) },
+        ]}
+      />
     </span>
   </div>
   <!--
@@ -186,29 +186,29 @@
 
 <Popup title="Your tileset is downloading" bind:open={telling} onClose={refocusExport}>
   <div class="next">
-  <p class="t-body">
-    <span class="t-value">tileset.zip</span> holds <span class="t-value">tileset.json</span> and a
-    <span class="t-value">tiles/</span> folder. To draw it on a website:
-  </p>
-  <ol class="steps t-body">
-    <li>
-      Install the package:
-      <span class="command">
-        <code class="t-value">{INSTALL_COMMAND}</code>
-        <Button label={COPY_LABELS[copied]} icon={copied === "copied" ? "check" : "copy"} variant="tertiary" onclick={copyCommand} />
-      </span>
-    </li>
-    <li>
-      Put <span class="t-value">tiles/</span> and <span class="t-value">tileset.json</span> in your site's
-      public files.
-    </li>
-    <li>Load the file and draw it. The guide shows how, for plain JavaScript and for Svelte.</li>
-  </ol>
-  <p class="t-body">
-    <a class="link" href={GETTING_STARTED_URL} target="_blank" rel="noopener noreferrer"
-      >Read the getting-started guide<span class="sr"> (opens in a new tab)</span></a
-    >
-  </p>
+    <p class="t-body">
+      <span class="t-value">tileset.zip</span> holds <span class="t-value">tileset.json</span> and a
+      <span class="t-value">tiles/</span> folder. To draw it on a website:
+    </p>
+    <ol class="steps t-body">
+      <li>
+        Install the package:
+        <span class="command">
+          <code class="t-value">{INSTALL_COMMAND}</code>
+          <Button label={COPY_LABELS[copied]} icon={copied === "copied" ? "check" : "copy"} variant="tertiary" onclick={copyCommand} />
+        </span>
+      </li>
+      <li>
+        Put <span class="t-value">tiles/</span> and <span class="t-value">tileset.json</span> in your site's
+        public files.
+      </li>
+      <li>Load the file and draw it. The guide shows how, for plain JavaScript and for Svelte.</li>
+    </ol>
+    <p class="t-body">
+      <a class="link" href={GETTING_STARTED_URL} target="_blank" rel="noopener noreferrer"
+        >Read the getting-started guide<span class="sr"> (opens in a new tab)</span></a
+      >
+    </p>
   </div>
   <!-- The button's new word, said once: a label that changes under focus is not reliably announced. -->
   <span class="sr" role="status">{copied === "idle" ? "" : `${COPY_LABELS[copied]}.`}</span>
