@@ -23,3 +23,16 @@ nothing clamps). Two details the plan did not spell out, both written at the poi
 tween's clock is `document.timeline.currentTime` (timed by `performance.now()` it ran a frame
 behind the fold and the browser clamped once), and a clamp along the tween's own way does not stop
 it, only a move against it or past its end.
+
+## T-06 Opening an operation scrolls it into view
+
+Done, as planned. Checked with Playwright probes (1280 × 800, Collage, sidebar at its bottom):
+opening the last operation from a chip scrolls 284 px over ~300 ms and stops with the card's top
+just under the Operations header (card taller than the view); under reduced motion it is instant.
+Behind "Discard your changes?": nothing scrolls on the click, Discard opens and then scrolls to
+the same place, Keep editing leaves the card closed and nothing scrolls.
+
+One choice beyond the plan: `OperationCard` reads `opening.asking` (read-only) so a request that
+waited on the dialog and was answered Keep editing is dropped. Without it, a later open of that
+card from the orphan notice would scroll twice. The alternative was a prop from
+`OperationsSection`, which is editor-shell, outside this task's areas.

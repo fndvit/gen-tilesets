@@ -32,6 +32,8 @@ scroll then always stays ahead of the collapse.
 | `revealDelta` | `(view: Span, target: Span, topInset = 0) => number` | The px to scroll down to reveal `target` in `view`; 0 for none. |
 | `ScrollNode` | `{ parentElement, scrollHeight, clientHeight }` | What `scrollParent` reads, so a test can pass a plain object. |
 | `scrollParent` | `(node, overflowY?) => ScrollNode \| null` | The nearest ancestor with `overflow-y: auto` or `scroll` that has something to scroll, or null. |
+| `stuckAbove` | `(element) => number` | The height of the enclosing section's sticky header, which covers the view's top; 0 outside a section. Moved here from `Collapsible` (T-06). |
+| `revealOpened` | `(element) => void` | `revealInScroller(element, stuckAbove(element), motionDuration(element, "--dur-slow"))`: what both callers do once the opened thing is laid out. |
 | `revealInScroller` | `(element, topInset, duration) => void` | Measures `element` and its scroller and scrolls by `revealDelta` with `tweenScroll` over `duration` ms on `--ease`. Does nothing outside a scroll container. |
 | `closeDrop` | `(scroller: { scrollTop, clientHeight, scrollHeight }, bodyHeight) => number` | How far to scroll up so removing `bodyHeight` px never clamps the scroll: `bodyHeight` less the distance to the bottom, at least 0, at most `scrollTop`. |
 | `Ease` | `(t: number) => number` | An easing curve, 0 → 0 and 1 → 1. |
@@ -61,10 +63,12 @@ scroll then always stays ahead of the collapse.
 
 ### Callers / callees
 
-Caller: [Collapsible](/editor/ui-collapsible/): `revealInScroller` on its body's `introend`,
-only after the user opened it from its own header; `closeDrop`, `tweenScroll` and `cssEase` when
+Callers: [Collapsible](/editor/ui-collapsible/): `revealOpened` on its body's `introend`,
+only after the user opened it from its own header; [OperationCard](/editor/operation-card/):
+`revealOpened` once the user has opened it from its own title or a chip (B-027, T-06);
+Collapsible again: `closeDrop`, `tweenScroll` and `cssEase` when
 the user closes it. `tour-layout.ts` uses `revealDelta`; `Tour.svelte` uses `scrollParent`.
-Callees: `getComputedStyle`, `getBoundingClientRect`, `requestAnimationFrame`,
+Callees: [`motionDuration`](/editor/ui-motion/), `getComputedStyle`, `getBoundingClientRect`, `requestAnimationFrame`,
 `document.timeline`.
 
 ### Tests: `reveal.test.ts`

@@ -18,6 +18,8 @@
  * cannot know that a stuck section header (T-08) covers the top of the view.
  */
 
+import { motionDuration } from "./motion.js";
+
 /** A vertical span in one coordinate space (client px). */
 export interface Span {
   top: number;
@@ -83,6 +85,29 @@ export function revealInScroller(element: HTMLElement, topInset: number, duratio
   const view = { top, bottom: top + scroller.clientHeight };
   const delta = revealDelta(view, element.getBoundingClientRect(), topInset);
   if (delta > 0) tweenScroll(scroller, delta, duration, cssEase(scroller));
+}
+
+/**
+ * How much of the scroller's top an enclosing section's sticky header covers
+ * (batch 01 T-08), so something revealed inside a section never ends up
+ * under it: a group in a section, an operation card in Operations. A section
+ * has no enclosing section and gets 0.
+ */
+export function stuckAbove(element: Element): number {
+  const section = element.parentElement?.closest(".collapsible.section");
+  return section?.querySelector(":scope > .heading")?.getBoundingClientRect().height ?? 0;
+}
+
+/**
+ * Reveal `element`, which the user just opened, in its scroller: below any
+ * stuck section header, over `--dur-slow`, at once under reduced motion.
+ * `Collapsible` calls it once its body has slid open; `OperationCard` once
+ * its stepper is laid out (B-027, batch 03 T-06). Opens from outside
+ * (`opening.open`, a section's `reveal`) do their own scrolling and never
+ * call it: two scrolls would fight.
+ */
+export function revealOpened(element: HTMLElement): void {
+  revealInScroller(element, stuckAbove(element), motionDuration(element, "--dur-slow"));
 }
 
 /**

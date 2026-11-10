@@ -39,14 +39,23 @@
   Open, the card lifts to white with an accent edge, and `children` (the
   stepper, `OperationBody`) replaces the chips: every answer is then on the
   stepper's own rows.
+
+  **Opened from its own title or a chip, it scrolls into view** (batch 03
+  T-06, B-027), as a section does: once the stepper is laid out, the sidebar
+  scrolls until the card's end shows, never pushing its top under the
+  Operations header (`reveal.ts` `revealOpened`). Only then: an open from
+  outside (the orphan notice, the tour) is scrolled by `OperationsSection`'s
+  `scrollIntoView`, and a second scroll would fight it.
 -->
 <script lang="ts">
   import type { Tile } from "@vit-foundation/gen-tilesets";
-  import type { Snippet } from "svelte";
+  import { tick, type Snippet } from "svelte";
   import { thumbOf } from "../../controls/palette.js";
   import type { Step } from "../../draft.svelte.js";
+  import { opening } from "../../opening.svelte.js";
   import IconButton from "../ui/IconButton.svelte";
   import Menu from "../ui/Menu.svelte";
+  import { revealOpened } from "../ui/reveal.js";
   import { STEP_LABELS, summaryCells, UNANSWERED, writesOf, type SummaryParts } from "./labels.js";
 
   interface Props {
@@ -115,9 +124,43 @@
   const thumbs = $derived((writes?.tileIds ?? []).slice(0, 4).map((id) => thumbOf(tiles, id)));
 
   const name = $derived(`operation ${index}`);
+
+  let card: HTMLElement | undefined = $state();
+
+  /**
+   * Set when the user presses this closed card's title or a chip, cleared
+   * when the card opens and has been revealed.
+   *
+   * The open is not always at once: with unsaved changes in another draft it
+   * waits behind "Discard your changes?" (`opening.guard`). So the reveal
+   * follows `open` turning true, not the click; Discard then reveals after
+   * the dialog. Keep editing leaves the card closed, and the request is
+   * dropped, or a later open from the orphan notice would find it and scroll
+   * a second time. `opening.asking` is read, never written: it is the only
+   * place that says the dialog was answered.
+   */
+  let requested = false;
+
+  function select(step: Step): void {
+    if (!open) requested = true;
+    onSelect(step);
+  }
+
+  $effect(() => {
+    if (open) {
+      if (!requested || !card) return;
+      requested = false;
+      const opened = card;
+      // After the stepper is laid out, so its final height is known.
+      void tick().then(() => revealOpened(opened));
+    } else if (!opening.asking) {
+      requested = false;
+    }
+  });
 </script>
 
 <article
+  bind:this={card}
   class="card"
   class:open
   class:hidden
@@ -132,7 +175,7 @@
       aria-expanded={open}
       aria-controls={panelId}
       title={writes === null ? undefined : `${writes.target} ${writes.detail}`}
-      onclick={() => onSelect("attribute")}
+      onclick={() => select("attribute")}
     >
       <span class="visually-hidden">Operation {index}:</span>
       <span class="target t-title">{writes?.target ?? "New operation"}</span>
@@ -186,7 +229,7 @@
     <ul class="chips" aria-label="Steps of {name}">
       {#each chips as step (step)}
         <li>
-          <button type="button" class="chip" onclick={() => onSelect(step)}>
+          <button type="button" class="chip" onclick={() => select(step)}>
             <span class="key">{STEP_LABELS[step]}</span>
             <span class="value t-console" class:unset={cells[step] === UNANSWERED}>{cells[step]}</span>
           </button>

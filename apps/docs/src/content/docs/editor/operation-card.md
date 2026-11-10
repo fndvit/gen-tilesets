@@ -40,6 +40,14 @@ would be announced as "Show …, pressed". It is absent on a new operation.
 Open, the card turns white with an accent edge, and its `children` (the
 [operation body](/editor/operation-body/)'s stepper) replace the chips.
 
+Opened by the user from its own title or a chip, the card scrolls into view as a section does
+(B-027): once the stepper is laid out, the sidebar scrolls until the card's end shows, but never
+so far that its top goes under the Operations header, over `--dur-slow`, instantly under reduced
+motion ([`revealOpened`](/editor/ui-reveal-ts/)). If the open waits behind "Discard your
+changes?", the scroll follows the open, after Discard; Keep editing drops it. An open from
+outside (the orphan notice, the tour) is scrolled by `OperationsSection`'s own `scrollIntoView`
+and does not scroll here as well, so it scrolls once.
+
 ## In detail
 
 ### Public surface
@@ -59,3 +67,12 @@ Open, the card turns white with an accent edge, and its `children` (the
 | `panelId?` | The open body's id, for the title's `aria-controls`. |
 | `children?` | The stepper, shown while open. |
 | `tour?` | `data-tour` on the `<article>`. `OperationsSection` sets `op-example` on Collage's operation 4 (`exampleOperation` in [tour.ts](/editor/tour/)), which the [tour](/editor/tour-dialog/)'s "An operation" opens and cuts out (B-017). |
+
+### Reveal on open
+
+A plain flag, `requested`, is set when the closed card's title or a chip is pressed, and an
+effect on `open` reveals once it turns true, after `tick()`. It reads `opening.asking`
+([opening.svelte.ts](/editor/opening/)) without writing it: when the dialog closes with the card
+still closed, the request is dropped, or a later open from the notice would find it and scroll
+a second time.
+

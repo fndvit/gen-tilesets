@@ -46,7 +46,7 @@
   import Icon from "./Icon.svelte";
   import InlineEdit from "./InlineEdit.svelte";
   import { motionDuration } from "./motion.js";
-  import { closeDrop, cssEase, revealInScroller, scrollParent, tweenScroll } from "./reveal.js";
+  import { closeDrop, cssEase, revealOpened, scrollParent, tweenScroll } from "./reveal.js";
 
   interface Props {
     title: string;
@@ -133,20 +133,10 @@
    * After the slide, not at `tick()`: during it the body is still short, so
    * its final bottom is not known yet (T-09).
    */
-  function revealOpened(): void {
+  function afterOpen(): void {
     if (!revealing || !root) return;
     revealing = false;
-    revealInScroller(root, stuckAbove(), motionDuration(root, "--dur-slow"));
-  }
-
-  /**
-   * How much of the scroller's top an enclosing section's sticky header
-   * covers (T-08), so a group never ends up under it. A section has no
-   * enclosing section and gets 0.
-   */
-  function stuckAbove(): number {
-    const section = root?.parentElement?.closest(".collapsible.section");
-    return section?.querySelector(":scope > .heading")?.getBoundingClientRect().height ?? 0;
+    revealOpened(root);
   }
 
   /**
@@ -242,7 +232,7 @@
   </svelte:element>
 
   {#if open}
-    <div id={bodyId} bind:this={body} transition:fold onintroend={revealOpened}>
+    <div id={bodyId} bind:this={body} transition:fold onintroend={afterOpen}>
       {@render children()}
     </div>
   {/if}
