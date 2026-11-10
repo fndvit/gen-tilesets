@@ -978,21 +978,62 @@ accessibility table and Naming. Tokens and files that O3 adds are marked *(O3)*.
   motion.
 - **The Welcome card** is the window's width less 16px on each side below 40rem.
 
+## Tour text, revised (Pol, 2026-11-10)
+
+Pol proposed richer text after O2. Claude reviewed and reworded it, and Pol approved the result.
+The full table is in DESIGN_SYSTEM.md § "Onboarding: the tour", "Steps". In short:
+
+- **Nine steps on the first visit, eight on a replay:** Welcome, Grid & size, Tiles, **Tile group**
+  (new), Operations, **An operation** (new, first visit only), Breakpoints, Randomness.
+- **Welcome** has two paragraphs. The first introduces the editor (operations, the gallery or your
+  own pictures, export for a website or as an image). The second is the Collage line on the first
+  visit, or "The next seven steps show how a tileset is made." on a replay.
+- **Grid & size** explains Design width (the page width you design for; just enough columns to
+  cover it; the tileset scales at other widths) and cuts out the whole section.
+- **Tile group** points at the first group: a tile with one or more pictures (variants), and the
+  sliders set how often each is drawn. Generic, so it works on a replay.
+- **Operations** is reworded: the old "decide which tile goes in each cell" was wrong for rotation,
+  scale, offset and opacity operations.
+- **An operation** opens Collage's operation 4 (a rectangle, Random, Yellow 5 / Blue, Pink, Grey 1)
+  and says its tiles keep operations 2 and 3's rotation and opacity.
+- **Randomness** gives the three levels (New seed, Re-seed, Reroll assets) and points at ⓘ for the
+  rest. It cuts out the whole footer.
+
+**Pol's answers:**
+- The opened-operation step is **first visit only**, because it describes Collage.
+- On that step **the card and the preview are both cut out**, so the selection shows on the picture.
+- Use the attributes' own names, "rotation" and "opacity", never "turn" or "fade".
+
+**Decided while writing it in, for Pol to check:**
+- On step 6 in two columns, the bubble stays **in the sidebar column**, below or above the opened
+  card. Beside the sidebar, where every other step's bubble goes, it would cover the picture it cuts
+  out.
+- If Collage fails on the first visit, the tour runs as a replay does: the replay's Welcome text
+  and no step 6.
+- Leaving step 6 by any way closes operation 4's card without saving; the tour never leaves a
+  draft open.
+
 ## Next session plan: O3 · Implement
 
-**Next session starts here.** Read "O0 answers", "O1 picks", "O2 · Docs" above and the
-DESIGN_SYSTEM.md section "Onboarding: the tour". Split into blocks and stop after each:
+**Next session starts here.** Read "O0 answers", "O1 picks", "O2 · Docs", "Tour text, revised"
+above and the DESIGN_SYSTEM.md section "Onboarding: the tour". Split into blocks and stop after
+each:
 
-- **O3a · Model.** `apps/editor/src/tour.ts`, pure and tested: the six steps (id, title, text,
-  target key; Welcome's two texts), next/back/skip/done transitions, and the seen flag behind a
-  try/catch `localStorage` wrapper. The first-visit rule (no kept tileset and no seen flag) in
-  `main.ts`, which already runs `keeping.restore()` before `mount` (`main.ts:11`); a first visit
-  opens Collage through `loadTemplate` → `prepareArchive` → `adopt`. Docs page for `tour.ts`.
+- **O3a · Model.** `apps/editor/src/tour.ts`, pure and tested: the nine steps (id, title, text,
+  target keys, a `firstVisitOnly` flag on step 6; Welcome's shared paragraph and its two second
+  paragraphs), the run's step list (first visit with Collage, or replay), next/back/skip/done
+  transitions, the count "<n> of <total>", and the seen flag behind a try/catch `localStorage`
+  wrapper. The first-visit rule (no kept tileset and no seen flag) in `main.ts`, which already
+  runs `keeping.restore()` before `mount` (`main.ts:11`); a first visit opens Collage through
+  `loadTemplate` → `prepareArchive` → `adopt`. Docs page for `tour.ts`.
 - **O3b · Tour.svelte + tokens.** `--color-scrim`, `--tour-welcome-w` in `tokens.css`; the `help`
-  icon in `icons.ts`. `src/lib/Tour.svelte` as a modal `<dialog>`: an SVG scrim with the cut-out,
-  the ring, the bubble placed with `placeBeside` / `placeOnLargerSide` (`lib/ui/popover.ts`),
-  targets revealed with `revealInScroller` (`lib/ui/reveal.ts`), re-placed on resize. Targets found
-  by a `data-tour` attribute on the five controls. Docs page.
+  icon in `icons.ts`. `src/lib/Tour.svelte` as a modal `<dialog>`: an SVG scrim with one or two
+  cut-outs and rings, the bubble placed with `placeBeside` / `placeOnLargerSide`
+  (`lib/ui/popover.ts`; in the sidebar column on step 6), targets revealed with `revealInScroller`
+  (`lib/ui/reveal.ts`), re-placed on resize. Targets found by `data-tour` attributes: the Grid &
+  size card, the Tiles "+", the first tile group, the Operations "+", operation 4's card, the
+  preview picture, the Breakpoints header and the Randomness footer. Step 6 opens operation 4's
+  card on entry and closes it, unsaved, on leaving. Docs page.
 - **O3c · "?" and Undo.** "?" `IconButton` after Undo in `SidebarTopBar.svelte`; Undo an
   `IconButton` below 40rem. Wire the tour into `App.svelte`.
 - Verification as in "Verification (every implementation block)". O4 is the sweep.
