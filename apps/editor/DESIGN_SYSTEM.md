@@ -17,8 +17,7 @@ Layout and the Selection artwork still come from the Figma file **Tileset Creato
    hierarchy, and there are almost no borders.
 2. **Ink is structure, sparingly.** Ink fills only what is primary (one per area) or selected.
    Ink draws only three lines: the 2px rule under an open section's header, the hairline under
-   the two top bars, and the ring of a selected glyph. One written exception: the Randomness
-   footer is a black card (*Ink footer*, at the end).
+   the two top bars, and the ring of a selected glyph.
 3. **One accent with one meaning.** Pink, #CD1957 (`--color-accent`; ultramarine until N3; Pol picked #E94B82, darkened to pass AA for text) means **"what you are editing
    now"**: the open operation's edge and index square, its active step, the focus ring, and the
    draft cue (the preview's 2px frame and its "Draft · not saved" tag). The cells it selects in
@@ -146,7 +145,7 @@ controls, so it gets a step up (Pol, O3c). See *Onboarding: the tour*, "The step
 | **Radio list** | One choice from a short list whose options need more than a word. A field-grey well (`--color-field`, radius 6) of 30px rows, each a 12px ring dot, the label, and a mono value at the right. The chosen row is ink with white text and a filled white dot. Hover darkens a row one step. It is a `radiogroup` of native radios: Tab enters on the chosen row, the arrow keys move and choose | Export image's size |
 | **Export image** (a Form popup) | **Size** (a Radio list): first `Design width · 1000 px` (the saved file's design width, `layout.referenceWidth`, the Grid & size field; not the preview's width, so the handles never change the image. Pol, X3b), then one row per breakpoint bound (`boundsOf(rules)`, ascending), named by the rule that sets it, using the sidebar's "Rule N" number: `Breakpoint 2 · 768 px`. A rule with both a min and a max width names two bounds; both rows carry its number and the px tells them apart. A bound that two rules name lists both: `Breakpoint 2 + 3 · 1024 px`. There is no "base" or "rule N" label at the right. A bound equal to the design width keeps its own breakpoint row, because the rule number is what the author looks for. With no breakpoints, Design width is the one row, still shown. It opens on the size used last in the session, else Design width.<br>**Background** (Preview colour / Transparent) and **Density** (1× / 2×, 2× by default): two segmented controls side by side. The Preview colour segment carries a small swatch of `preview.background`, which keeps its own colour on the chosen ink segment.<br>While the preview draws a draft, an Inline advisory: "Draft not included: this is the saved tileset".<br>A **File** line: `.t-label` "File", then in mono the name and pixel size, for example `tileset-1000px@2x.png · 2000 × 1194 px`.<br>Buttons: Cancel, Download PNG. The rules for the image itself are under **Export** below | Export's Image (.png)… |
 | **Width choices, swatch** | Segments on a white track in the preview bar; the chosen one is ink. The swatch is a 30px rounded square with an edge | Preview top bar |
-| **Footer: Randomness** | A black card (`.theme-ink`, *Ink footer*) with a `.t-title` heading. It holds the seed field and a strong re-seed button; Assets on load; then Reroll assets and Preview a fresh load as two secondary buttons with the re-seed icon | Sidebar foot |
+| **Footer: Randomness** | A white card with a hairline edge and a gap of ground above it (*Footer edge*), with a `.t-title` heading. It holds the seed field and a strong re-seed button; Assets on load; then Reroll assets and Preview a fresh load as two secondary buttons with the re-seed icon | Sidebar foot |
 
 ### Icons (`src/lib/ui/icons.ts`)
 
@@ -555,42 +554,24 @@ so it sits with Undo, not with New, Import and Export.
   375px), so **Undo becomes an Icon button** there, labelled "Undo". Above 40rem Undo keeps its
   word.
 
-## Ink footer (batch 03, T-04, B-026)
+## Footer edge (batch 03, T-04, B-026)
 
-The Randomness footer never scrolls; the sections scroll above it. When both were white cards, a
-section's end meeting the footer read as one card. The footer is **inverted**: a black card with
-white text (Pol, D-02 A).
+The Randomness footer never scrolls; the sections scroll above it, inside a scroll area whose
+bottom edge sat directly on the footer. A section cut off by that edge is white, so where it met
+the white footer the two read as one card. The footer keeps the page's colours and gets two marks
+of its own:
 
-- **The exception to principle 2.** It is the one large black surface in the editor. Ink still
-  means "primary or selected" everywhere else; nothing else may take `.theme-ink` without a
-  decision of its own.
-- **`.theme-ink`** (`tokens.css`) redefines the semantic tokens, as `.theme-default` does, so the
-  footer's Field, Toggle, Button, IconButton and Hint are the ordinary components. Each surface is
-  one step **lighter** than the one under it, the light rule mirrored:
+- **A gap of ground above it** (`margin-top: var(--space-6)`, 12px, twice the 6px between
+  sections). A cut-off section now visibly ends on grey before the footer begins.
+- **A hairline round the card** (`--color-edge`, grey-500, drawn as an inset 1px shadow so it
+  takes no space): 3.6:1 against the ground. It is the one card with a border, which marks it
+  as the card that is always there. Principle 1's "almost no borders" allows it; it is not ink,
+  so principle 2 is untouched.
 
-| Token | Ink value | Measured (WCAG 2.2 AA) |
-| --- | --- | --- |
-| `--color-card` | `--black` #111 | 16.1:1 against the grey ground, so the card's edge is unmistakable |
-| `--color-ink` | `--white` | 18.9:1 on the card, 15.1:1 on a field, 12.6:1 on a secondary button |
-| `--color-muted` | `--grey-400` #C2C2C2 | 10.6:1 on the card, 8.5:1 on a field |
-| `--color-field` | `--ink-field` #262626 | the seed field and the Toggle's track |
-| `--color-field-hover` | `--grey-800` #333 | |
-| `--color-edge` | `--grey-450` #A3A3A3 | 6.0:1 on the field, 5.0:1 on its hover (1.4.11) |
-| `--color-secondary` / `-hover` / `-pressed` | #333 / `--ink-raised` #474747 / `--grey-600` #5E5E5E | white on them 12.6 / 9.3 / 6.5:1 |
-| `--color-hover` / `--color-pressed` | white 10% / 18% | a black wash cannot darken black |
-| `--color-selected` / `--color-on-selected` | white / black | the chosen segment, 18.9:1 |
-| `--color-disabled` | `--grey-500` #7A7A7A | 2.9:1 on a secondary button: dimmed, never read, as grey-450 is on light |
-| `--color-accent` | `--ink-accent` #E94B82 | the focus ring: 5.2:1 on the card, 4.2:1 on a field, 3.6:1 against a chosen segment |
-| `--color-primary` / `--color-on-primary` | white / black | no primary in the footer today; set so one would invert too |
-
-- **The accent on black is Pol's own #E94B82**, not `--pink`. `--pink` was darkened to pass as
-  text on white and is only 3.5:1 on black; the lighter pink clears 3:1 against everything the
-  ring touches. The accent keeps its one meaning (focus, here).
-- **Hints invert with it**: a hint is ink on paper, so in the footer it is a white bubble with
-  black text, which stands out on the black card as a black hint does on a white one.
-- **Popups keep the page's theme.** "How randomness works" is rendered outside the card, and the
-  tour is its own modal; both stay white. The tour's Randomness step still cuts out the whole card
-  (`data-tour="footer"` is unchanged).
+**Rejected: an inverted, black card** (D-02 A, built first). It told the two apart most strongly,
+but every control inside swapped its colours (selected white, secondary buttons dark, hints
+white), so the footer's controls meant the opposite of the same controls everywhere else (Pol).
+**Rejected: a grey card** (D-02 B): grey is also the ground, so it reads as "no card".
 
 ## After Export: "Your tileset is downloading" (batch 03, T-08, B-030)
 

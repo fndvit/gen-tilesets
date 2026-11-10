@@ -10,7 +10,7 @@ sidebar:
 
 ## Overview
 
-A black card at the bottom of the sidebar, titled "Randomness", with an (i) at the right of the
+A white card at the bottom of the sidebar, titled "Randomness", with an (i) at the right of the
 title that opens "How randomness works" (batch 01, T-07, B-019). It never scrolls or collapses.
 Since iteration 2 it holds only what decides the picture's randomness:
 
@@ -20,12 +20,11 @@ Since iteration 2 it holds only what decides the picture's randomness:
 - **Preview a fresh load:** preview another visitor's load. It is disabled when nothing reseeds
   on load.
 
-**It is inverted** (batch 03, T-04, B-026, D-02 A): black with white text, so where a section's
-end meets it the two never read as one card. The card takes `.theme-ink` from `tokens.css`, which
-redefines the semantic tokens (card, ink, muted, field, edge, secondary, hover, selected, accent);
-the controls inside are the ordinary components and were not changed. The values and their
-contrast ratios are in `DESIGN_SYSTEM.md` *Ink footer*. The Explainer it opens is rendered outside
-the card, so it stays white.
+**It is set apart from the sections** (batch 03, T-04, B-026): 12px of the grey ground above it
+and a 1px grey-500 edge round it (`--color-edge`), so a section cut off by the scroll edge ends on
+grey and never reads as one card with the footer. Its colours are the page's own; an inverted
+black card was built first and rejected because the controls inside swapped their colours. See
+`DESIGN_SYSTEM.md` *Footer edge*.
 
 The two actions wear the re-seed icon: the shape, not a colour, says "draw again". Undo, New,
 Import and Export moved to the [sidebar top bar](/editor/sidebar-top-bar/), and so did dropping a
@@ -35,7 +34,7 @@ zip.
 
 ### Public surface
 
-No props. The `.fixed` card carries `.theme-ink` and `data-tour="footer"`, which the [tour](/editor/tour-dialog/)'s
+No props. The `.fixed` card carries `data-tour="footer"`, which the [tour](/editor/tour-dialog/)'s
 Randomness step cuts out whole (B-017). §8.5's load-preview value is `preview.loadSalt` in
 [view.svelte.ts](/editor/preview-width/), because `<Tileset>`, the footer and the palette's
 measured coverage all read it.
@@ -59,10 +58,10 @@ preview's stack (`advisories.ts`, Stage 2 W3), not a clause in this hint.
 
 ### Look
 
-A black card on the sidebar ground (`--color-card` under `.theme-ink`), 8px from the edges, with 12px of padding
-above and 16px at the sides and below. Its heading is a `.t-title`. The two actions share a row,
-and stack in a narrow sidebar. Hints inside it invert with it (white bubble, black text); the
-focus ring is the lighter accent, #E94B82, which clears 3:1 on black where `--pink` does not.
+A white card on the sidebar ground with a 1px `--color-edge` hairline (an inset shadow, so it takes
+no space), 12px below the scroll area and 8px from the other edges, with 12px of padding above and
+16px at the sides and below. Its heading is a `.t-title`. The two actions share a row, and stack
+in a narrow sidebar.
 
 ### Invariants
 

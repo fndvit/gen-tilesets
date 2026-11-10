@@ -1,10 +1,11 @@
 <!--
   The sidebar's fixed footer, "Randomness": below the scrolling sections, never
-  scrolled or collapsed. **A black card** (`.theme-ink`, batch 03, T-04, B-026,
-  Pol's D-02 A): both were white cards, so where a section's end met the footer
-  they read as one. The scope inverts the semantic tokens, so the controls
-  inside are the ordinary ones; the Explainer it opens is rendered outside the
-  card and keeps the page's theme.
+  scrolled or collapsed. A white card on the ground, like a section, set apart
+  by a gap of ground above it and a hairline edge (batch 03, T-04, B-026): the
+  scroll area's edge sat on the card, so a section cut off there met it white
+  on white and the two read as one. An inverted black card was built first and
+  rejected (Pol): every control inside it swapped colours, so selected, a
+  secondary button and a hint meant the opposite of what they mean elsewhere.
 
   It holds only what decides the picture's randomness: the seed and the three
   ways to draw again. The document's actions (Undo, New, Import, Export) moved
@@ -65,7 +66,7 @@
 </script>
 
 <!-- `data-tour`: the onboarding tour's Randomness step cuts out the whole footer. -->
-<div class="fixed theme-ink" data-tour="footer">
+<div class="fixed" data-tour="footer">
   <div class="heading">
     <h2 class="title t-title">Randomness</h2>
     <IconButton
@@ -176,10 +177,13 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
-    margin: 0 var(--space-4) var(--space-4);
+    /* Twice the gap between sections, so a cut-off section ends on ground before the card begins. */
+    margin: var(--space-6) var(--space-4) var(--space-4);
     padding: var(--space-6) var(--space-7) var(--space-7);
     border-radius: var(--radius);
     background: var(--color-card);
+    /* The one card with an edge: the one always on screen. Inset, so it takes no space. */
+    box-shadow: inset 0 0 0 var(--rule-w) var(--color-edge);
     color: var(--color-ink);
   }
 
