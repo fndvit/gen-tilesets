@@ -1462,3 +1462,119 @@ so it is a step larger and split up, with bold terms (Pol picked bold run-in ter
    `o3c/shots/` (`wide-first-*`, `narrow-first-*`, `*-replay-*`, `*-bar-*`).
 
 **Next: O4** (the sweep).
+
+## Next session plan: O4 · The sweep (detail)
+
+**Next session starts here.** Branch `starters-onboarding`, last commit "plan O4". Read "O0
+answers", "O3a done", "O3b done", "O3c done" above, DESIGN_SYSTEM.md § "Onboarding: the tour",
+and BACKLOG.md's B-017. O4 checks the whole of B-017 in the browser, fixes what fails, writes the
+change entry, and stops for Pol to close B-017. As in S4, **no code changes unless a check fails**.
+
+### What exists (checked 2026-11-10, after ff81b75)
+
+- The tour: `tour.ts` (model, `spans`, `plain`), `first-visit.ts`, `tour-layout.ts`,
+  `lib/Tour.svelte`, "?" and the two Undo forms in `SidebarTopBar.svelte`, `touring` and
+  `tourTrigger` in `App.svelte`. 9 steps on a first visit, 8 on a replay.
+- Probes from earlier sessions are in their scratchpads. If they are still there, copy them into
+  this session's scratchpad:
+  - `…/3db96d2d-9ba0-4640-98b9-fd783e242610/scratchpad/o3c/probe.mjs` and `axe.min.js` (4.10.2);
+  - `…/da476e2f-27c9-4065-85d8-2d3d397d231e/scratchpad/o3b/walk.mjs` and `cases.mjs`.
+
+  Both folders are under `/private/tmp/claude-501/-Users-poldarder-Documents-pol-projects-tileset-creator-generative-tileset-creator/`.
+  They load `playwright-core` from the repo's `node_modules/.pnpm` and the cached
+  `chromium_headless_shell-1243`. In ESM, don't name a variable `URL`: it shadows the global.
+- **There is no `docs/changes/starters-onboarding/B-017.md` yet.** `pnpm changelog check` passes
+  without it, so nothing has flagged it.
+- Open from O3c: the top-bar row is 126px tall at 641px. The preview's top bar wraps in its 240px
+  column. This was there before O3c. One axe run also reported 3 `target-size` nodes after a
+  320 → 1440 resize, and three fresh runs did not reproduce it.
+
+### Steps
+
+1. **One probe, `o4/sweep.mjs`, on 5174.** Each group starts in a fresh browser context unless it
+   says otherwise. Log one line per check (pass/fail and the measurement), and save screenshots to
+   `o4/shots/`.
+   - **A. B-017's own words.** The tour covers the dimensions (Grid & size), adding tiles (Tiles,
+     Tile group), adding operations (Operations), and randomness (Randomness). The user can leave
+     on every step: Skip tour on all but the last, Esc on all steps including Welcome and the last,
+     and Done on the last. Every pointing step rings its target.
+   - **B. Every step points at a visible target**, in both layouts:
+     - two columns: 1440 × 900 and 1000 × 800 (a 400px sidebar);
+     - stacked: 375 × 812 and 320 × 700.
+
+     For each step, both runs: the ink ring's box lies inside the window and within 4px of the
+     target's visible box. The bubble is inside the window and doesn't scroll inside itself. It
+     doesn't overlap a cut-out, except on step 6 at the window's bottom, where the card's head
+     must stay visible.
+   - **C. The flag is remembered.** Done, Skip tour (on step 3) and Esc (on Welcome) each set
+     `gen-tilesets.editor.tourSeen`, and a reload in the same context shows no tour. With
+     `localStorage` throwing (an init script), the tour still shows, every way out ends it, and
+     there is no page error.
+   - **D. Network** (this reverses S4's first check, per O0):
+     - a first visit fetches the manifest, `tileset.json` and the 21 pictures;
+     - a reload of that profile fetches nothing from `starters.json` or `templates/`;
+     - the seen flag with nothing kept fetches nothing.
+   - **E. A replay never touches the file.**
+     - Over Collage, after the first-visit tour: Export's JSON before a full replay is
+       byte-identical to after it, and Undo's state is unchanged.
+     - Over an empty tileset: Tile group falls back to the Tiles header, and there is no
+       "An operation".
+     - **Over a changed draft:** open operation 4, change a field (e.g. a palette weight), replay
+       from "?", Done. The card is still open, the changed value is still there, and no discard
+       dialog appeared. O3c only checked a draft with no changes.
+   - **F. The tour never edits the file.** After the first-visit tour (Done), Export matches the
+     committed `apps/editor/public/templates/collage/tileset.json` except for `engineVersion`, as
+     in S4. Then do the same after Back and Esc on step 6.
+   - **G. Focus and keyboard.**
+     - A whole tour can be run from the keyboard alone: Enter, and Shift+Tab to Back.
+     - Tab stays inside the bubble.
+     - A press on the scrim, or inside a cut-out, keeps focus on Next.
+     - At the end, focus is on the Grid & size header after a first visit, and on "?" after a
+       replay.
+   - **H. Templates blocked** (route abort): the failure notice, then 8 steps with the replay's text.
+   - **I. Reduced motion** (`page.emulateMedia({ reducedMotion: "reduce" })`): the holes and the
+     bubble have a computed `transition-duration` of 0, so they jump. O3b item 9 never checked this.
+   - **J. Text spacing and zoom (WCAG 1.4.12, 1.4.10):**
+     - inject the 1.4.12 spacing (line height 1.5, paragraph spacing 2em, letter spacing 0.12em,
+       word spacing 0.16em) into the bubble at 375 × 812: no text is clipped, and every button can
+       be reached, scrolling the bubble if needed;
+     - at 720 × 450 (1440 × 900 at 200% zoom), every step's buttons can be reached.
+   - **K. axe-core `wcag22aa`:**
+     - Welcome and every step in both runs, at 1440 × 900 and at 375 × 812;
+     - the top bar alone at 320, 375, 640 and 1440;
+     - after a 1440 → 320 → 1440 resize cycle, then again 500ms later, to settle O3c's transient
+       `target-size`. If it shows only right after the resize, record it as a probe artefact. If it
+       stays, find the three nodes and fix them.
+   - **L. No overflow** (`scrollWidth > innerWidth`) at 320 and at 1000, with the tour open on
+     Welcome and on each step.
+2. **Fix what fails.** Make one commit per fix, with the reason at the point of use, then re-run
+   the whole probe. Leave the 641px top-bar height alone, which predates B-017, unless Pol says
+   otherwise. Record it as a suggestion for BACKLOG instead (Claude doesn't edit BACKLOG.md).
+3. **Change entry** `docs/changes/starters-onboarding/B-017.md`, in B-016.md's format:
+   - header: `Backlog: B-017 · Tier: big · Areas: editor-shell, ui-kit · Decisions: O0, O1, O2,
+     tour text and O3 answers in docs/plans/starters-onboarding.md`, then `Output: unchanged`,
+     `Package: no`;
+   - **What changed:** the first visit opens Collage and runs the tour; the 9 and 8 steps; "?"
+     replays; Undo is icon-only at 40rem and below; the flag in `localStorage`;
+   - **Notes:** one bullet each for O3a, O3b, O3c and O4 (code, decisions beyond Pol's, docs
+     pages), written from the "done" sections above.
+
+   Then `pnpm changelog check`.
+4. **Write "O4 done"** here: every check with its result, as S4 did, plus what was fixed and
+   anything for Pol. Update the memory.
+
+### Verification
+
+- `pnpm test` and `pnpm typecheck` at the root; `pnpm --filter @vit-foundation/tileset-docs build`;
+  `pnpm changelog check`.
+- `git diff --stat origin/dev -- packages/` is empty.
+- Every probe check passes, or its failure is fixed and re-checked, or Pol is given it as a
+  known exception.
+
+### Exit
+
+Commit "Starters and onboarding: O4, the sweep" (with any fixes before it), and stop. **Pol closes
+B-017.** After that, the PR against `dev` carries B-016 and B-017 together (see "B-016 closed").
+Draft its body from the two change entries. Claude may not push to `dev` or merge, so give Pol the
+`! git push …` and `! gh pr create …` commands rather than running them if they are refused.
+BACKLOG.md moves B-016 and B-017 to Done only after the merge.
