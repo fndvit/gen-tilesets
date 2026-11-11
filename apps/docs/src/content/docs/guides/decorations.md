@@ -41,7 +41,9 @@ seed string. Two spots with the same size and the same seed show the same pictur
 - **No `rect` and no `cellList` Selection.** Both hold literal cell coordinates, which mean nothing
   in a 3×2 spot. `reshapeErrors(style, { rows, columns })` returns one message per offending
   Operation, and `<TileDecoration>` throws on any of them **in a development build**. Use `all`,
-  `checkerboard`, `everyNth` and `random` instead.
+  `checkerboard`, `everyNth`, `rowColumn` and `random` instead. `everyNth` counts cells row after
+  row, so its picture depends on each spot's width: the same style can give diagonals in one spot
+  and stripes in another.
 - **Put a `{ tileId: null }` entry in a palette.** It clears the cell, and that gives each spot its
   own silhouette, generated from the seed instead of painted by hand. A style without one draws a
   solid block, which is also a legitimate decoration.

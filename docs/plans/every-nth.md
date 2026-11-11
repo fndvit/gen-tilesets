@@ -238,6 +238,31 @@ the docs build are green.
 n = 3 on 10 columns shows diagonals.
 
 ## Block 4: docs and release notes
+**Status:** built 2026-11-11 on `b-009-blocks-3-4`, in the same PR as Block 3. Awaiting Pol's
+confirmation.
 - The module pages under `apps/docs` that name `everyNth` (engine/selection(s), glossary,
   responsive guide, editor pages, stories), plus `DESIGN_SYSTEM.md`.
 - CHANGELOG and the version bump happen at release, not in a task.
+
+### Review
+- **Updated:**
+  - `concepts/glossary`: the Selection list gains `rowColumn`, with one clause on what each of
+    the two counts;
+  - `guides/responsive`: `rowColumn` holds at any size, and `everyNth` holds but looks different
+    at another column count;
+  - `guides/decorations`: `rowColumn` is allowed, and `everyNth`'s picture depends on each spot's
+    width;
+  - `editor/affordance`: the pinned name list gains `rowColumn`, as the test already has it;
+  - `DESIGN_SYSTEM.md`: the Selection glyphs gain `row-column`, hand-written.
+- **Already true, left alone:**
+  - the `engine/` pages, `starters`, `types` and the TypeDoc pages (Block 2);
+  - `operation-labels`, `operation-body`, `ui-operation-glyph` and `UiPrimitivesStory` (the
+    follow-up commit);
+  - `ParamFieldsStory`, which defaults to `selection:everyNth` and now shows `n` and `offset`;
+  - `SelectionRegistration`'s "`everyNth`'s `offset`", since `everyNth` still has one.
+- **Changelog line, drafted for the release:** "`everyNth` now counts cells row after row
+  (`y · columns + x`); the old every-Nth-column-or-row Selection is `rowColumn`. Schema v5:
+  `migrate()` renames old files' `everyNth` to `rowColumn`, so they draw as before. A config passed
+  to `generate()` without `migrate()` that uses `everyNth` now draws differently."
+
+**Checks:** `pnpm test`, `pnpm typecheck` and the docs build are green.

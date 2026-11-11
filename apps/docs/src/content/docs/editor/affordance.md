@@ -141,8 +141,8 @@ Callees: none at runtime. It imports only the `ParamSpec` type.
 - **`defaultFor`:** prefers the schema's default; falls back to the first value the spec admits,
   and never to an excluded bound.
 - **The sweep over the real registries:** pins the registered names (`all`, `cellList`,
-  `checkerboard`, `everyNth`, `random`, `rect`; `constant`, `gradient`, `random`, `valueNoise`), so
-  an empty registry cannot pass; for each type, every parameter gets a known kind and
+  `checkerboard`, `everyNth`, `random`, `rect`, `rowColumn`; `constant`, `gradient`, `random`,
+  `valueNoise`), so an empty registry cannot pass; for each type, every parameter gets a known kind and
   `defaultParams` produces values the schema admits; no schema declares a `type` parameter.
 
 ### Gotchas & rejected alternatives
