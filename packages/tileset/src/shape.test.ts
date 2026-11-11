@@ -443,6 +443,23 @@ describe("reshapeErrors", () => {
     expect(reshapeErrors(style(ops), { rows: 2 })).toHaveLength(1);
   });
 
+  it("pins the grid for a union exactly when one of its layers is bound (B-033)", () => {
+    const bound = coordinateBound("union", {
+      layers: [{ type: "checkerboard", parity: 0 }, { type: "rect", x: 0, y: 0, width: 2, height: 2 }],
+    });
+    const procedural = {
+      ...coordinateBound("union", { layers: [{ type: "checkerboard", parity: 0 }, { type: "random", density: 0.5 }] }),
+      id: "procedural",
+    };
+    expect(coordinateBoundOperations([bound, procedural]).map((op) => op.id)).toEqual(["op-union"]);
+    const errors = reshapeErrors(style([bound, procedural]), { rows: 2 });
+    expect(errors).toHaveLength(1);
+    // Named by the bound layer, not as "the Selection union", which the editor never shows.
+    expect(errors[0]).toContain('a Selection layer of type "rect"');
+    // And `union` is not offered as a procedural way out.
+    expect(errors[0]).not.toMatch(/procedural Selections \([^)]*union/);
+  });
+
   it("leaves an unknown Selection type to validate()", () => {
     const unknown = style([coordinateBound("noSuchSelection", {})]);
     expect(() => reshapeErrors(unknown, { rows: 2 })).not.toThrow();

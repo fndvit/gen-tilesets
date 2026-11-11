@@ -18,8 +18,8 @@
  */
 
 import type { EvalCtx } from "../ctx.js";
-import type { Extent } from "../types.js";
-import { hash, selectionChannel } from "../hash.js";
+import type { Extent, Selection } from "../types.js";
+import { hash, layerOwner, selectionChannel } from "../hash.js";
 import { Registry, type ParamSchema } from "./registry.js";
 
 export type SelectionImpl = (
@@ -56,8 +56,15 @@ export interface SelectionRegistration {
    * Deriving it from the `ParamSchema` is not available either: `everyNth`'s
    * `offset` and `rect`'s `y` are both bounded integers, and nothing in the
    * schema distinguishes *a rule's parameter* from *a coordinate*.
+   *
+   * **A function where the answer depends on the parameters** — `union`'s, which
+   * is bound exactly when one of its layers is (B-033). A static `true` there
+   * would put the E12 confirmation in front of every procedural union, which is
+   * §9.3's dialogue that teaches dismissal; a static `false` would let a rect
+   * layer be orphaned without one. Read it through {@link isCoordinateBound},
+   * never directly: a function is truthy.
    */
-  coordinateBound: boolean;
+  coordinateBound: boolean | ((params: Record<string, unknown>) => boolean);
 
   /**
    * The rectangle of grid coordinates this Selection can match — or **absent**
@@ -82,8 +89,11 @@ export interface SelectionRegistration {
    * **A pure function of the Selection's own parameters**, and of nothing else.
    * Not of `ctx`, and emphatically not of a measurement — see the note on
    * **O4** at `EvalCtx.extent`.
+   *
+   * **May return `undefined`** — the grid — where the answer depends on the
+   * parameters: a `union` with a layer that declares no extent (B-033).
    */
-  extent?: (params: Record<string, unknown>) => Extent;
+  extent?: (params: Record<string, unknown>) => Extent | undefined;
 
   impl: SelectionImpl;
 }
@@ -294,3 +304,115 @@ selections.register({
     return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
   },
 });
+
+/**
+ * Every cell any layer selects — `layers[0] || layers[1] || …` (B-033).
+ *
+ * The editor's "selection layers": one Operation, several of the selections
+ * above, combined. It is never offered in the editor's type picker; the editor
+ * builds it from the layer list and writes a single layer as the plain
+ * Selection, so a one-layer union never exists (`validate()` requires two).
+ * A layer cannot itself be a union — nesting adds nothing a flat list does not
+ * already say, and `validate()` refuses it.
+ *
+ * **Coordinate-bound when any layer is**, by the reasoning on
+ * {@link SelectionRegistration.coordinateBound}.
+ */
+selections.register({
+  name: "union",
+  // Total over unvalidated input, for isCoordinateBound's reason below: a
+  // `layers` that is not an array is validate()'s to report, not this one's.
+  coordinateBound: (p) => Array.isArray(p.layers) && (p.layers as Selection[]).some(isCoordinateBound),
+  params: { layers: { type: "selectionList" } },
+  impl: (p, cx, cy, ctx) => {
+    const layers = p.layers as Selection[];
+    const ctxs = layerCtxs(ctx, layers.length);
+    for (let i = 0; i < layers.length; i++) {
+      const layer = layers[i]!;
+      if (selections.get(layer.type).impl(layer as Record<string, unknown>, cx, cy, ctxs[i]!)) return true;
+    }
+    return false;
+  },
+  /**
+   * The bounding box of the layers' extents, or **absent — the whole grid —
+   * when any layer declares none.** A gradient over `rect ∪ random` sweeps the
+   * grid, because the `random` layer can reach any cell of it.
+   *
+   * **Zero-area extents are skipped** — an empty Handpick layer's `{0,0,0,0}`
+   * would otherwise drag the box to the origin. If every layer is zero-area the
+   * result is zero-area, which `gradient` already guards (see `cellList`).
+   */
+  extent: (p) => {
+    let box: Extent | undefined;
+    for (const layer of p.layers as Selection[]) {
+      const declared = selections.get(layer.type).extent?.(layer as Record<string, unknown>);
+      if (declared === undefined) return undefined;
+      if (declared.width <= 0 || declared.height <= 0) continue;
+      box = box === undefined ? declared : boundingBox(box, declared);
+    }
+    return box ?? { x: 0, y: 0, width: 0, height: 0 };
+  },
+});
+
+function boundingBox(a: Extent, b: Extent): Extent {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    width: Math.max(a.x + a.width, b.x + b.width) - x,
+    height: Math.max(a.y + a.height, b.y + b.height) - y,
+  };
+}
+
+/**
+ * One `EvalCtx` per layer, so each `random` layer draws from its own hash
+ * channel (B-033). Without it two `random` layers at the same density would
+ * select the same cells, and a union of them would be one of them.
+ *
+ * **By position (Pol, B-033 Block 1).** Layer 0 gets the Operation's own `ctx`,
+ * so its channel is `opId:selection` exactly as when it stands alone: adding a
+ * second layer never moves the first one's scatter, and a union collapsed back
+ * to one layer draws as it did. Layer i ≥ 1 gets `operationId` rewritten to
+ * {@link layerOwner}`(opId, i)`, so its channel is `opId:i:selection`. Deleting
+ * or moving a layer reshuffles the `random` layers after it — accepted, like a
+ * reroll. Rejected: a stable per-layer id saved in the file, which would cost
+ * every layer an extra key and break "one layer saves exactly as today".
+ *
+ * **Why rewrite `operationId` rather than add a field.** `EvalCtx` is closed by
+ * **O4**, and a field read only by `random`-inside-`union` would be one every
+ * Source and renderer must carry. Only a Selection ever sees a layer ctx — the
+ * Source still gets the Operation's — and a Selection reads `operationId` only
+ * to name its channel.
+ *
+ * Cached per `ctx`, which `operationCtx` builds once per Operation per
+ * generation, so the per-cell cost is one `WeakMap` lookup, not an allocation.
+ */
+const layerCtxCache = new WeakMap<EvalCtx, EvalCtx[]>();
+
+function layerCtxs(ctx: EvalCtx, count: number): EvalCtx[] {
+  let out = layerCtxCache.get(ctx);
+  if (out === undefined || out.length < count) {
+    out = [ctx];
+    for (let i = 1; i < count; i++) out.push({ ...ctx, operationId: layerOwner(ctx.operationId, i) });
+    layerCtxCache.set(ctx, out);
+  }
+  return out;
+}
+
+/**
+ * Whether a Selection holds literal cell coordinates, so it pins `rows` and
+ * `columns` (`04` §4.4, `09` **E12**). The one way to ask: it resolves a
+ * parameter-dependent {@link SelectionRegistration.coordinateBound}.
+ *
+ * **Total over unvalidated input**, because `validate()`'s resize rule and the
+ * editor call it on files not yet known to be valid: an unknown type, or a
+ * `union` whose `layers` is not an array, answers `false` and is left to the
+ * error `validate()` raises at its own path.
+ */
+export function isCoordinateBound(selection: Selection): boolean {
+  if (typeof selection !== "object" || selection === null || typeof selection.type !== "string") return false;
+  if (!selections.has(selection.type)) return false;
+  const bound = selections.get(selection.type).coordinateBound;
+  return typeof bound === "boolean" ? bound : bound(selection as Record<string, unknown>);
+}

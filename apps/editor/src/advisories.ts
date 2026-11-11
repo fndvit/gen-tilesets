@@ -157,7 +157,8 @@ export function orphanedNotice(
 ): Notice | null {
   if (orphans.length === 0) return null;
 
-  const lost = (o: Orphan): number => (o.authored === undefined ? 0 : o.authored - o.reachable);
+  // A Selection of layers counts its loss directly (`Orphan.outside`, B-033).
+  const lost = (o: Orphan): number => o.outside ?? (o.authored === undefined ? 0 : o.authored - o.reachable);
   const arrived = orphans.filter((o) => cameWithFile.has(o.operationId));
   const allArrived = arrived.length === orphans.length;
   const mixed = arrived.length > 0 && !allArrived;

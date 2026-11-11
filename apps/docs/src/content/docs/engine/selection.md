@@ -53,7 +53,10 @@ implementation of any Selection's test.
 ### Invariants
 
 - **Agreement with `generate()`, cell for cell.** It resolves the effective seed and the selection
-  channel exactly as `generate()` does, through the shared `operationCtx` and `pickSeed`.
+  channel exactly as `generate()` does, through the shared `operationCtx` and `pickSeed`. A
+  `union` (B-033) needs nothing extra here: it derives each layer's channel inside its own `impl`
+  (see [selections.ts](/engine/selections/)), so the overlay and `generate()` resolve the layers
+  the same way.
 - **No validation** beyond the lookup, on the same reasoning as `generate()`.
 - **Moves no output.** Adding the export was a minor engine bump, with no `schemaVersion` change.
 
@@ -62,7 +65,7 @@ implementation of any Selection's test.
 | Caller | Use |
 | --- | --- |
 | `apps/editor/src/lib/SelectionOverlay.svelte:78` | `selection(config, operationId, seed, loadSalt)` per draw, to outline the selected cells. |
-| `apps/editor/src/orphans.ts:91` | `orphans()` calls `selection(config, op.id, seed, loadSalt)` for each coordinate-bound Operation and counts the cells it reaches inside `rows × columns`. |
+| `apps/editor/src/orphans.ts:100` | `orphans()` calls `selection(config, op.id, seed, loadSalt)` for each coordinate-bound Operation and counts the cells it reaches inside `rows × columns`. |
 | `apps/editor/src/lib/PaintLayer.svelte:17` | Comment only: it reads the selection back through this export rather than from its own list. |
 
 No caller in `packages/tileset/src` (other than its test) or `apps/demo/src`.
@@ -77,7 +80,9 @@ cell non-null exactly when the Selection included it.
 
 - **Agreement** with `generate()` for every V1 preset: `all`, `rect`, `checkerboard` (both
   parities), `rowColumn` (column, and row with offset), `everyNth` (row-major, with offset),
-  `random`, and `cellList` with a duplicate.
+  `random`, and `cellList` with a duplicate. Also a `union` of a `rect` and two `random` layers
+  (B-033), which proves each layer's channel is resolved as `generate()` resolves it, not only the
+  Operation's own.
 - **Not vacuous:** a 3 × 4 `rect` selects exactly 12 cells and leaves some unselected.
 - **`random`** draws from the selection channel, not the Source channel; moves with the
   Operation's salt and with the seed.

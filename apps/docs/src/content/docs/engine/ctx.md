@@ -44,7 +44,7 @@ cells.
 | Field | Value |
 | --- | --- |
 | `rows`, `columns` | Copied from `config`. |
-| `extent` | `selections.get(op.selection.type).extent?.(params)`. If the Selection declares no extent, the whole grid: `{x: 0, y: 0, width: columns, height: rows}`. |
+| `extent` | `selections.get(op.selection.type).extent?.(params)`. If the Selection declares no extent, or its `extent` returns `undefined` (a `union` with a layer that declares none, B-033), the whole grid: `{x: 0, y: 0, width: columns, height: rows}`. |
 | `effectiveSeed` | `pickSeed(seeds, op.reseedOnLoad)`: the load-mixed seed when the flag is `true`, otherwise the plain one. |
 | `operationId` | `op.id`. |
 | `salt` | `op.salt ?? 0`. |

@@ -100,7 +100,7 @@ export {
   type TargetSpec,
 } from "./registry/blends.js";
 export { Registry, type ParamSchema, type ParamSpec } from "./registry/registry.js";
-export { selections, type SelectionRegistration } from "./registry/selections.js";
+export { isCoordinateBound, selections, type SelectionRegistration } from "./registry/selections.js";
 export { evalSource, sources, type SourceRegistration } from "./registry/sources.js";
 
 /**

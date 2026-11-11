@@ -44,7 +44,7 @@ Exported from the engine entry point (`index.ts:121–126`).
 | [`validate`](/api/index/functions/validate/) | `(file: unknown) → ValidationError[]` | Empty array means valid. Never throws on bad input. |
 | [`ValidationError`](/api/index/interfaces/validationerror/) | interface | `{ path, code, message }`. `path` is an RFC 6901 JSON Pointer. |
 | [`ErrorCode`](/api/index/type-aliases/errorcode/) | string union | The sixteen codes below. |
-| [`SCHEMA_VERSION`](/api/index/variables/schema_version/) | `5` | The one version this build knows. 5 since B-009 (`everyNth` renamed `rowColumn`), 4 was 0.8.0, 3 was 0.7.0, 2 was ADR-005 (per its doc comment). |
+| [`SCHEMA_VERSION`](/api/index/variables/schema_version/) | `6` | The one version this build knows. 6 since B-033 (the `union` Selection), 5 was B-009 (`everyNth` renamed `rowColumn`), 4 was 0.8.0, 3 was 0.7.0, 2 was ADR-005 (per its doc comment). |
 
 **`message` is not part of the contract.** The source says to branch on `code`; matching on
 prose would make every reworded message a silent behaviour change in another package. A
@@ -52,7 +52,7 @@ published code is never reassigned to different semantics.
 
 ### Inputs → outputs
 
-The walk runs in this order (`validate.ts:899–933`):
+The walk runs in this order (`validate.ts:930–965`):
 
 1. Not a plain object → one `TYPE_MISMATCH` at `""` (the root), and stop.
 2. `schemaVersion` absent → `SCHEMA_VERSION_MISSING`, and stop. Not exactly `SCHEMA_VERSION` →
@@ -72,18 +72,18 @@ The walk runs in this order (`validate.ts:899–933`):
 | --- | --- | --- |
 | `SCHEMA_VERSION_MISSING` | `schemaVersion` is `undefined`. | `/schemaVersion` |
 | `SCHEMA_VERSION_UNKNOWN` | `schemaVersion` is anything other than the number `SCHEMA_VERSION` (older, newer, a string). | `/schemaVersion` |
-| `MISSING_KEY` | A required key is absent or `undefined` (a `null` value counts as present). A tagged object's parameter with no registry default is absent. A responsive rule has neither `minWidth` nor `maxWidth`, or sets no shape field. | The missing key's own path, e.g. `/config/rows`; for the two rule cases, the rule (`/responsive/<i>`). |
+| `MISSING_KEY` | A required key is absent or `undefined` (a `null` value counts as present). A tagged object's parameter with no registry default is absent (a `selectionList` is never optional). A responsive rule has neither `minWidth` nor `maxWidth`, or sets no shape field. | The missing key's own path, e.g. `/config/rows`; for the two rule cases, the rule (`/responsive/<i>`). |
 | `UNKNOWN_KEY` | A key not in the known set, at any depth. Not raised inside an asset's `meta`, and not raised on a Selection/Source whose `type` is unknown. | The unknown key, escaped (`/config/a~1b~0c` for `a/b~c`). |
 | `TYPE_MISMATCH` | Wrong JavaScript type, including `null` anywhere but a palette `tileId`. Also: root not an object; a `range` that is not a two-element array; a `cellList` entry that is not a two-element array; `meta` not an object; `responsive` not an array; a rule's shape field not a number. | The offending value. |
 | `NOT_AN_INTEGER` | A finite number with a fractional part (or beyond the safe-integer range) where an integer is required: `rows`, `columns`, salts, `steps`, `integer` parameters, `cellList` coordinates, a rule's `rows`/`columns`. | The value. |
 | `NOT_FINITE` | `NaN` or `±Infinity` in any number field. Not `TYPE_MISMATCH`: they are numbers. | The value. |
-| `OUT_OF_RANGE` | A numeric bound fails; an `enum` parameter outside its values; `target` not a Target name (of any type); `horizontalAlignment` not `"column"`/`"gutter"`; `defaultSeed` empty; a palette with no entries; a rule's `minWidth`/`maxWidth` below 0; `minWidth > maxWidth`; a band whose resolved shape leaves no box. | The value; for an empty palette, `…/mapping/palette`; for `minWidth > maxWidth`, the rule's `minWidth`; for the box check, `/responsive/<i>` of the blamed rule. |
+| `OUT_OF_RANGE` | A numeric bound fails; an `enum` parameter outside its values; `target` not a Target name (of any type); `horizontalAlignment` not `"column"`/`"gutter"`; `defaultSeed` empty; a palette with no entries; a rule's `minWidth`/`maxWidth` below 0; `minWidth > maxWidth`; a band whose resolved shape leaves no box; a `selectionList` with fewer than 2 layers; a layer whose type itself holds a `selectionList` (a union inside a union). | The value; for an empty palette, `…/mapping/palette`; for too few layers, `…/selection/layers`; for a nested union, the layer's `type`; for `minWidth > maxWidth`, the rule's `minWidth`; for the box check, `/responsive/<i>` of the blamed rule. |
 | `INVALID_IDENTIFIER` | A Tile id, TileAsset id, Operation id or palette `tileId` that does not match `^[A-Za-z0-9_-]+$`. | The id. |
 | `DUPLICATE_ID` | A Tile id used twice in `tiles`; a TileAsset id used twice **within one Tile**; an Operation id used twice. | The second (and later) occurrence's `id`. |
 | `EMPTY_ASSET_LIST` | A Tile's `assets` is `[]`. | `…/tiles/<i>/assets` |
 | `ZERO_WEIGHT_SUM` | Every weight in a Tile's assets, or in a palette, is legal but they sum to `≤ 0`. Suppressed if any weight was already reported. | The array (`…/assets` or `…/mapping/palette`). |
 | `DANGLING_TILE_REF` | A non-null palette `tileId` names no Tile in `tiles`. | `…/palette/<i>/tileId` |
-| `UNKNOWN_TYPE_NAME` | A Selection or Source `type` is not in its registry. | `…/selection/type` or `…/source/type` |
+| `UNKNOWN_TYPE_NAME` | A Selection or Source `type` is not in its registry, including a `union` layer's. | `…/selection/type` or `…/source/type`; for a layer, `…/selection/layers/<i>/type` |
 | `INVALID_TARGET_BLEND` | `blend` is a string not in `acceptedBlends(target)`. This includes an unregistered Blend name. Only checked when `target` is legal. | `…/operations/<i>/blend` |
 | `COORDINATE_BOUND_RESIZE` | A responsive rule names `rows` or `columns` while the stack holds a coordinate-bound Operation. One error per (field, Operation) pair. | `/responsive/<i>/rows` or `/responsive/<i>/columns` |
 
@@ -143,11 +143,20 @@ that matters. Otherwise `taggedParams()` applies the registry's `ParamSchema`:
 
 - Unknown keys are anything but `type` and the schema's parameter names.
 - An absent parameter is legal if its spec has a `default`, or is a `cellList` (absent means the
-  empty list). Otherwise `MISSING_KEY`.
+  empty list). Otherwise `MISSING_KEY`. A `selectionList` is never optional: a union of nothing
+  is not a Selection.
 - `param()` per spec type: `number` (finite, then `min`, `max`, `exclusiveMin`, `exclusiveMax`),
   `integer` (integer, then `min`, `max`), `enum` (membership; `OUT_OF_RANGE`, not `TYPE_MISMATCH`,
   because a string and a number outside the set are the same mistake), `cellList` (array of
-  two-element arrays of integers).
+  two-element arrays of integers), `selectionList` (below).
+- **`selectionList`** (`union`'s `layers`, B-033). Not an array → `TYPE_MISMATCH`, and stop.
+  Fewer than 2 items → `OUT_OF_RANGE` at the list: the editor writes one layer as the plain
+  Selection, so a one-layer union would be a second spelling of the same file, and an empty one a
+  Selection that silently matches nothing. Each item then goes through `tagged(…, "selection")` at
+  its own path (`…/layers/<i>`), the same walk as an Operation's own Selection. An item whose
+  registered type itself declares a `selectionList` parameter is `OUT_OF_RANGE` at
+  `…/layers/<i>/type`. That is detected by declaration, not by the name `union`, so a later
+  list-holding Selection is refused without being named.
 
 #### Mapping
 
@@ -241,6 +250,10 @@ an unknown Selection type is left to `validate()`), `apps/editor/src/document.te
 - **Parameters:** number bounds, enum, integer, a defaulted parameter absent, a required one
   missing, `cellList` pairs. `everyNth` with an `axis` is `UNKNOWN_KEY` at `…/selection/axis`:
   `axis` is `rowColumn`'s parameter since schema v5.
+- **`union` (B-033):** two valid layers are accepted; zero or one layer is `OUT_OF_RANGE` at
+  `…/selection/layers`; an absent `layers` is `MISSING_KEY` and a non-array `TYPE_MISMATCH`; a bad
+  layer parameter is reported at the layer's own path (`…/layers/1/density`), an unknown layer type
+  at `…/layers/1/type`; a layer that is itself a union is `OUT_OF_RANGE` at `…/layers/1/type`.
 - **Mapping kind from target:** `palette` on an `opacity` mapping gives `UNKNOWN_KEY` +
   `MISSING_KEY` at the two expected paths; `steps: 1`; empty palette; unknown target.
 - **Salts:** fractional → `NOT_AN_INTEGER`; `-1` and `2³²` → `OUT_OF_RANGE`; `2³² − 1` valid.

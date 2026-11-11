@@ -82,8 +82,11 @@ Then:
 `OUT_OF_RANGE`); `cellSize > 0`; `yOffset` in `[0, 1)`; `bleed` always passes here, because its
 bound (`columns - bleed > 0`) depends on the resolved shape.
 
-**`coordinateBoundOperations(ops)`.** The Operations whose Selection registration has
-`coordinateBound: true`, in stack order. An unregistered type is skipped, not reported.
+**`coordinateBoundOperations(ops)`.** The Operations for which `isCoordinateBound(op.selection)`
+is true, in stack order. An unregistered type is skipped, not reported. Since B-033 a
+registration's `coordinateBound` may be a function of the parameters (a `union` is bound exactly
+when one of its layers is), so the flag is resolved through `isCoordinateBound` from
+[selections.ts](/engine/selections/) rather than read directly.
 
 **`reshapeErrors(file, s)`** returns messages, empty when sound:
 
@@ -97,7 +100,11 @@ bound (`columns - bleed > 0`) depends on the resolved shape.
    derived from `referenceWidth / cellSize`, so 7/6 of a column would otherwise print as
    `1.1666666666666679`.
 4. If `s` names `rows` or `columns`: one message per coordinate-bound Operation, listing the
-   procedural Selections as the alternative.
+   procedural Selections (the registrations whose `coordinateBound` is exactly `false`, so
+   `union` is not offered) as the alternative. The message names a plain Selection as *the
+   coordinate-bound Selection "rect"*, and a `union` by its bound layers' types, *a Selection
+   layer of type "rect"*, because the editor never shows the author a selection called `union`
+   (B-033).
 
 ### Invariants
 
@@ -127,10 +134,10 @@ bound (`columns - bleed > 0`) depends on the resolved shape.
 | `shapeOf` | `apps/editor/src/document.ts:706`, `:759` |
 | `SHAPE_FIELDS` | `render/options.ts:321`, `:467`; `validate.ts:810`, `:831`, `:838`; `responsive.ts:80` |
 | `shapeFieldProblem` | `render/options.ts:470`, `validate.ts:834` |
-| `coordinateBoundOperations` | `validate.ts:862` |
-| `coordinateBoundMessage` | `validate.ts:843` |
+| `coordinateBoundOperations` | `validate.ts:893` |
+| `coordinateBoundMessage` | `validate.ts:874` |
 
-Callees: `selections.has`, `selections.get`, `selections.all` (`registry/selections.ts`).
+Callees: `isCoordinateBound`, `selections.all` (`registry/selections.ts`).
 
 ### Tests: `shape.test.ts`
 
@@ -154,7 +161,9 @@ The file states that it asserts properties, not fixed expected values.
 - **`reshapeErrors`:** passes a procedural file at any shape; flags `rect`/`cellList` when
   `rows`/`columns` are named (by name, not value; one message per Operation in stack order); lets a
   pinned file change `cellSize`, `bleed`, `yOffset`; follows the registry, not a name list; leaves
-  an unknown Selection type to `validate()`; reports bad values, unknown keys and a no-box bleed,
+  an unknown Selection type to `validate()`; pins the grid for a `union` exactly when one of its
+  layers is bound, names it by the bound layer, and does not offer `union` as a procedural way out
+  (B-033); reports bad values, unknown keys and a no-box bleed,
   including an inherited bleed that no longer fits; names an inherited bleed as "the file's bleed
   (1 columns, kept)" rather than `undefined`; rounds an inherited fractional bleed for reading
   ("1.1667 columns" for 22 columns of 48 px over a 1000 px box).
@@ -182,8 +191,8 @@ The file states that it asserts properties, not fixed expected values.
   wording is unpinned. **Fixed in 0.8.1:** the message names the effective bleed, and a new test
   pins the wording. Since then a given bleed is quoted verbatim and an inherited one is rounded to
   4 decimals.
-- `coordinateBoundOperations` guards with `selections.has` so an unknown type is skipped. The
-  header says `apps/editor/src/orphans.ts`'s `atRisk()` "reads the same flag for the same reason",
-  but `atRisk` (`orphans.ts:44`) calls `selections.get` without the guard, so it throws on an
-  unknown type. In practice the editor only holds validated configs, so the difference is latent.
-  Not this file's code, but the comment presents the two as equivalent.
+- `coordinateBoundOperations` skips an unknown type. The header says
+  `apps/editor/src/orphans.ts`'s `atRisk()` "reads the same flag for the same reason", but
+  `atRisk` used to call `selections.get` without a guard, so it threw on an unknown type.
+  **Resolved in B-033:** both now go through `isCoordinateBound`, which answers `false` for an
+  unknown type.

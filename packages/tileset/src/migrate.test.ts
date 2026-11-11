@@ -54,6 +54,7 @@ describe("migrate — the v1 → current path", () => {
       [2, 3],
       [3, 4],
       [4, 5],
+      [5, 6],
     ]);
   });
 
@@ -112,6 +113,7 @@ describe("migrate — the v2 → v3 path", () => {
       [2, 3],
       [3, 4],
       [4, 5],
+      [5, 6],
     ]);
     expect(outcome.file).toEqual({ ...before, schemaVersion: SCHEMA_VERSION });
     expect("responsive" in (outcome.file as object)).toBe(false);
@@ -131,6 +133,7 @@ describe("migrate — the v3 → v4 path", () => {
     expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([
       [3, 4],
       [4, 5],
+      [5, 6],
     ]);
     expect(outcome.file).toEqual({ ...before, schemaVersion: SCHEMA_VERSION });
     expect(validate(outcome.file)).toEqual([]);
@@ -160,8 +163,11 @@ describe("migrate — the v4 → v5 path", () => {
     const before = { ...current(), schemaVersion: 4 };
     const outcome = migrate(before);
     if (outcome.kind !== "migrated") throw new Error("expected a migration");
-    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([[4, 5]]);
-    expect(outcome.file).toEqual({ ...before, schemaVersion: 5 });
+    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([
+      [4, 5],
+      [5, 6],
+    ]);
+    expect(outcome.file).toEqual({ ...before, schemaVersion: SCHEMA_VERSION });
     expect(validate(outcome.file)).toEqual([]);
   });
 
@@ -172,7 +178,7 @@ describe("migrate — the v4 → v5 path", () => {
     // Nothing else in the file moved.
     expect({ ...after, config: { ...after.config, operations: [] } }).toEqual({
       ...before,
-      schemaVersion: 5,
+      schemaVersion: SCHEMA_VERSION,
       config: { ...(before.config as object), operations: [] },
     });
     expect(validate(after)).toEqual([]);
@@ -214,12 +220,12 @@ describe("migrate — the v4 → v5 path", () => {
   it("survives a malformed config or operations, for validate() to report", () => {
     for (const config of [undefined, null, 3, "config", []]) {
       const before = { ...current(), schemaVersion: 4, config };
-      expect(migrated(before)).toEqual({ ...before, schemaVersion: 5 });
+      expect(migrated(before)).toEqual({ ...before, schemaVersion: SCHEMA_VERSION });
     }
     for (const operations of [undefined, null, {}, "ops"]) {
       const file = current();
       const before = { ...file, schemaVersion: 4, config: { ...file.config, operations } };
-      expect(migrated(before)).toEqual({ ...before, schemaVersion: 5 });
+      expect(migrated(before)).toEqual({ ...before, schemaVersion: SCHEMA_VERSION });
     }
     // Operations and selections that are not objects pass through untouched,
     // beside one that is renamed.
@@ -240,6 +246,19 @@ describe("migrate — the v4 → v5 path", () => {
     const snapshot = structuredClone(before);
     migrated(before);
     expect(before).toEqual(snapshot);
+  });
+});
+
+
+describe("migrate — the v5 → v6 path", () => {
+  /** B-033's row: the `union` Selection is new, so a v5 file holds none and nothing moves. */
+  it("changes nothing but the version number", () => {
+    const before = { ...current(), schemaVersion: 5 };
+    const outcome = migrate(before);
+    if (outcome.kind !== "migrated") throw new Error("expected a migration");
+    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([[5, 6]]);
+    expect(outcome.file).toEqual({ ...before, schemaVersion: 6 });
+    expect(validate(outcome.file)).toEqual([]);
   });
 });
 

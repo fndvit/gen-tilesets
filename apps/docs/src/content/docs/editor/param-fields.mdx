@@ -58,6 +58,9 @@ header comment: "There is no code here that knows what `everyNth` or `valueNoise
   - `kind === "cellList"`: a [FieldRow](/editor/ui-field-row/) "Cells" showing
     `values[name].length` (0 when it is not an array), with the hint "Paint on the preview. Drag
     to continue a stroke; start on a painted cell to erase.";
+  - `kind === "selectionList"`: nothing (B-033). A union's layers are built by the Selection
+    step's layer list, never by a field, and `union` is kept out of the type picker, so this
+    branch is unreachable in the editor; it renders nothing rather than a number;
   - anything else: [ParamControl](/editor/param-control/) with `name`, `spec`, `affordance`,
     `value={values[name]}` and `onChange={(v) => onChange(name, v)}`.
 
@@ -85,7 +88,7 @@ Callees: `affordanceFor` (`affordance.ts`, line 12), `ui/FieldRow.svelte` (line 
 
 No test file for the component. `controls/affordance.test.ts`'s sweep is the test of what this
 component promises: for every Selection and Source in the **real** registries, every parameter
-gets one of `slider`, `number`, `segmented` or `cellList`, and `defaultParams` produces a value
+gets one of `slider`, `number`, `segmented`, `cellList` or `selectionList`, and `defaultParams` produces a value
 for every declared parameter that the schema admits. It also guards the sweep against an empty
 registry by pinning the registered names, and checks that no schema declares a parameter called
 `type`.

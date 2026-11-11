@@ -115,6 +115,82 @@ Decided here, not asked (Pol can overrule them at Block 1 review):
 **Exit:** `pnpm test`, `pnpm typecheck` and the docs build are green. A hand-written union file
 loads and draws in the editor, shown as a label-only "Union" card.
 
+### Review
+
+**Status:** built 2026-11-11 on `b-033-selection-layers`. Waiting for Pol to confirm before Block 3
+starts.
+
+**What changed**
+- Engine:
+  - `ParamSpec` gains `selectionList`.
+  - `union` is registered:
+    - its impl ORs the layers;
+    - its extent is the bounding box of the layers, or the grid if any layer has none, with
+      zero-area layers skipped;
+    - its `coordinateBound` is a function of `layers`.
+  - `SelectionRegistration.coordinateBound` is now `boolean | (params) => boolean`, and `extent`
+    may return `undefined`.
+  - The new export `isCoordinateBound(selection)` is the one way to ask. `shape.ts` and the editor
+    use it.
+- Random layers:
+  - layer 0 keeps the Operation's `ctx`, so its channel is still `opId:selection`;
+  - layer i ≥ 1 gets `operationId` rewritten to `layerOwner(opId, i)` (`hash.ts`), so its channel
+    is `opId:i:selection`;
+  - the per-layer contexts are cached per `ctx` in a `WeakMap`.
+- `validate()`:
+  - `layers` must be an array (`TYPE_MISMATCH`) and is required (`MISSING_KEY`);
+  - fewer than 2 layers is `OUT_OF_RANGE` at `.../layers`;
+  - each layer is validated as a Selection at its own path;
+  - a layer that itself holds layers is `OUT_OF_RANGE` at `.../layers/i/type`. Existing codes are
+    reused, and no new code was added.
+- Schema v6:
+  - `SCHEMA_VERSION`, `TilesetFile.schemaVersion` and the 5 → 6 row ("nothing to do").
+  - Editor templates are at v6. `starters.test.ts` requires that, as it did in B-009.
+- `shape.ts`:
+  - the resize message names a union's bound layers ("a Selection layer of type "rect"") instead
+    of "the Selection union";
+  - `union` is not listed as a procedural way out.
+- Editor:
+  - New `layers.ts`: `layersParam`, `holdsLayers`, `layersOf`, `withLayer`, `cellsOf`. Layers are
+    found by a declared `selectionList`, not by the name `union`.
+  - `affordance.ts` gains kind `selectionList`, and `ParamFields` renders nothing for it.
+  - `defaultParams` gives `[]` for a `selectionList`.
+  - `OperationBody` keeps layer-holding Selections out of the picker, and disables a cell on
+    `coordinateBound === true`.
+  - `orphans.ts` and `trimToGrid` read every layer:
+    - a Handpick layer inside a union is counted and trimmed;
+    - `Orphan.outside` carries a union's loss, because `authored − reachable` is wrong when a rect
+      layer reaches cells nobody painted;
+    - `advisories.ts` uses `outside` when it is set.
+- Docs: a new `editor/layers` page, and 20 module pages updated (engine `selections`, `registry`,
+  `validate`, `migrate`, `types`, `shape`, `hash`, `selection`, `index-entry`, `load`, `ctx`;
+  editor `orphans`, `affordance`, `param-fields`, `draft`, `document`, `advisories`,
+  `operation-body`, `starters`, `import`). Some line numbers and counts on those pages were already
+  stale before this block, and were corrected with them. `ARCHITECTURE.md`'s migrate row was
+  updated too.
+
+**Tests:** 682 + 649 = 1331 before, and 698 + 661 = 1359 after. They pin, among other things:
+- a union is the OR of its layers;
+- **a `random` layer 0 draws exactly as the same `random` alone**;
+- two `random` layers select different cells;
+- the extent rules;
+- `isCoordinateBound` on good and malformed input;
+- the validation paths;
+- the 5 → 6 row;
+- the overlay predicate agrees with `generate()` for a rect + random + random union;
+- the resize message;
+- `atRisk`, orphans, `outsideCells` and `trimToGrid` on unions;
+- the `layers.ts` helpers.
+
+`pnpm test`, `pnpm typecheck` and the docs build are green.
+
+**No existing output moves.** `generate()` is unchanged, and no file before v6 can hold a union.
+
+**Not done here:** loading a hand-written union file in the editor, which should show a label-only
+"Union" card and the combined overlay. Pol checks it in `pnpm dev`.
+
+**BLOCKED:** none.
+
 ## Block 3: editor layer UI
 
 - **Draft model** (`draft.svelte.ts`): replace `selectionType`/`selectionParams` with

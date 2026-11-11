@@ -66,6 +66,7 @@
   import PaletteList from "../../controls/PaletteList.svelte";
   import ParamFields from "../../controls/ParamFields.svelte";
   import { addOperation, replaceOperation } from "../../document.js";
+  import { holdsLayers } from "../../layers.js";
   import {
     defaultParams,
     isComplete,
@@ -167,10 +168,15 @@
    * the question, so the refusal never arrives as a silent no-op.
    */
   const selectionItems = $derived(
-    [...selections.all()].sort((a, b) => rank(a.name) - rank(b.name)).map((r) => ({
+    // A Selection made of layers (`union`, B-033) is never picked: the editor
+    // builds it from the layer list. Found by its declared `selectionList`
+    // parameter, not by name (`layers.ts`).
+    [...selections.all()].filter((r) => !holdsLayers(r)).sort((a, b) => rank(a.name) - rank(b.name)).map((r) => ({
       value: r.name,
       label: labelFor(r.name),
-      disabled: r.coordinateBound && resizedBy.length > 0,
+      // `=== true`: `coordinateBound` may be a function of the parameters, and
+      // only a layer-holding Selection's is — those are filtered out above.
+      disabled: r.coordinateBound === true && resizedBy.length > 0,
       ...(SELECTION_GLYPHS[r.name] ? { src: SELECTION_GLYPHS[r.name] } : {}),
     })),
   );

@@ -13,7 +13,13 @@ export type ParamSpec =
   | { type: "number"; min?: number; max?: number; exclusiveMin?: number; exclusiveMax?: number; default?: number }
   | { type: "integer"; min?: number; max?: number; default?: number }
   | { type: "enum"; values: (string | number)[]; default?: string | number }
-  | { type: "cellList" };
+  | { type: "cellList" }
+  /**
+   * A list of Selections, each a full tagged object — the layers of `union`
+   * (B-033). The second list type after `cellList`, and the first whose items
+   * are themselves registry entries, so `validate()` recurses into it.
+   */
+  | { type: "selectionList" };
 
 export type ParamSchema = Record<string, ParamSpec>;
 

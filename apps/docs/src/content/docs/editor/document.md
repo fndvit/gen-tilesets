@@ -69,7 +69,10 @@ transition of its own: it is committed with the rest of the Operation by `replac
 `addOperation`, `removeOperation`, `replaceOperation`, `moveOperation`, and (batch 01, T-05)
 `trimToGrid`, which drops a painted list's cells outside the grid: the orphan notice's "Remove N
 cells outside the grid". It is not §9.4's refused migration: nothing is moved or guessed, and a cell
-outside the grid draws nowhere, so no picture changes.
+outside the grid draws nowhere, so no picture changes. For a `union` (B-033) every Handpick layer
+is trimmed in place in its union, through `layersOf`, `cellsOf` and `withLayer` from
+[layers.ts](/editor/layers/); any other layer, such as a `rect`, is left alone. A plain Selection
+is its own only layer.
 
 #### Breakpoints (responsive rules)
 
@@ -206,7 +209,8 @@ committed with the rest of the Operation by `replaceOperation`, and only a test 
 
 Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseReferenceWidth`,
 `parseYOffset`, `parseWeight`, `RULE_PARSERS` (`fields.ts`); `nextSalt` (`reseed.ts`);
-`outsideCells` (`orphans.ts`, for `trimToGrid`);
+`outsideCells` (`orphans.ts`, for `trimToGrid`); `layersOf`, `cellsOf`, `withLayer` (`layers.ts`,
+for `trimToGrid`);
 `memorableSeed` (`seed.ts`); [`validate`](/api/index/functions/validate/) and
 [`shapeOf`](/api/index/functions/shapeof/) from the engine.
 

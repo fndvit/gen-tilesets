@@ -35,7 +35,7 @@ describe("which Selections are coordinate-bound — 04 §4.4", () => {
   it("matches the spec's table exactly", () => {
     const bound = selections
       .all()
-      .filter((s) => s.coordinateBound)
+      .filter((s) => s.coordinateBound === true)
       .map((s) => s.name)
       .sort();
     expect(bound).toEqual(["cellList", "rect"]);
@@ -43,10 +43,12 @@ describe("which Selections are coordinate-bound — 04 §4.4", () => {
 
   it("declares it for every registered Selection, so none is silently procedural", () => {
     // The property the declaration buys: a Selection registered later cannot be
-    // classified by omission. `05` X5's reasoning, applied to Selections.
+    // classified by omission. `05` X5's reasoning, applied to Selections. A
+    // function where it depends on the parameters -- `union`'s (B-033).
     for (const registration of selections.all()) {
-      expect(typeof registration.coordinateBound).toBe("boolean");
+      expect(["boolean", "function"]).toContain(typeof registration.coordinateBound);
     }
+    expect(typeof selections.get("union").coordinateBound).toBe("function");
   });
 });
 
@@ -139,6 +141,52 @@ describe("§9.4 — orphans are reported, never migrated", () => {
     // it is a rule, and it survives a resize by definition (`04` §4.4).
     const c = config([op("none", { type: "random", density: 0 })]);
     expect(orphans(c, SEED)).toEqual([]);
+  });
+});
+
+describe("selection layers (B-033)", () => {
+  const union = (...layers: Operation["selection"][]): Operation["selection"] => ({ type: "union", layers });
+
+  it("puts a union at risk exactly when one of its layers is coordinate-bound", () => {
+    const c = config([
+      op("mixed", union({ type: "checkerboard", parity: 0 }, { type: "rect", x: 0, y: 0, width: 2, height: 2 })),
+      op("rules", union({ type: "checkerboard", parity: 0 }, { type: "random", density: 0.5 })),
+    ]);
+    expect(atRisk(c).map((o) => o.id)).toEqual(["mixed"]);
+  });
+
+  it("counts a Handpick layer's lost cells even when another layer still reaches cells", () => {
+    // 10 x 5. The rect layer reaches 4 cells nobody painted, so `authored -
+    // reachable` would say nothing was lost; `outside` says two were.
+    const c = config([
+      op(
+        "mixed",
+        union(
+          { type: "rect", x: 0, y: 0, width: 2, height: 2 },
+          { type: "cellList", cells: [[5, 1], [40, 0], [0, 40]] },
+        ),
+      ),
+    ]);
+    const [orphan] = orphans(c, SEED);
+    expect(orphan!.authored).toBe(3);
+    expect(orphan!.outside).toBe(2);
+    expect(orphan!.empty).toBe(false);
+  });
+
+  it("says nothing for a union whose painted cells all fit", () => {
+    const c = config([
+      op("mixed", union({ type: "rect", x: 0, y: 0, width: 2, height: 2 }, { type: "cellList", cells: [[5, 1]] })),
+    ]);
+    expect(orphans(c, SEED)).toEqual([]);
+  });
+
+  it("lists the outside cells of every Handpick layer, in layer order", () => {
+    const c = config([], { columns: 4, rows: 3 });
+    const o = op(
+      "op1",
+      union({ type: "cellList", cells: [[0, 0], [9, 0]] }, { type: "all" }, { type: "cellList", cells: [[0, 9]] }),
+    );
+    expect(outsideCells(o, c)).toEqual([[9, 0], [0, 9]]);
   });
 });
 

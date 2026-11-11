@@ -76,6 +76,19 @@ describe("selection — 09 §6.2, E8", () => {
       "cellList",
       { type: "cellList", cells: [[0, 0], [7, 5], [3, 2], [3, 2]] },
     ],
+    // B-033: two random layers prove the overlay resolves each layer's channel
+    // the way generate() does, not only the Operation's own.
+    [
+      "union of rect, random and random",
+      {
+        type: "union",
+        layers: [
+          { type: "rect", x: 0, y: 0, width: 2, height: 2 },
+          { type: "random", density: 0.2 },
+          { type: "random", density: 0.2 },
+        ],
+      },
+    ],
   ];
 
   for (const [name, sel] of presets) {

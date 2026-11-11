@@ -51,7 +51,7 @@ returns non-`null`.
 | `Step` | `"selection" \| "source" \| "attribute" \| "blend"` | The four steps. `source` is labelled "Pattern" (`STEP_LABELS`, [labels.ts](/editor/operation-labels/)). |
 | `STEPS` | `Step[]` | In walking order: Selection → Pattern → Attribute → Blend. |
 | `Draft` | interface | See the table below. |
-| `defaultParams(schema)` | `(ParamSchema) → Record<string, unknown>` | Every declared parameter at its default; `cellList` → `[]`. |
+| `defaultParams(schema)` | `(ParamSchema) → Record<string, unknown>` | Every declared parameter at its default; `cellList` and `selectionList` (B-033) → `[]`. |
 | `newDraft(id)` | `(string) → Draft` | A fresh create-draft. |
 | `retarget(draft, target)` | `(Draft, TargetName) → void` | Sets the Target; rebuilds the numeric mapping; settles the Blend. Mutates. |
 | `isComplete(draft)` | `(Draft) → boolean` | The gate. |
@@ -154,7 +154,7 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 | Caller | Uses |
 | --- | --- |
 | `drafting.svelte.ts:27`, `:56`, `:69` | `newDraft`, `fromOperation`, `Draft` |
-| `lib/operations/OperationBody.svelte:281`, `:286` | `defaultParams(...)` when a Selection or Source type is chosen |
+| `lib/operations/OperationBody.svelte:327`, `:332` | `defaultParams(...)` when a Selection or Source type is chosen |
 | `lib/operations/OperationBody.svelte:310`, `:313` | `STEPS` and `isComplete` for Save's "Still open" hint |
 | `lib/operations/OperationBody.svelte:335` | `toOperation` on commit, then `replaceOperation`/`addOperation` (`:337`) |
 | `lib/operations/OperationBody.svelte:459` | `retarget(draft, target)` |

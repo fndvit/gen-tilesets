@@ -50,6 +50,12 @@
             <span class="t-value">{Array.isArray(values[name]) ? (values[name] as unknown[]).length : 0}</span>
           {/snippet}
         </FieldRow>
+      {:else if affordance.kind === "selectionList"}
+        <!--
+          B-033 — a union's layers are built by the Selection step's layer list,
+          never by a field. `union` is kept out of the type picker, so this is
+          unreachable in the editor; it renders nothing rather than a number.
+        -->
       {:else}
         <ParamControl
           {name}

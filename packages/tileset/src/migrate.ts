@@ -136,6 +136,16 @@ export const MIGRATIONS: readonly Migration[] = [
       return { ...file, schemaVersion: 5, config: { ...config, operations } };
     },
   },
+  {
+    from: 5,
+    to: 6,
+    // B-033 added the `union` Selection, whose `layers` param is a list of
+    // Selections. A pure widening: no v5 file holds a union, and nothing else
+    // changed. The bump exists so an older engine meeting a file that *uses*
+    // one refuses it by version (C2) rather than with UNKNOWN_TYPE_NAME.
+    note: "nothing to do — B-033 added the union Selection (selection layers) and changed no key",
+    upgrade: (file) => ({ ...file, schemaVersion: 6 }),
+  },
 ];
 
 function isObject(value: unknown): value is Record<string, unknown> {

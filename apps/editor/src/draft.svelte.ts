@@ -127,9 +127,10 @@ export interface Draft {
 export function defaultParams(schema: ParamSchema): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [name, spec] of Object.entries(schema)) {
-    // A `cellList` starts empty and is painted (§7.3, Step 7). `cellList` is the
-    // one spec `defaultFor` has no number to give.
-    out[name] = spec.type === "cellList" ? [] : defaultFor(spec);
+    // A `cellList` starts empty and is painted (§7.3, Step 7); a `selectionList`
+    // starts empty and the layer list fills it (B-033). They are the two specs
+    // `defaultFor` has no number to give.
+    out[name] = spec.type === "cellList" || spec.type === "selectionList" ? [] : defaultFor(spec);
   }
   return out;
 }

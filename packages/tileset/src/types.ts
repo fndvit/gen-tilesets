@@ -310,15 +310,16 @@ export interface TilesetFile {
   /**
    * Required. Absent or unknown is a load failure (`06` **C2**).
    *
-   * **5 since B-009**, which renamed the `everyNth` Selection `rowColumn` and
-   * gave `everyNth` a row-major count; `migrate()`'s 4 -> 5 row renames it in
-   * every older file. 4 was 0.8.0's, which added the `translateX`/`translateY`
+   * **6 since B-033**, which added the `union` Selection (selection layers);
+   * its 5 -> 6 row has nothing to rewrite. 5 was B-009's, which renamed the
+   * `everyNth` Selection `rowColumn` and gave `everyNth` a row-major count;
+   * `migrate()`'s 4 -> 5 row renames it in every older file. 4 was 0.8.0's, which added the `translateX`/`translateY`
    * attributes and so widened `Operation.target`. 3 was 0.7.0's, which added
    * `responsive`; 2 was ADR-005's, which added the `scale` attribute. Those
    * three steps have nothing to rewrite. An older engine rejects a newer file by
    * its version, which is what **C2** says an unknown version is.
    */
-  schemaVersion: 5;
+  schemaVersion: 6;
   /** Required, advisory, never validated against anything (`06` **C3**). */
   engineVersion: string;
   config: TilesetConfig;

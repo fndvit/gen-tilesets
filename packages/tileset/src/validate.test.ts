@@ -342,6 +342,46 @@ describe("parameters — 06 §7.4", () => {
     ).toEqual(["NOT_AN_INTEGER"]);
   });
 
+  describe("union — selection layers (B-033)", () => {
+    const sel = (selection: unknown) =>
+      broken((f) => (f.config.operations[0].selection = selection as never));
+
+    it("accepts two or more valid layers", () => {
+      expect(
+        validate(sel({ type: "union", layers: [{ type: "rect", x: 0, y: 0, width: 2, height: 2 }, { type: "random", density: 0.5 }] })),
+      ).toEqual([]);
+    });
+
+    it("refuses fewer than two layers — one layer is saved as the plain Selection", () => {
+      for (const layers of [[], [{ type: "all" }]]) {
+        const f = sel({ type: "union", layers });
+        expect(codes(f)).toEqual(["OUT_OF_RANGE"]);
+        expect(paths(f)).toEqual(["/config/operations/0/selection/layers"]);
+      }
+    });
+
+    it("requires layers, and requires an array", () => {
+      expect(codes(sel({ type: "union" }))).toEqual(["MISSING_KEY"]);
+      expect(codes(sel({ type: "union", layers: { type: "all" } }))).toEqual(["TYPE_MISMATCH"]);
+    });
+
+    it("checks each layer as a Selection, at the layer's own path", () => {
+      const f = sel({ type: "union", layers: [{ type: "all" }, { type: "random", density: 2 }] });
+      expect(codes(f)).toEqual(["OUT_OF_RANGE"]);
+      expect(paths(f)).toEqual(["/config/operations/0/selection/layers/1/density"]);
+      const g = sel({ type: "union", layers: [{ type: "all" }, { type: "lasso" }] });
+      expect(codes(g)).toEqual(["UNKNOWN_TYPE_NAME"]);
+      expect(paths(g)).toEqual(["/config/operations/0/selection/layers/1/type"]);
+    });
+
+    it("refuses a layer that is itself a union", () => {
+      const inner = { type: "union", layers: [{ type: "all" }, { type: "all" }] };
+      const f = sel({ type: "union", layers: [{ type: "all" }, inner] });
+      expect(codes(f)).toEqual(["OUT_OF_RANGE"]);
+      expect(paths(f)).toEqual(["/config/operations/0/selection/layers/1/type"]);
+    });
+  });
+
   /** §5.1's last row — absent with a registry default is absent, not wrong. */
   it("accepts a parameter absent where the registry declares a default", () => {
     expect(

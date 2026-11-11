@@ -65,7 +65,8 @@ export function stage1(str: string): number {
 /**
  * Channel strings are hashed on every cell of every Operation, so the result is
  * memoized. The set of distinct channel strings is bounded by the operation
- * count (`05` §4.3 closes the channel set at three shapes), so this cannot grow
+ * count, times the layer count of a `union` Selection (`05` §4.3 closes the
+ * channel set at three shapes; see {@link layerOwner}), so this cannot grow
  * without bound.
  */
 const channelCache = new Map<string, number>();
@@ -217,4 +218,19 @@ export const ASSET_CHANNEL = "asset";
  */
 export function selectionChannel(operationId: string): string {
   return operationId + ":selection";
+}
+
+/**
+ * The owner a `union`'s layer `i >= 1` hashes as: `operationId + ":" + i`, so a
+ * `random` layer's channel is `opId:i:selection` (B-033). Layer 0 is the
+ * Operation itself and keeps `opId:selection` — see `layerCtxs` in
+ * `registry/selections.ts` for why it is positional.
+ *
+ * **Still the selection channel's shape, not a fourth one** (X3): the string is
+ * `<owner>:selection`, and the owner can never be another Operation's id,
+ * because ids exclude the colon (`06` §5.3). Two layers of one Operation, and a
+ * layer and any other Operation, therefore never share a channel.
+ */
+export function layerOwner(operationId: string, layer: number): string {
+  return operationId + ":" + layer;
 }

@@ -257,6 +257,26 @@ describe("trimToGrid — the notice's Remove action", () => {
     expect(next.layout).toBe(file.layout);
   });
 
+  it("trims every Handpick layer of a union and leaves the other layers alone (B-033)", () => {
+    const rect = { type: "rect", x: 10, y: 10, width: 2, height: 2 };
+    const union: Operation = {
+      ...painted("op1", []),
+      selection: {
+        type: "union",
+        layers: [{ type: "cellList", cells: [[0, 0], [9, 0]] }, rect, { type: "cellList", cells: [[0, 9], [1, 1]] }],
+      },
+    };
+    const file = shaped([union], { columns: 4, rows: 3 });
+    const next = trimToGrid("op1")(file);
+    expect(next.config.operations[0]!.selection).toEqual({
+      type: "union",
+      layers: [{ type: "cellList", cells: [[0, 0]] }, rect, { type: "cellList", cells: [[1, 1]] }],
+    });
+    expect(orphans(next.config, SEED)).toEqual([]);
+    // Never mutated: the input still holds the outside cells.
+    expect((file.config.operations[0]!.selection.layers as { cells?: unknown }[])[0]!.cells).toEqual([[0, 0], [9, 0]]);
+  });
+
   it("refuses by identity: unknown id, nothing outside, or not a painted list", () => {
     const rect: Operation = { ...painted("op2", []), selection: { type: "rect", x: 10, y: 10, width: 2, height: 2 } };
     const file = shaped([painted("op1", [[0, 0]]), rect], { columns: 4, rows: 3 });

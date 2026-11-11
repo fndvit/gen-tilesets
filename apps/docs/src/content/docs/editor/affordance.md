@@ -12,8 +12,8 @@ call sites in `controls/ParamFields.svelte`, `controls/ParamControl.svelte` and 
 
 `affordance.ts` decides what kind of control each setting of a Selection or Source gets in the
 operation draft. It looks only at what a setting allows (a list of choices, a whole number, a
-number with or without limits) and answers with one of four kinds: a row of buttons, a slider, a
-number box, or "painted on the preview".
+number with or without limits) and answers with one of five kinds: a row of buttons, a slider, a
+number box, "painted on the preview", or "built by the layer list" (a `union`'s layers, B-033).
 
 It also answers three smaller questions. What value should a setting start at when the author
 first picks the type, if the type does not say? Is a value the author typed acceptable for that
@@ -50,7 +50,8 @@ type Affordance =
   | { kind: "slider"; min: number; max: number; step: number; integer: boolean }
   | { kind: "number"; integer: boolean }
   | { kind: "segmented"; values: (string | number)[] }
-  | { kind: "cellList" };
+  | { kind: "cellList" }
+  | { kind: "selectionList" };
 ```
 
 `ParamSpec` is the package's [`ParamSpec`](/api/index/type-aliases/paramspec/).
@@ -62,6 +63,7 @@ type Affordance =
 | Spec | Result |
 | --- | --- |
 | `cellList` | `{ kind: "cellList" }` |
+| `selectionList` | `{ kind: "selectionList" }` |
 | `enum` | `{ kind: "segmented", values }` |
 | `number` / `integer` missing either bound | `{ kind: "number", integer }` |
 | `integer` with both bounds and `max − min + 1 ≤ 5` | `{ kind: "segmented", values: [min..max] }` |
@@ -81,7 +83,8 @@ did not hold.
 #### `defaultFor`
 
 1. `enum` → `spec.default ?? values[0]`.
-2. `cellList` → `0` (unused; `defaultParams` in `draft.svelte.ts:124` substitutes `[]`).
+2. `cellList` or `selectionList` → `0` (unused; `defaultParams` in `draft.svelte.ts:133`
+   substitutes `[]` for both).
 3. `spec.default` if declared.
 4. A lower bound: if it is **exclusive** (`number`, `exclusiveMin` set, no `min`), return
    `min + 1` when there is no upper bound, else the midpoint. Otherwise return the lower bound.
@@ -90,13 +93,16 @@ did not hold.
 #### `admits`
 
 - `cellList`: an array of `[int, int]` pairs.
+- `selectionList`: any array. The shape only: each layer is a whole Selection, `validate()` is
+  what checks one, and the editor builds layers from controls that already admitted every value
+  in them.
 - `enum`: `values.includes(value)`, strict, so `"0"` is not `0`.
 - `number` / `integer`: a finite number; an integer for `integer`; within `min`/`max` inclusive and
   `exclusiveMin`/`exclusiveMax` exclusive.
 
 #### `rangeLabel`
 
-- `""` for `enum` and `cellList`, and for a `number` with no bounds; `"integer"` for an
+- `""` for `enum`, `cellList` and `selectionList`, and for a `number` with no bounds; `"integer"` for an
   `integer` with no bounds.
 - Otherwise `"<lo>, <hi>"` in brackets, with the ends found by the same `lowerBound` /
   `upperBound` that `affordanceFor` uses. Each end gets
@@ -106,8 +112,12 @@ did not hold.
 ### Invariants
 
 - **Total.** Every spec the encoding admits returns an affordance.
-- **`cellList` is the one non-generated case, and it is not a hole.** It is permitted "because the
-  schema names it explicitly rather than because the mapping ran out".
+- **`cellList` and `selectionList` are the non-generated cases, and they are not holes.**
+  `cellList` is permitted "because the schema names it explicitly rather than because the mapping
+  ran out". `selectionList` (B-033, `union`'s `layers`) is the second, for the same reason: its
+  control is the Selection step's own layer list rather than a field. `union` is never offered in
+  the type picker, so `ParamFields` never meets it in practice; it renders nothing for it rather
+  than a numeric field showing an array.
 - **Refuse, never coerce.** `admits` is a predicate. Clamping typed input would be coercion
   "performed in the one place the author is watching".
 - **A default the schema does not declare is the editor's choice, not a spec default.** It exists
@@ -118,9 +128,9 @@ did not hold.
 
 | Caller | Uses |
 | --- | --- |
-| `controls/ParamFields.svelte:12`, `:32` | `affordanceFor` |
-| `controls/ParamControl.svelte:20` | `admits`, `rangeLabel`, `Affordance` |
-| `draft.svelte.ts:42`, `:124` | `defaultFor`, inside `defaultParams` |
+| `controls/ParamFields.svelte:12`, `:37` | `affordanceFor` |
+| `controls/ParamControl.svelte:21` | `admits`, `rangeLabel`, `Affordance` |
+| `draft.svelte.ts:44`, `:133` | `defaultFor`, inside `defaultParams` |
 | `controls/affordance.test.ts:4` | all four functions |
 
 Callees: none at runtime. It imports only the `ParamSpec` type.
@@ -141,8 +151,9 @@ Callees: none at runtime. It imports only the `ParamSpec` type.
 - **`defaultFor`:** prefers the schema's default; falls back to the first value the spec admits,
   and never to an excluded bound.
 - **The sweep over the real registries:** pins the registered names (`all`, `cellList`,
-  `checkerboard`, `everyNth`, `random`, `rect`, `rowColumn`; `constant`, `gradient`, `random`,
-  `valueNoise`), so an empty registry cannot pass; for each type, every parameter gets a known kind and
+  `checkerboard`, `everyNth`, `random`, `rect`, `rowColumn`, `union`; `constant`, `gradient`,
+  `random`, `valueNoise`), so an empty registry cannot pass; for each type, every parameter gets a
+  known kind (`selectionList` among them) and
   `defaultParams` produces values the schema admits; no schema declares a `type` parameter.
 
 ### Gotchas & rejected alternatives

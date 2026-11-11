@@ -69,14 +69,22 @@ key. The body's own gap is `--space-6` (12px).
 
 #### Selection
 
-`selectionItems` is every `selections.all()` registration, labelled by `labelFor`, sorted into
+`selectionItems` is every `selections.all()` registration except those that hold layers, labelled
+by `labelFor`, sorted into
 Figma's order (`all`, `checkerboard`, `everyNth`, `rowColumn`, `random`, `rect`, `cellList`), with
 its `.svg` glyph as `src`. A name with no artwork gets a label-only cell after these.
 `every-nth.svg` counts cells row after row with n = 3, which is the v5 `everyNth` (B-009);
 `row-column.svg`, every 2nd column, is hand-written because Figma has no node for it. A
-**coordinate-bound** Selection is disabled while any breakpoint names `rows` or `columns`
-(`resizedBy`), because `document.ts` would refuse the commit (`COORDINATE_BOUND_RESIZE`). The hint
-then reads "Handpick holds literal cells, and breakpoint N changes rows or columns."
+**coordinate-bound** Selection (`r.coordinateBound === true`) is disabled while any breakpoint
+names `rows` or `columns` (`resizedBy`), because `document.ts` would refuse the commit
+(`COORDINATE_BOUND_RESIZE`). The hint then reads "Handpick holds literal cells, and breakpoint N
+changes rows or columns."
+
+**A Selection made of layers is never offered** (B-033). `union` is filtered out with
+`holdsLayers` from [layers.ts](/editor/layers/): found by its declared `selectionList` parameter,
+not by name. The editor builds a union from a layer list rather than picking it. The comparison is
+`=== true` because `coordinateBound` may be a function of the parameters, and only a
+layer-holding Selection's is, which the filter has already removed.
 
 `chooseSelection(name)` sets `selectionType` and replaces `selectionParams` with
 `defaultParams(schema)`. The Selection's [ParamFields](/editor/param-fields/) go in the options
@@ -186,7 +194,8 @@ an unregistered name gives `null`.
 
 Callees: [`acceptedBlends`](/api/index/functions/acceptedblends/),
 [`selections`](/api/index/variables/selections/), [`sources`](/api/index/variables/sources/),
-[`TARGETS`](/api/index/variables/targets/); the six Selection glyphs in
+[`TARGETS`](/api/index/variables/targets/); `holdsLayers` ([layers.ts](/editor/layers/)); the
+Selection glyphs in
 `assets/glyphs/selection/`; `isTileTarget` (`controls/mapping.ts`);
 [NumericMapping](/editor/numeric-mapping/), [PaletteList](/editor/palette-list/),
 [ParamFields](/editor/param-fields/); `addOperation`, `replaceOperation` (`document.ts`);
@@ -229,5 +238,5 @@ No test file for the component. The logic it calls is pinned elsewhere:
 - The comment above `selectionItems` (lines 111–116, about a disabled coordinate-bound Selection)
   sits above `glyphOrder` and `rank`, not above the code it describes. (stale comment, minor)
 - The disabled-Selection hint names "Handpick" by hand, though it is driven by
-  `r.coordinateBound`. A second coordinate-bound Selection would be disabled under the same
+  `r.coordinateBound === true`. A second coordinate-bound Selection would be disabled under the same
   sentence. (inconsistency, latent)

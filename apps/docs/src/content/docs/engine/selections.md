@@ -1,6 +1,6 @@
 ---
 title: selections.ts
-description: The six registered Selections, each a pure predicate on (x, y) that decides whether an Operation touches a cell.
+description: The eight registered Selections, each a pure predicate on (x, y) that decides whether an Operation touches a cell.
 sidebar:
   order: 23
 ---
@@ -18,6 +18,9 @@ This file is the table of every Selection the engine knows. Each entry has a nam
 writes), a description of its settings, a yes/no rule, and two flags the editor and generator
 need: whether the Selection is tied to specific cell coordinates (and so breaks if the grid is
 resized), and, for those that cover a definite area, what that area is.
+
+One entry, `union` (B-033), is made of other Selections: its `layers` are a list of Selections,
+and it matches a cell when any layer does. The editor calls these selection layers.
 
 In the pipeline, the generator asks each operation's Selection about every cell before doing
 anything else with it. The validator checks a file's Selection names and settings against this
@@ -38,18 +41,30 @@ cell in `rows × columns` is tested, including those the renderer will clip (cit
 | --- | --- | --- |
 | [`selections`](/api/index/variables/selections/) | `Registry<SelectionRegistration>` | The table. Exported from `index.ts:103`. |
 | [`SelectionRegistration`](/api/index/interfaces/selectionregistration/) | interface | `{ name, params, coordinateBound, extent?, impl }` |
+| [`isCoordinateBound`](/api/index/functions/iscoordinatebound/) | function | `(selection: Selection) → boolean`. Resolves `coordinateBound` for one Selection. Exported from `index.ts:103`. |
 | `SelectionImpl` | type | `(params, x, y, ctx: EvalCtx) → boolean`. Not re-exported by `index.ts`. |
 
 `SelectionRegistration` fields beyond `name`/`params`/`impl`:
 
-- **`coordinateBound: boolean`.** Whether the Selection is defined by specific coordinates, and so
-  orphaned by a resize. A declaration rather than a list of names held elsewhere, because a
-  Selection registered later would otherwise be silently treated as procedural. It cannot be
-  derived from the schema: `rowColumn`'s `offset` and `rect`'s `y` are both integers.
-- **`extent?: (params) → Extent`.** The rectangle the Selection can match, or absent for "the
-  whole grid". A spanning Source (`gradient`) normalizes over it. Absent rather than `null`
-  because only the resolver (`operationCtx`) knows `rows` and `columns`. Must be a pure function
-  of the parameters.
+- **`coordinateBound: boolean | ((params) → boolean)`.** Whether the Selection is defined by
+  specific coordinates, and so orphaned by a resize. A declaration rather than a list of names held
+  elsewhere, because a Selection registered later would otherwise be silently treated as
+  procedural. It cannot be derived from the schema: `everyNth`'s `offset` and `rect`'s `y` are both
+  integers. **A function where the answer depends on the parameters**: `union`'s, which is bound
+  exactly when one of its layers is (B-033). The source rejects a static `true` (it would put the
+  E12 confirmation in front of every procedural union, which teaches authors to dismiss it) and a
+  static `false` (a `rect` layer could be orphaned without one). Read it through
+  `isCoordinateBound`, never directly: a function is truthy.
+- **`extent?: (params) → Extent | undefined`.** The rectangle the Selection can match, or absent
+  for "the whole grid". A spanning Source (`gradient`) normalizes over it. Absent rather than
+  `null` because only the resolver (`operationCtx`) knows `rows` and `columns`. Must be a pure
+  function of the parameters. **May return `undefined`** (the grid) where the answer depends on
+  the parameters: a `union` with a layer that declares no extent.
+
+**`isCoordinateBound(selection)`** returns the boolean, or calls the function with the Selection.
+It is total over unvalidated input, because `validate()`'s resize rule and the editor call it on
+files not yet known to be valid: a non-object, an unknown type, or a `union` whose `layers` is not
+an array answers `false`, and is left to the error `validate()` raises at its own path.
 
 ### The registered Selections
 
@@ -62,6 +77,7 @@ cell in `rows × columns` is tested, including those the renderer will clip (cit
 | `everyNth` | `n`: integer `≥ 1`, required; `offset`: integer, default `0` | `(cy · columns + cx − offset) % n === 0`: every nth cell, counted row after row | no | none |
 | `random` | `density`: number in `[0, 1]`, required | `hash(effectiveSeed, operationId + ":selection", cx, cy, salt) < density` | no | none |
 | `cellList` | `cells`: cellList (absent means `[]`) | `[cx, cy]` is in the list | **yes** | Bounding box of the cells; `{0, 0, 0, 0}` for an empty list |
+| `union` | `layers`: selectionList, required (2 or more Selections, none itself a `union`) | Any layer matches (`layers[0] \|\| layers[1] \|\| …`) | **when any layer is** (a function) | Bounding box of the layers' extents; none (grid) if any layer declares none; zero-area layers skipped |
 
 ### Inputs → outputs
 
@@ -84,6 +100,22 @@ cell in `rows × columns` is tested, including those the renderer will clip (cit
   projection domain and a sparse set has none beyond its hull. An empty list gives a zero-area
   extent, which `gradient` guards to `0`; returning the grid instead would make a gradient over an
   empty brush sweep the whole canvas.
+- **`union`** (B-033) evaluates its layers in order and stops at the first that matches. Each
+  layer gets its own `EvalCtx`, so each `random` layer draws from its own hash channel; without it
+  two `random` layers at the same density would select the same cells. **By position:** layer 0
+  gets the Operation's own `ctx`, so its channel is `opId:selection` exactly as when it stands
+  alone, and adding a second layer never moves the first one's scatter. Layer `i ≥ 1` gets
+  `operationId` rewritten to `layerOwner(opId, i)` (`opId:i`), so its channel is
+  `opId:i:selection`. Deleting or moving a layer reshuffles the `random` layers after it, which
+  the source accepts like a reroll. The per-layer contexts are cached per `ctx` in a `WeakMap`, so
+  the per-cell cost is one lookup, not an allocation.
+- `union`'s extent is the bounding box of its layers' declared extents. It is absent (the whole
+  grid) if any layer declares none, because a gradient over `rect ∪ random` must sweep the grid.
+  A zero-area extent (an empty Handpick layer) is skipped so it does not drag the box to the
+  origin; if every layer is zero-area the result is `{0, 0, 0, 0}`.
+- `union`'s `coordinateBound` is `Array.isArray(p.layers) && p.layers.some(isCoordinateBound)`.
+- The editor never offers `union` in its type picker. It builds one from the layer list and
+  writes a single layer as the plain Selection, which is why `validate()` requires two layers.
 
 ### Invariants
 
@@ -98,6 +130,12 @@ cell in `rows × columns` is tested, including those the renderer will clip (cit
   possibly negative operand must use a true modulo.
 - **Accepted, not a defect:** "paint only where nothing is yet" is not expressible; reorder the
   stack instead.
+- **Only a Selection ever sees a layer ctx.** The source rejects adding a field to `EvalCtx`
+  (closed by **O4**) for the layer index: every Source and renderer would carry a field read only
+  by `random`-inside-`union`. A Selection reads `operationId` only to name its channel, and the
+  Source still gets the Operation's own `ctx`.
+- **Rejected: a stable per-layer id saved in the file.** It would cost every layer an extra key and
+  break "one layer saves exactly as today" (Pol, B-033 Block 1).
 
 ### Callers / callees
 
@@ -106,21 +144,22 @@ cell in `rows × columns` is tested, including those the renderer will clip (cit
 | `generate.ts:76` | `selections.get(type)` once per Operation; `impl` per cell at `generate.ts:120` |
 | `selection.ts:93` | `selections.get` for the editor's overlay predicate |
 | `ctx.ts:98–99` | `selections.get(...).extent?.(params)`, defaulting to the grid |
-| `shape.ts:183` | `has` + `get(...).coordinateBound` in `coordinateBoundOperations`; `shape.ts:195` lists the procedural names for a message |
-| `validate.ts:358–368` | `has` / `get(...).params` for `UNKNOWN_TYPE_NAME` and parameter checks |
-| `apps/editor/src/orphans.ts:44` | `atRisk`: Operations whose Selection is `coordinateBound` |
+| `shape.ts:187` | `isCoordinateBound` in `coordinateBoundOperations`; `shape.ts:198` names a union's bound layers; `shape.ts:210` lists the names whose `coordinateBound === false` for a message |
+| `validate.ts:391–399` | `has` / `get(...).params` for `UNKNOWN_TYPE_NAME` and parameter checks |
+| `validate.ts:324–325` | `has` / `get(...).params` to refuse a layer that itself holds a `selectionList` |
+| `apps/editor/src/orphans.ts:46` | `atRisk`: `isCoordinateBound` on each Operation's Selection |
 | `apps/editor/src/App.svelte:197` | `get(...).params`, to find the `cellList` parameter to paint |
-| `apps/editor/src/lib/operations/OperationBody.svelte:130, 133, 179, 208` | `all()` for the glyph grid, `coordinateBound` to disable a cell, `get(...).params` for controls and defaults |
-| `index.ts:103` | re-export |
+| `apps/editor/src/lib/operations/OperationBody.svelte:174, 179, 235, 327` | `all()` for the glyph grid (minus layer-holding Selections), `coordinateBound === true` to disable a cell, `get(...).params` for controls and defaults |
+| `index.ts:103` | re-export of `selections` and `isCoordinateBound` |
 
-Callees: `Registry` (`registry.ts`), `hash` and `selectionChannel` (`hash.ts`), types `EvalCtx`
-and `Extent`.
+Callees: `Registry` (`registry.ts`), `hash`, `selectionChannel` and `layerOwner` (`hash.ts`),
+types `EvalCtx`, `Extent` and `Selection`.
 
 ### Tests
 
 `registry/registry.test.ts`, block "Selection presets — 04 §4.2":
 
-- Exactly seven names are registered.
+- Exactly eight names are registered (the block is still titled "the six V1 presets").
 - `all` is always true. `rect` is half-open on both axes, may extend past the grid, and a rect
   wholly outside never matches.
 - `checkerboard` for both parities; a loop asserting `(x + y) % 2 ≥ 0` for non-negative coordinates.
@@ -142,10 +181,25 @@ registered Selection declares it. `validate.test.ts` checks `random`'s density b
 `checkerboard`'s enum, `rowColumn`'s integer and default, `everyNth` refusing an `axis`
 (`UNKNOWN_KEY`), and `cellList` pairs.
 
+`registry/registry.test.ts`, block "union — selection layers (B-033)":
+
+- A union of `rect` and `checkerboard` selects exactly the OR of the two.
+- **Layer 0 `random` draws exactly as the same `random` alone**, cell for cell, so old files and a
+  first layer never move.
+- Each `random` layer has its own channel: the same `random` at layer 0 and at layer 1 selects
+  different cells, and two together select more than either alone.
+- Extent: the bounding box of a `rect` and a `cellList`; `undefined` when a layer is
+  `checkerboard` or `random`; an empty Handpick layer is skipped, and all-empty is zero-area.
+- `isCoordinateBound`: false for checkerboard + random, true when a layer is `rect` or a
+  `cellList` (even empty); static ones answer as declared; total over an unknown type, a
+  non-array `layers`, junk entries and `null`.
+
 ### Gotchas & rejected alternatives
 
 - **Declarations over name lists**, for both `coordinateBound` and `extent`: a list kept elsewhere
   would silently misclassify a Selection registered later.
+- **A layer cannot itself be a union.** The source says nesting adds nothing a flat list does not
+  already say; `validate()` refuses it.
 - **`rect` is never clipped** to the grid, either as a predicate or as an extent: an author
   dragging a rectangle past the edge should not have it silently resized.
 

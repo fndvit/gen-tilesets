@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "engineVersion": "0.11.0",
   "config": {
     "rows": 10,

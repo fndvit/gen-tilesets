@@ -24,7 +24,9 @@
  * Selections. `registry/selections.ts` flags `rect` and `cellList`
  * `coordinateBound: true` — they hold literal cell coordinates — while `all`,
  * `checkerboard`, `rowColumn`, `everyNth` and `random` are rules and hold at any
- * size. `everyNth` holds but *looks* different at another column count: it
+ * size. A `union` (B-033) is bound exactly when one of its layers is — so
+ * `coordinateBound` may be a function of the parameters, read through
+ * `isCoordinateBound`. `everyNth` holds but *looks* different at another column count: it
  * counts cells row after row, so where each row's count starts moves with
  * `columns`. And
  * randomness is addressed by `(x, y)` rather than drawn from a stream
@@ -53,7 +55,7 @@
  * `<TileDecoration>` writes it — but reuse is no longer only reachable as one.
  */
 
-import { selections } from "./registry/selections.js";
+import { isCoordinateBound, selections } from "./registry/selections.js";
 import type { Operation, Shape, TilesetFile } from "./types.js";
 
 /** The field names, in the order messages list them. */
@@ -182,20 +184,30 @@ export function shapeFieldProblem(
  * findings.
  */
 export function coordinateBoundOperations(operations: readonly Operation[]): Operation[] {
-  return operations.filter(
-    (op) => selections.has(op.selection.type) && selections.get(op.selection.type).coordinateBound,
-  );
+  return operations.filter((op) => isCoordinateBound(op.selection));
+}
+
+/**
+ * How the message names what pins the grid. A `union` is named by its bound
+ * layers — "the coordinate-bound Selection union" would send the author looking
+ * for a selection the editor never shows them by that name (B-033).
+ */
+function pinningSelection(selection: Operation["selection"]): string {
+  const layers = selection.layers;
+  if (!Array.isArray(layers)) return `the coordinate-bound Selection "${selection.type}"`;
+  const bound = [...new Set((layers as Operation["selection"][]).filter(isCoordinateBound).map((l) => l.type))];
+  return `a Selection layer of type ${bound.map((t) => `"${t}"`).join(", ")}`;
 }
 
 /** The message for one pinning Operation. Shared with `validate()`'s rule walk. */
 export function coordinateBoundMessage(op: Operation): string {
   return (
-    `Operation "${op.id}" uses the coordinate-bound Selection "${op.selection.type}", ` +
+    `Operation "${op.id}" uses ${pinningSelection(op.selection)}, ` +
     `which holds literal cell coordinates, so the grid's rows and columns cannot change. ` +
     `cellSize, bleed and yOffset can. To resize, use only procedural Selections ` +
     `(${selections
       .all()
-      .filter((r) => !r.coordinateBound)
+      .filter((r) => r.coordinateBound === false)
       .map((r) => r.name)
       .join(", ")}).`
   );

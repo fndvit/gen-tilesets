@@ -3,7 +3,7 @@ import type { EvalCtx } from "../ctx.js";
 import { DEV } from "../dev.js";
 import { stage1 } from "../hash.js";
 import { Registry } from "./registry.js";
-import { selections } from "./selections.js";
+import { isCoordinateBound, selections } from "./selections.js";
 import { evalSource, sources } from "./sources.js";
 
 // `extent` defaults to the grid, derived from whatever `rows`/`columns` end up
@@ -45,7 +45,7 @@ describe("the registry — 05 §5", () => {
 describe("Selection presets — 04 §4.2", () => {
   it("registers exactly the six V1 presets", () => {
     expect(selections.names().sort()).toEqual(
-      ["all", "cellList", "checkerboard", "everyNth", "random", "rect", "rowColumn"].sort(),
+      ["all", "cellList", "checkerboard", "everyNth", "random", "rect", "rowColumn", "union"].sort(),
     );
   });
 
@@ -261,6 +261,101 @@ describe("Selection presets — 04 §4.2", () => {
     for (const name of ["rect", "cellList"]) {
       expect(selections.get(name).extent, name).toBeTypeOf("function");
     }
+  });
+});
+
+describe("union — selection layers (B-033)", () => {
+  const u = selections.get("union");
+  const rect = { type: "rect", x: 0, y: 0, width: 2, height: 1 };
+  const checker = { type: "checkerboard", parity: 1 };
+  const randomLayer = { type: "random", density: 0.5 };
+  const cellsOf = (pred: (x: number, y: number) => boolean, rows = 8, columns = 8): string[] => {
+    const out: string[] = [];
+    for (let y = 0; y < rows; y++) for (let x = 0; x < columns; x++) if (pred(x, y)) out.push(`${x},${y}`);
+    return out;
+  };
+
+  it("selects every cell any layer selects", () => {
+    const p = { layers: [rect, checker] };
+    const c = ctx();
+    for (let y = 0; y < 6; y++) {
+      for (let x = 0; x < 6; x++) {
+        const either =
+          selections.get("rect").impl(rect, x, y, c) || selections.get("checkerboard").impl(checker, x, y, c);
+        expect(u.impl(p, x, y, c), `${x},${y}`).toBe(either);
+      }
+    }
+    // (0,0) is in the rect and not on parity 1; (1,0) is in both; (3,0) only on the board.
+    expect(u.impl(p, 0, 0, c)).toBe(true);
+    expect(u.impl(p, 2, 0, c)).toBe(false);
+    expect(u.impl(p, 3, 0, c)).toBe(true);
+  });
+
+  it("layer 0 random draws exactly as the same random alone — old files and a first layer never move", () => {
+    const c = ctx();
+    const alone = cellsOf((x, y) => selections.get("random").impl(randomLayer, x, y, c));
+    // A second layer that selects nothing (an empty rect) leaves exactly layer 0.
+    const empty = { type: "rect", x: 0, y: 0, width: 0, height: 0 };
+    expect(cellsOf((x, y) => u.impl({ layers: [randomLayer, empty] }, x, y, c))).toEqual(alone);
+  });
+
+  it("gives each random layer its own hash channel", () => {
+    const c = ctx();
+    const empty = { type: "rect", x: 0, y: 0, width: 0, height: 0 };
+    const first = cellsOf((x, y) => u.impl({ layers: [randomLayer, empty] }, x, y, c));
+    const second = cellsOf((x, y) => u.impl({ layers: [empty, randomLayer] }, x, y, c));
+    // Same density, different position, different cells.
+    expect(second).not.toEqual(first);
+    // And two random layers together select more than either alone.
+    const both = cellsOf((x, y) => u.impl({ layers: [randomLayer, randomLayer] }, x, y, c));
+    expect(both.length).toBeGreaterThan(first.length);
+  });
+
+  it("extent: the bounding box of the layers' extents", () => {
+    const e = u.extent!;
+    expect(
+      e({
+        layers: [
+          { type: "rect", x: 2, y: 3, width: 2, height: 2 },
+          { type: "cellList", cells: [[7, 1]] },
+        ],
+      }),
+    ).toEqual({ x: 2, y: 1, width: 6, height: 4 });
+  });
+
+  it("extent: the whole grid when any layer declares none", () => {
+    expect(u.extent!({ layers: [rect, checker] })).toBeUndefined();
+    expect(u.extent!({ layers: [randomLayer, rect] })).toBeUndefined();
+  });
+
+  it("extent: an empty Handpick layer does not drag the box to the origin", () => {
+    const far = { type: "rect", x: 5, y: 5, width: 2, height: 2 };
+    expect(u.extent!({ layers: [{ type: "cellList", cells: [] }, far] })).toEqual({
+      x: 5,
+      y: 5,
+      width: 2,
+      height: 2,
+    });
+    // All empty: zero area, which gradient guards -- not the grid.
+    expect(
+      u.extent!({ layers: [{ type: "cellList", cells: [] }, { type: "cellList", cells: [] }] }),
+    ).toEqual({ x: 0, y: 0, width: 0, height: 0 });
+  });
+
+  it("isCoordinateBound: a union is bound exactly when one of its layers is", () => {
+    expect(isCoordinateBound({ type: "union", layers: [checker, randomLayer] })).toBe(false);
+    expect(isCoordinateBound({ type: "union", layers: [checker, rect] })).toBe(true);
+    expect(isCoordinateBound({ type: "union", layers: [{ type: "cellList", cells: [] }, checker] })).toBe(true);
+    // The static ones answer as declared.
+    expect(isCoordinateBound(rect)).toBe(true);
+    expect(isCoordinateBound(checker)).toBe(false);
+  });
+
+  it("isCoordinateBound: total over unvalidated input", () => {
+    expect(isCoordinateBound({ type: "nope" })).toBe(false);
+    expect(isCoordinateBound({ type: "union", layers: "rect" })).toBe(false);
+    expect(isCoordinateBound({ type: "union", layers: [null, 3, rect] })).toBe(true);
+    expect(isCoordinateBound(null as never)).toBe(false);
   });
 });
 
