@@ -17,7 +17,8 @@ Layout and the Selection artwork still come from the Figma file **Tileset Creato
    hierarchy, and there are almost no borders.
 2. **Ink is structure, sparingly.** Ink fills only what is primary (one per area) or selected.
    Ink draws only three lines: the 2px rule under an open section's header, the hairline under
-   the two top bars, and the ring of a selected glyph.
+   the two top bars and round the Randomness footer, and the ring of a selected
+   glyph.
 3. **One accent with one meaning.** Pink, #CD1957 (`--color-accent`; ultramarine until N3; Pol picked #E94B82, darkened to pass AA for text) means **"what you are editing
    now"**: the open operation's edge and index square, its active step, the focus ring, and the
    draft cue (the preview's 2px frame and its "Draft · not saved" tag). The cells it selects in
@@ -145,7 +146,7 @@ controls, so it gets a step up (Pol, O3c). See *Onboarding: the tour*, "The step
 | **Radio list** | One choice from a short list whose options need more than a word. A field-grey well (`--color-field`, radius 6) of 30px rows, each a 12px ring dot, the label, and a mono value at the right. The chosen row is ink with white text and a filled white dot. Hover darkens a row one step. It is a `radiogroup` of native radios: Tab enters on the chosen row, the arrow keys move and choose | Export image's size |
 | **Export image** (a Form popup) | **Size** (a Radio list): first `Design width · 1000 px` (the saved file's design width, `layout.referenceWidth`, the Grid & size field; not the preview's width, so the handles never change the image. Pol, X3b), then one row per breakpoint bound (`boundsOf(rules)`, ascending), named by the rule that sets it, using the sidebar's "Rule N" number: `Breakpoint 2 · 768 px`. A rule with both a min and a max width names two bounds; both rows carry its number and the px tells them apart. A bound that two rules name lists both: `Breakpoint 2 + 3 · 1024 px`. There is no "base" or "rule N" label at the right. A bound equal to the design width keeps its own breakpoint row, because the rule number is what the author looks for. With no breakpoints, Design width is the one row, still shown. It opens on the size used last in the session, else Design width.<br>**Background** (Preview colour / Transparent) and **Density** (1× / 2×, 2× by default): two segmented controls side by side. The Preview colour segment carries a small swatch of `preview.background`, which keeps its own colour on the chosen ink segment.<br>While the preview draws a draft, an Inline advisory: "Draft not included: this is the saved tileset".<br>A **File** line: `.t-label` "File", then in mono the name and pixel size, for example `tileset-1000px@2x.png · 2000 × 1194 px`.<br>Buttons: Cancel, Download PNG. The rules for the image itself are under **Export** below | Export's Image (.png)… |
 | **Width choices, swatch** | Segments on a white track in the preview bar; the chosen one is ink. The swatch is a 30px rounded square with an edge | Preview top bar |
-| **Footer: Randomness** | A white card with a hairline edge and a gap of ground above it (*Footer edge*), with a `.t-title` heading. It holds the seed field and a strong re-seed button; Assets on load; then Reroll assets and Preview a fresh load as two secondary buttons with the re-seed icon | Sidebar foot |
+| **Footer: Randomness** | A card filled with the ground grey and edged with the top bar's ink hairline (*Footer: the top bar's style*), with a `.t-title` heading. It holds the seed field and a strong re-seed button; Assets on load; then Reroll assets and Preview a fresh load as two secondary buttons with the re-seed icon | Sidebar foot |
 
 ### Icons (`src/lib/ui/icons.ts`)
 
@@ -226,7 +227,7 @@ image follows these rules (Pol, X0):
 | The gallery's "N picked" line is a polite live region | 4.1.3 | It says what a toggle did without moving focus |
 | A Field error names the problem in words, is tied to the field (`aria-invalid`, `aria-describedby`), and takes focus to the field | 3.3.1, 3.3.2, 4.1.2 | Shown on Add, never while typing |
 | The tour is a modal `<dialog>`: the editor behind it is inert, Tab stays in the bubble, Esc skips, and focus returns to "?" after a replay. Each step is announced by a polite live region, because focus lands on the same Next button every time | 2.1.2, 2.4.3, 4.1.3 | Skip tour is on every step but the last, where Done ends it the same way |
-| The tour's ring is ink with a white halo on a 40% ink scrim, and the bubble's text is on white, so its contrast is the editor's own (ink 18.9:1, muted 6.5:1) | 1.4.3, 1.4.11 | The ring is not the accent, so it is never mistaken for the focus ring on Next |
+| The tour's ring is ink with a white halo on a 40% ink scrim, and the bubble's text is ink on white, 18.9:1; no text in it is muted (Pol, 2026-11-10) | 1.4.3, 1.4.11 | The ring is not the accent, so it is never mistaken for the focus ring on Next |
 | Notices are announced without taking focus: advisories in a polite live region, failures in an assertive one. A failure is told apart by its icon's shape and its words, not by colour alone | 4.1.3, 1.4.1 | Dialogs are modal `<dialog>`s with `role="alertdialog"` |
 
 ## Naming
@@ -414,8 +415,8 @@ Picked by Pol at O0 and O1, and the text revised by Pol after O2 (`docs/plans/st
 
 ### When it shows
 
-- **First visit:** no kept tileset and no seen flag. Collage opens (through the same path as New →
-  From template), then the tour starts on Welcome. If Collage fails, the editor opens empty, the
+- **First visit:** no kept tileset and no seen flag. Mosaic opens (through the same path as New →
+  From template), then the tour starts on Welcome. If Mosaic fails, the editor opens empty, the
   failure goes to the usual notice, and the tour still runs.
 - **Seen flag:** in `localStorage`, read and written through a try/catch wrapper. Finishing
   (Done) or skipping (Skip tour, Esc) sets it. Blocked storage means the tour can show again on
@@ -425,25 +426,25 @@ Picked by Pol at O0 and O1, and the text revised by Pol after O2 (`docs/plans/st
 
 ### Steps
 
-The first visit has nine steps. A replay has eight: step 6 describes Collage, so it is in the
+The first visit has nine steps. A replay has eight: step 6 describes Mosaic, so it is in the
 first-visit tour only.
 
 Each step's text is a lead sentence, then short paragraphs, then, on some steps, a closing line in
-the muted colour (*aside*). **Bold** marks the name of a control or a term the paragraph is about
+ink, like the rest (*aside*; it was muted until Pol asked for no grey text in the tour, 2026-11-10). **Bold** marks the name of a control or a term the paragraph is about
 (Pol, O3c: run-in bold rather than subheaders, which made the bubble taller). Paragraphs are
 separated by " / " below.
 
 | # | Step | Target (the cut-out) | Text |
 |---|---|---|---|
-| 1 | Welcome | none: a centred card | "This is the generative tileset editor. A tileset is a grid of pictures, laid out by operations that each change part of the grid, one on top of another." / "Use the gallery's pictures or upload your own, then export the tileset for a website or as an image." Aside, on the first visit: "This is Collage, an example tileset. The next eight steps show how it is made. You can skip the tour at any time." On a replay: "The next seven steps show how a tileset is made. You can skip the tour at any time." |
+| 1 | Welcome | none: a centred card | "This is the generative tileset editor. A tileset is a grid of pictures, laid out by operations that each change part of the grid, one on top of another." / "Use the gallery's pictures or upload your own, then export the tileset for a website or as an image." Aside, on the first visit: "This is Mosaic, an example tileset. The next eight steps show how it is made. You can skip the tour at any time." On a replay: "The next seven steps show how a tileset is made. You can skip the tour at any time." |
 | 2 | Grid & size | the whole Grid & size section | "Set the cell size and the number of rows." / "**Design width** is the page width you design for: the grid gets just enough columns to cover it, and the whole tileset scales with the page at other widths." |
 | 3 | Tiles | the Tiles section header's "+" (Add tile group) | "Add tile groups. Pick pictures from the gallery, or upload your own." |
-| 4 | Tile group | the first tile group (Blue in Collage) | "A tile group is one tile with one or more pictures, its **variants**." / "Operations decide where the tile goes, and each of those cells draws one of its pictures." / "The **sliders** set how often each picture is drawn." |
+| 4 | Tile group | the first tile group (Filled Quarter in Mosaic) | "A tile group is one tile with one or more pictures, its **variants**." / "Operations decide where the tile goes, and each of those cells draws one of its pictures." / "The **sliders** set how often each picture is drawn." |
 | 5 | Operations | the Operations section header's "+" (Add operation) | "Operations fill the grid. Each one changes some cells: their tile, or its rotation, scale, offset or opacity." / "They run **from top to bottom**, and a later one paints over an earlier one." |
-| 6 | An operation (first visit only) | Collage's operation 3, opened, **and** the preview's picture | "This is operation 3." / "Its **Selection** is a rectangle in the middle of the grid, outlined on the picture." / "Its **Pattern**, Random, gives each of those cells a tile: mostly Yellow, sometimes Blue, Pink or Grey." Aside: "The new tiles keep the rotation and opacity that operations 1 and 2 gave every cell." |
+| 6 | An operation (first visit only) | Mosaic's operation 3, opened, **and** the preview's picture | "This is operation 3." / "Its **Selection** is Random: about 3 in every 100 cells, scattered over the grid and marked on the picture." / "Its **Pattern**, Constant, gives each of those cells the same tile, in this case named 'Special'." Aside: "Operation 1 laid out the other four tiles with Noise, and operation 2 turned every cell." |
 | 7 | Breakpoints | the Breakpoints section header | "Change how the tileset looks at different screen sizes." Aside: "Only useful if you export it for a website." |
-| 8 | Randomness | the whole Randomness footer | "Everything random follows from the seed: the same seed always gives the same picture." / "**New seed** redraws every operation." / "**Re-seed**, on an operation's card, redraws only that one." / "**Reroll assets** only swaps pictures within each tile group." Aside: "ⓘ How randomness works has the rest." |
-| 9 | Your own tileset | the top bar's **New** button | On the first visit: "Start building your own tileset with **New**, or close this and keep exploring Collage." On a replay: "Start building your own tileset with **New**, or close this and keep working on this one." (Pol, after O3a) |
+| 8 | Randomness | the whole Randomness footer | "Everything random follows from the seed: the same seed always gives the same picture." / "**New seed** redraws every operation." / "**Re-seed**, on an operation's card, redraws only that one." / "**Reroll assets** only swaps pictures within each tile group." Aside: "Click on the ⓘ buttons to know more info." The ⓘ is drawn as the editor's `info` icon, the picture on the (i) buttons, and is spoken as "information". |
+| 9 | Your own tileset | the top bar's **New** button | On the first visit: "Start building your own tileset with **New**, or close this and keep exploring Mosaic." On a replay: "Start building your own tileset with **New**, or close this and keep working on this one." (Pol, after O3a) |
 
 The count is for the run in progress, "<n> of <total>". So Breakpoints is 7 of 9 on the first
 visit and 6 of 8 on a replay, where the steps after step 5 move up one.
@@ -457,11 +458,11 @@ visit and 6 of 8 on a replay, where the steps after step 5 move up one.
 - A target that is missing points at its section's header instead (O0). With no tile groups,
   step 4 points at the Tiles header.
 - **Step 6** opens operation 3's card, as pressing its title does, so the stepper shows and the
-  preview draws the selection overlay (the rectangle, in `--color-selection`). Leaving the step
+  preview draws the selection overlay (the Random Selection's scattered cells, in `--color-selection`). Leaving the step
   by any way (Next, Back, Skip tour, Esc) closes the card again without saving: the tour never
   edits the file and never leaves a draft open.
-- **If Collage fails to load** on the first visit, the tour runs as a replay does: the replay's
-  Welcome and last-step text and no step 6, eight steps in all, because there is no Collage to describe.
+- **If Mosaic fails to load** on the first visit, the tour runs as a replay does: the replay's
+  Welcome and last-step text and no step 6, eight steps in all, because there is no Mosaic to describe.
 - A target out of view is scrolled into view in its own scroller first (`ui/reveal.ts`), then in
   the page (stacked), leaving room inside the window for the cut-out and its ring. Then the
   cut-out and bubble are placed. They follow a resize or a reflow.
@@ -477,7 +478,7 @@ visit and 6 of 8 on a replay, where the steps after step 5 move up one.
 - **Cut-out:** the target's box plus `--space-2` (4px) on every side, radius `--radius` (8px).
   Nothing in it is dimmed. A step has one cut-out, except step 6, which has two: the opened card
   and the preview's picture. **Stacked**, where the open card fills the window and the picture is
-  a window's height below it, step 6 cuts out the picture alone: it shows the rectangle the text
+  a window's height below it, step 6 cuts out the picture alone: it shows the cells the text
   is about, and the card, still open, is what draws it (Pol, O4). Whether the two fit one window
   is measured, as two columns is.
 - **Ring:** 2px ink (`--rule-strong`, `--color-ink`) on each cut-out's edge, with a 2px white halo
@@ -493,12 +494,12 @@ An Explainer-like panel: white, `--radius-lg`, `--shadow-float`, `--tour-pad` (2
 Explainer, and its text a step larger, because it is read once as prose rather than scanned beside
 the controls (Pol, O3c: the 13px text read flat).
 
-1. **Header:** the step's name in `.t-section` at the left, and the count in muted `.t-console` at
+1. **Header:** the step's name in `.t-section` at the left, and the count in ink `.t-console` at
    the right: "3 of 9" (Pol, O1). The count includes Welcome, so the pointing steps are 2 to 9
    (2 to 8 on a replay).
 2. **Text:** `--text-tour-size` (15px), ink, `--leading-tour` (1.5), `--space-6` between
-   paragraphs. Bold terms are `--weight-semibold`. The aside, last, is the same size in
-   `--color-muted`.
+   paragraphs. Bold terms are `--weight-semibold`. The aside, last, is the same size,
+   also ink.
 3. **Footer:** **Skip tour** (tertiary) at the left; **Back** (secondary) and **Next** (primary) at
    the right.
    - On Grid & size (step 2), Back is shown and goes back to Welcome, so every pointing step has
@@ -577,24 +578,22 @@ so it sits with Undo, not with New, Import and Export.
 |---|---|---|
 | **Checkbox** (`Checkbox`) | One on/off setting with its label always visible. A native checkbox, drawn as a `--checkbox` (16px) square with a 1.5px edge in the text colour (as the Radio list's ring; ink on white or the well is ≥ 15:1, 1.4.11), radius `--radius-xs`, white inside; checked, it fills ink with a white `check` (12px). The label is `.t-body` in ink; the whole label is the target, at least `--target-min` (24px) tall with `--space-2` side padding (2.5.8). Hover washes the label `--color-hover`, press `--color-pressed`; keyboard focus rings the whole label in the accent. Space toggles it. An optional `hint` opens on hovering the label. Use it for one setting being on; a **Segmented control** chooses between named values | Reseed on load: a closed operation card (its own row under the chips) and the open card's Pattern step |
 
-## Footer edge (batch 03, T-04, B-026)
+## Footer: the top bar's style (batch 03, T-04, B-026)
 
-The Randomness footer never scrolls; the sections scroll above it, inside a scroll area whose
-bottom edge sat directly on the footer. A section cut off by that edge is white, so where it met
-the white footer the two read as one card. The footer keeps the page's colours and gets two marks
-of its own:
+The Randomness footer never scrolls; the sections scroll above it. When both were white cards, a
+section's end meeting the footer read as one card. The footer keeps the card's shape (radius,
+margins, padding) and takes the top bar's colours (Pol, 2026-11-11):
 
-- **A gap of ground above it** (`margin-top: var(--space-6)`, 12px, twice the 6px between
-  sections). A cut-off section now visibly ends on grey before the footer begins.
-- **A hairline round the card** (`--color-edge`, grey-500, drawn as an inset 1px shadow so it
-  takes no space): 3.6:1 against the ground. It is the one card with a border, which marks it
-  as the card that is always there. Principle 1's "almost no borders" allows it; it is not ink,
-  so principle 2 is untouched.
+- **Fill: the grey ground** (`--color-ground`).
+- **Stroke: the top bar's ink hairline** (`--color-bar-rule`, 1px) round the card, as an inset
+  shadow so it takes no space.
+- **Fields step down from the ground.** Inside it, `--color-field` is grey-200 and its hover
+  grey-300, because a field is one step darker than what it sits on (principle 1) and the usual
+  grey-100 is the ground itself. The field's grey-500 edge is 3.3:1 on grey-200 (1.4.11).
 
-**Rejected: an inverted, black card** (D-02 A, built first). It told the two apart most strongly,
-but every control inside swapped its colours (selected white, secondary buttons dark, hints
-white), so the footer's controls meant the opposite of the same controls everywhere else (Pol).
-**Rejected: a grey card** (D-02 B): grey is also the ground, so it reads as "no card".
+**Rejected, in the order tried:** an inverted black card (D-02 A), whose controls swapped their
+colours so they meant the opposite of the same controls elsewhere; a white card with 12px of ground
+above it and a grey hairline edge; the inverted card again in dark grey (#262626, then #333).
 
 ## After Export: "Your tileset is downloading" (batch 03, T-08, B-030)
 

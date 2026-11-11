@@ -49,12 +49,14 @@
     seenStore,
     showsSkip,
     spans,
+    type Span,
     start,
     type TargetKey,
     type TourRun,
     type TourState,
   } from "../tour.js";
   import Button from "./ui/Button.svelte";
+  import Icon from "./ui/Icon.svelte";
   import { motionDuration } from "./ui/motion.js";
   import { scrollParent } from "./ui/reveal.js";
 
@@ -269,6 +271,9 @@
   });
 </script>
 
+<!-- One span of a paragraph: a bold term, the (i) buttons' icon (`INFO` in `tour.ts`), or text. -->
+{#snippet drawn(span: Span)}{#if span.icon}<span class="inline-icon"><Icon name={span.icon} label={span.text} /></span>{:else if span.strong}<strong>{span.text}</strong>{:else}{span.text}{/if}{/snippet}
+
 <svelte:window onresize={measure} />
 
 <dialog
@@ -330,11 +335,11 @@
     <div class="text" id="{ids}-text">
       {#each step.text as paragraph, i (i)}
         <p>
-          {#each spans(paragraph) as span, j (j)}{#if span.strong}<strong>{span.text}</strong>{:else}{span.text}{/if}{/each}
+          {#each spans(paragraph) as span, j (j)}{@render drawn(span)}{/each}
         </p>
       {/each}
       {#if step.aside !== undefined}
-        <p class="aside">{step.aside}</p>
+        <p class="aside">{#each spans(step.aside) as span, j (j)}{@render drawn(span)}{/each}</p>
       {/if}
     </div>
     <div class="foot">
@@ -446,9 +451,10 @@
     gap: var(--space-4);
   }
 
+  /* Ink, not muted: no text in the tour is grey (Pol, 2026-11-10). */
   .count {
     flex: none;
-    color: var(--color-muted);
+    color: var(--color-ink);
   }
 
   /*
@@ -473,8 +479,14 @@
     font-weight: var(--weight-semibold);
   }
 
+  /* The (i) buttons' icon in a line of text: sits on the line like a capital, no extra leading. */
+  .inline-icon {
+    display: inline-flex;
+    vertical-align: -0.2em;
+  }
+
   .aside {
-    color: var(--color-muted);
+    color: var(--color-ink);
   }
 
   /* Skip tour at the left, Back and the primary at the right; on Welcome, both at the right. */

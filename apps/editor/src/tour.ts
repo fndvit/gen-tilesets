@@ -19,11 +19,11 @@
  *
  * ## Two runs
  *
- * The first visit opens Collage and runs every step. A replay ("?") runs over
- * whatever is open, so it leaves out the step that describes Collage's
+ * The first visit opens Mosaic and runs every step. A replay ("?") runs over
+ * whatever is open, so it leaves out the step that describes Mosaic's
  * operation 3, says "seven" rather than "eight" on Welcome, and its last step
- * says "this one" rather than Collage. A first visit
- * whose Collage failed to open runs as a replay, because there is no Collage
+ * says "this one" rather than Mosaic. A first visit
+ * whose Mosaic failed to open runs as a replay, because there is no Mosaic
  * to describe (`first-visit.ts`).
  */
 
@@ -52,15 +52,19 @@ export interface TourStep {
   title: string;
   /** One string per paragraph, `**…**` marking bold (`spans`). */
   text: readonly string[];
-  /** A closing line, drawn muted: the run's note on Welcome, a by-the-way elsewhere. */
+  /**
+   * A closing line, its own paragraph: the run's note on Welcome, a by-the-way
+   * elsewhere. Drawn in ink like the rest (Pol, 2026-11-10: no grey text in the
+   * tour); it was muted before.
+   */
   aside?: string;
   /** Empty on Welcome, which is a centred card. Two on "An operation". */
   targets: readonly TargetKey[];
-  /** Describes Collage, so it is left out of a replay. */
+  /** Describes Mosaic, so it is left out of a replay. */
   firstVisitOnly?: true;
   /**
    * Cut out instead when the first target is missing (O0): no tile groups → the
-   * Tiles header; no Collage operation 3 → the Operations "+".
+   * Tiles header; no Mosaic operation 3 → the Operations "+".
    */
   fallback?: TargetKey;
   /**
@@ -78,13 +82,13 @@ const WELCOME_SHARED = [
 
 /** Welcome's aside. */
 const WELCOME_SECOND: Record<TourRun, string> = {
-  first: "This is Collage, an example tileset. The next eight steps show how it is made. You can skip the tour at any time.",
+  first: "This is Mosaic, an example tileset. The next eight steps show how it is made. You can skip the tour at any time.",
   replay: "The next seven steps show how a tileset is made. You can skip the tour at any time.",
 };
 
-/** The last step names Collage only when Collage is what is open (Pol, after O3a). */
+/** The last step names Mosaic only when Mosaic is what is open (Pol, after O3a). */
 const OWN_TEXT: Record<TourRun, string> = {
-  first: "Start building your own tileset with **New**, or close this and keep exploring Collage.",
+  first: "Start building your own tileset with **New**, or close this and keep exploring Mosaic.",
   replay: "Start building your own tileset with **New**, or close this and keep working on this one.",
 };
 
@@ -130,18 +134,18 @@ const POINTING: readonly TourStep[] = [
     title: "An operation",
     text: [
       "This is operation 3.",
-      "Its **Selection** is a rectangle in the middle of the grid, outlined on the picture.",
-      "Its **Pattern**, Random, gives each of those cells a tile: mostly Yellow, sometimes Blue, Pink or Grey.",
+      "Its **Selection** is Random: about 3 in every 100 cells, scattered over the grid and marked on the picture.",
+      "Its **Pattern**, Constant, gives each of those cells the same tile, in this case named 'Special'.",
     ],
-    aside: "The new tiles keep the rotation and opacity that operations 1 and 2 gave every cell.",
+    aside: "Operation 1 laid out the other four tiles with Noise, and operation 2 turned every cell.",
     targets: ["op-example", "preview"],
     firstVisitOnly: true,
-    // Only Collage's own operation 3 carries `op-example` (`exampleOperation`).
-    // In a Collage changed since this text was written, point at the stack instead.
+    // Only Mosaic's own operation 3 carries `op-example` (`exampleOperation`).
+    // In a Mosaic changed since this text was written, point at the stack instead.
     fallback: "ops-add",
-    // Stacked, the picture rather than the card: it shows the rectangle the text is about,
-    // and the card is still open, drawing it (Pol, O4). Rejected: the card alone, which left
-    // "outlined on the picture" pointing at nothing on screen.
+    // Stacked, the picture rather than the card: it shows the cells the text is about,
+    // and the card is still open, marking them (Pol, O4). Rejected: the card alone, which left
+    // "marked on the picture" pointing at nothing on screen.
     alone: "preview",
   },
   {
@@ -160,7 +164,7 @@ const POINTING: readonly TourStep[] = [
       "**Re-seed**, on an operation's card, redraws only that one.",
       "**Reroll assets** only swaps pictures within each tile group.",
     ],
-    aside: "ⓘ How randomness works has the rest.",
+    aside: "Click on the ⓘ buttons to know more info.",
     targets: ["footer"],
   },
 ];
@@ -175,17 +179,43 @@ export function stepsFor(run: TourRun): TourStep[] {
 export interface Span {
   text: string;
   strong: boolean;
+  /**
+   * Set on an `INFO` mark: `Tour.svelte` draws the editor's `info` icon in its
+   * place, the same picture as the (i) buttons the text is about, and `text`
+   * is what a screen reader says for it.
+   */
+  icon?: "info";
 }
 
 /**
- * A paragraph cut at its `**` marks, in order, empty parts left out. An odd
- * number of marks throws: a term left open would draw the rest of the
- * paragraph bold, and the copy is ours, so the mistake should fail a test.
+ * Where the text shows the (i) buttons' icon (Pol, 2026-11-10: the words "ⓘ How
+ * randomness works" read as a button, and "i" in words reads as a letter). The
+ * character itself, so the copy here and in DESIGN_SYSTEM.md still reads right.
+ * Rejected: a Unicode ⓘ left as text, which is drawn in the font, not as the
+ * icon on the buttons.
+ */
+export const INFO = "ⓘ";
+
+/** What the live region says for the icon. */
+const INFO_SPOKEN = "information";
+
+/**
+ * A paragraph cut at its `**` marks, in order, empty parts left out, with each
+ * `INFO` mark its own icon span. An odd number of `**` throws: a term left open
+ * would draw the rest of the paragraph bold, and the copy is ours, so the
+ * mistake should fail a test.
  */
 export function spans(paragraph: string): Span[] {
   const parts = paragraph.split("**");
   if (parts.length % 2 === 0) throw new Error(`Unbalanced ** in tour text: ${paragraph}`);
-  return parts.map((text, i) => ({ text, strong: i % 2 === 1 })).filter((span) => span.text !== "");
+  return parts
+    .flatMap((part, i) =>
+      part.split(INFO).flatMap((text, k): Span[] => {
+        const span = { text, strong: i % 2 === 1 };
+        return k === 0 ? [span] : [{ text: INFO_SPOKEN, strong: span.strong, icon: "info" }, span];
+      }),
+    )
+    .filter((span) => span.text !== "");
 }
 
 /** The step's text without marks, the aside last: what the live region says. */
@@ -292,16 +322,16 @@ export function end(seen: SeenStore): null {
 }
 
 /**
- * The operation "An operation" opens: Collage's operation 3, `op6`, a
- * rectangle Selection, as the step's text describes it. Found by position
- * **and** checked by id and Selection, so that a Collage edited later can't
+ * The operation "An operation" opens: Mosaic's operation 3, `op5`, a
+ * random Selection, as the step's text describes it. Found by position
+ * **and** checked by id and Selection, so that a Mosaic edited later can't
  * have the tour open a card the text doesn't describe; `null` then, and the
  * step points at the Operations "+" (its `fallback`). Rejected: by id alone,
  * which would survive a reorder that makes "operation 3" wrong.
  */
 export function exampleOperation(operations: readonly Pick<Operation, "id" | "selection">[]): string | null {
   const op = operations[2];
-  return op !== undefined && op.id === "op6" && op.selection.type === "rect" ? op.id : null;
+  return op !== undefined && op.id === "op5" && op.selection.type === "random" ? op.id : null;
 }
 
 /** A first visit: nothing was kept from an earlier one, and the tour has not been seen. */

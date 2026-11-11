@@ -14,11 +14,11 @@ import "./styles/base.css";
 
 /**
  * Before the editor mounts: the tileset kept from the last visit is reopened
- * (`keeping.svelte.ts`), or, on a first visit, Collage is opened
+ * (`keeping.svelte.ts`), or, on a first visit, Mosaic is opened
  * (`first-visit.ts`). Either way the empty skeleton never shows and never
  * reaches undo.
  *
- * The tour's run goes to `App` as a mount prop: `"first"` when Collage opened,
+ * The tour's run goes to `App` as a mount prop: `"first"` when Mosaic opened,
  * `"replay"` when it failed (the tour still runs, as a replay does), `null` when
  * this is not a first visit. A prop, because it is read once at mount. Rejected:
  * an exported store in `tour.ts`, which would put state in a pure module.

@@ -79,7 +79,7 @@
   let touring = $state<TourRun | null>(tourRun);
   /**
    * "?", which started the replay, for focus to return to. A first visit whose
-   * Collage failed also runs as "replay", with no trigger: focus then goes to
+   * Mosaic failed also runs as "replay", with no trigger: focus then goes to
    * the first section header, as after any first-visit tour.
    */
   let tourTrigger = $state<HTMLElement | undefined>(undefined);

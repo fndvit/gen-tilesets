@@ -103,7 +103,7 @@ export const keeping = {
    *
    * Returns whether the store **held** a tileset, opened or not, so `main.ts`
    * can tell a first visit (`tour.ts` `isFirstVisit`). A held one that was
-   * refused counts: opening Collage then would clear the refusal's notice,
+   * refused counts: opening Mosaic then would clear the refusal's notice,
    * and its first save would overwrite the kept file, and that person is not
    * new. Rejected: "true only when reopened", which did both. A read that
    * throws counts as held too: something may be there, and the same two

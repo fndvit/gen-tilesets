@@ -1,15 +1,15 @@
 /**
- * The first visit (B-017, O3a): Collage opens through the template path, and
+ * The first visit (B-017, O3a): Mosaic opens through the template path, and
  * every way that can fail leaves one notice and a replay's tour, never a throw.
  */
 
 import { describe, expect, it } from "vitest";
-import { collageFailedNotice, FIRST_VISIT_TEMPLATE, openFirstVisit, type FirstVisitDeps } from "./first-visit.js";
+import { firstVisitFailedNotice, FIRST_VISIT_TEMPLATE, openFirstVisit, type FirstVisitDeps } from "./first-visit.js";
 import type { Archive, Prepared } from "./import.js";
 import type { Notice } from "./notices.js";
 import type { Manifest, TemplateEntry } from "./starters.js";
 
-const collage: TemplateEntry = { id: FIRST_VISIT_TEMPLATE, label: "Collage", path: "starters/collage/", thumb: "t.webp", summary: "" };
+const mosaic: TemplateEntry = { id: FIRST_VISIT_TEMPLATE, label: "Mosaic", path: "starters/mosaic/", thumb: "t.webp", summary: "" };
 const archive: Archive = new Map();
 const ready = { kind: "ready", file: {}, incoming: [], upgrades: [] } as unknown as Extract<Prepared, { kind: "ready" }>;
 
@@ -19,7 +19,7 @@ function deps(over: Partial<FirstVisitDeps> = {}) {
   const adopted: unknown[] = [];
   const loaded: TemplateEntry[] = [];
   const base: FirstVisitDeps = {
-    manifest: async () => ({ templates: [{ ...collage, id: "other" }, collage], gallery: [] }) as Manifest,
+    manifest: async () => ({ templates: [{ ...mosaic, id: "other" }, mosaic], gallery: [] }) as Manifest,
     loadTemplate: async (entry) => {
       loaded.push(entry);
       return archive;
@@ -32,7 +32,7 @@ function deps(over: Partial<FirstVisitDeps> = {}) {
 }
 
 describe("openFirstVisit", () => {
-  it("opens Collage, by id, and runs the first-visit tour", async () => {
+  it("opens Mosaic, by id, and runs the first-visit tour", async () => {
     const d = deps();
     expect(await openFirstVisit(d.deps)).toBe("first");
     expect(d.loaded.map((e) => e.id)).toEqual([FIRST_VISIT_TEMPLATE]);
@@ -42,7 +42,7 @@ describe("openFirstVisit", () => {
 
   const failures: [string, Partial<FirstVisitDeps>, RegExp][] = [
     ["the manifest fails", { manifest: async () => Promise.reject(new Error("starters.json: 404")) }, /404/],
-    ["the manifest lists no Collage", { manifest: async () => ({ templates: [], gallery: [] }) as Manifest }, /no "collage"/],
+    ["the manifest lists no Mosaic", { manifest: async () => ({ templates: [], gallery: [] }) as Manifest }, /no "mosaic"/],
     ["a picture fails", { loadTemplate: async () => Promise.reject(new Error("tiles/t1/a1.webp: 404")) }, /a1\.webp/],
     ["it is newer", { prepare: () => ({ kind: "newer", declared: 99 }) }, /schemaVersion 99/],
     [
@@ -65,9 +65,9 @@ describe("openFirstVisit", () => {
   }
 });
 
-describe("collageFailedNotice", () => {
+describe("firstVisitFailedNotice", () => {
   it("signs itself with its reasons, so a new reason shows again", () => {
-    expect(collageFailedNotice(["a", "b"]).signature).toBe("a\nb");
-    expect(collageFailedNotice(["a"]).signature).not.toBe(collageFailedNotice(["b"]).signature);
+    expect(firstVisitFailedNotice(["a", "b"]).signature).toBe("a\nb");
+    expect(firstVisitFailedNotice(["a"]).signature).not.toBe(firstVisitFailedNotice(["b"]).signature);
   });
 });

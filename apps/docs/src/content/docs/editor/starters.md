@@ -15,8 +15,8 @@ through [starters-client.ts](/editor/starters-client/).
 
 The editor ships content a new user can start from, so nobody needs their own pictures to try it:
 
-- **Templates** are whole tilesets that New can open: **Collage**, which the first visit opens,
-  and **Mosaic** (batch 03, D-05), listed after it.
+- **Templates** are whole tilesets that New can open: **Mosaic** (batch 03, D-05), which the first
+  visit opens and which is listed first (Pol, 2026-11-10), and **Collage**, listed after it.
 - **The tile gallery** is a set of single pictures the user can add as a tile group, or as
   variants of one: Collage's pictures, then the shapes added in batch 03, in one list.
 

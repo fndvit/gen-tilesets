@@ -17,9 +17,9 @@ The steps and their text come from DESIGN_SYSTEM.md § "Onboarding: the tour", w
 They are copied into the code, and no test pins the two together. To change the text, change the
 doc first, then the code.
 
-A **first visit** opens Collage and runs nine steps. A **replay** ("?") runs eight, because it
-leaves out "An operation", which describes Collage's operation 3. Both end on "Your own tileset",
-which points at New. A first visit whose Collage
+A **first visit** opens Mosaic and runs nine steps. A **replay** ("?") runs eight, because it
+leaves out "An operation", which describes Mosaic's operation 3. Both end on "Your own tileset",
+which points at New. A first visit whose Mosaic
 failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 
 ## In detail
@@ -30,9 +30,10 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 | --- | --- | --- |
 | `TargetKey` | type | The `data-tour` value a step cuts out: `grid`, `tiles-add`, `tiles-header`, `tile-group`, `ops-add`, `op-example`, `preview`, `breakpoints`, `footer`, `new`. |
 | `TourRun` | type | `"first"` or `"replay"`. |
-| `TourStep` | interface | `{ id, title, text, aside?, targets, firstVisitOnly?, fallback?, alone? }`. `alone` is cut out by itself where the targets can't share the window (`oneWindow`). `text` holds one string per paragraph, with `**…**` marking a bold term. `aside` is a closing line, drawn muted. |
-| `Span` | interface | `{ text, strong }`: one piece of a paragraph. |
-| `spans(paragraph)` | function | The paragraph cut at its `**` marks, empty pieces left out. An odd number of marks throws. |
+| `TourStep` | interface | `{ id, title, text, aside?, targets, firstVisitOnly?, fallback?, alone? }`. `alone` is cut out by itself where the targets can't share the window (`oneWindow`). `text` holds one string per paragraph, with `**…**` marking a bold term. `aside` is a closing line, drawn in ink like the rest (no grey text in the tour, Pol 2026-11-10). |
+| `Span` | interface | `{ text, strong, icon? }`: one piece of a paragraph. `icon: "info"` marks an `INFO` mark; `text` is then what a screen reader says ("information"). |
+| `INFO` | const | `"ⓘ"`: where the text shows the (i) buttons' icon. `Tour.svelte` draws the editor's `info` icon in its place, not the font's glyph (Pol, 2026-11-10). |
+| `spans(paragraph)` | function | The paragraph cut at its `**` marks, empty pieces left out, each `INFO` mark its own icon span. An odd number of `**` throws. |
 | `plain(step)` | function | The step's text without marks, the aside last: what the live region says. |
 | `stepsFor(run)` | function | The run's steps, Welcome first: 9 or 8. |
 | `TourState` | interface | `{ run, steps, index }`. Index 0 is Welcome. |
@@ -44,7 +45,7 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 | `seenStore(storage?)` | function | `get()` and `set()` on `localStorage`, each behind a try/catch. |
 | `end(seen)` | function | Ends a tour by Done, Skip tour or Esc alike. It sets the flag and returns `null`. |
 | `isFirstVisit(kept, seen)` | function | `!kept && !seen`. |
-| `exampleOperation(operations)` | function | The id "An operation" opens: the 4th operation, if it is `op6` with a rectangle Selection, as in Collage. Otherwise `null`. |
+| `exampleOperation(operations)` | function | The id "An operation" opens: the 3rd operation, if it is `op5` with a random Selection, as in Mosaic. Otherwise `null`. |
 
 ### Behaviour
 
@@ -55,14 +56,14 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
   a term can sit mid-sentence, which a `{ term, text }` record could not hold. Rejected: HTML in the
   strings and `{@html}`, an injection path for two tags.
 - **Your own tileset** is the last step in both runs, and points at the top bar's New. Its text
-  names Collage on the first visit ("…or close this and keep exploring Collage."). On a replay it
+  names Mosaic on the first visit ("…or close this and keep exploring Mosaic."). On a replay it
   says "…keep working on this one.", because a replay runs over whatever is open (Pol, after O3a).
 - **Tile group** falls back to `tiles-header` when there are no groups (O0). **An operation** falls
-  back to `ops-add` when Collage's operation 3 isn't there (`exampleOperation` is `null`), so a
-  Collage edited later can't have the tour open a card its text doesn't describe.
+  back to `ops-add` when Mosaic's operation 3 isn't there (`exampleOperation` is `null`), so a
+  Mosaic edited later can't have the tour open a card its text doesn't describe.
 - **An operation** cuts out two targets: the opened card (`op-example`) and the picture (`preview`).
   Stacked, where the open card fills the window and the picture is below it, it cuts out the
-  picture alone (`alone: "preview"`, Pol, O4): it shows the rectangle the text is about, and the
+  picture alone (`alone: "preview"`, Pol, O4): it shows the cells the text is about, and the
   card, still open, is what draws it.
 - **The seen flag never breaks the editor.** A missing or blocked `localStorage`, or one that throws
   on a read, reads as "not seen". A failed write is ignored, and the tour shows again on the next
@@ -71,12 +72,12 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 ### Tests
 
 `tour.test.ts`: both runs' step ids; Welcome's paragraphs and aside; every step's marks balanced;
-`spans` (no marks, a term mid-sentence, a leading term, a term left open throws); `plain` with and
+`spans` (no marks, a term mid-sentence, a leading term, an info mark as an icon span, a term left open throws); `plain` with and
 without an aside; step 6's two targets and the two
 fallbacks; the last step's target and its two texts; the counts (Breakpoints is 7 of 9, or 6 of 8 on a replay); Back from Grid & size; the
 labels and Skip on the last step; `end` sets the flag; a throwing store reads as not seen and never
-throws; `isFirstVisit`'s four cases; `exampleOperation` on Collage, and `null` for a reordered stack, a
-non-rectangle op6, or too few operations.
+throws; `isFirstVisit`'s four cases; `exampleOperation` on Mosaic, and `null` for a reordered stack, a
+non-random op5, or too few operations.
 
 ### Gotchas & rejected alternatives
 

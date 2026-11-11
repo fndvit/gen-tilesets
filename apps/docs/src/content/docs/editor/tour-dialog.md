@@ -9,7 +9,7 @@ sidebar:
 
 ## Overview
 
-The tour (B-017) shows on a first visit, over Collage, and from "?" (O3c). It draws the model in
+The tour (B-017) shows on a first visit, over Mosaic, and from "?" (O3c). It draws the model in
 [tour.ts](/editor/tour/): a Welcome card, then a bubble per step pointing at a part of the editor
 through a hole in a 40% ink scrim. It only points. Next always works, and the user doesn't have to
 do the step. The look is DESIGN_SYSTEM.md § "Onboarding: the tour".
@@ -27,7 +27,7 @@ do the step. The look is DESIGN_SYSTEM.md § "Onboarding: the tour".
 `App.svelte` holds `touring` (`TourRun | null`), seeded from its `tourRun` mount prop, and renders
 the tour while it is set. `onEnd` clears it. The top bar's **"?"** ([SidebarTopBar](/editor/sidebar-top-bar/)'s
 `onTour`) sets `touring = "replay"` and keeps the button as `tourTrigger`, which App passes as
-`returnFocus` on a replay only. A first visit whose Collage failed also runs as `"replay"`, with no
+`returnFocus` on a replay only. A first visit whose Mosaic failed also runs as `"replay"`, with no
 trigger, so focus goes to the Grid & size header as after any first-visit tour.
 
 ### Structure
@@ -46,8 +46,10 @@ trigger, so focus goes to the Grid & size header as after any first-visit tour.
   (not on the last step) and Back and Next (or Done) at the right.
 - **The text** is `--text-tour-size` (15px) at `--leading-tour`, a step above `.t-body`, because it
   is prose read once (Pol, O3c). Each paragraph is cut by `spans` from [tour.ts](/editor/tour/), and
-  its marked terms are `<strong>` at `--weight-semibold`. The step's `aside`, if any, is a last
-  paragraph in `--color-muted`. No `{@html}`.
+  its marked terms are `<strong>` at `--weight-semibold`. A span with `icon` is drawn as the
+  editor's `info` icon (`.inline-icon`, set on the line), labelled with the span's text. The
+  step's `aside`, if any, is a last paragraph cut the same way, in ink like the rest: no text in
+  the bubble is grey, the count included (Pol, 2026-11-10). No `{@html}`.
 - The dialog is named by the title and count and described by the text. A polite live region
   announces each later step, because focus landing on the same Next says nothing new. Its text is
   `plain(step)`, without the marks.
@@ -55,7 +57,7 @@ trigger, so focus goes to the Grid & size header as after any first-visit tour.
 ### On each step
 
 1. Leaving "An operation", close the card it opened, unsaved (`drafting.discard()`).
-2. Entering it, open Collage's operation 3 through `opening.open(id, "attribute")`, as pressing the
+2. Entering it, open Mosaic's operation 3 through `opening.open(id, "attribute")`, as pressing the
    card's title does, if `exampleOperation` finds it. Then wait out the card's slide.
 3. Find the targets by `data-tour` (`resolveTargets`, with the step's fallback). An element that
    isn't drawn counts as missing. Where the targets' visible parts can't share the window

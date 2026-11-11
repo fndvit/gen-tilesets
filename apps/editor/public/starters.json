@@ -1,18 +1,18 @@
 {
   "templates": [
     {
-      "id": "collage",
-      "label": "Collage",
-      "path": "templates/collage/",
-      "thumb": "templates/collage/thumb.webp",
-      "summary": "6 tile groups · 5 operations"
-    },
-    {
       "id": "mosaic",
       "label": "Mosaic",
       "path": "templates/mosaic/",
       "thumb": "templates/mosaic/thumb.webp",
       "summary": "5 tile groups · 3 operations"
+    },
+    {
+      "id": "collage",
+      "label": "Collage",
+      "path": "templates/collage/",
+      "thumb": "templates/collage/thumb.webp",
+      "summary": "6 tile groups · 5 operations"
     }
   ],
   "gallery": [

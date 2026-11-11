@@ -10,7 +10,7 @@ sidebar:
 
 ## Overview
 
-A white card at the bottom of the sidebar, titled "Randomness", with an (i) at the right of the
+A grey card at the bottom of the sidebar, titled "Randomness", with an (i) at the right of the
 title that opens "How randomness works" (batch 01, T-07, B-019). It never scrolls or collapses.
 Since iteration 2 it holds only what decides the picture's randomness:
 
@@ -20,11 +20,11 @@ Since iteration 2 it holds only what decides the picture's randomness:
 - **Preview a fresh load:** preview another visitor's load. It is disabled when nothing reseeds
   on load.
 
-**It is set apart from the sections** (batch 03, T-04, B-026): 12px of the grey ground above it
-and a 1px grey-500 edge round it (`--color-edge`), so a section cut off by the scroll edge ends on
-grey and never reads as one card with the footer. Its colours are the page's own; an inverted
-black card was built first and rejected because the controls inside swapped their colours. See
-`DESIGN_SYSTEM.md` *Footer edge*.
+**It takes the top bar's colours** (batch 03, T-04, B-026; Pol, 2026-11-11): the grey ground as
+its fill and the top bar's ink hairline (`--color-bar-rule`) round it, so a section scrolled against
+it never reads as one card with it. Inside it the fields are grey-200, one step darker than the ground.
+See `DESIGN_SYSTEM.md` *Footer: the top bar's style*, which also lists what was tried before (a
+black card, a white card with an edge, a dark grey card).
 
 The two actions wear the re-seed icon: the shape, not a colour, says "draw again". Undo, New,
 Import and Export moved to the [sidebar top bar](/editor/sidebar-top-bar/), and so did dropping a
@@ -58,10 +58,10 @@ preview's stack (`advisories.ts`, Stage 2 W3), not a clause in this hint.
 
 ### Look
 
-A white card on the sidebar ground with a 1px `--color-edge` hairline (an inset shadow, so it takes
-no space), 12px below the scroll area and 8px from the other edges, with 12px of padding above and
-16px at the sides and below. Its heading is a `.t-title`. The two actions share a row, and stack
-in a narrow sidebar.
+A card filled with the sidebar's ground (`--color-ground`) and edged with a 1px ink hairline (an
+inset shadow, so it takes no space), 8px from the edges, with 12px of padding above and 16px at the
+sides and below. Its heading is a `.t-title`. The two actions share a
+row, and stack in a narrow sidebar. Fields inside it are `--grey-200` (hover `--grey-300`).
 
 ### Invariants
 

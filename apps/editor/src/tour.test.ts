@@ -19,6 +19,7 @@ import {
   seenStore,
   showsSkip,
   spans,
+  INFO,
   start,
   stepsFor,
   type TourState,
@@ -43,18 +44,18 @@ describe("stepsFor", () => {
     ]);
   });
 
-  it("has eight on a replay, without the step that describes Collage", () => {
+  it("has eight on a replay, without the step that describes Mosaic", () => {
     expect(stepsFor("replay").map((s) => s.id)).toEqual([
       "welcome", "grid", "tiles", "tile-group", "operations", "breakpoints", "randomness", "own",
     ]);
   });
 
-  it("ends on New, naming Collage only on the first visit", () => {
+  it("ends on New, naming Mosaic only on the first visit", () => {
     const own = (run: "first" | "replay") => stepsFor(run).at(-1)!;
     expect(own("first").targets).toEqual(["new"]);
-    expect(own("first").text[0]).toMatch(/keep exploring Collage\.$/);
+    expect(own("first").text[0]).toMatch(/keep exploring Mosaic\.$/);
     expect(own("first").text[0]).toContain("**New**");
-    expect(own("replay").text[0]).not.toMatch(/Collage/);
+    expect(own("replay").text[0]).not.toMatch(/Mosaic/);
   });
 
   it("gives Welcome the shared paragraphs and the run's own aside", () => {
@@ -62,7 +63,7 @@ describe("stepsFor", () => {
     const [replay] = stepsFor("replay");
     expect(first!.targets).toEqual([]);
     expect(first!.text).toEqual(replay!.text);
-    expect(first!.aside).toMatch(/^This is Collage.*next eight steps/);
+    expect(first!.aside).toMatch(/^This is Mosaic.*next eight steps/);
     expect(replay!.aside).toMatch(/^The next seven steps/);
   });
 
@@ -152,16 +153,16 @@ describe("isFirstVisit", () => {
 
 describe("exampleOperation", () => {
   const op = (id: string, type: string) => ({ id, selection: { type } }) as Parameters<typeof exampleOperation>[0][number];
-  const collage = [op("op2", "all"), op("op5", "all"), op("op6", "rect"), op("op7", "cellList")];
+  const mosaic = [op("op1", "all"), op("op4", "all"), op("op5", "random")];
 
-  it("is Collage's operation 3, op6, a rectangle", () => {
-    expect(exampleOperation(collage)).toBe("op6");
+  it("is Mosaic's operation 3, op5, a random Selection", () => {
+    expect(exampleOperation(mosaic)).toBe("op5");
   });
 
-  it("is null when the third operation is not op6, or not a rectangle, or missing", () => {
-    expect(exampleOperation([collage[0]!, collage[2]!, collage[1]!, collage[3]!])).toBeNull();
-    expect(exampleOperation([...collage.slice(0, 2), op("op6", "all")])).toBeNull();
-    expect(exampleOperation(collage.slice(0, 2))).toBeNull();
+  it("is null when the third operation is not op5, or not random, or missing", () => {
+    expect(exampleOperation([mosaic[0]!, mosaic[2]!, mosaic[1]!])).toBeNull();
+    expect(exampleOperation([...mosaic.slice(0, 2), op("op5", "all")])).toBeNull();
+    expect(exampleOperation(mosaic.slice(0, 2))).toBeNull();
   });
 });
 
@@ -185,6 +186,15 @@ describe("spans", () => {
     ]);
   });
 
+  it("makes each info mark an icon span, spoken as \"information\"", () => {
+    expect(spans(`Click the ${INFO} buttons.`)).toEqual([
+      { text: "Click the ", strong: false },
+      { text: "information", strong: false, icon: "info" },
+      { text: " buttons.", strong: false },
+    ]);
+    expect(spans(INFO)).toEqual([{ text: "information", strong: false, icon: "info" }]);
+  });
+
   it("throws on a term left open", () => {
     expect(() => spans("The **sliders set it.")).toThrow(/Unbalanced/);
   });
@@ -194,7 +204,7 @@ describe("plain", () => {
   it("drops the marks and ends with the aside", () => {
     const randomness = stepsFor("first").find((s) => s.id === "randomness")!;
     expect(plain(randomness)).toBe(
-      "Everything random follows from the seed: the same seed always gives the same picture. New seed redraws every operation. Re-seed, on an operation's card, redraws only that one. Reroll assets only swaps pictures within each tile group. ⓘ How randomness works has the rest.",
+      "Everything random follows from the seed: the same seed always gives the same picture. New seed redraws every operation. Re-seed, on an operation's card, redraws only that one. Reroll assets only swaps pictures within each tile group. Click on the information buttons to know more info.",
     );
   });
 

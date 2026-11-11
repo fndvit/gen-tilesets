@@ -32,7 +32,7 @@ rune: the "Changes won't be kept across reloads" condition.
 - **A refusal** (newer, invalid, unreadable) leaves the empty document and pushes
   `refusedNotice`.
 - **The return value is for the first visit** ([tour.ts](/editor/tour/) `isFirstVisit`). It is
-  `true` for a refused tileset too, so that Collage does not open over it. Opening Collage would
+  `true` for a refused tileset too, so that Mosaic does not open over it. Opening Mosaic would
   clear the refusal's notice, and its first save would overwrite the kept file.
 - **Saved at once, one write at a time.** `App.svelte` calls `schedule(session.file)` from an
   effect. With no write in flight it writes at once; otherwise it keeps only the newest document

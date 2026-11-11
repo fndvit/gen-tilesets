@@ -13,7 +13,7 @@ sidebar:
 
 New in the top bar opens this popup. It asks one thing: start from an **empty** grid, or **from a
 template**, a finished tileset to change and learn from. Choosing From template shows the list of
-templates (today only Collage) with a picture of each. The warning that the current tileset is
+templates (Mosaic, then Collage) with a picture of each. The warning that the current tileset is
 lost sits in the same popup, so starting over is one step.
 
 It replaced the "Start a new tileset?" Dialog (B-016, Pol's S1 pick 1B).
@@ -41,7 +41,7 @@ second way in, next to Import.
   fetch is retried next time. While loading it says
   "Loading templates…"; on failure, "Couldn't load the templates: <reason>" beside an `alert`
   icon. Its first template is chosen when the list appears.
-- **The verb** follows the choice: **Start new**, or **Open <label>** ("Open Collage"). It is
+- **The verb** follows the choice: **Start new**, or **Open <label>** ("Open Mosaic"). It is
   disabled while no template is chosen and while a template loads, when it reads "Opening…".
 - **Start new** awaits `onEmpty()`, then closes.
 - **Open <label>** calls `loadTemplate` → `prepareArchive` → `adopt`, the same pair Import uses,

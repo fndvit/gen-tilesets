@@ -1,11 +1,12 @@
 <!--
   The sidebar's fixed footer, "Randomness": below the scrolling sections, never
-  scrolled or collapsed. A white card on the ground, like a section, set apart
-  by a gap of ground above it and a hairline edge (batch 03, T-04, B-026): the
-  scroll area's edge sat on the card, so a section cut off there met it white
-  on white and the two read as one. An inverted black card was built first and
-  rejected (Pol): every control inside it swapped colours, so selected, a
-  secondary button and a hint meant the opposite of what they mean elsewhere.
+  scrolled or collapsed. **A card in the top bar's colours** (batch 03, T-04,
+  B-026; Pol, 2026-11-11): the same card as a section, but filled with the
+  grey ground and edged with the ink hairline the top bar draws
+  (`--color-bar-rule`). Both were white cards, so where a section's end met
+  the footer they read as one. Rejected, in order: an inverted black card
+  (controls swapped colours), a white card with a gap and a grey edge, and the
+  inverted card in dark grey.
 
   It holds only what decides the picture's randomness: the seed and the three
   ways to draw again. The document's actions (Undo, New, Import, Export) moved
@@ -174,16 +175,23 @@
     --hint-top: auto;
     --hint-bottom: calc(100% + var(--space-2));
 
+    /*
+      Filled with the ground's grey, so a field is one step darker than that
+      (principle 1) instead of the same grey, where it would vanish.
+      grey-500, the field's edge, is 3.3:1 on grey-200 (1.4.11).
+    */
+    --color-field: var(--grey-200);
+    --color-field-hover: var(--grey-300);
+
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
-    /* Twice the gap between sections, so a cut-off section ends on ground before the card begins. */
-    margin: var(--space-6) var(--space-4) var(--space-4);
+    margin: 0 var(--space-4) var(--space-4);
     padding: var(--space-6) var(--space-7) var(--space-7);
     border-radius: var(--radius);
-    background: var(--color-card);
-    /* The one card with an edge: the one always on screen. Inset, so it takes no space. */
-    box-shadow: inset 0 0 0 var(--rule-w) var(--color-edge);
+    background: var(--color-ground);
+    /* The top bar's hairline, round the card. Inset, so it takes no space. */
+    box-shadow: inset 0 0 0 var(--rule-w) var(--color-bar-rule);
     color: var(--color-ink);
   }
 
