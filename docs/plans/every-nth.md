@@ -171,7 +171,9 @@ Pol confirms the block before Block 3 starts.
 - Editor:
   - `document.ts` and `motif.ts` read `SCHEMA_VERSION` instead of a literal, so the number lives
     in one place;
-  - the `every-nth.svg` glyph moved to `rowColumn`, and `everyNth` is label-only;
+  - the `every-nth.svg` glyph moved to `rowColumn`, and `everyNth` is label-only. That was a
+    misreading: the SVG counts cells row after row (n = 3), so it is the new `everyNth`'s
+    picture. Undone in Block 3;
   - `labels.ts` gained `rowColumn` → "Row/Column".
 - `validate()` rejects unknown params, so `everyNth` with an `axis` is `UNKNOWN_KEY`, and a test
   pins it.
@@ -205,9 +207,10 @@ second one in code. Pol checks both in `pnpm dev`.
 **BLOCKED:** none.
 
 ## Block 3: editor
-- `labels.ts`: "Row/Column" for `rowColumn`, "Every nth" for `everyNth`.
-- `OperationBody.svelte`: the glyph map. The existing `every-nth.svg` moves to `rowColumn`, and
-  `everyNth` gets new artwork from Figma.
+- Done (Pol, after Block 2): `labels.ts` names `everyNth` "Every Nth", overriding N3's sentence
+  case. `every-nth.svg` goes back to `everyNth`, since it already draws the row-major count.
+  `rowColumn` gets a new hand-written `row-column.svg` showing every 2nd column, because Figma has
+  no node for it.
 - The hint text about the column count.
 - `SelectionOverlay`: it goes through `selection.ts`, so no logic changes are expected.
 - Every test that names `everyNth`.

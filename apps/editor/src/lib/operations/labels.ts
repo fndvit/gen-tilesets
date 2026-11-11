@@ -20,6 +20,9 @@ import { mappingOf, STEPS, type Draft, type Step } from "../../draft.svelte.js";
 const NAMED: Record<string, string> = {
   cellList: "Handpick",
   checkerboard: "Checkered",
+  // Sentence case gives "Every nth"; Pol asked for "Every Nth" (B-009), the one
+  // name that overrides N3's plain sentence case below.
+  everyNth: "Every Nth",
   rect: "Drag",
   // Sentence case gives "Row column", which reads as one thing; the slash says
   // it is one or the other, which is what its `axis` picks (B-009).
@@ -31,10 +34,10 @@ const NAMED: Record<string, string> = {
 /**
  * `cellsPerFeature` → `Cells per feature`, with the overrides above.
  *
- * Plain sentence case, with no exceptions (Pol, N3): `everyNth` → `Every nth`
- * and `scaleX` → `Scale x`. Keeping a one-letter word or "Nth" uppercase was
- * offered and turned down, because one rule is easier to predict than a rule
- * with cases.
+ * Plain sentence case, with no exceptions (Pol, N3): `scaleX` → `Scale x`.
+ * Keeping a one-letter word uppercase was offered and turned down, because one
+ * rule is easier to predict than a rule with cases. "Every Nth" is not an
+ * exception to the rule: it is a name in `NAMED` (B-009).
  */
 export function labelFor(name: string): string {
   const named = NAMED[name];
