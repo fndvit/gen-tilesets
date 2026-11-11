@@ -80,7 +80,9 @@ then reads "Handpick holds literal cells, and breakpoint N changes rows or colum
 
 `chooseSelection(name)` sets `selectionType` and replaces `selectionParams` with
 `defaultParams(schema)`. The Selection's [ParamFields](/editor/param-fields/) go in the options
-block, shown only when the chosen Selection has parameters.
+block, shown only when the chosen Selection has parameters. They get
+`hints={selectionParamHints(draft.selectionType)}` ([param-hints.ts](/editor/param-hints/)), so
+Every Nth's N says that the picture depends on the column count (B-009).
 
 #### Attribute
 

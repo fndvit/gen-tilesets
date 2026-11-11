@@ -207,6 +207,8 @@ second one in code. Pol checks both in `pnpm dev`.
 **BLOCKED:** none.
 
 ## Block 3: editor
+**Status:** built 2026-11-11 on `b-009-blocks-3-4`, which carries Block 4 too (Pol: one PR for
+both). Awaiting Pol's confirmation.
 - Done (Pol, after Block 2): `labels.ts` names `everyNth` "Every Nth", overriding N3's sentence
   case. `every-nth.svg` goes back to `everyNth`, since it already draws the row-major count.
   `rowColumn` gets a new hand-written `row-column.svg` showing every 2nd column, because Figma has
@@ -214,6 +216,26 @@ second one in code. Pol checks both in `pnpm dev`.
 - The hint text about the column count.
 - `SelectionOverlay`: it goes through `selection.ts`, so no logic changes are expected.
 - Every test that names `everyNth`.
+
+### Review
+- **The hint.** `controls/param-hints.ts` gained `SELECTION_PARAM_HINTS` and
+  `selectionParamHints`, in the same shape as the Source ones. Only `everyNth`'s `n` has words:
+  the count runs row after row, so with N = 3, 10 columns give diagonals and 9 give vertical
+  stripes. It sits on `n` because that is the param whose picture depends on the width. The
+  Selection step's `ParamFields` in `OperationBody.svelte` now gets `hints`, so the label reads
+  "*that text* Accepts *range*." Row/Column gets no hint, since its N is in its name.
+- **`SelectionOverlay`:** read and left unchanged. It calls the package's `selection()` (E8),
+  and its header ("`everyNth`'s remainder") is still true.
+- **Tests that name `everyNth`:** nothing left to do. Block 2 and the follow-up commit already
+  updated `affordance.test.ts` and `labels.test.ts`. `param-hints.test.ts` gained three tests for
+  the Selection map.
+- **Docs:** `editor/param-hints`, `editor/operation-body`.
+
+**Tests:** 682 + 646 = 1328 before, and 682 + 649 = 1331 after. `pnpm test`, `pnpm typecheck` and
+the docs build are green.
+
+**Not done here:** the manual check. In `pnpm dev`, hover Every Nth's N label, and confirm that
+n = 3 on 10 columns shows diagonals.
 
 ## Block 4: docs and release notes
 - The module pages under `apps/docs` that name `everyNth` (engine/selection(s), glossary,
