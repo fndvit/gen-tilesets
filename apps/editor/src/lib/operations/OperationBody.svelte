@@ -61,7 +61,7 @@
   import { isTileTarget } from "../../controls/mapping.js";
   import FieldPreview from "../../controls/FieldPreview.svelte";
   import { coverageOf, fieldCells } from "../../controls/palette.js";
-  import { sourceParamHints } from "../../controls/param-hints.js";
+  import { selectionParamHints, sourceParamHints } from "../../controls/param-hints.js";
   import NumericMappingControl from "../../controls/NumericMapping.svelte";
   import PaletteList from "../../controls/PaletteList.svelte";
   import ParamFields from "../../controls/ParamFields.svelte";
@@ -448,6 +448,7 @@
         <ParamFields
           {schema}
           values={draft.selectionParams}
+          hints={selectionParamHints(draft.selectionType)}
           onChange={(name, value) => (draft.selectionParams[name] = value)}
         />
       {/snippet}

@@ -165,8 +165,9 @@ is supplied per option, as an image (`src`) or as markup (an `artwork` snippet).
 and paper only, with 1px strokes.
 
 **Selection** glyphs are SVG files exported from Figma, in `src/assets/glyphs/selection/` (`all`,
-`checkered`, `every-nth`, `random`, `rect`, `handpick`): 4×4 cells, with 10px cells at an 11px
-pitch. All and Checkered were written by hand in the same geometry.
+`checkered`, `every-nth`, `row-column`, `random`, `rect`, `handpick`): 4×4 cells, with 10px cells
+at an 11px pitch. All, Checkered and Row/Column were written by hand in the same geometry; Figma has
+no Row/Column node (B-009).
 
 **Pattern** glyphs use the same 4×4 geometry, filled in four ink tints (paper with a 1px ink
 stroke, `--grey-300`, `--grey-500`, ink) to show what each pattern paints: Random is scattered,

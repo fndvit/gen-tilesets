@@ -134,8 +134,9 @@ it. `scrollbar-gutter: stable` on the page root fixes it.
 **An Operation that picks cells by hand fixes the grid's `rows` and `columns`.** `rect` and
 `cellList` hold literal cell coordinates, which mean something only in the grid they were drawn in.
 The rest of the shape can still change: `cellSize`, `bleed` and `yOffset` move no cell, so a file
-with a `rect` can still take them. `all`, `checkerboard`, `everyNth` and `random` are rules, and they
-hold at any size.
+with a `rect` can still take them. `all`, `checkerboard`, `everyNth`, `rowColumn` and `random` are
+rules, and they hold at any size. `everyNth` holds but *looks* different at another column count:
+it counts cells row after row, so with N = 3, 10 columns give diagonals and 9 give vertical stripes.
 
 This is checked everywhere it can go wrong:
 
