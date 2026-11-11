@@ -25,7 +25,7 @@ therefore said little about what each operation did. The card leads with the ans
    (`STEP_LABELS`, so the Source step reads "Pattern"), muted, then the answer in mono. A chip opens its step. The chips wrap rather than clip.
    Where the Pattern is random-based, a [Checkbox](/editor/ui-checkbox/) **Reseed on load** on a
    row of its own under the chips sets the flag without opening the card (batch 01, T-11, B-021;
-   a checkbox since batch 03 T-07, B-029, D-03 A). It sits at the card's left edge, its box under
+   a checkbox since batch 03 T-07, B-029, D-03 A), with the open card's hint (`RESEED_ON_LOAD_HINT`, B-024). It sits at the card's left edge, its box under
    the index square, so it is in the same place on every card and always has room for its label;
    the card is one line taller. It was a last chip (`role="switch"`, On / Off), which landed in a
    different place on each card. It is absent where the Pattern is not random-based, as in the

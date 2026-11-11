@@ -55,6 +55,7 @@
   import { thumbOf } from "../../controls/palette.js";
   import type { Step } from "../../draft.svelte.js";
   import { opening } from "../../opening.svelte.js";
+  import { RESEED_ON_LOAD_HINT } from "../../reseed.js";
   import Checkbox from "../ui/Checkbox.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import Menu from "../ui/Menu.svelte";
@@ -241,7 +242,12 @@
     </ul>
     {#if reseedOnLoad !== undefined && onReseedOnLoad}
       <div class="reseed">
-        <Checkbox label="Reseed on load" checked={reseedOnLoad} onChange={onReseedOnLoad} />
+        <Checkbox
+          label="Reseed on load"
+          hint={RESEED_ON_LOAD_HINT}
+          checked={reseedOnLoad}
+          onChange={onReseedOnLoad}
+        />
       </div>
     {/if}
   {/if}

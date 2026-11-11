@@ -97,7 +97,7 @@ label-only cell (**E9**). `chooseSource(name)` sets `sourceType` and
 resets `sourceParams` to defaults. When the registry marks the Source `stochastic`, a
 [Checkbox](/editor/ui-checkbox/) "Reseed on load" (batch 03 T-07, B-029: the closed card's
 control too, so one setting has one control) is bound to `draft.reseedOnLoad`, with the hint
-"Each page load draws this operation with a new seed. Saved with the operation." It sits at the
+`RESEED_ON_LOAD_HINT` from [reseed.ts](/editor/reseed/) (B-024), shared with the closed card. It sits at the
 fields' left edge, its hover wash hanging out by its padding (`.reseed`). It replaced an Off / On
 [Toggle](/editor/ui-toggle/) in a [FieldRow](/editor/ui-field-row/). The parameters and the
 checkbox share one options block, shown

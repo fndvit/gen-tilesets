@@ -78,6 +78,7 @@
   import { session } from "../../session.svelte.js";
   import { preview } from "../preview/view.svelte.js";
   import Button from "../ui/Button.svelte";
+  import { RESEED_ON_LOAD_HINT } from "../../reseed.js";
   import Checkbox from "../ui/Checkbox.svelte";
   import Explainer from "../ui/Explainer.svelte";
   import GlyphGrid from "../ui/GlyphGrid.svelte";
@@ -467,7 +468,7 @@
           <div class="reseed">
             <Checkbox
               label="Reseed on load"
-              hint="Each page load draws this operation with a new seed. Saved with the operation."
+              hint={RESEED_ON_LOAD_HINT}
               checked={draft.reseedOnLoad}
               onChange={(on) => (draft.reseedOnLoad = on)}
             />

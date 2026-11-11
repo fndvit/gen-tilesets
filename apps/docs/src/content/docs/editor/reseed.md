@@ -57,6 +57,7 @@ The fourth writes no field, so it lives in editor state and reaches `<Tileset>` 
 | `inertFlags(config)` | `(TilesetConfig) → Operation[]` | Operations flagged `reseedOnLoad` over a non-stochastic Source. |
 | `loadVaries(config)` | `(TilesetConfig) → boolean` | Whether a fresh `loadSalt` could change anything. |
 | `drawLoadSalt()` | `() → number` | `Math.floor(Math.random() * 2³²)` |
+| `RESEED_ON_LOAD_HINT` | `string` | The Reseed on load checkbox's hint, on both cards (B-024): what the flag does, and why the preview changes while it is ticked. |
 
 ### Inputs → outputs
 

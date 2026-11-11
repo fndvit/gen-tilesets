@@ -11,9 +11,7 @@ with `dropped: <reason>`.
 - **B-007** When adding a pattern to an operation, the user might want to re-use it for another one. I.e: the same noise function applied to a scale operation might be wanted for the rotation in another one. Allow different operations to use the same pattern as others;
 - **B-008** Currently we have Offset X & Y separated. Same with Scale. Instead, group them as a single attribute (Offset, Scale), and add X & Y as parameters inside the same attribute, so the user can choose to affect both at the same time, or just one of them;
 - **B-009** The ‘EveryNth’ selection does not work how I imagine it. For me ‘everyNth’ means that every N cells, a cell is selected, and changing a row does not reset that count. The current behaviour acts more as a ‘Row’ or ‘Column’ selection, which is fine to have, but with another name. This means: change the behaviour of everyNth so it works like it should, and create another selection for ‘Row/Column’;
-- **B-010** Bug: In an operation where we configure a constant tileId in a cell, after another operation that configures rotation, it looks like rotation affects the tileId even if the tileId operation comes after. TLDR: a rotation operation affects operations that go after it; — *Open: batch-01 T-07 (PR #20) only explains the behaviour in "How operations work"; the engine fix is T-12, not yet scheduled.*
 - **B-013** Bug: I have been able to scroll past the editor — *Open: batch-01 T-04 (PR #20) fixed the one case it reproduced (horizontal scroll from the "Preview size" hint at 660 px). No vertical scroll reproduced; needs the file or state it happened in.*
-- **B-024** Switching 'Reseed on load' on or off shouldn't reseed the preview, only set the parameter value. The user might not want to change the current tileset appearance;
 
 ## Done
 
@@ -33,6 +31,8 @@ with `dropped: <reason>`.
 - **B-021** Reseed on load from a closed card: batch-01 T-11, PR #20
 - **B-022** Chosen Toggle segment readable on hover: batch-01 review, 537507b
 - **B-023** Explainer opens where it fits: batch-02 T-03, PR #21
+- **B-010** Rotation carries into a later tileId operation: dropped: by design, each cell keeps what earlier operations wrote; the Operations explainer says so (batch-01 T-07, PR #20). Pol, 2026-11-11
+- **B-024** Switching Reseed on load seems to lose the picture: the checkbox hint says what the flag does and that unticking brings the picture back; engine unchanged (Pol, 2026-11-11)
 - **B-025** Tiles (i) explainer: batch-03 T-03, PR #25
 - **B-026** Randomness footer set apart by a gap and a hairline edge: batch-03 T-04, PR #25
 - **B-027** Scroll an opened operation into view: batch-03 T-06, PR #26

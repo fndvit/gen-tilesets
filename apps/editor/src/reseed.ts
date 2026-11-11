@@ -118,3 +118,17 @@ export function loadVaries(config: TilesetConfig): boolean {
 export function drawLoadSalt(): number {
   return Math.floor(Math.random() * SALT_MODULUS);
 }
+
+/**
+ * The Reseed on load checkbox's hint, on the closed card and in the open
+ * card's Pattern step (B-024): one setting, one explanation.
+ *
+ * Ticking it moves a flagged operation onto the load salt (`mixLoad`), so the
+ * picture changes at once and reads as "my tileset was re-randomised". It was
+ * not: unticking returns the same picture exactly. So the hint says that,
+ * rather than the engine changing (Pol, 2026-11-11). Rejected: making salt 0
+ * the identity in `mixLoad` (changes every flagged file's output and reverses
+ * `02` §6.7), a line always shown under the box, and a pushed notice.
+ */
+export const RESEED_ON_LOAD_HINT =
+  "When ticked, this operation gets a new random draw every time the page loads, so visitors see a different version on each visit. The preview then shows one of those versions; untick to get your original picture back.";
