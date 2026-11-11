@@ -60,7 +60,7 @@ Everything below is re-exported from `index.ts:138–163`.
 | [`Layout`](/api/index/interfaces/layout/) | interface | Renderer-only: `cellSize`, `referenceWidth`, `yOffset`, `horizontalAlignment`. |
 | [`Shape`](/api/index/interfaces/shape/) | interface | `rows`, `columns`, `cellSize`, `bleed`, `yOffset`. |
 | [`ResponsiveRule`](/api/index/interfaces/responsiverule/) | interface | `Partial<Shape>` plus `minWidth?`, `maxWidth?`. |
-| [`TilesetFile`](/api/index/interfaces/tilesetfile/) | interface | `{ schemaVersion: 4, engineVersion, config, layout, responsive? }`. |
+| [`TilesetFile`](/api/index/interfaces/tilesetfile/) | interface | `{ schemaVersion: 5, engineVersion, config, layout, responsive? }`. |
 
 ### Inputs → outputs
 
@@ -107,8 +107,9 @@ Field meanings the comments pin down:
   constrain evaluation order.
 - **`Extent` may lie outside the grid**, because a `rect` may, and clamping it would resize the
   author's rectangle and shift a gradient's midpoint.
-- **`schemaVersion` is the literal `4`.** Absent or unknown is a load failure. `migrate()` lifts 2
-  and 3 forward with nothing to rewrite (as the field comment states).
+- **`schemaVersion` is the literal `5`.** Absent or unknown is a load failure. `migrate()` lifts 1,
+  2 and 3 forward with nothing to rewrite, and 4 by renaming the old `everyNth` Selection
+  `rowColumn` (B-009), as the field comment states.
 
 ### Callers / callees
 

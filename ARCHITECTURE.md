@@ -108,7 +108,7 @@ rejected.
 | `mapping.ts` | Numeric and tile mapping — gives units to a Source's bare `[0,1]`. Both branches return `max` exactly at the top, and both have a `t = 1` boundary case since **X6** closed. |
 | `selection.ts` | `selection(config, operationId, …) → (x,y) => boolean`. Exists so the editor implements no Selection test (**E8**). |
 | `validate.ts` | Sixteen error codes, strict at every depth, never coerces. Separate from `generate()`, which trusts its input (**C5**). Walks `responsive` too: each rule's fields, `COORDINATE_BOUND_RESIZE`, and every band resolving to a box. |
-| `migrate.ts` | The v1 → v2 → v3 → v4 table and its walk. Runs **before** `validate()`, because rewriting a version is a coercion (`06` §9.2). |
+| `migrate.ts` | The v1 → v2 → v3 → v4 → v5 table and its walk; 4 → 5 is the first row that rewrites content (`everyNth` → `rowColumn`). Runs **before** `validate()`, because rewriting a version is a coercion (`06` §9.2). |
 | `dev.ts` | Development-build detection. A **provisional** answer to `08` Q3, which is still open. |
 | `registry/` | `registry.ts` (name → type, no public registration API), `sources.ts`, `selections.ts`, `blends.ts`. A Selection declares its `extent` here, beside `stochastic` and `coordinateBound`. |
 

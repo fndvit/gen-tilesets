@@ -6,7 +6,6 @@ highest ID ever used + 1. A finished item moves to **Done** as one line, e.g.
 `- **B-003** Grid button → On/off switch: batch-01 T-01, PR #NN`. A dropped item goes there too,
 with `dropped: <reason>`.
 
-- **B-005** Operations should have a unique color/index to be able to follow them on the stack more easily, even after re-organizing them;
 - **B-006** The relation between the ‘Grid and Size’ and ‘Breakpoints’ section is confusing even for me. We should re-think how do these 2 work, the user must understand better what creating a breakpoint mean and what it implies. This needs to be clearer. For example, some attributes on breakpoints like ‘cellSize’ seem to not affect the preview at all. Why is there a “Columns” field in breakpoints but not in Grid & Size? Once a breakpoint is created, it should be clear which view are we seeing at all times. This might mean reworking how the breakpoints sections is presented;
 - **B-007** When adding a pattern to an operation, the user might want to re-use it for another one. I.e: the same noise function applied to a scale operation might be wanted for the rotation in another one. Allow different operations to use the same pattern as others;
 - **B-008** Currently we have Offset X & Y separated. Same with Scale. Instead, group them as a single attribute (Offset, Scale), and add X & Y as parameters inside the same attribute, so the user can choose to affect both at the same time, or just one of them;
@@ -32,6 +31,7 @@ with `dropped: <reason>`.
 - **B-022** Chosen Toggle segment readable on hover: batch-01 review, 537507b
 - **B-023** Explainer opens where it fits: batch-02 T-03, PR #21
 - **B-010** Rotation carries into a later tileId operation: dropped: by design, each cell keeps what earlier operations wrote; the Operations explainer says so (batch-01 T-07, PR #20). Pol, 2026-11-11
+- **B-005** Unique colour/index per operation: dropped (Pol, 2026-11-11)
 - **B-024** Switching Reseed on load seems to lose the picture: the checkbox hint says what the flag does and that unticking brings the picture back; engine unchanged (Pol, 2026-11-11)
 - **B-025** Tiles (i) explainer: batch-03 T-03, PR #25
 - **B-026** Randomness footer set apart by a gap and a hairline edge: batch-03 T-04, PR #25

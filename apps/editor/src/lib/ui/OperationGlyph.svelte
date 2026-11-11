@@ -93,7 +93,7 @@
 
   /*
     No `overflow: hidden` here: `.t-console` trims the box to cap height, so
-    clipping would cut the descenders off "Every nth" and "Handpick".
+    clipping would cut the descenders off "Every Nth" and "Handpick".
   */
   .label {
     white-space: nowrap;

@@ -50,10 +50,21 @@ The table today:
 | 1 → 2 | "nothing to do — ADR-005 widened Operation.target and changed no key" | Sets `schemaVersion: 2`. |
 | 2 → 3 | "nothing to do — 0.7.0 added the optional `responsive` rules and changed no key" | Sets `schemaVersion: 3`. |
 | 3 → 4 | "nothing to do — 0.8.0 widened Operation.target with translateX/translateY and changed no key" | Sets `schemaVersion: 4`. |
+| 4 → 5 | "renamed the everyNth Selection to rowColumn — everyNth now counts cells row after row" | Sets `schemaVersion: 5` and rewrites `selection.type: "everyNth"` to `"rowColumn"` in every Operation, keeping every other key. |
 
-Every row is a no-op beyond the version number. The comments say why each bump still exists: so
-that an older engine meeting a file that *uses* the new feature refuses it by version rather than
-with an unknown key or an `OUT_OF_RANGE` target (cites **C2**).
+The first three rows are no-ops beyond the version number. The comments say why each bump still
+exists: so that an older engine meeting a file that *uses* the new feature refuses it by version
+rather than with an unknown key or an `OUT_OF_RANGE` target (cites **C2**).
+
+**4 → 5 is the first row that rewrites content** (B-009). The old `everyNth` (every nth column or
+row) became `rowColumn` with the same params and impl, and the name `everyNth` went to a new
+row-major count; the rename is what makes a v4 file draw exactly as it did. Because it runs before
+`validate()`, it assumes nothing: when `config` is not an object or `config.operations` is not an
+array only the version changes, and an Operation or selection that is not an object passes
+through as it is. Only `config.operations` is walked, because responsive rules hold no Operations.
+
+The cost it accepts: a config handed to `generate()` **without** `migrate()` that uses the old
+`everyNth` now draws with the new count.
 
 ### Inputs → outputs
 
@@ -104,13 +115,17 @@ Tests elsewhere that call it: `apps/editor/src/import.test.ts` (imports `migrate
 
 ### Tests: `migrate.test.ts`
 
-- A v1 file migrates through `[1,2]`, `[2,3]`, `[3,4]` in order, and the result equals the input
+- A v1 file migrates through `[1,2]`, `[2,3]`, `[3,4]`, `[4,5]` in order, and the result equals the input
   with only `schemaVersion` changed.
 - The migrated file validates clean. This is the "an old file opens" property.
 - The input object is not mutated.
 - A v1 file with an unrelated unknown key still migrates; `validate()` then reports exactly
   `UNKNOWN_KEY` at `/somethingElse`.
-- The v2 → v3 path adds no `responsive` key. The v3 → v4 path takes one step.
+- The v2 → v3 path adds no `responsive` key. The v3 path takes `[3,4]`, `[4,5]`.
+- The v4 → v5 path: a file with no `everyNth` changes only its version; an `everyNth` selection
+  becomes `rowColumn` with its params untouched; `generate()` on the migrated file matches a
+  hand-written grid of the old column rule, while the unmigrated config draws the new count; a
+  malformed `config`, `operations`, Operation or selection survives; the input is not mutated.
 - `current`, `newer` (with `declared`), and `unrecognized` for absent, `"2"`, `1.5`, `0`, `-3`,
   `null`, `[]` and `"{}"`.
 - The table is well-formed: adjacent (`to === from + 1`), contiguous, starts at 1, ends at

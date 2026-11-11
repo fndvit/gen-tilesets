@@ -76,7 +76,8 @@ The oracle is `generate()` itself: a one-entry palette painted with a `constant`
 cell non-null exactly when the Selection included it.
 
 - **Agreement** with `generate()` for every V1 preset: `all`, `rect`, `checkerboard` (both
-  parities), `everyNth` (column, and row with offset), `random`, and `cellList` with a duplicate.
+  parities), `rowColumn` (column, and row with offset), `everyNth` (row-major, with offset),
+  `random`, and `cellList` with a duplicate.
 - **Not vacuous:** a 3 × 4 `rect` selects exactly 12 cells and leaves some unselected.
 - **`random`** draws from the selection channel, not the Source channel; moves with the
   Operation's salt and with the seed.

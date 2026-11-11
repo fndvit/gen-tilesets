@@ -55,6 +55,7 @@
   import checkeredGlyph from "../../assets/glyphs/selection/checkered.svg";
   import everyNthGlyph from "../../assets/glyphs/selection/every-nth.svg";
   import handpickGlyph from "../../assets/glyphs/selection/handpick.svg";
+  import rowColumnGlyph from "../../assets/glyphs/selection/row-column.svg";
   import randomGlyph from "../../assets/glyphs/selection/random.svg";
   import rectGlyph from "../../assets/glyphs/selection/rect.svg";
   import { isTileTarget } from "../../controls/mapping.js";
@@ -116,11 +117,16 @@
   /**
    * Selection artwork, by registry name, in Figma's order. A name missing here
    * gets a label-only cell after these.
+   *
+   * `every-nth.svg` counts cells row after row with n = 3 (cells 0, 3, 6, …),
+   * which is the v5 `everyNth` (B-009). `row-column.svg` is hand-written, every
+   * 2nd column: Figma has no node for it.
    */
   const SELECTION_GLYPHS: Record<string, string> = {
     all: allGlyph,
     checkerboard: checkeredGlyph,
     everyNth: everyNthGlyph,
+    rowColumn: rowColumnGlyph,
     random: randomGlyph,
     rect: rectGlyph,
     cellList: handpickGlyph,

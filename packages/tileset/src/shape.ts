@@ -23,7 +23,10 @@
  * Because the data model is already size-independent everywhere except two
  * Selections. `registry/selections.ts` flags `rect` and `cellList`
  * `coordinateBound: true` — they hold literal cell coordinates — while `all`,
- * `checkerboard`, `everyNth` and `random` are rules and hold at any size. And
+ * `checkerboard`, `rowColumn`, `everyNth` and `random` are rules and hold at any
+ * size. `everyNth` holds but *looks* different at another column count: it
+ * counts cells row after row, so where each row's count starts moves with
+ * `columns`. And
  * randomness is addressed by `(x, y)` rather than drawn from a stream
  * (`hash.test.ts`, "is positional, not sequential"), so every cell present in both
  * grids keeps its TileState and its asset.

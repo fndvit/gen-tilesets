@@ -28,7 +28,7 @@ It is decoration only: `aria-hidden`, never focusable, and the pointer goes thro
 | `MOTIF_CELL` | 24: CSS px per tile. |
 | `MOTIF_MIN_ROWS` | 2: under this many whole rows of free space, nothing is drawn. |
 | `squareSrc(colour?)` | A flat square as an SVG data URL. It states `width`/`height` (64), because an SVG with only a `viewBox` has no intrinsic size and the canvas substrate could not decode it. |
-| `motifStyle(colour?, cell?)` | The decoration style: one tile, one `checkerboard` operation (procedural, so any size is legal). Nothing in it is random. |
+| `motifStyle(colour?, cell?)` | The decoration style: one tile, one `checkerboard` operation (procedural, so any size is legal). Nothing in it is random. Its `schemaVersion` is the package's `SCHEMA_VERSION`. |
 | `motifShape(width, height, cell?)` | Whole tiles that fit, `{ rows, columns }`, or `null` under `MOTIF_MIN_ROWS` rows or with no column. |
 
 The three constants are the whole look, at the top of the file, so Pol can tweak it.

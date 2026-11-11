@@ -119,8 +119,8 @@ returns no errors.
 
 ### Inputs → outputs
 
-**`newDocument()`.** It returns `schemaVersion: 4` (the comment says this is *4 since 0.8.0 added
-the translateX/translateY Targets*), `engineVersion: ENGINE_VERSION`, and a config with
+**`newDocument()`.** It returns `schemaVersion: SCHEMA_VERSION`, the engine's own constant, so a
+schema bump cannot leave a new document behind, `engineVersion: ENGINE_VERSION`, and a config with
 `rows: 5`, `columns: deriveColumns(1000, 100, "gutter")` = 10, a `memorableSeed()`,
 `assetSalt: 0`, `reseedAssetsOnLoad: false` and empty `tiles` and `operations`. The layout is
 `cellSize: 100`, `referenceWidth: 1000`, `yOffset: 0`, `horizontalAlignment: "gutter"`. That
@@ -212,7 +212,7 @@ Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseRefe
 
 ### Tests
 
-- **`document.test.ts`.** `newDocument` has `schemaVersion: 4`, empty tiles and operations, and
+- **`document.test.ts`.** `newDocument` has `schemaVersion: SCHEMA_VERSION`, empty tiles and operations, and
   actually validates. That matters because `<Tileset>` asserts validity in DEV. `columns` is
   10, even, and covers the width; there is no bleed and `yOffset` is 0; the optional fields are
   written explicitly; a fresh seed matches `/^[a-z]+-[a-z]+-\d{1,2}$/`. The three destructive

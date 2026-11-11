@@ -24,11 +24,12 @@ describe("labelFor", () => {
     expect(labelFor("tileId")).toBe("Tile");
     expect(labelFor("valueNoise")).toBe("Noise");
     expect(labelFor("rect")).toBe("Drag");
+    expect(labelFor("rowColumn")).toBe("Row/Column");
+    expect(labelFor("everyNth")).toBe("Every Nth");
   });
 
   it("puts any other name in sentence case, so a later registration still reads", () => {
     expect(labelFor("cellsPerFeature")).toBe("Cells per feature");
-    expect(labelFor("everyNth")).toBe("Every nth");
     expect(labelFor("scaleX")).toBe("Scale x");
   });
 });

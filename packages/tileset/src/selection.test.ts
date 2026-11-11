@@ -68,8 +68,9 @@ describe("selection — 09 §6.2, E8", () => {
     ["rect", { type: "rect", x: 2, y: 1, width: 3, height: 4 }],
     ["checkerboard parity 0", { type: "checkerboard", parity: 0 }],
     ["checkerboard parity 1", { type: "checkerboard", parity: 1 }],
-    ["everyNth column", { type: "everyNth", axis: "column", n: 3, offset: 0 }],
-    ["everyNth row, offset", { type: "everyNth", axis: "row", n: 2, offset: 1 }],
+    ["rowColumn column", { type: "rowColumn", axis: "column", n: 3, offset: 0 }],
+    ["rowColumn row, offset", { type: "rowColumn", axis: "row", n: 2, offset: 1 }],
+    ["everyNth, offset", { type: "everyNth", n: 3, offset: 1 }],
     ["random", { type: "random", density: 0.3 }],
     [
       "cellList",

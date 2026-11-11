@@ -12,7 +12,7 @@ sidebar:
 `labels.ts` turns the registry's names into words for the author, and builds the summary on
 each [operation header](/editor/operation-header/): one answer per step, each shown above that
 step's tab. The file and the code keep the registry names (`everyNth`, `cellList`, `scaleX`). The
-UI shows "Every nth", "Handpick", "Scale x". Joined in step order by ` * `, the answers read as one
+UI shows "Every Nth", "Handpick", "Scale x". Joined in step order by ` * `, the answers read as one
 line:
 
 ```text
@@ -40,11 +40,14 @@ All * Random * Tile [sand, clear] * Set
 
 ### Inputs → outputs
 
-- **`labelFor`.** Five names are fixed: `cellList` → "Handpick", `checkerboard` → "Checkered",
-  `rect` → "Drag" (it names the gesture that sets it), `tileId` → "Tile", `valueNoise` → "Noise".
+- **`labelFor`.** Six names are fixed: `cellList` → "Handpick", `checkerboard` → "Checkered",
+  `rect` → "Drag" (it names the gesture that sets it), `rowColumn` → "Row/Column" (sentence case
+  would read "Row column", one thing; the slash says it is one or the other, which its `axis`
+  picks), `everyNth` → "Every Nth" (Pol, B-009; sentence case would give "Every nth"),
+  `tileId` → "Tile", `valueNoise` → "Noise".
   Any other name is split before each capital that follows a lower-case letter or digit and put in
   sentence case, with no exceptions (Pol, N3):
-  `cellsPerFeature` → "Cells per feature", `everyNth` → "Every nth", `scaleX` → "Scale x".
+  `cellsPerFeature` → "Cells per feature", `scaleX` → "Scale x".
 - **`STEP_LABELS`.** Kept apart from `labelFor`'s fixed names on purpose: those map registry
   names, and a Source registered under the name `source` would otherwise read "Pattern".
 - **`summaryCells`.** `{ selection, source, attribute, blend }`, each through `labelFor` or

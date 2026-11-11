@@ -146,6 +146,7 @@ describe("E9 — totality over the actual registries", () => {
       "everyNth",
       "random",
       "rect",
+      "rowColumn",
     ]);
     // `04` §5.2 lists five Sources; `vignette` is not registered. Flagged as an
     // engine gap, not worked around -- when it lands, this line changes and the
