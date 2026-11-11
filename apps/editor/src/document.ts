@@ -37,6 +37,7 @@
  */
 
 import {
+  SCHEMA_VERSION,
   shapeOf,
   validate,
   type Layout,
@@ -124,9 +125,9 @@ const NEW_ALIGNMENT = "gutter" as const;
 
 export function newDocument(): TilesetFile {
   return {
-    // Required. Absent or unknown is a load failure (`06` **C2**). 4 since
-    // 0.8.0 added the `translateX`/`translateY` Targets.
-    schemaVersion: 4,
+    // Required. Absent or unknown is a load failure (`06` **C2**). The engine's
+    // own constant, so a schema bump cannot leave a new document behind.
+    schemaVersion: SCHEMA_VERSION,
     // Required, advisory, never validated against anything (`06` **C3**). E2
     // makes it truthful by construction.
     engineVersion: ENGINE_VERSION,

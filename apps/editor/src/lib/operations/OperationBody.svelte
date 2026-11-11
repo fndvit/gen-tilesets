@@ -116,11 +116,14 @@
   /**
    * Selection artwork, by registry name, in Figma's order. A name missing here
    * gets a label-only cell after these.
+   *
+   * `every-nth.svg` draws columns, which is `rowColumn` since schema v5 (B-009);
+   * the new `everyNth` has no artwork until Block 3, so it is label-only.
    */
   const SELECTION_GLYPHS: Record<string, string> = {
     all: allGlyph,
     checkerboard: checkeredGlyph,
-    everyNth: everyNthGlyph,
+    rowColumn: everyNthGlyph,
     random: randomGlyph,
     rect: rectGlyph,
     cellList: handpickGlyph,

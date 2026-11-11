@@ -44,7 +44,7 @@ Exported from the engine entry point (`index.ts:121–126`).
 | [`validate`](/api/index/functions/validate/) | `(file: unknown) → ValidationError[]` | Empty array means valid. Never throws on bad input. |
 | [`ValidationError`](/api/index/interfaces/validationerror/) | interface | `{ path, code, message }`. `path` is an RFC 6901 JSON Pointer. |
 | [`ErrorCode`](/api/index/type-aliases/errorcode/) | string union | The sixteen codes below. |
-| [`SCHEMA_VERSION`](/api/index/variables/schema_version/) | `4` | The one version this build knows. 4 since 0.8.0, 3 was 0.7.0, 2 was ADR-005 (per its doc comment). |
+| [`SCHEMA_VERSION`](/api/index/variables/schema_version/) | `5` | The one version this build knows. 5 since B-009 (`everyNth` renamed `rowColumn`), 4 was 0.8.0, 3 was 0.7.0, 2 was ADR-005 (per its doc comment). |
 
 **`message` is not part of the contract.** The source says to branch on `code`; matching on
 prose would make every reworded message a silent behaviour change in another package. A
@@ -239,7 +239,8 @@ an unknown Selection type is left to `validate()`), `apps/editor/src/document.te
   registered type; `meta` contents uninspected but `meta` itself must be an object; RFC 6901
   escaping.
 - **Parameters:** number bounds, enum, integer, a defaulted parameter absent, a required one
-  missing, `cellList` pairs.
+  missing, `cellList` pairs. `everyNth` with an `axis` is `UNKNOWN_KEY` at `…/selection/axis`:
+  `axis` is `rowColumn`'s parameter since schema v5.
 - **Mapping kind from target:** `palette` on an `opacity` mapping gives `UNKNOWN_KEY` +
   `MISSING_KEY` at the two expected paths; `steps: 1`; empty palette; unknown target.
 - **Salts:** fractional → `NOT_AN_INTEGER`; `-1` and `2³²` → `OUT_OF_RANGE`; `2³² − 1` valid.

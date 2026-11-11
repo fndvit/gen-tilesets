@@ -15,7 +15,7 @@ import {
   type Transition,
 } from "./document.js";
 import { parseCellSize, parseReferenceWidth, parseRows, parseYOffset } from "./fields.js";
-import { validate, type Operation, type TilesetConfig, type TilesetFile } from "@vit-foundation/gen-tilesets";
+import { SCHEMA_VERSION, validate, type Operation, type TilesetConfig, type TilesetFile } from "@vit-foundation/gen-tilesets";
 import { orphans } from "./orphans.js";
 
 const doc = () => newDocument();
@@ -27,7 +27,7 @@ const run = (...transitions: Transition[]) =>
 describe("newDocument — 08 §3.4's valid skeleton", () => {
   it("is a legal file with nothing in it — 06 §5", () => {
     const file = doc();
-    expect(file.schemaVersion).toBe(4);
+    expect(file.schemaVersion).toBe(SCHEMA_VERSION);
     expect(file.engineVersion).toEqual(expect.any(String));
     expect(file.config.tiles).toEqual([]);
     expect(file.config.operations).toEqual([]);

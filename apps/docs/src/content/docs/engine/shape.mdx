@@ -109,6 +109,10 @@ bound (`columns - bleed > 0`) depends on the resolved shape.
   host rules) and `<TileDecoration>` call it under `DEV` and throw; production does not.
 - **Read the registry flag, never a list of names.** The registry is open, and a list would
   silently classify a later Selection as reusable.
+- **Procedural holds, but may not look the same.** `all`, `checkerboard`, `rowColumn`, `everyNth`
+  and `random` hold at any size. `everyNth` counts cells row after row, so where each row's count
+  starts moves with `columns`: the same file at another column count draws a different pattern
+  (diagonals at 10 columns, stripes at 9, for n = 3). The module header says so.
 - **One statement of each field's domain.** `shapeFieldProblem` is read by `reshapeErrors`,
   `validate()` and `render/options.ts`, so they cannot disagree.
 - **`validate.ts` depends on this module, not the reverse,** which is why `shapeFieldProblem`'s

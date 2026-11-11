@@ -21,6 +21,9 @@ const NAMED: Record<string, string> = {
   cellList: "Handpick",
   checkerboard: "Checkered",
   rect: "Drag",
+  // Sentence case gives "Row column", which reads as one thing; the slash says
+  // it is one or the other, which is what its `axis` picks (B-009).
+  rowColumn: "Row/Column",
   tileId: "Tile",
   valueNoise: "Noise",
 };

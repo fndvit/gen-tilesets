@@ -24,6 +24,7 @@ describe("labelFor", () => {
     expect(labelFor("tileId")).toBe("Tile");
     expect(labelFor("valueNoise")).toBe("Noise");
     expect(labelFor("rect")).toBe("Drag");
+    expect(labelFor("rowColumn")).toBe("Row/Column");
   });
 
   it("puts any other name in sentence case, so a later registration still reads", () => {

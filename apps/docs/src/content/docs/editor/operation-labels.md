@@ -40,8 +40,10 @@ All * Random * Tile [sand, clear] * Set
 
 ### Inputs → outputs
 
-- **`labelFor`.** Five names are fixed: `cellList` → "Handpick", `checkerboard` → "Checkered",
-  `rect` → "Drag" (it names the gesture that sets it), `tileId` → "Tile", `valueNoise` → "Noise".
+- **`labelFor`.** Six names are fixed: `cellList` → "Handpick", `checkerboard` → "Checkered",
+  `rect` → "Drag" (it names the gesture that sets it), `rowColumn` → "Row/Column" (sentence case
+  would read "Row column", one thing; the slash says it is one or the other, which its `axis`
+  picks), `tileId` → "Tile", `valueNoise` → "Noise".
   Any other name is split before each capital that follows a lower-case letter or digit and put in
   sentence case, with no exceptions (Pol, N3):
   `cellsPerFeature` → "Cells per feature", `everyNth` → "Every nth", `scaleX` → "Scale x".

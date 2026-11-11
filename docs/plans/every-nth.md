@@ -27,7 +27,8 @@ described. The "every N cells, and a new row doesn't reset the count" selection 
 
 ## Block 2: engine and schema (handoff brief, for a fresh conversation)
 
-**Status:** planned 2026-11-11 and not started. Pol runs it in a new conversation. Before
+**Status:** built 2026-11-11 on `b-009-every-nth`; see Review below. Awaiting Pol's confirmation.
+It was planned to run in a new conversation. Before
 starting, read `CLAUDE.md`, `ARCHITECTURE.md` and Block 1 above. Don't re-ask Block 1's
 questions; they are answered.
 
@@ -153,12 +154,55 @@ passes.
 
 ### Review
 
-When the block is done, record its results under this heading:
-- what changed;
-- the test count before and after;
-- anything that went `BLOCKED:`.
-
 Pol confirms the block before Block 3 starts.
+
+**What changed**
+- Engine:
+  - `rowColumn` is registered with the old `everyNth`'s params, impl and comment, unchanged;
+  - `everyNth` is `(cy · columns + cx − offset) % n === 0`, with `n` and `offset` and no `axis`.
+    Its comment records the column-count dependence and the rejected design-width count.
+- Schema:
+  - `SCHEMA_VERSION` and `TilesetFile.schemaVersion` are 5;
+  - the `4 → 5` row renames `everyNth` → `rowColumn` in `config.operations`. It survives
+    malformed input and never mutates.
+  - `types.ts` confirmed that Operations live nowhere else.
+- `shape.ts` header: `rowColumn` holds at any size; `everyNth` holds, but looks different at
+  another column count.
+- Editor:
+  - `document.ts` and `motif.ts` read `SCHEMA_VERSION` instead of a literal, so the number lives
+    in one place;
+  - the `every-nth.svg` glyph moved to `rowColumn`, and `everyNth` is label-only;
+  - `labels.ts` gained `rowColumn` → "Row/Column".
+- `validate()` rejects unknown params, so `everyNth` with an `axis` is `UNKNOWN_KEY`, and a test
+  pins it.
+- Editor tests that hard-coded `schemaVersion` 4 or the `[1, 2, 3]` migration steps
+  (`document`, `export`, `import`) now read `SCHEMA_VERSION`, or gained the step.
+- Docs:
+  - `engine/`: `selections`, `migrate`, `selection`, `shape`, `validate`, `types`, `load`
+    (version);
+  - `editor/`: `operation-body`, `operation-labels`, `document`, `sidebar-motif`, `starters`;
+  - `ARCHITECTURE.md`'s migrate row.
+
+**Tests:** 671 + 644 = 1315 before, and 682 + 646 = 1328 after. `pnpm test`, `pnpm typecheck` and
+the docs build are green.
+
+**One departure from the brief: the editor templates went to v5.** `starters.test.ts` asserts
+that every template's `schemaVersion === SCHEMA_VERSION`, with the message "needs migrating". So
+`apps/editor/public/templates/{collage,mosaic}/tileset.json` cannot stay at v4. Neither has an
+`everyNth`, so the 4 → 5 row changes only the version, and that one-line diff is the whole
+change.
+
+The other fixtures all load through `loadTilesetFile`, which migrates first, so they stay old
+and still prove migration on load:
+- the demo's `kelp`, `readme` and `atlas` (v2);
+- the docs' `basic.json`;
+- the demo's inline literals.
+
+**Not done here:** the manual editor check (n=3 on 10 columns showing diagonals; an old
+`everyNth` import drawing the same picture as a Row/Column card). The migration test pins the
+second one in code. Pol checks both in `pnpm dev`.
+
+**BLOCKED:** none.
 
 ## Block 3: editor
 - `labels.ts`: "Row/Column" for `rowColumn`, "Every nth" for `everyNth`.

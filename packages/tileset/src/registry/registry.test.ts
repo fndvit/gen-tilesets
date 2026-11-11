@@ -45,7 +45,7 @@ describe("the registry — 05 §5", () => {
 describe("Selection presets — 04 §4.2", () => {
   it("registers exactly the six V1 presets", () => {
     expect(selections.names().sort()).toEqual(
-      ["all", "cellList", "checkerboard", "everyNth", "random", "rect"].sort(),
+      ["all", "cellList", "checkerboard", "everyNth", "random", "rect", "rowColumn"].sort(),
     );
   });
 
@@ -87,8 +87,8 @@ describe("Selection presets — 04 §4.2", () => {
       for (let x = 0; x < 20; x++) expect((x + y) % 2).toBeGreaterThanOrEqual(0);
   });
 
-  it("everyNth: (coord - offset) mod n == 0, on either axis", () => {
-    const n = selections.get("everyNth");
+  it("rowColumn: (coord - offset) mod n == 0, on either axis", () => {
+    const n = selections.get("rowColumn");
     const col = { axis: "column", n: 3, offset: 0 };
     expect(n.impl(col, 0, 5, ctx())).toBe(true);
     expect(n.impl(col, 3, 5, ctx())).toBe(true);
@@ -99,21 +99,54 @@ describe("Selection presets — 04 §4.2", () => {
     expect(n.impl(row, 5, 2, ctx())).toBe(false);
   });
 
-  it("everyNth: a positive offset making the operand negative is fine — 06 Q11", () => {
+  it("rowColumn: a positive offset making the operand negative is fine — 06 Q11", () => {
     // JS `%` is a remainder, but a remainder is zero exactly when the divisor
     // divides the dividend, so `a % n === 0` and `a mod n === 0` agree for every
     // integer a — including where coord - offset is negative, since -0 === 0.
-    const n = selections.get("everyNth");
+    const n = selections.get("rowColumn");
     const p = { axis: "column", n: 4, offset: 8 };
     expect(n.impl(p, 0, 0, ctx())).toBe(true); // (0 - 8) % 4 === -0
     expect(n.impl(p, 4, 0, ctx())).toBe(true);
     expect(n.impl(p, 2, 0, ctx())).toBe(false);
   });
 
-  it("everyNth: defaults offset to 0 when absent — 06 §5.1", () => {
-    const n = selections.get("everyNth");
+  it("rowColumn: defaults offset to 0 when absent — 06 §5.1", () => {
+    const n = selections.get("rowColumn");
     expect(n.impl({ axis: "column", n: 2 }, 0, 0, ctx())).toBe(true);
     expect(n.impl({ axis: "column", n: 2 }, 1, 0, ctx())).toBe(false);
+  });
+
+  it("everyNth: counts row-major, carrying the count across a row boundary", () => {
+    // 4 columns, n = 3: cell indices 0, 3, 6, 9 — (0,0), (3,0), (2,1), (1,2).
+    // `rowColumn` would have restarted at the start of row 1 and picked (0,1).
+    const n = selections.get("everyNth");
+    const c = ctx({ columns: 4 });
+    const p = { n: 3, offset: 0 };
+    for (const [x, y] of [[0, 0], [3, 0], [2, 1], [1, 2]]) expect(n.impl(p, x!, y!, c), `${x},${y}`).toBe(true);
+    for (const [x, y] of [[1, 0], [0, 1], [3, 1]]) expect(n.impl(p, x!, y!, c), `${x},${y}`).toBe(false);
+  });
+
+  it("everyNth: an offset larger than the cell index is fine — the test is against zero", () => {
+    const n = selections.get("everyNth");
+    const c = ctx({ columns: 4 });
+    const p = { n: 3, offset: 7 };
+    expect(n.impl(p, 1, 0, c)).toBe(true); // (1 - 7) % 3 === -0
+    expect(n.impl(p, 0, 1, c)).toBe(true); // index 4: (4 - 7) % 3 === -0
+    expect(n.impl(p, 0, 0, c)).toBe(false);
+    expect(n.impl(p, 3, 1, c)).toBe(true); // index 7
+  });
+
+  it("everyNth: defaults offset to 0 when absent — 06 §5.1", () => {
+    const n = selections.get("everyNth");
+    const c = ctx({ columns: 4 });
+    expect(n.impl({ n: 2 }, 0, 0, c)).toBe(true);
+    expect(n.impl({ n: 2 }, 1, 0, c)).toBe(false);
+  });
+
+  it("everyNth: n = 1 selects every cell", () => {
+    const n = selections.get("everyNth");
+    const c = ctx({ columns: 5, rows: 3 });
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 5; x++) expect(n.impl({ n: 1, offset: 2 }, x, y, c)).toBe(true);
   });
 
   it("random: draws from the selection channel, not the source channel — O3", () => {
@@ -220,7 +253,7 @@ describe("Selection presets — 04 §4.2", () => {
     // This is the claim that their output moves only by the endpoint fix, never
     // by the selection-relative domain. A Selection defined by a rule has no
     // bounds to declare.
-    for (const name of ["all", "checkerboard", "everyNth", "random"]) {
+    for (const name of ["all", "checkerboard", "rowColumn", "everyNth", "random"]) {
       expect(selections.get(name).extent, name).toBeUndefined();
     }
     // And the coordinate-bound ones do declare one -- the same split 04 §4.4's

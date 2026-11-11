@@ -17,7 +17,7 @@
  * one-off artwork).
  */
 
-import type { TilesetFile } from "@vit-foundation/gen-tilesets";
+import { SCHEMA_VERSION, type TilesetFile } from "@vit-foundation/gen-tilesets";
 
 /** `--grey-200` (#e2e2e2): one step off the sidebar's `--grey-100` ground. */
 export const MOTIF_COLOUR = "#e2e2e2";
@@ -50,7 +50,7 @@ export function squareSrc(colour: string = MOTIF_COLOUR): string {
  */
 export function motifStyle(colour: string = MOTIF_COLOUR, cell: number = MOTIF_CELL): TilesetFile {
   return {
-    schemaVersion: 4,
+    schemaVersion: SCHEMA_VERSION,
     engineVersion: "0.0.0",
     layout: { cellSize: cell, referenceWidth: 2 * cell, yOffset: 0, horizontalAlignment: "gutter" },
     config: {

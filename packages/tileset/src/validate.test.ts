@@ -336,7 +336,7 @@ describe("parameters — 06 §7.4", () => {
     expect(
       codes(
         broken(
-          (f) => (f.config.operations[0].selection = { type: "everyNth", axis: "row", n: 2.5 }),
+          (f) => (f.config.operations[0].selection = { type: "rowColumn", axis: "row", n: 2.5 }),
         ),
       ),
     ).toEqual(["NOT_AN_INTEGER"]);
@@ -346,9 +346,20 @@ describe("parameters — 06 §7.4", () => {
   it("accepts a parameter absent where the registry declares a default", () => {
     expect(
       validate(
-        broken((f) => (f.config.operations[0].selection = { type: "everyNth", axis: "row", n: 2 })),
+        broken((f) => (f.config.operations[0].selection = { type: "rowColumn", axis: "row", n: 2 })),
       ),
     ).toEqual([]);
+  });
+
+  /**
+   * B-009: `everyNth` lost `axis` when the old rule became `rowColumn`. A v5 file
+   * that still carries one was hand-edited half way, and is refused rather than
+   * silently drawn with the new count.
+   */
+  it("rejects everyNth with an axis — it is rowColumn's parameter", () => {
+    const f = broken((f) => (f.config.operations[0].selection = { type: "everyNth", axis: "column", n: 3 }));
+    expect(codes(f)).toEqual(["UNKNOWN_KEY"]);
+    expect(paths(f)).toEqual(["/config/operations/0/selection/axis"]);
   });
 
   it("requires a parameter with no declared default", () => {

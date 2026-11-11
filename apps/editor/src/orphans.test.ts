@@ -57,7 +57,7 @@ describe("E12 — confirmation only where something is at risk", () => {
     const c = config([
       op("a", { type: "all" }),
       op("b", { type: "checkerboard", parity: 0 }),
-      op("c", { type: "everyNth", axis: "column", n: 3, offset: 0 }),
+      op("c", { type: "rowColumn", axis: "column", n: 3, offset: 0 }),
       op("d", { type: "random", density: 0.5 }),
     ]);
     expect(atRisk(c)).toEqual([]);

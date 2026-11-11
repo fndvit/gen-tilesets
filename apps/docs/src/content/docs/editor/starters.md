@@ -38,7 +38,7 @@ apps/editor/public/
     thumb.webp              192 × 120, the template's picture
     thumbs/tN-aN.webp       104 × 104, one per gallery picture of Collage's
   templates/mosaic/
-    tileset.json            the template, in export layout (from Pol, already schemaVersion 4)
+    tileset.json            the template, in export layout (from Pol, at schemaVersion 4; now 5)
     tiles/tN/aN.svg|png     16 assets
     thumb.webp              192 × 120
   gallery/shapes/
@@ -48,7 +48,9 @@ apps/editor/public/
 
 Collage comes from `../tileset-files/picsBackground`. Its `tileset.json` was migrated with the
 package's own `migrate()` (2 → 4, which changed only `schemaVersion`). No version number was
-written by hand (**E2**). It has 6 tile groups, 21 pictures and 5 operations.
+written by hand (**E2**). Both templates then went 4 → 5 (B-009). That row renames an `everyNth`
+Selection, and neither template has one, so it too changed only `schemaVersion`.
+`starters.test.ts` requires every template to be at `SCHEMA_VERSION`. It has 6 tile groups, 21 pictures and 5 operations.
 
 Collage's gallery entries point into its files rather than copying them. The manifest is what
 keeps the two apart: the shapes' entries point at `gallery/shapes/` instead.

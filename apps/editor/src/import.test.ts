@@ -8,7 +8,7 @@
  * prevent.
  */
 
-import { migrate, validate, type TilesetFile } from "@vit-foundation/gen-tilesets";
+import { migrate, SCHEMA_VERSION, validate, type TilesetFile } from "@vit-foundation/gen-tilesets";
 import { unzipSync, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { newDocument } from "./document.js";
@@ -180,7 +180,7 @@ describe("the import path, end to end through a zip", () => {
    */
   it("opens a v1 archive by migrating it", () => {
     const file = withAssets();
-    const { file: read, assets, missing } = readArchive(zipOf(file, 1 as 4));
+    const { file: read, assets, missing } = readArchive(zipOf(file, 1 as typeof SCHEMA_VERSION));
 
     const outcome = migrate(read);
     expect(outcome.kind).toBe("migrated");
@@ -195,8 +195,9 @@ describe("the import path, end to end through a zip", () => {
 
   /** §12.4's case, and the only one that should say *update the editor*. */
   it("refuses a newer archive without migrating it", () => {
-    const { file: read } = readArchive(zipOf(withAssets(), 5 as 4));
-    expect(migrate(read)).toEqual({ kind: "newer", declared: 5 });
+    const newer = SCHEMA_VERSION + 1;
+    const { file: read } = readArchive(zipOf(withAssets(), newer as typeof SCHEMA_VERSION));
+    expect(migrate(read)).toEqual({ kind: "newer", declared: newer });
   });
 
   /**
@@ -251,7 +252,7 @@ describe("prepareArchive", () => {
     expect(prepared.kind).toBe("ready");
     if (prepared.kind !== "ready") return;
     expect(prepared.file).toEqual(file);
-    expect(prepared.upgrades.map((step) => step.from)).toEqual([1, 2, 3]);
+    expect(prepared.upgrades.map((step) => step.from)).toEqual([1, 2, 3, 4]);
   });
 
   it("refuses a newer archive before validating it", () => {

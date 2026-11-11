@@ -70,8 +70,10 @@ key. The body's own gap is `--space-6` (12px).
 #### Selection
 
 `selectionItems` is every `selections.all()` registration, labelled by `labelFor`, sorted into
-Figma's order (`all`, `checkerboard`, `everyNth`, `random`, `rect`, `cellList`), with its `.svg`
-glyph as `src`. A name with no artwork gets a label-only cell after these. A
+Figma's order (`all`, `checkerboard`, `rowColumn`, `random`, `rect`, `cellList`), with its `.svg`
+glyph as `src`. A name with no artwork gets a label-only cell after these. `every-nth.svg` draws
+columns, so it belongs to `rowColumn` since schema v5 (B-009); the new `everyNth` is label-only
+until its artwork lands. A
 **coordinate-bound** Selection is disabled while any breakpoint names `rows` or `columns`
 (`resizedBy`), because `document.ts` would refuse the commit (`COORDINATE_BOUND_RESIZE`). The hint
 then reads "Handpick holds literal cells, and breakpoint N changes rows or columns."

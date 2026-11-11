@@ -204,11 +204,11 @@ describe("completeness — E5's gate before anything reaches the file", () => {
 
   it("builds an Operation whose parameters are spread siblings of `type` — 06 §7.1", () => {
     const draft = filled();
-    draft.selectionType = "everyNth";
+    draft.selectionType = "rowColumn";
     draft.selectionParams = { axis: "column", n: 3, offset: 0 };
     retarget(draft, "scaleX");
     const op = toOperation(draft)!;
-    expect(op.selection).toEqual({ type: "everyNth", axis: "column", n: 3, offset: 0 });
+    expect(op.selection).toEqual({ type: "rowColumn", axis: "column", n: 3, offset: 0 });
     expect(op.id).toBe("op1");
     expect(op.mapping).toEqual({ range: [1, 1] });
   });
