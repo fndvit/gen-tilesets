@@ -27,7 +27,7 @@ described. The "every N cells, and a new row doesn't reset the count" selection 
 
 ## Block 2: engine and schema (handoff brief, for a fresh conversation)
 
-**Status:** built 2026-11-11 on `b-009-every-nth`; see Review below. Awaiting Pol's confirmation.
+**Status:** built 2026-11-11 on `b-009-every-nth`; see Review below. Confirmed by Pol and merged (PR #27).
 It was planned to run in a new conversation. Before
 starting, read `CLAUDE.md`, `ARCHITECTURE.md` and Block 1 above. Don't re-ask Block 1's
 questions; they are answered.
@@ -208,7 +208,7 @@ second one in code. Pol checks both in `pnpm dev`.
 
 ## Block 3: editor
 **Status:** built 2026-11-11 on `b-009-blocks-3-4`, which carries Block 4 too (Pol: one PR for
-both). Awaiting Pol's confirmation.
+both). Confirmed by Pol and merged (PR #28), 2026-11-11.
 - Done (Pol, after Block 2): `labels.ts` names `everyNth` "Every Nth", overriding N3's sentence
   case. `every-nth.svg` goes back to `everyNth`, since it already draws the row-major count.
   `rowColumn` gets a new hand-written `row-column.svg` showing every 2nd column, because Figma has
@@ -234,12 +234,12 @@ both). Awaiting Pol's confirmation.
 **Tests:** 682 + 646 = 1328 before, and 682 + 649 = 1331 after. `pnpm test`, `pnpm typecheck` and
 the docs build are green.
 
-**Not done here:** the manual check. In `pnpm dev`, hover Every Nth's N label, and confirm that
-n = 3 on 10 columns shows diagonals.
+**Manual check:** confirmed by Pol, 2026-11-11. Every Nth's N label shows the hint, and n = 3 on
+10 columns shows diagonals.
 
 ## Block 4: docs and release notes
-**Status:** built 2026-11-11 on `b-009-blocks-3-4`, in the same PR as Block 3. Awaiting Pol's
-confirmation.
+**Status:** built 2026-11-11 on `b-009-blocks-3-4`, in the same PR as Block 3. Confirmed by Pol
+and merged (PR #28). The change entry is `docs/changes/b-009/every-nth.md` (PR #29).
 - The module pages under `apps/docs` that name `everyNth` (engine/selection(s), glossary,
   responsive guide, editor pages, stories), plus `DESIGN_SYSTEM.md`.
 - CHANGELOG and the version bump happen at release, not in a task.
