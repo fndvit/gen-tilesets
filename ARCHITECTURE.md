@@ -110,7 +110,7 @@ rejected.
 | `validate.ts` | Sixteen error codes, strict at every depth, never coerces. Separate from `generate()`, which trusts its input (**C5**). Walks `responsive` too: each rule's fields, `COORDINATE_BOUND_RESIZE`, and every band resolving to a box. |
 | `migrate.ts` | The v1 → v2 → v3 → v4 → v5 → v6 table and its walk; 4 → 5 is the first row that rewrites content (`everyNth` → `rowColumn`); 5 → 6 (B-033) wraps each Operation's `selection` in a list, since a selection is a list of layers. Runs **before** `validate()`, because rewriting a version is a coercion (`06` §9.2). |
 | `dev.ts` | Development-build detection. A **provisional** answer to `08` Q3, which is still open. |
-| `registry/` | `registry.ts` (name → type, no public registration API), `sources.ts`, `selections.ts`, `blends.ts`. A Selection declares its `extent` here, beside `stochastic` and `coordinateBound`. |
+| `registry/` | `registry.ts` (name → type, no public registration API), `sources.ts`, `selections.ts`, `blends.ts`. A Selection declares `coordinateBound` and, optionally, its `extent` here. `stochastic` is declared only by Sources (`sources.ts`, **X5**). The `random` Selection does depend on the seed, but it declares nothing: the editor finds it by name (`draft.svelte.ts` `shiftsScatter`). |
 
 **`vignette` is registered nowhere on purpose.** `04` §5.2 lists five Sources and specifies
 four; implementing it would mean coining a formula in code, which `04` §5.3 rejects. See the
