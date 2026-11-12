@@ -50,7 +50,7 @@ Pol chose the accordion over a chip strip on 2026-11-12.
   `defaultParams(schema)`, so the fields show what the file will contain. A type with parameters
   gets [ParamFields](/editor/param-fields/) with `selectionParamHints(type)` in `options(type, …)`.
 - **Add** ([AddBar](/editor/ui-add-bar/), `bar`) calls `addLayer(draft)`: an untyped layer, last,
-  open. The overlay keeps the typed layers. Save stays off until it has a type, and its hint
+  open. The picture and the overlay keep the typed layers. Save stays off until it has a type, and its hint
   names the layer.
 - **Remove** calls `removeLayer(draft, i)`, waits a `tick`, and moves focus to the header of the
   row now open, or to the Add row once a single layer is left and the rows are gone. The pressed ×

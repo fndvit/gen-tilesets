@@ -371,6 +371,37 @@ describe("selection layers (B-033)", () => {
   it("has no shadow until some layer has a type", () => {
     expect(toShadowOperation(newDraft("op1"))).toBeNull();
   });
+
+  // Block 3 fix (Pol, 2026-11-12): adding a layer dropped the draft from the
+  // preview, so the earlier layers looked lost. The picture keeps the typed ones.
+  describe("the live picture with an untyped layer", () => {
+    const file = { ...newDocument(), config: { ...newDocument().config, operations: [numeric, tileTargeted] } };
+
+    it("draws the typed layers, while Save still refuses", () => {
+      const draft = fromOperation({ ...layered, id: "op1" });
+      draft.layers.push({ type: null, params: {} });
+      const drawn = draftFile(file, draft)!;
+      expect(drawn).not.toBeNull();
+      expect(drawn.config.operations.at(-1)!.selection).toEqual(layered.selection);
+      expect(toOperation(draft)).toBeNull();
+      expect(isComplete(draft)).toBe(false);
+    });
+
+    it("is null when the only layer is untyped", () => {
+      const draft = fromOperation({ ...layered, id: "op1" });
+      draft.layers = [{ type: null, params: {} }];
+      expect(draftFile(file, draft)).toBeNull();
+    });
+
+    it("replaces an edit-draft in place, with the typed layers", () => {
+      const edited = fromOperation(layered);
+      edited.layers.push({ type: null, params: {} });
+      const ops = draftFile({ ...file, config: { ...file.config, operations: [layered, tileTargeted] } }, edited)!
+        .config.operations;
+      expect(ops.map((o) => o.id)).toEqual([layered.id, "op9"]);
+      expect(ops[0]!.selection).toEqual(layered.selection);
+    });
+  });
 });
 
 describe("adding, removing and opening layers (B-033, Block 3)", () => {

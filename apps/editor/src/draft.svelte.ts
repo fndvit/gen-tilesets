@@ -164,8 +164,8 @@ export function activeLayer(draft: Draft): DraftLayer {
  * Untyped rather than a copy of the open layer: no Selection type has a
  * default anywhere (`DECISIONS.md` D7), and a copy would select exactly the
  * same cells, so the new layer would add nothing until changed. The draft is
- * incomplete until the author picks a type (`isComplete`); the overlay keeps
- * the typed layers meanwhile (`toShadowOperation`).
+ * incomplete until the author picks a type (`isComplete`); the overlay and the
+ * live picture keep the typed layers meanwhile (`toShadowOperation`, `draftFile`).
  */
 export function addLayer(draft: Draft): void {
   draft.layers.push({ type: null, params: {} });
@@ -215,9 +215,26 @@ export function shiftsScatter(draft: Draft, i: number): boolean {
   return draft.layers.slice(i + 1).some((layer) => layer.type === "random");
 }
 
-/** The layers that have a type, as the Selections they denote. */
+/**
+ * The layers that have a type, as the Selections they denote.
+ *
+ * The one rule the overlay (`toShadowOperation`) and the live picture
+ * (`draftFile`, through `typedOnly`) share: an untyped layer is left out, not
+ * a reason to draw nothing.
+ */
 function typedLayers(draft: Draft): Selection[] {
   return draft.layers.flatMap((layer) => (layer.type === null ? [] : [{ type: layer.type, ...layer.params }]));
+}
+
+/**
+ * The draft with its untyped layers dropped, for `draftFile`; the draft itself
+ * when every layer is typed. `activeLayer` is reset because the indices moved,
+ * and nothing that reads this copy looks at it. Not for Save: `toOperation` on
+ * the real draft still refuses an untyped layer.
+ */
+function typedOnly(draft: Draft): Draft {
+  if (draft.layers.every((layer) => layer.type !== null)) return draft;
+  return { ...draft, layers: draft.layers.filter((layer) => layer.type !== null), activeLayer: 0 };
 }
 
 export function newDraft(id: string): Draft {
@@ -430,6 +447,15 @@ function withOperation(config: TilesetConfig, operation: Operation): TilesetConf
  * draft**): `file` with `toOperation(draft)` in it, by `withOperation`'s rule,
  * or `null` while the draft cannot paint (`isComplete`).
  *
+ * **Untyped layers are left out of the picture** (B-033, Block 3 fix), the
+ * same rule `toShadowOperation` applies to the overlay: a layer just added
+ * selects nothing yet. Rejected: refusing the whole draft while any layer is
+ * untyped, which is what `isComplete` alone does. Then "+ Add selection layer"
+ * dropped the draft from the preview, and the earlier layers looked lost
+ * (Pol, 2026-11-12). Save stays strict: `toOperation` and `isComplete` still
+ * refuse an untyped layer, because the file holds only legal Operations (**E5**).
+ * With no typed layer at all there is nothing to draw, so that is `null`.
+ *
  * Built from `toOperation`, not from the shadow, on purpose: the shadow carries
  * placeholders for the steps not answered yet, and `toOperation` is exactly
  * what Save commits, so the live picture is the saved one (Constant's one
@@ -441,7 +467,9 @@ function withOperation(config: TilesetConfig, operation: Operation): TilesetConf
  * lets App measure the preview's shape from the saved file (`shapedAt`).
  */
 export function draftFile(file: TilesetFile, draft: Draft): TilesetFile | null {
-  const operation = toOperation(draft);
+  const typed = typedOnly(draft);
+  if (typed.layers.length === 0) return null;
+  const operation = toOperation(typed);
   if (operation === null) return null;
   return { ...file, config: withOperation(file.config, operation) };
 }

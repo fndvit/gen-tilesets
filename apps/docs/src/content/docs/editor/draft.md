@@ -64,7 +64,7 @@ returns non-`null`.
 | `mappingOf(draft)` | `(Draft) → Operation["mapping"]` | `{ palette }` for a tile Target, else `numeric`. Under `constant`, a one-entry palette. |
 | `toShadowOperation(draft)` | `(Draft) → Operation \| null` | An Operation that `selection()` can resolve, for the overlay, carrying the draft's Pattern for the palette's coverage. |
 | `shadowConfig(config, draft)` | `(TilesetConfig, Draft) → { operationId, config } \| null` | The config with the shadow Operation in it, replaced by id or appended. Shared by the overlay and the coverage. |
-| `draftFile(file, draft)` | `(TilesetFile, Draft) → TilesetFile \| null` | The file with `toOperation(draft)` in it, replaced by id or appended; `null` while incomplete. What the preview draws while a draft is open (item 12). |
+| `draftFile(file, draft)` | `(TilesetFile, Draft) → TilesetFile \| null` | The file with `toOperation` of the draft's typed layers in it, replaced by id or appended; `null` while that is incomplete or no layer is typed. What the preview draws while a draft is open (item 12). |
 | `fromOperation(op)` | `(Operation) → Draft` | Reopens an Operation as an edit-draft. |
 | `toOperation(draft)` | `(Draft) → Operation \| null` | The committed Operation, or `null` if incomplete. |
 | `draftDiffers(draft, op)` | `(Draft, Operation \| null) → boolean` | Whether discarding the draft would lose anything. `op` is the stored Operation for an edit-draft, `null` for a create-draft. |
@@ -120,8 +120,12 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
   the shadow Operation replacing the one with its id (an edit-draft) or appended (a create-draft).
   Replacing matters: `selection()` resolves by id and would find the unedited Operation first.
   The replace-or-append rule is one private function, `withOperation`, shared with `draftFile`.
-- **`draftFile(file, draft)`.** `null` unless `isComplete(draft)`; otherwise a new file whose
-  config has `toOperation(draft)` in it by the same rule. Built from `toOperation`, not from the
+- **`draftFile(file, draft)`.** Untyped layers are left out first, the same rule the overlay
+  uses: a layer just added selects nothing yet, and dropping the whole draft made the earlier
+  layers look lost (Pol, Block 3 fix). `null` if no layer is typed or the rest is incomplete;
+  otherwise a new file whose config has `toOperation` of those layers in it by the same rule.
+  Save stays strict: `isComplete` and `toOperation` on the draft itself still refuse an untyped
+  layer. Built from `toOperation`, not from the
   shadow, so the live picture is exactly what Save commits (Constant's one entry included). It
   never writes to `file` (**E3**).
 - **`fromOperation(op)`.** It un-spreads `type` from each selection layer and from `source`. The
@@ -213,7 +217,9 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
   pushing into a reopened layer's `cells`, editing a cell in it, or changing a layer's `density`
   leaves the source Operation untouched; a write through `activeLayer(draft)` lands in
   `draft.layers`; a draft with an untyped layer is incomplete and `toOperation` is `null`, while
-  `toShadowOperation` still carries the typed layers; a new draft has no shadow.
+  `toShadowOperation` still carries the typed layers; a new draft has no shadow. With an untyped
+  layer appended, `draftFile` still draws the typed layers (while `toOperation` stays `null`), is
+  `null` when the only layer is untyped, and replaces an edit-draft in place.
   **Adding, removing and opening layers (Block 3):** an added layer is untyped, last and open;
   the last layer is never removed, nor an index out of range; removing the open layer opens the
   previous one, or the new first; removing an earlier layer keeps the same layer open, and a later

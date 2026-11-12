@@ -455,6 +455,18 @@ Block 4 starts. **Block 2's manual check is still open too.**
 drawing edits only the open layer. The Drag/Handpick gestures swap as rows open. An export of a
 two-layer operation has a two-item `selection`.
 
+### Block 3 fix (2026-11-12)
+
+- **Bug (Pol):** pressing "+ Add selection layer" made the preview drop the draft, as if the
+  earlier layers had never been applied, until the new layer got a type. The draft cue went too.
+- **Cause:** `draftFile` was built from `toOperation`, which is `null` unless `isComplete`, and
+  since B-033 `isComplete` is false while any layer is untyped. The preview fell back to the saved
+  file.
+- **Fix:** `draftFile` leaves untyped layers out first (`typedOnly`), the rule
+  `toShadowOperation` already used for the overlay. With no typed layer it is still `null`. Save
+  is unchanged: `isComplete` and `toOperation` on the real draft still refuse an untyped layer.
+- **Tests:** three more in `draft.test.ts`.
+
 ## Block 4: docs, release notes, the PR
 
 **Start after Pol confirms Block 3.**
