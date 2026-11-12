@@ -25,14 +25,14 @@
  */
 
 import { isCoordinateBound, selection, type Operation, type TilesetConfig, type TilesetFile } from "@vit-foundation/gen-tilesets";
-import { cellsOf, layersOf } from "./layers.js";
+import { cellsOf, selectionTypes } from "./layers.js";
 
 /**
  * The Operations a design-width change puts at risk — E12's "names the
  * Operations that will be affected".
  *
  * **Read from the registry's `coordinateBound` declaration** (through
- * `isCoordinateBound`, since a `union`'s depends on its layers — B-033), never a
+ * `isCoordinateBound`, which asks it of every selection layer — B-033), never a
  * list of names. `04` §4.4's table names six Selections and the registry is open; a
  * Selection registered later would otherwise be classified by a list that had
  * never heard of it, and silently exempted from the confirmation.
@@ -66,10 +66,10 @@ export interface Orphan {
   /** Entries the author authored, where the Selection has a countable list. */
   authored?: number;
   /**
-   * Of `authored`, the entries outside the grid — set only for a Selection made
-   * of layers (B-033). There `authored − reachable` is not the loss: a `rect`
-   * layer reaches cells nobody painted, and two Handpick layers may paint the
-   * same cell. For a single list the subtraction is the loss, as before.
+   * Of `authored`, the entries outside the grid — set only for a selection of
+   * several layers (B-033). There `authored − reachable` is not the loss: a
+   * `rect` layer reaches cells nobody painted, and two Handpick layers may paint
+   * the same cell. For a single list the subtraction is the loss, as before.
    */
   outside?: number;
   /** True where the Selection now matches nothing at all — `06` §10.4's third. */
@@ -109,19 +109,19 @@ export function orphans(config: TilesetConfig, seed: string, loadSalt = 0): Orph
     // the grid on purpose, so "how much of it is outside" is not a defect to
     // report, only "does it still reach anything".
     //
-    // A Selection of layers (B-033) counts the lists of all its layers, and its
-    // loss is counted directly — see `Orphan.outside`.
-    const layers = layersOf(op.selection);
-    const lists = layers.map(cellsOf).filter((c) => c !== undefined);
+    // A selection of several layers (B-033) counts the lists of all its layers,
+    // and its loss is counted directly — see `Orphan.outside`. One layer reads
+    // exactly as before layers existed.
+    const lists = op.selection.map(cellsOf).filter((c) => c !== undefined);
     const authored = lists.length === 0 ? undefined : lists.reduce((n, c) => n + c.length, 0);
-    const layered = layers[0] !== op.selection;
+    const layered = op.selection.length > 1;
     const outside = layered && authored !== undefined ? outsideCells(op, config).length : undefined;
 
     const lostSome = outside !== undefined ? outside > 0 : authored !== undefined && reachable < authored;
     if (reachable === 0 || lostSome) {
       out.push({
         operationId: op.id,
-        selectionType: op.selection.type,
+        selectionType: selectionTypes(op.selection),
         reachable,
         // Spread rather than assigned: `exactOptionalPropertyTypes` makes
         // `authored: undefined` a different thing from an absent `authored`, and
@@ -147,9 +147,9 @@ export function orphans(config: TilesetConfig, seed: string, loadSalt = 0): Orph
  * (T-05, B-014): the cells the orphan notice offers to remove.
  */
 export function outsideCells(op: Operation, config: Pick<TilesetConfig, "rows" | "columns">): [number, number][] {
-  // Every layer's list, in layer order (B-033): a Handpick layer inside a union
+  // Every layer's list, in layer order (B-033): a Handpick layer beside another
   // loses cells to a resize exactly as a lone one does.
-  return layersOf(op.selection).flatMap((layer) =>
+  return op.selection.flatMap((layer) =>
     (cellsOf(layer) ?? []).filter(([x, y]) => !(x >= 0 && x < config.columns && y >= 0 && y < config.rows)),
   );
 }
@@ -180,10 +180,10 @@ export function outsideCells(op: Operation, config: Pick<TilesetConfig, "rows" |
 export function cameWithFile(op: Operation, config: TilesetConfig, opened: TilesetFile | null): boolean {
   if (opened === null) return false;
   const was = opened.config.operations.find((o) => o.id === op.id);
-  if (was === undefined || was.selection.type !== op.selection.type) return false;
+  if (was === undefined || selectionTypes(was.selection) !== selectionTypes(op.selection)) return false;
 
   const now = outsideCells(op, config);
-  if (layersOf(op.selection).some((layer) => cellsOf(layer) !== undefined)) {
+  if (op.selection.some((layer) => cellsOf(layer) !== undefined)) {
     if (now.length === 0) return false;
     const before = new Set(outsideCells(was, opened.config).map(([x, y]) => `${x},${y}`));
     return now.every(([x, y]) => before.has(`${x},${y}`));

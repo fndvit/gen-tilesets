@@ -218,7 +218,18 @@ export interface Operation {
   salt?: Uint32;
   /** `04` §8. Selects which seed this Operation hashes against (**O8**). */
   reseedOnLoad?: boolean;
-  selection: Selection;
+  /**
+   * The selection's **layers** (B-033, schema v6): the Operation affects every
+   * cell any layer selects. At least one. **Always a list**, even of one — one
+   * shape rather than "a Selection, or a union of them", so nothing downstream
+   * has to ask which it holds (Pol, B-033).
+   *
+   * Order is not meaningful for *which* cells are selected, only for `random`
+   * layers' hash channels, which are by position: layer 0 keeps the Operation's
+   * own `opId:selection`, so a migrated v5 file draws byte-identically; layer
+   * i >= 1 hashes on `opId:i:selection` (`selection.ts` `selectionPredicate`).
+   */
+  selection: Selection[];
   source: Source;
   target: TargetName;
   mapping: Mapping;
@@ -310,8 +321,9 @@ export interface TilesetFile {
   /**
    * Required. Absent or unknown is a load failure (`06` **C2**).
    *
-   * **6 since B-033**, which added the `union` Selection (selection layers);
-   * its 5 -> 6 row has nothing to rewrite. 5 was B-009's, which renamed the
+   * **6 since B-033**, which made `Operation.selection` a list of layers;
+   * `migrate()`'s 5 -> 6 row wraps every older selection in a one-item list.
+   * 5 was B-009's, which renamed the
    * `everyNth` Selection `rowColumn` and gave `everyNth` a row-major count;
    * `migrate()`'s 4 -> 5 row renames it in every older file. 4 was 0.8.0's, which added the `translateX`/`translateY`
    * attributes and so widened `Operation.target`. 3 was 0.7.0's, which added

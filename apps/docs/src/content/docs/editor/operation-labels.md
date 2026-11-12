@@ -29,7 +29,7 @@ All * Random * Tile [sand, clear] * Set
 | --- | --- | --- |
 | `labelFor` | `(name: string) => string` | Figma's name for a registry name. |
 | `STEP_LABELS` | `Record<Step, string>` | What each step is called: `source` → "Pattern"; the others are the step's name with a capital. |
-| `SummaryParts` | interface | `selection`, `target`, `mapping`, `source`, `blend`, each `null` while unanswered. |
+| `SummaryParts` | interface | `selection: readonly string[]`, the selection's layer types in order, empty while none is chosen (B-033); `target`, `mapping`, `source`, `blend`, each `null` while unanswered. |
 | `UNANSWERED` | `"—"` | Shown for a step with no answer. |
 | `summaryCells` | `(parts, tiles: readonly Tile[]) => Record<Step, string>` | Each step's answer, for the header's cell above that step's tab. |
 | `summarize` | `(parts, tiles: readonly Tile[]) => string` | The cells joined in step order, as one line. |
@@ -51,16 +51,19 @@ All * Random * Tile [sand, clear] * Set
 - **`STEP_LABELS`.** Kept apart from `labelFor`'s fixed names on purpose: those map registry
   names, and a Source registered under the name `source` would otherwise read "Pattern".
 - **`summaryCells`.** `{ selection, source, attribute, blend }`, each through `labelFor` or
-  `UNANSWERED`. The attribute is `UNANSWERED` with no Target, the bare label with a Target and
+  `UNANSWERED`. The selection is several layers read as one answer (B-033): each layer type
+  through `labelFor`, joined with `" + "`, as in "Drag + Random"; `UNANSWERED` when the list is
+  empty. The attribute is `UNANSWERED` with no Target, the bare label with a Target and
   no mapping, and otherwise the label followed by the mapping:
   - a tile mapping lists its palette by **tile name**, as `[sand, clear]`. A `null` entry is
     "clear", as the palette list names it. An id with no Tile is shown as the id;
   - a numeric mapping is `[min - max]`, with ` × steps` only when `steps` is present (absent
     means continuous).
 - **`summarize`.** `STEPS.map((step) => cells[step]).join(" * ")` over `summaryCells`.
-- **`partsOf(op)`** reads `op.selection.type`, `op.target`, `op.mapping`, `op.source.type` and
+- **`partsOf(op)`** reads each selection layer's `type`, `op.target`, `op.mapping`, `op.source.type` and
   `op.blend`.
-- **`draftParts(draft)`** reads the draft's types, Target and Blend. The mapping is
+- **`draftParts(draft)`** reads the draft's types, Target and Blend. For the selection it takes
+  the layers that have a type; an untyped layer is left out, not shown as a gap. The mapping is
   `mappingOf(draft)` once a Target is chosen, and `null` before.
 - **Under Constant, one tile.** `writesOf` and `summaryCells` name only the entry that paints
   (`constantEntry`, the first non-zero weight), as the stepper does and as Save writes. A file
@@ -93,7 +96,8 @@ Callees: `isTileMapping` (package), `mappingOf`, `STEPS` (`draft.svelte.ts`), `c
 
 `lib/operations/labels.test.ts`: Figma's names where they differ from the registry's; sentence case
 for any other name; `STEP_LABELS.source` is "Pattern" while `labelFor("source")` stays "Source"; `summaryCells` giving each step its own answer, and `—` for every step of a
-new draft; a numeric operation read in step order; `steps` shown only when present;
+new draft; two selection layers read "Drag + Random", and a draft's untyped layer left out
+(B-033); a numeric operation read in step order; `steps` shown only when present;
 palette tiles named, never by id, with an empty entry called "clear"; under Constant, only the
 entry that paints, skipping a zero first weight, while other Patterns list every entry; and a fresh draft reading
 `— * — * — * —`.

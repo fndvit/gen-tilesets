@@ -66,8 +66,8 @@
   import PaletteList from "../../controls/PaletteList.svelte";
   import ParamFields from "../../controls/ParamFields.svelte";
   import { addOperation, replaceOperation } from "../../document.js";
-  import { holdsLayers } from "../../layers.js";
   import {
+    activeLayer,
     defaultParams,
     isComplete,
     retarget,
@@ -168,15 +168,10 @@
    * the question, so the refusal never arrives as a silent no-op.
    */
   const selectionItems = $derived(
-    // A Selection made of layers (`union`, B-033) is never picked: the editor
-    // builds it from the layer list. Found by its declared `selectionList`
-    // parameter, not by name (`layers.ts`).
-    [...selections.all()].filter((r) => !holdsLayers(r)).sort((a, b) => rank(a.name) - rank(b.name)).map((r) => ({
+    [...selections.all()].sort((a, b) => rank(a.name) - rank(b.name)).map((r) => ({
       value: r.name,
       label: labelFor(r.name),
-      // `=== true`: `coordinateBound` may be a function of the parameters, and
-      // only a layer-holding Selection's is — those are filtered out above.
-      disabled: r.coordinateBound === true && resizedBy.length > 0,
+      disabled: r.coordinateBound && resizedBy.length > 0,
       ...(SELECTION_GLYPHS[r.name] ? { src: SELECTION_GLYPHS[r.name] } : {}),
     })),
   );
@@ -231,9 +226,12 @@
       : acceptedBlends(draft.target).map((b) => ({ value: b, label: labelFor(b) })),
   );
 
-  const selectionSchema = $derived(
-    draft.selectionType === null ? null : selections.get(draft.selectionType).params,
-  );
+  /**
+   * The layer the Selection step edits (B-033). Block 2 edits the first layer
+   * only; Block 3 adds the list that changes `draft.activeLayer`.
+   */
+  const layer = $derived(activeLayer(draft));
+  const selectionSchema = $derived(layer.type === null ? null : selections.get(layer.type).params);
   const sourceSchema = $derived(
     draft.sourceType === null ? null : sources.get(draft.sourceType).params,
   );
@@ -323,8 +321,8 @@
    * `06` §5.1), so the fields show exactly what the file will contain.
    */
   function chooseSelection(name: string): void {
-    draft.selectionType = name;
-    draft.selectionParams = defaultParams(selections.get(name).params);
+    layer.type = name;
+    layer.params = defaultParams(selections.get(name).params);
   }
 
   function chooseSource(name: string): void {
@@ -341,7 +339,8 @@
 
   /** What each step has settled. */
   function chosen(step: Step): string | null {
-    if (step === "selection") return draft.selectionType;
+    // Settled when every layer has a type (B-033).
+    if (step === "selection") return draft.layers.every((l) => l.type !== null) ? layer.type : null;
     if (step === "source") return draft.sourceType;
     if (step === "attribute") return draft.target;
     return draft.blend;
@@ -444,21 +443,21 @@
     -->
     <GlyphGrid
       items={selectionItems}
-      value={draft.selectionType}
+      value={layer.type}
       onChange={chooseSelection}
       label="Selection"
     />
-    {#if draft.selectionType !== null && selectionSchema && hasFields(selectionSchema)}
+    {#if layer.type !== null && selectionSchema && hasFields(selectionSchema)}
       {@const schema = selectionSchema}
       {#snippet fields()}
         <ParamFields
           {schema}
-          values={draft.selectionParams}
-          hints={selectionParamHints(draft.selectionType)}
-          onChange={(name, value) => (draft.selectionParams[name] = value)}
+          values={layer.params}
+          hints={selectionParamHints(layer.type)}
+          onChange={(name, value) => (layer.params[name] = value)}
         />
       {/snippet}
-      {@render options(draft.selectionType, fields)}
+      {@render options(layer.type, fields)}
     {/if}
   {:else if draft.step === "source"}
     <!-- Every Source emits a value in [0, 1); the mapping gives it units. -->

@@ -57,7 +57,7 @@ import {
   RULE_PARSERS,
   type RuleField,
 } from "./fields.js";
-import { cellsOf, layersOf, withLayer } from "./layers.js";
+import { cellsOf } from "./layers.js";
 import { outsideCells } from "./orphans.js";
 import { nextSalt } from "./reseed.js";
 import { memorableSeed } from "./seed.js";
@@ -831,8 +831,8 @@ export function removeRuleField(index: number, field: RuleField): Transition {
  * `columns`, and `orphans.ts` `outsideCells` states it once for this and for
  * the notice's wording.
  *
- * Only a Selection whose parameter *is* the list (`cellList`) is trimmed, alone
- * or as a layer of a `union` (B-033); a
+ * Only a Selection whose parameter *is* the list (`cellList`) is trimmed, in
+ * every layer that is one (B-033); a
  * `rect` may extend past the grid on purpose (`04` §4.2). Refused by identity
  * (an unknown id, another Selection type, nothing outside), so `session.apply`
  * pushes no empty undo entry.
@@ -843,14 +843,10 @@ export function trimToGrid(operationId: string): Transition {
     if (op === undefined) return file;
     const outside = new Set(outsideCells(op, file.config));
     if (outside.size === 0) return file;
-    // Every Handpick layer is trimmed, in place in its union (B-033); any other
-    // layer is left alone. One layer is the Selection itself.
-    const layers = layersOf(op.selection);
-    let next = op.selection;
-    layers.forEach((layer, i) => {
+    // Every Handpick layer is trimmed (B-033); any other layer is left alone.
+    const next = op.selection.map((layer) => {
       const cells = cellsOf(layer);
-      if (cells === undefined) return;
-      next = withLayer(next, i, { ...layer, cells: cells.filter((cell) => !outside.has(cell)) });
+      return cells === undefined ? layer : { ...layer, cells: cells.filter((cell) => !outside.has(cell)) };
     });
     return replaceOperation({ ...op, selection: next })(file);
   };

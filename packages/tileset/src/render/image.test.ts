@@ -25,7 +25,7 @@ const file = (layout: Partial<TilesetFile["layout"]> = {}, columns = 10): Tilese
     operations: [
       {
         id: "fill",
-        selection: { type: "all" },
+        selection: [{ type: "all" }],
         source: { type: "random" },
         target: "tileId",
         mapping: { palette: ["t", "u"].map((tileId) => ({ tileId, weight: 1 })) },

@@ -72,7 +72,7 @@ const hero = (tiles = ["t", "u"]): TilesetFile => ({
     operations: [
       {
         id: "fill",
-        selection: { type: "all" },
+        selection: [{ type: "all" }],
         source: { type: "random" },
         target: "tileId",
         mapping: { palette: tiles.map((tileId) => ({ tileId, weight: 1 })) },
@@ -373,7 +373,7 @@ describe("TilesetRenderer", () => {
 
   it("throws a responsive rule the file cannot take to the caller", () => {
     const file = hero();
-    file.config.operations[0]!.selection = { type: "rect", x: 0, y: 0, width: 2, height: 2 } as never;
+    file.config.operations[0]!.selection = [{ type: "rect", x: 0, y: 0, width: 2, height: 2 }];
     const host = document.createElement("div");
     const r = new TilesetRenderer(host, { file, options: { provider } });
     expect(() => r.update({ options: { provider, responsive: [{ maxWidth: 500, rows: 8 }] } })).toThrow(

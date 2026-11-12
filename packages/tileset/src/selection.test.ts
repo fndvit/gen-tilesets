@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { operationCtx } from "./ctx.js";
 import { generate } from "./generate.js";
-import { effectiveSeeds } from "./hash.js";
+import { effectiveSeeds, hash, stage1 } from "./hash.js";
 import { selection } from "./selection.js";
 import { tileStateAt, type Operation, type Selection, type TilesetConfig } from "./types.js";
 
@@ -19,9 +19,9 @@ const COLUMNS = 8;
  * The Source is `constant`, so the Source channel is not consulted at all and
  * anything the two disagree about is the Selection's doing.
  */
-const paint = (id: string, sel: Selection, over: Partial<Operation> = {}): Operation => ({
+const paint = (id: string, sel: Selection | Selection[], over: Partial<Operation> = {}): Operation => ({
   id,
-  selection: sel,
+  selection: Array.isArray(sel) ? sel : [sel],
   source: { type: "constant" },
   target: "tileId",
   mapping: { palette: [{ tileId: "leaf", weight: 1 }] },
@@ -63,7 +63,7 @@ describe("selection — 09 §6.2, E8", () => {
    * what the engine did. A drift here is the failure `07` **R1** describes one
    * layer up: the picture right, the overlay wrong, nothing reporting it.
    */
-  const presets: [name: string, sel: Selection][] = [
+  const presets: [name: string, sel: Selection | Selection[]][] = [
     ["all", { type: "all" }],
     ["rect", { type: "rect", x: 2, y: 1, width: 3, height: 4 }],
     ["checkerboard parity 0", { type: "checkerboard", parity: 0 }],
@@ -79,15 +79,12 @@ describe("selection — 09 §6.2, E8", () => {
     // B-033: two random layers prove the overlay resolves each layer's channel
     // the way generate() does, not only the Operation's own.
     [
-      "union of rect, random and random",
-      {
-        type: "union",
-        layers: [
-          { type: "rect", x: 0, y: 0, width: 2, height: 2 },
-          { type: "random", density: 0.2 },
-          { type: "random", density: 0.2 },
-        ],
-      },
+      "three layers: rect, random and random",
+      [
+        { type: "rect", x: 0, y: 0, width: 2, height: 2 },
+        { type: "random", density: 0.2 },
+        { type: "random", density: 0.2 },
+      ],
     ],
   ];
 
@@ -233,7 +230,7 @@ describe("selection — purity and lookup", () => {
 });
 
 describe("operationCtx — the Selection extent, O4", () => {
-  const config = (sel: Selection): TilesetConfig => ({
+  const config = (sel: Selection | Selection[]): TilesetConfig => ({
     rows: 10,
     columns: 76,
     defaultSeed: "opal-ridge-80",
@@ -241,7 +238,7 @@ describe("operationCtx — the Selection extent, O4", () => {
     operations: [
       {
         id: "op1",
-        selection: sel,
+        selection: Array.isArray(sel) ? sel : [sel],
         source: { type: "gradient", angle: 90 },
         target: "scale",
         mapping: { range: [0, 1] },
@@ -250,7 +247,7 @@ describe("operationCtx — the Selection extent, O4", () => {
     ],
   });
 
-  const extentOf = (sel: Selection) => {
+  const extentOf = (sel: Selection | Selection[]) => {
     const c = config(sel);
     return operationCtx(c, c.operations[0]!, effectiveSeeds("opal-ridge-80", 0)).extent;
   };
@@ -288,6 +285,34 @@ describe("operationCtx — the Selection extent, O4", () => {
     });
   });
 
+  describe("over several layers (B-033)", () => {
+    it("is the bounding box of the layers' extents", () => {
+      expect(
+        extentOf([
+          { type: "rect", x: 2, y: 3, width: 2, height: 2 },
+          { type: "cellList", cells: [[7, 1]] },
+        ]),
+      ).toEqual({ x: 2, y: 1, width: 6, height: 4 });
+    });
+
+    it("is the grid when any layer declares none", () => {
+      const grid = { x: 0, y: 0, width: 76, height: 10 };
+      expect(extentOf([{ type: "rect", x: 2, y: 3, width: 2, height: 2 }, { type: "random", density: 0.5 }])).toEqual(grid);
+    });
+
+    it("skips an empty Handpick layer, so the box is not dragged to the origin", () => {
+      const far = { type: "rect", x: 5, y: 5, width: 2, height: 2 };
+      expect(extentOf([{ type: "cellList", cells: [] }, far])).toEqual({ x: 5, y: 5, width: 2, height: 2 });
+      // All empty: zero area, which gradient guards -- not the grid.
+      expect(extentOf([{ type: "cellList", cells: [] }, { type: "cellList", cells: [] }])).toEqual({
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+      });
+    });
+  });
+
   it("resolves identically for generate() and selection(), which share it — R1", () => {
     // The reason `operationCtx` exists at all: two constructions of this object
     // could disagree while both looking correct, and the visible symptom would be
@@ -308,5 +333,39 @@ describe("operationCtx — the Selection extent, O4", () => {
     expect(test(2, 3)).toBe(true);
     expect(test(4, 7)).toBe(true);
     expect(test(3, 5)).toBe(false); // inside the box, outside the brush
+  });
+});
+
+describe("selection layers — B-033", () => {
+  const rect: Selection = { type: "rect", x: 0, y: 0, width: 2, height: 1 };
+  const checker: Selection = { type: "checkerboard", parity: 1 };
+  const randomLayer: Selection = { type: "random", density: 0.5 };
+  const empty: Selection = { type: "rect", x: 0, y: 0, width: 0, height: 0 };
+  const cells = (layers: Selection[]) => claimedCells(configWith(paint("op1", layers)), "sunset-3");
+
+  it("selects every cell any layer selects", () => {
+    const either = cells([rect]).map((r, i) => r || cells([checker])[i]!);
+    expect(cells([rect, checker])).toEqual(either);
+  });
+
+  it("keeps layer 0's random on the Operation's own channel — a first layer never moves", () => {
+    expect(cells([randomLayer, empty])).toEqual(cells([randomLayer]));
+  });
+
+  it("gives each later random layer its own channel", () => {
+    // Same density, different position, different cells.
+    expect(cells([empty, randomLayer])).not.toEqual(cells([randomLayer]));
+    // Together they select more than either alone.
+    const count = (b: boolean[]) => b.filter(Boolean).length;
+    expect(count(cells([randomLayer, randomLayer]))).toBeGreaterThan(count(cells([randomLayer])));
+  });
+
+  it("matches the hand-written channel rule for layer 1 — opId:1:selection", () => {
+    const seed = stage1("sunset-3");
+    const expected: boolean[] = [];
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLUMNS; x++) expected.push(hash(seed, "op1:1:selection", x, y, 0) < 0.5);
+    }
+    expect(cells([empty, randomLayer])).toEqual(expected);
   });
 });

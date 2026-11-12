@@ -17,7 +17,7 @@ import { isComplete, newDraft, retarget, toOperation } from "./draft.svelte.js";
 
 const filled = () => {
   const draft = newDraft("op1");
-  draft.selectionType = "all";
+  draft.layers[0]!.type = "all";
   draft.sourceType = "random";
   return draft;
 };
@@ -41,7 +41,7 @@ describe("the Blend a Target arrives with — 09 §7.7", () => {
     // spec supplies its default and supplies none for the others.
     const draft = newDraft("op1");
     retarget(draft, "opacity");
-    expect(draft.selectionType).toBeNull();
+    expect(draft.layers[0]!.type).toBeNull();
     expect(draft.sourceType).toBeNull();
     expect(isComplete(draft)).toBe(false);
   });

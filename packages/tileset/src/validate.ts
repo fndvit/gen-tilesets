@@ -92,7 +92,7 @@ export type ErrorCode =
   | "INVALID_TARGET_BLEND"
   | "COORDINATE_BOUND_RESIZE";
 
-/** The one version this build knows — `06` §4.1, **C2**. 6 since B-033 (the `union` Selection); 5 was B-009 (`everyNth` renamed `rowColumn`); 4 was 0.8.0 (`translateX`/`translateY`); 3 was 0.7.0 (`responsive`); 2 was ADR-005. */
+/** The one version this build knows — `06` §4.1, **C2**. 6 since B-033 (`Operation.selection` a list of layers); 5 was B-009 (`everyNth` renamed `rowColumn`); 4 was 0.8.0 (`translateX`/`translateY`); 3 was 0.7.0 (`responsive`); 2 was ADR-005. */
 export const SCHEMA_VERSION = 6;
 
 /** `06` §5.3, **C10**. Excludes `:`, which `04` §4.3 concatenates with. */
@@ -303,35 +303,6 @@ function param(e: Errors, path: string, spec: ParamSpec, value: unknown): void {
       });
       return;
     }
-    case "selectionList": {
-      // `union`'s layers (B-033): each one a full Selection, checked by the same
-      // walk as an Operation's own — the recursive shape `04` §4.5 anticipated.
-      if (!e.typed(path, value, "an array of Selections", Array.isArray(value))) return;
-      const layers = value as unknown[];
-      // At least two. The editor writes one layer as the plain Selection, so a
-      // one-layer union would be a second spelling of the same file — and an
-      // empty one a Selection that silently matches nothing. OUT_OF_RANGE, as
-      // for any count outside its admissible set.
-      if (layers.length < 2) e.add(path, "OUT_OF_RANGE", "must hold at least 2 layers");
-      layers.forEach((layer, i) => {
-        const layerPath = at(path, i);
-        tagged(e, layerPath, layer, "selection");
-        // A layer cannot itself hold layers. Detected by declaration — a
-        // `selectionList` in the layer's schema — not by the name `union`, so a
-        // later list-holding Selection is refused here without being named.
-        // OUT_OF_RANGE on `type`: the admissible set of layer types is the
-        // registry minus these, and the type is what is outside it.
-        if (isObject(layer) && typeof layer.type === "string" && selections.has(layer.type)) {
-          const holdsLayers = Object.values(selections.get(layer.type).params).some(
-            (spec) => spec.type === "selectionList",
-          );
-          if (holdsLayers) {
-            e.add(at(layerPath, "type"), "OUT_OF_RANGE", `a layer cannot itself be a ${JSON.stringify(layer.type)}`);
-          }
-        }
-      });
-      return;
-    }
   }
 }
 
@@ -353,11 +324,9 @@ function taggedParams(
     const value = object[name];
     // Absent is legal where the registry declares a default, and `cellList` has
     // no `default` field at all — an absent one is the empty list, which is what
-    // a freshly created painted Selection is. A `selectionList` has no default
-    // either, and absent is *not* legal: a union of nothing is not a Selection.
+    // a freshly created painted Selection is.
     if (value === undefined) {
-      const optional =
-        spec.type === "cellList" || (spec.type !== "selectionList" && spec.default !== undefined);
+      const optional = spec.type === "cellList" || spec.default !== undefined;
       if (!optional) {
         e.add(at(path, name), "MISSING_KEY", `required parameter ${JSON.stringify(name)} is absent`);
       }
@@ -397,6 +366,22 @@ function tagged(
     return;
   }
   taggedParams(e, path, object, registry.get(name).params);
+}
+
+/**
+ * An Operation's `selection`: a list of layers, each a Selection (B-033,
+ * schema v6). Each layer is checked by the same walk as any tagged object, at
+ * its own path — `/selection/1/density`, not `/selection`.
+ *
+ * **At least one.** An empty list is an Operation that silently affects nothing:
+ * a plausible-looking file with a dead Operation in it and no error anywhere.
+ * `OUT_OF_RANGE`, as for any count outside its admissible set.
+ */
+function selectionLayers(e: Errors, path: string, value: unknown): void {
+  if (!e.typed(path, value, "an array of Selection layers", Array.isArray(value))) return;
+  const layers = value as unknown[];
+  if (layers.length === 0) e.add(path, "OUT_OF_RANGE", "must hold at least one Selection layer");
+  layers.forEach((layer, i) => tagged(e, at(path, i), layer, "selection"));
 }
 
 // ---------------------------------------------------------------------------
@@ -645,7 +630,7 @@ function operation(
     e.typed(at(path, "reseedOnLoad"), object.reseedOnLoad, "a boolean", typeof object.reseedOnLoad === "boolean");
   }
 
-  if (required(e, path, object, "selection")) tagged(e, at(path, "selection"), object.selection, "selection");
+  if (required(e, path, object, "selection")) selectionLayers(e, at(path, "selection"), object.selection);
   if (required(e, path, object, "source")) tagged(e, at(path, "source"), object.source, "source");
 
   let target: TargetName | null = null;
@@ -886,9 +871,10 @@ function responsive(e: Errors, path: string, value: unknown, file: Record<string
 function pinningOperations(file: Record<string, unknown>): Operation[] {
   const config = file.config;
   if (!isObject(config) || !Array.isArray(config.operations)) return [];
+  // `isCoordinateBound` is total over malformed layers, so only the list itself
+  // and the id need shaping here.
   const wellShaped = (config.operations as unknown[]).filter(
-    (op): op is Operation =>
-      isObject(op) && isObject(op.selection) && typeof op.selection.type === "string" && typeof op.id === "string",
+    (op): op is Operation => isObject(op) && Array.isArray(op.selection) && typeof op.id === "string",
   );
   return coordinateBoundOperations(wellShaped);
 }

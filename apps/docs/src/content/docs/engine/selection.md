@@ -26,9 +26,10 @@ overlay and its "will this resize break something" check do.
 
 ### Purpose
 
-`selection(config, operationId, seed, loadSalt = 0)` finds the named Operation, resolves its
-Selection registration and its `EvalCtx` through the same `operationCtx` that `generate()` uses,
-and returns `(x, y) => registration.impl(params, x, y, ctx)`. The header names the rule it obeys,
+`selection(config, operationId, seed, loadSalt = 0)` finds the named Operation, builds its
+`EvalCtx` through the same `operationCtx` that `generate()` uses, and returns
+`selectionPredicate(op, ctx)`: a predicate that is true where any of the Operation's selection
+layers matches (B-033). The header names the rule it obeys,
 **E8**: the cells an overlay covers come from the engine package, and the editor contains no
 implementation of any Selection's test.
 
@@ -37,6 +38,15 @@ implementation of any Selection's test.
 | Function | Signature | Validates? |
 | --- | --- | --- |
 | [`selection`](/api/index/functions/selection/) | `(config: TilesetConfig, operationId: string, seed: string, loadSalt = 0) → (x: number, y: number) => boolean` | **no**, except the id lookup |
+| `selectionPredicate` | `(op: Operation, ctx: EvalCtx) → (x: number, y: number) => boolean` | **no**. Exported from `selection.ts` for `generate.ts`; not re-exported by `index.ts`. |
+
+**`selectionPredicate(op, ctx)`** (B-033) is the one place an Operation's layers are combined. It
+resolves every layer's registration and context once per Operation, never per cell, and returns a
+predicate that tries the layers in order and stops at the first match. Layer 0 gets `ctx` itself;
+layer `i ≥ 1` gets a copy of `ctx` whose `operationId` is `layerOwner(op.id, i)` (`opId:i`). With
+one layer it returns the layer's own test without the loop. `generate()` calls it too
+(`PreparedOperation.selected`), so the overlay and the picture cannot combine layers differently
+(**E8**).
 
 ### Inputs → outputs
 
@@ -45,18 +55,23 @@ implementation of any Selection's test.
 - `loadSalt` should be the preview's, so the overlay agrees with the preview at that load.
 - **Unknown `operationId`** → throws `No Operation with id "<id>" in this config. Present: <ids>.`
   (or `(none)`).
-- **Unknown Selection type** → `selections.get` throws.
-- The seed, ctx and registration are resolved **once**, outside the returned closure.
+- **Unknown Selection type** in any layer → `selections.get` throws.
+- The seed, ctx and every layer's registration are resolved **once**, outside the returned
+  closure.
 - The predicate is **total and unbounded in `(x, y)`**: it answers outside `rows × columns` and at
   negative coordinates rather than throwing or clamping. Callers bound it at the draw site.
 
 ### Invariants
 
 - **Agreement with `generate()`, cell for cell.** It resolves the effective seed and the selection
-  channel exactly as `generate()` does, through the shared `operationCtx` and `pickSeed`. A
-  `union` (B-033) needs nothing extra here: it derives each layer's channel inside its own `impl`
-  (see [selections.ts](/engine/selections/)), so the overlay and `generate()` resolve the layers
-  the same way.
+  channel exactly as `generate()` does, through the shared `operationCtx` and `pickSeed`, and it
+  combines the layers through the same `selectionPredicate` (B-033).
+- **A `random` layer's channel is by position** (Pol, B-033 Block 1). Layer 0 hashes on the
+  Operation's own `opId:selection`, exactly as a lone Selection did, so a v5 file migrated to a
+  one-item list draws byte-identically and adding a second layer never moves the first one's
+  scatter. Layer `i ≥ 1` hashes on `opId:i:selection`; without that, two `random` layers at the
+  same density would select the same cells. Deleting or moving a layer reshuffles the `random`
+  layers after it, which the source accepts like a reroll.
 - **No validation** beyond the lookup, on the same reasoning as `generate()`.
 - **Moves no output.** Adding the export was a minor engine bump, with no `schemaVersion` change.
 
@@ -70,7 +85,9 @@ implementation of any Selection's test.
 
 No caller in `packages/tileset/src` (other than its test) or `apps/demo/src`.
 
-Callees: `operationCtx` (`ctx.ts`), `effectiveSeeds` (`hash.ts`), `selections.get`
+`selectionPredicate` is also called by `generate.ts:79`, once per Operation.
+
+Callees: `operationCtx` (`ctx.ts`), `effectiveSeeds` and `layerOwner` (`hash.ts`), `selections.get`
 (`registry/selections.ts`).
 
 ### Tests: `selection.test.ts`
@@ -80,8 +97,8 @@ cell non-null exactly when the Selection included it.
 
 - **Agreement** with `generate()` for every V1 preset: `all`, `rect`, `checkerboard` (both
   parities), `rowColumn` (column, and row with offset), `everyNth` (row-major, with offset),
-  `random`, and `cellList` with a duplicate. Also a `union` of a `rect` and two `random` layers
-  (B-033), which proves each layer's channel is resolved as `generate()` resolves it, not only the
+  `random`, and `cellList` with a duplicate. Also three layers, a `rect` and two `random` (B-033),
+  which proves each layer's channel is resolved as `generate()` resolves it, not only the
   Operation's own.
 - **Not vacuous:** a 3 × 4 `rect` selects exactly 12 cells and leaves some unselected.
 - **`random`** draws from the selection channel, not the Source channel; moves with the
@@ -91,7 +108,12 @@ cell non-null exactly when the Selection included it.
 - **Unbounded:** answers outside `rows × columns`, and at negative coordinates for `all`.
 - **Purity and lookup:** repeated calls agree; the named Operation is picked from a stack, not the
   first; an unknown id throws; an unknown Selection type throws.
-- The same file also tests `operationCtx`; see [ctx.ts](/engine/ctx/).
+- The same file also tests `operationCtx` and the extent over several layers; see
+  [ctx.ts](/engine/ctx/).
+- **Selection layers (B-033):** two layers select every cell either selects; a `random` layer 0
+  next to an empty `rect` selects exactly what the same `random` alone does; a later `random`
+  layer selects different cells, and two together select more than one; layer 1 matches the
+  hand-written rule `hash(stage1(seed), "op1:1:selection", x, y, 0) < density`, cell for cell.
 
 ### Gotchas & rejected alternatives
 
@@ -104,6 +126,12 @@ cell non-null exactly when the Selection included it.
   author is judging exactly that. A plausible wrong answer is worse than a stack trace.
 - **Unbounded on purpose.** A `rect` may extend past the grid, and an author dragging one needs to
   see where it reached.
+- **Rejected: a stable per-layer id saved in the file** to name a layer's channel. It would be an
+  extra key on every layer for a property nobody asked for.
+- **Why rewrite `operationId` rather than add a field.** `EvalCtx` is closed by **O4**, and a field
+  read only by a layered `random` would be one every Source and renderer must carry. Only a
+  Selection ever sees a layer's ctx; the Source still gets the Operation's, and a Selection reads
+  `operationId` only to name its channel.
 
 ### Review notes
 

@@ -50,7 +50,8 @@ Collage comes from `../tileset-files/picsBackground`. Its `tileset.json` was mig
 package's own `migrate()` (2 → 4, which changed only `schemaVersion`). No version number was
 written by hand (**E2**). Both templates then went 4 → 5 (B-009). That row renames an `everyNth`
 Selection, and neither template has one, so it too changed only `schemaVersion`. Both then went
-5 → 6 (B-033), a row with nothing to rewrite, so again only `schemaVersion` changed.
+5 → 6 (B-033). That row wraps each Operation's selection in a one-item list, so every
+`"selection"` in both files is now a list of layers, and nothing else changed.
 `starters.test.ts` requires every template to be at `SCHEMA_VERSION`. It has 6 tile groups, 21 pictures and 5 operations.
 
 Collage's gallery entries point into its files rather than copying them. The manifest is what

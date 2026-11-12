@@ -36,7 +36,7 @@ const run = (file: TilesetFile, ...ts: Transition[]) => ts.reduce((f, t) => t(f)
 /** An Operation whose palette names `tileId` — the only thing that can (C8). */
 const paletteOp = (id: string, tileIds: (string | null)[]): Operation => ({
   id,
-  selection: { type: "all" },
+  selection: [{ type: "all" }],
   source: { type: "constant" },
   target: "tileId",
   mapping: { palette: tileIds.map((t) => ({ tileId: t, weight: 1 })) },
@@ -167,7 +167,7 @@ describe("refusals — E5, and never a dangling reference", () => {
     const file = withTiles(tile("t1", "water", [1]));
     const numeric: Operation = {
       id: "op1",
-      selection: { type: "all" },
+      selection: [{ type: "all" }],
       source: { type: "random" },
       target: "rotation",
       mapping: { range: [0, 90] },

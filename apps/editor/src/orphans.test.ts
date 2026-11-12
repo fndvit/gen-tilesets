@@ -7,16 +7,17 @@
  * names (`04` §4.4's table is the registry's, not the editor's).
  */
 
-import { selections, type Operation, type TilesetConfig } from "@vit-foundation/gen-tilesets";
+import { selections, type Operation, type Selection, type TilesetConfig } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { newDocument } from "./document.js";
 import { atRisk, cameWithFile, needsConfirmation, orphans, outsideCells } from "./orphans.js";
 
-const op = (id: string, selection: Operation["selection"]): Operation => ({
+/** One layer, or several (B-033). */
+const op = (id: string, selection: Selection | Selection[]): Operation => ({
   id,
   salt: 0,
   reseedOnLoad: false,
-  selection,
+  selection: Array.isArray(selection) ? selection : [selection],
   source: { type: "constant" },
   target: "opacity",
   mapping: { range: [1, 1] },
@@ -35,7 +36,7 @@ describe("which Selections are coordinate-bound — 04 §4.4", () => {
   it("matches the spec's table exactly", () => {
     const bound = selections
       .all()
-      .filter((s) => s.coordinateBound === true)
+      .filter((s) => s.coordinateBound)
       .map((s) => s.name)
       .sort();
     expect(bound).toEqual(["cellList", "rect"]);
@@ -43,12 +44,10 @@ describe("which Selections are coordinate-bound — 04 §4.4", () => {
 
   it("declares it for every registered Selection, so none is silently procedural", () => {
     // The property the declaration buys: a Selection registered later cannot be
-    // classified by omission. `05` X5's reasoning, applied to Selections. A
-    // function where it depends on the parameters -- `union`'s (B-033).
+    // classified by omission. `05` X5's reasoning, applied to Selections.
     for (const registration of selections.all()) {
-      expect(["boolean", "function"]).toContain(typeof registration.coordinateBound);
+      expect(typeof registration.coordinateBound).toBe("boolean");
     }
-    expect(typeof selections.get("union").coordinateBound).toBe("function");
   });
 });
 
@@ -145,12 +144,12 @@ describe("§9.4 — orphans are reported, never migrated", () => {
 });
 
 describe("selection layers (B-033)", () => {
-  const union = (...layers: Operation["selection"][]): Operation["selection"] => ({ type: "union", layers });
+  const layers = (...list: Selection[]): Selection[] => list;
 
-  it("puts a union at risk exactly when one of its layers is coordinate-bound", () => {
+  it("puts an Operation at risk exactly when one of its layers is coordinate-bound", () => {
     const c = config([
-      op("mixed", union({ type: "checkerboard", parity: 0 }, { type: "rect", x: 0, y: 0, width: 2, height: 2 })),
-      op("rules", union({ type: "checkerboard", parity: 0 }, { type: "random", density: 0.5 })),
+      op("mixed", layers({ type: "checkerboard", parity: 0 }, { type: "rect", x: 0, y: 0, width: 2, height: 2 })),
+      op("rules", layers({ type: "checkerboard", parity: 0 }, { type: "random", density: 0.5 })),
     ]);
     expect(atRisk(c).map((o) => o.id)).toEqual(["mixed"]);
   });
@@ -161,7 +160,7 @@ describe("selection layers (B-033)", () => {
     const c = config([
       op(
         "mixed",
-        union(
+        layers(
           { type: "rect", x: 0, y: 0, width: 2, height: 2 },
           { type: "cellList", cells: [[5, 1], [40, 0], [0, 40]] },
         ),
@@ -173,9 +172,9 @@ describe("selection layers (B-033)", () => {
     expect(orphan!.empty).toBe(false);
   });
 
-  it("says nothing for a union whose painted cells all fit", () => {
+  it("says nothing when every layer's painted cells fit", () => {
     const c = config([
-      op("mixed", union({ type: "rect", x: 0, y: 0, width: 2, height: 2 }, { type: "cellList", cells: [[5, 1]] })),
+      op("mixed", layers({ type: "rect", x: 0, y: 0, width: 2, height: 2 }, { type: "cellList", cells: [[5, 1]] })),
     ]);
     expect(orphans(c, SEED)).toEqual([]);
   });
@@ -184,7 +183,7 @@ describe("selection layers (B-033)", () => {
     const c = config([], { columns: 4, rows: 3 });
     const o = op(
       "op1",
-      union({ type: "cellList", cells: [[0, 0], [9, 0]] }, { type: "all" }, { type: "cellList", cells: [[0, 9]] }),
+      layers({ type: "cellList", cells: [[0, 0], [9, 0]] }, { type: "all" }, { type: "cellList", cells: [[0, 9]] }),
     );
     expect(outsideCells(o, c)).toEqual([[9, 0], [0, 9]]);
   });

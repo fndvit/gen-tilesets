@@ -29,7 +29,8 @@ cells.
 
 `ctx.ts` declares `EvalCtx`, the closed set of fields a Source (and a Selection) receives, and
 `operationCtx`, which builds one from the config's dimensions, an `Operation` and the run's
-`EffectiveSeeds`. The header calls the closure **O4**: `ctx` is closed at
+`EffectiveSeeds`. It also exports `layersExtent`, the extent of a selection made of several
+layers (B-033). The header calls the closure **O4**: `ctx` is closed at
 `{rows, columns, extent, effectiveSeed, operationId, salt}`.
 
 ### Public surface
@@ -38,19 +39,31 @@ cells.
 | --- | --- | --- |
 | [`EvalCtx`](/api/index/interfaces/evalctx/) | interface | `rows`, `columns`, `extent: Extent`, `effectiveSeed: number`, `operationId: string`, `salt: number` |
 | [`operationCtx`](/api/index/functions/operationctx/) | function | `(config: Pick<TilesetConfig, "rows" \| "columns">, op: Operation, seeds: EffectiveSeeds) → EvalCtx` |
+| `layersExtent` | function | `(layers: readonly Selection[]) → Extent \| undefined`. Exported from `ctx.ts`; not re-exported by `index.ts`. |
 
 ### Inputs → outputs
 
 | Field | Value |
 | --- | --- |
 | `rows`, `columns` | Copied from `config`. |
-| `extent` | `selections.get(op.selection.type).extent?.(params)`. If the Selection declares no extent, or its `extent` returns `undefined` (a `union` with a layer that declares none, B-033), the whole grid: `{x: 0, y: 0, width: columns, height: rows}`. |
+| `extent` | `layersExtent(op.selection)`. If that is `undefined`, the whole grid: `{x: 0, y: 0, width: columns, height: rows}`. |
 | `effectiveSeed` | `pickSeed(seeds, op.reseedOnLoad)`: the load-mixed seed when the flag is `true`, otherwise the plain one. |
 | `operationId` | `op.id`. |
 | `salt` | `op.salt ?? 0`. |
 
-An unknown Selection type throws at `selections.get`. The comment says this is not a new failure
-mode, because both callers already resolve the same registration for `impl`.
+**`layersExtent(layers)`** (B-033) asks each layer's registration for its extent
+(`selections.get(layer.type).extent?.(layer)`) and combines them:
+
+- A lone layer's extent is its own, exactly as before layers existed.
+- Several layers give the **bounding box** of their extents.
+- If **any layer declares none**, the result is `undefined`, so the whole grid. A gradient over
+  `rect` + `random` sweeps the grid, because the `random` layer can reach any cell of it.
+- **Zero-area extents are skipped**, so an empty Handpick layer's `{0, 0, 0, 0}` does not drag the
+  box to the origin. If every layer is zero-area, the result is the first zero-area extent, which
+  `gradient` already guards.
+
+An unknown Selection type in any layer throws at `selections.get`. The comment says this is not a
+new failure mode, because both callers already resolve the same registration for `impl`.
 
 ### Invariants
 
@@ -72,9 +85,11 @@ mode, because both callers already resolve the same registration for `impl`.
 
 | Caller | Line |
 | --- | --- |
-| `generate.ts` | `:79`, once per Operation while preparing the stack. |
-| `selection.ts` | `:94`, once per `selection()` call, outside the returned predicate. |
-| `selection.test.ts` | `:241`, `:277` onward. |
+| `generate.ts` | `:76`, once per Operation while preparing the stack. |
+| `selection.ts` | `:93`, once per `selection()` call, outside the returned predicate. |
+| `selection.test.ts` | `:252`, `:324`. |
+
+`layersExtent` is called only by `operationCtx` (`ctx.ts:98`).
 
 Grep finds no caller in `apps/editor/src` or `apps/demo/src`.
 
@@ -91,6 +106,9 @@ No `ctx.test.ts`. `operationCtx` is tested in `selection.test.ts` under
   directions.
 - A `cellList` gives its bounding box (`[[2,3],[4,7]]` → `{x: 2, y: 3, width: 3, height: 5}`), and
   `selection()`'s predicate still matches only the listed cells, not the whole box.
+- **Over several layers (B-033):** a `rect` and a `cellList` give their bounding box; a `rect` with
+  a `random` gives the grid; an empty Handpick layer is skipped, and two empty ones give
+  `{0, 0, 0, 0}`, not the grid.
 
 The effective-seed and salt fields are covered through `selection()` and `generate()` agreement
 tests in the same file.

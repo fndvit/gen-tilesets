@@ -51,7 +51,6 @@ Exported from `index.ts:102`.
 | `"integer"` | `min?`, `max?`, `default?` | |
 | `"enum"` | `values: (string \| number)[]`, `default?` | |
 | `"cellList"` | none | A list of `[x, y]` pairs. Has no `default`; absent means empty. |
-| `"selectionList"` | none | A list of Selections, each a full tagged object: the `layers` of `union` (B-033). The first spec whose items are themselves registry entries, so `validate()` recurses into it. Has no `default`, and absent is **not** empty: it is `MISSING_KEY`. |
 
 ### Inputs → outputs
 
@@ -83,9 +82,8 @@ Entries are held in a private `Map`, so order is insertion order.
 | --- | --- |
 | `registry/selections.ts:23`, `registry/sources.ts:33`, `registry/blends.ts:27` | `Registry` (each builds one instance), `ParamSchema` |
 | `validate.ts:37` | `ParamSchema`, `ParamSpec` types, to walk a tagged object's parameters |
-| `apps/editor/src/draft.svelte.ts:127` | `ParamSchema`, in `defaultParams` |
-| `apps/editor/src/controls/affordance.ts:98–222` | `ParamSpec`, in `affordanceFor`, `defaultFor`, `admits`, `rangeLabel` |
-| `apps/editor/src/layers.ts:20` | a registration's `params`, to find its `selectionList` parameter |
+| `apps/editor/src/draft.svelte.ts:136` | `ParamSchema`, in `defaultParams` |
+| `apps/editor/src/controls/affordance.ts:89–215` | `ParamSpec`, in `affordanceFor`, `defaultFor`, `admits`, `rangeLabel` |
 | `apps/editor/src/controls/ParamFields.svelte:16`, `ParamControl.svelte:15` | `ParamSchema` / `ParamSpec` as prop types |
 | `index.ts:102` | re-export |
 

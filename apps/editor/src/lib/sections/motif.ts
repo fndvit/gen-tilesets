@@ -71,7 +71,7 @@ export function motifStyle(colour: string = MOTIF_COLOUR, cell: number = MOTIF_C
           id: "op1",
           salt: 0,
           reseedOnLoad: false,
-          selection: { type: "checkerboard", parity: 0 },
+          selection: [{ type: "checkerboard", parity: 0 }],
           source: { type: "constant" },
           target: "tileId",
           mapping: { palette: [{ tileId: "t1", weight: 1 }] },

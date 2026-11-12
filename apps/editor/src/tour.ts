@@ -331,7 +331,7 @@ export function end(seen: SeenStore): null {
  */
 export function exampleOperation(operations: readonly Pick<Operation, "id" | "selection">[]): string | null {
   const op = operations[2];
-  return op !== undefined && op.id === "op5" && op.selection.type === "random" ? op.id : null;
+  return op !== undefined && op.id === "op5" && op.selection[0]?.type === "random" ? op.id : null;
 }
 
 /** A first visit: nothing was kept from an earlier one, and the tour has not been seen. */

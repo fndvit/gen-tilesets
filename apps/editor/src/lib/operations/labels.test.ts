@@ -45,7 +45,7 @@ describe("summaryCells", () => {
   it("gives each step its own answer, for the cell above its tab", () => {
     const op: Operation = {
       id: "op1",
-      selection: { type: "checkerboard", parity: 0 },
+      selection: [{ type: "checkerboard", parity: 0 }],
       source: { type: "random" },
       target: "opacity",
       mapping: { range: [0.5, 1] },
@@ -59,6 +59,22 @@ describe("summaryCells", () => {
     });
   });
 
+  it("reads several selection layers as one answer, in order (B-033)", () => {
+    const op: Operation = {
+      id: "op1",
+      selection: [{ type: "rect", x: 0, y: 0, width: 2, height: 2 }, { type: "random", density: 0.2 }],
+      source: { type: "random" },
+      target: "opacity",
+      mapping: { range: [0.5, 1] },
+      blend: "set",
+    };
+    expect(summaryCells(partsOf(op), tiles).selection).toBe("Drag + Random");
+    // A draft's untyped layer is left out, not shown as a gap.
+    const draft = newDraft("op2");
+    draft.layers = [{ type: "rect", params: {} }, { type: null, params: {} }];
+    expect(summaryCells(draftParts(draft), tiles).selection).toBe("Drag");
+  });
+
   it("marks every unanswered step of a new draft", () => {
     const cells = summaryCells(draftParts(newDraft("op9")), tiles);
     expect(Object.values(cells)).toEqual(["—", "—", "—", "—"]);
@@ -69,7 +85,7 @@ describe("summarize", () => {
   it("reads a numeric operation in step order", () => {
     const op: Operation = {
       id: "op1",
-      selection: { type: "checkerboard", parity: 0 },
+      selection: [{ type: "checkerboard", parity: 0 }],
       source: { type: "random" },
       target: "opacity",
       mapping: { range: [0.5, 1] },
@@ -81,7 +97,7 @@ describe("summarize", () => {
   it("shows steps only when present", () => {
     const op: Operation = {
       id: "op1",
-      selection: { type: "all" },
+      selection: [{ type: "all" }],
       source: { type: "gradient" },
       target: "rotation",
       mapping: { range: [0, 90], steps: 4 },
@@ -93,7 +109,7 @@ describe("summarize", () => {
   it("names palette tiles, never ids, and calls an empty entry clear", () => {
     const op: Operation = {
       id: "op1",
-      selection: { type: "all" },
+      selection: [{ type: "all" }],
       source: { type: "random" },
       target: "tileId",
       mapping: {
@@ -116,7 +132,7 @@ describe("writesOf", () => {
   it("names a tile palette's tiles and keeps their ids, clear included", () => {
     const op: Operation = {
       id: "op1",
-      selection: { type: "all" },
+      selection: [{ type: "all" }],
       source: { type: "random" },
       target: "tileId",
       mapping: { palette: [{ tileId: "t1", weight: 1 }, { tileId: null, weight: 1 }] },
@@ -130,7 +146,7 @@ describe("writesOf", () => {
   it("gives a numeric range, its steps, and a single value when it collapses", () => {
     const base = {
       id: "op1",
-      selection: { type: "all" },
+      selection: [{ type: "all" }],
       source: { type: "random" },
       target: "rotation",
       blend: "set",
@@ -149,7 +165,7 @@ describe("writesOf", () => {
     const op = (palette: { tileId: string | null; weight: number }[], type: string) =>
       ({
         id: "op1",
-        selection: { type: "all" },
+        selection: [{ type: "all" }],
         source: { type },
         target: "tileId",
         mapping: { palette },

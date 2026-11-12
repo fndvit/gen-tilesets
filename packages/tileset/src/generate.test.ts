@@ -16,7 +16,7 @@ const baseConfig = (over: Partial<TilesetConfig> = {}): TilesetConfig => ({
 
 const paintAll = (id: string, tileId: string | null): Operation => ({
   id,
-  selection: { type: "all" },
+  selection: [{ type: "all" }],
   source: { type: "constant" },
   target: "tileId",
   mapping: { palette: [{ tileId, weight: 1 }] },
@@ -71,7 +71,7 @@ describe("generate — 02 §4, §9", () => {
         paintAll("op1", "leaf"),
         {
           id: "op2",
-          selection: { type: "all" },
+          selection: [{ type: "all" }],
           source: { type: "random" },
           target: "rotation",
           mapping: { range: [0, 360] },
@@ -94,7 +94,7 @@ describe("generate — 02 §4, §9", () => {
         paintAll("op1", "leaf"),
         {
           id: "op2",
-          selection: { type: "all" },
+          selection: [{ type: "all" }],
           source: { type: "constant" },
           target: "scaleX",
           mapping: { range: [0, 0] },
@@ -102,7 +102,7 @@ describe("generate — 02 §4, §9", () => {
         },
         {
           id: "op3",
-          selection: { type: "all" },
+          selection: [{ type: "all" }],
           source: { type: "constant" },
           target: "scaleX",
           // 1 / 0 is unreachable through a mapping, but a multiply chain can
@@ -123,7 +123,7 @@ describe("stack composition — 02 §6.3, G3", () => {
   const jitter = (id: string, salt: number): Operation => ({
     id,
     salt,
-    selection: { type: "all" },
+    selection: [{ type: "all" }],
     source: { type: "random" },
     target: "rotation",
     mapping: { range: [0, 360] },
@@ -174,7 +174,7 @@ describe("Selections restrict where an Operation writes", () => {
       operations: [
         {
           id: "op1",
-          selection: { type: "rect", x: 1, y: 1, width: 2, height: 2 },
+          selection: [{ type: "rect", x: 1, y: 1, width: 2, height: 2 }],
           source: { type: "constant" },
           target: "tileId",
           mapping: { palette: [{ tileId: "leaf", weight: 1 }] },
@@ -195,7 +195,7 @@ describe("Selections restrict where an Operation writes", () => {
       operations: [
         {
           id: "op1",
-          selection: { type: "checkerboard", parity: 0 },
+          selection: [{ type: "checkerboard", parity: 0 }],
           source: { type: "constant" },
           target: "tileId",
           mapping: { palette: [{ tileId: "leaf", weight: 1 }] },
@@ -232,7 +232,7 @@ describe("asset resolution — 02 §9 step 3, 02 §10", () => {
         paintAll("op1", "leaf"),
         {
           id: "op2",
-          selection: { type: "all" },
+          selection: [{ type: "all" }],
           source: { type: "constant" },
           target: "opacity",
           mapping: { range: [0, 0] },
@@ -256,7 +256,7 @@ describe("asset resolution — 02 §9 step 3, 02 §10", () => {
   it("scales uniformly from one number, where two Operations cannot — ADR-005", () => {
     const varying = (id: string, target: "scale" | "scaleX" | "scaleY"): Operation => ({
       id,
-      selection: { type: "all" },
+      selection: [{ type: "all" }],
       source: { type: "random" },
       target,
       mapping: { range: [0.5, 1.5] },
@@ -318,7 +318,7 @@ describe("loadSalt and the effective seed — 02 §6.7, 04 §8", () => {
     id: "op2",
     salt: 0,
     reseedOnLoad: true,
-    selection: { type: "all" },
+    selection: [{ type: "all" }],
     source: { type: "random" },
     target: "rotation",
     mapping: { range: [0, 360] },
@@ -327,7 +327,7 @@ describe("loadSalt and the effective seed — 02 §6.7, 04 §8", () => {
   const pinned: Operation = {
     id: "op3",
     salt: 7,
-    selection: { type: "all" },
+    selection: [{ type: "all" }],
     source: { type: "random" },
     target: "scaleX",
     mapping: { range: [0.5, 1.5] },
@@ -401,7 +401,7 @@ describe("a config that draws — the end-to-end shape", () => {
       operations: [
         {
           id: "terrain",
-          selection: { type: "all" },
+          selection: [{ type: "all" }],
           source: { type: "valueNoise", cellsPerFeature: 8, octaves: 2 },
           target: "tileId",
           mapping: {
@@ -432,7 +432,7 @@ describe("a config that draws — the end-to-end shape", () => {
         paintAll("op1", "leaf"),
         {
           id: "op2",
-          selection: { type: "random", density: 0.3 },
+          selection: [{ type: "random", density: 0.3 }],
           source: { type: "random" },
           target: "rotation",
           mapping: { range: [-5, 5] },
@@ -461,7 +461,7 @@ describe("gradient Operations reach both ends of their range", () => {
       gradientConfig([
         {
           id: "grad",
-          selection: { type: "all" },
+          selection: [{ type: "all" }],
           source: { type: "gradient", angle: 90 },
           target: "scale",
           mapping: { range: [0, 1] },
@@ -484,7 +484,7 @@ describe("gradient Operations reach both ends of their range", () => {
       gradientConfig([
         {
           id: "band",
-          selection: { type: "rect", x: 0, y: 0, width: 8, height: 7 },
+          selection: [{ type: "rect", x: 0, y: 0, width: 8, height: 7 }],
           source: { type: "gradient", angle: 90 },
           target: "opacity",
           mapping: { range: [0.3, 1], steps: 7 },
@@ -509,7 +509,7 @@ describe("gradient Operations reach both ends of their range", () => {
       gradientConfig([
         {
           id: "diag",
-          selection: { type: "all" },
+          selection: [{ type: "all" }],
           source: { type: "gradient", angle: 45 },
           target: "scale",
           mapping: { range: [0, 1] },
@@ -533,7 +533,7 @@ describe("gradient Operations reach both ends of their range", () => {
         operations: [
           {
             id: "terrain",
-            selection: { type: "all" },
+            selection: [{ type: "all" }],
             source: { type: "gradient", angle: 90 },
             target: "tileId",
             mapping: {
@@ -562,7 +562,7 @@ describe("gradient Operations reach both ends of their range", () => {
           paintAll("paint", "leaf"),
           {
             id: "brush",
-            selection: { type: "cellList", cells },
+            selection: [{ type: "cellList", cells }],
             source: { type: "gradient", angle: 90 },
             target: "scale",
             mapping: { range: [0, 1] },
@@ -588,7 +588,7 @@ describe("gradient Operations reach both ends of their range", () => {
       gradientConfig([
         {
           id: "bleed",
-          selection: { type: "rect", x: 0, y: 0, width: 20, height: 10 },
+          selection: [{ type: "rect", x: 0, y: 0, width: 20, height: 10 }],
           source: { type: "gradient", angle: 0 },
           target: "scale",
           mapping: { range: [0, 1] },
@@ -606,7 +606,7 @@ describe("gradient Operations reach both ends of their range", () => {
 describe("translateX / translateY — 0.8.0", () => {
   const jitter = (id: string, target: "translateX" | "translateY"): Operation => ({
     id,
-    selection: { type: "all" },
+    selection: [{ type: "all" }],
     source: { type: "random" },
     target,
     mapping: { range: [-0.25, 0.25] },
@@ -651,7 +651,7 @@ describe("translateX / translateY — 0.8.0", () => {
         operations: [
           {
             id: "far",
-            selection: { type: "all" },
+            selection: [{ type: "all" }],
             source: { type: "constant" },
             target: "translateY",
             mapping: { range: [-40, -40] },

@@ -41,7 +41,7 @@ const file = (yOffset = 0.25): TilesetFile => ({
     operations: [
       {
         id: "fill",
-        selection: { type: "all" },
+        selection: [{ type: "all" }],
         source: { type: "random" },
         target: "tileId",
         mapping: { palette: [{ tileId: "t", weight: 1 }] },

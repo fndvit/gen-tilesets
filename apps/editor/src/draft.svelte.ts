@@ -37,6 +37,7 @@ import {
   type Operation,
   type PaletteEntry,
   type ParamSchema,
+  type Selection,
   type TargetName,
   type TilesetConfig,
   type TilesetFile,
@@ -85,9 +86,17 @@ export interface Draft {
    */
   salt: number;
   reseedOnLoad: boolean;
-  /** `null` until the author picks one. No default is invented (`DECISIONS.md` D7). */
-  selectionType: string | null;
-  selectionParams: Record<string, unknown>;
+  /**
+   * The Selection's layers (B-033), at least one — `Operation.selection` is a
+   * list since schema v6. A layer's `type` is `null` until the author picks one;
+   * no default is invented (`DECISIONS.md` D7).
+   */
+  layers: DraftLayer[];
+  /**
+   * The layer the Selection step's controls and the preview's brush and drag
+   * edit. Always a valid index into `layers`.
+   */
+  activeLayer: number;
   target: TargetName | null;
   sourceType: string | null;
   sourceParams: Record<string, unknown>;
@@ -127,12 +136,31 @@ export interface Draft {
 export function defaultParams(schema: ParamSchema): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [name, spec] of Object.entries(schema)) {
-    // A `cellList` starts empty and is painted (§7.3, Step 7); a `selectionList`
-    // starts empty and the layer list fills it (B-033). They are the two specs
-    // `defaultFor` has no number to give.
-    out[name] = spec.type === "cellList" || spec.type === "selectionList" ? [] : defaultFor(spec);
+    // A `cellList` starts empty and is painted (§7.3, Step 7). `cellList` is the
+    // one spec `defaultFor` has no number to give.
+    out[name] = spec.type === "cellList" ? [] : defaultFor(spec);
   }
   return out;
+}
+
+/** One selection layer as the draft holds it: a type, or none yet, and its parameters. */
+export interface DraftLayer {
+  type: string | null;
+  params: Record<string, unknown>;
+}
+
+/**
+ * The layer the controls edit — `draft.layers[draft.activeLayer]`. The object
+ * itself, so a control writes through it into the draft (`layer.params[name] =
+ * v`), never a copy.
+ */
+export function activeLayer(draft: Draft): DraftLayer {
+  return draft.layers[draft.activeLayer]!;
+}
+
+/** The layers that have a type, as the Selections they denote. */
+function typedLayers(draft: Draft): Selection[] {
+  return draft.layers.flatMap((layer) => (layer.type === null ? [] : [{ type: layer.type, ...layer.params }]));
 }
 
 export function newDraft(id: string): Draft {
@@ -143,8 +171,8 @@ export function newDraft(id: string): Draft {
     // explicitly anyway. Step 9's controls are on the stack row, not here.
     salt: 0,
     reseedOnLoad: false,
-    selectionType: null,
-    selectionParams: {},
+    layers: [{ type: null, params: {} }],
+    activeLayer: 0,
     target: null,
     sourceType: null,
     sourceParams: {},
@@ -204,7 +232,7 @@ export function retarget(draft: Draft, target: TargetName): void {
  */
 export function isComplete(draft: Draft): boolean {
   if (
-    draft.selectionType === null ||
+    draft.layers.some((layer) => layer.type === null) ||
     draft.target === null ||
     draft.sourceType === null ||
     draft.blend === null
@@ -272,7 +300,10 @@ export function mappingOf(draft: Draft): Operation["mapping"] {
  * builds one for committing, and it still refuses an incomplete draft.
  */
 export function toShadowOperation(draft: Draft): Operation | null {
-  if (draft.selectionType === null) return null;
+  // The layers chosen so far (B-033). A layer just added and not yet typed is
+  // left out, so the overlay keeps showing the others while the author picks.
+  const selection = typedLayers(draft);
+  if (selection.length === 0) return null;
   return {
     id: draft.id,
     // **Read**, unlike the three placeholders below: `selection()` reaches these
@@ -282,7 +313,7 @@ export function toShadowOperation(draft: Draft): Operation | null {
     // Operation does not have, so the overlay would disagree with the picture.
     salt: draft.salt,
     reseedOnLoad: draft.reseedOnLoad,
-    selection: { type: draft.selectionType, ...draft.selectionParams },
+    selection,
     // The draft's own pattern once one is chosen: `selection()` does not read
     // it, but the palette's measured coverage (`fieldOf`) does, against this
     // same shadow. A placeholder until then, never read.
@@ -399,21 +430,24 @@ export function draftFile(file: TilesetFile, draft: Draft): TilesetFile | null {
  * a transition, which is **E3** and **E6** both defeated by an assignment: the
  * picture would move with nothing on the undo stack to move it back.
  *
- * The copies are one level deep, which is the depth the controls write at. A
- * `cellList` is replaced wholesale rather than pushed into (`App.svelte`'s
- * `paintCells`), so its array is not shared even though this does not clone it.
+ * The copies are one level deep, which is the depth the controls write at,
+ * except the selection layers, which are copied whole (B-033): each layer is
+ * its own object holding its own `params`, and a parameter value may itself be
+ * an array (a `cellList`). A `cellList` is replaced wholesale rather than
+ * pushed into (`App.svelte`'s `paintCells`), but copying it costs nothing and
+ * makes the no-aliasing rule hold without relying on that.
  */
 export function fromOperation(op: Operation): Draft {
   const fresh = newDraft(op.id);
-  const { type: selectionType, ...selectionParams } = op.selection;
+  const layers = op.selection.map(({ type, ...params }) => ({ type, params: copyJson(params) }));
   const { type: sourceType, ...sourceParams } = op.source;
   const mapping = op.mapping;
   return {
     ...fresh,
     salt: op.salt ?? 0,
     reseedOnLoad: op.reseedOnLoad === true,
-    selectionType,
-    selectionParams,
+    layers,
+    activeLayer: 0,
     sourceType,
     sourceParams,
     target: op.target,
@@ -440,7 +474,7 @@ export function toOperation(draft: Draft): Operation | null {
     id: draft.id,
     salt: draft.salt,
     reseedOnLoad: draft.reseedOnLoad,
-    selection: { type: draft.selectionType!, ...draft.selectionParams },
+    selection: typedLayers(draft),
     source: { type: draft.sourceType!, ...draft.sourceParams },
     target: draft.target!,
     mapping,
@@ -460,7 +494,7 @@ export function toOperation(draft: Draft): Operation | null {
  */
 export function draftDiffers(draft: Draft, op: Operation | null): boolean {
   if (op === null) {
-    return draft.selectionType !== null || draft.target !== null || draft.sourceType !== null;
+    return draft.layers.some((layer) => layer.type !== null) || draft.target !== null || draft.sourceType !== null;
   }
   const current = toOperation(draft);
   if (current === null) return true;
@@ -474,4 +508,9 @@ function stableJson(value: unknown): string {
       ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)))
       : v,
   );
+}
+
+/** A deep copy of plain file data — numbers, strings, arrays and objects. */
+function copyJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }

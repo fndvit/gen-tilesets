@@ -55,7 +55,7 @@ Everything below is re-exported from `index.ts:138–163`.
 | [`NumericMapping`](/api/index/interfaces/numericmapping/) | interface | `{ range: [min, max], steps? }`. |
 | [`PaletteEntry`](/api/index/interfaces/paletteentry/), [`TileMapping`](/api/index/interfaces/tilemapping/) | interface | `{ tileId \| null, weight }` and `{ palette }`. |
 | [`Mapping`](/api/index/type-aliases/mapping/) | type | `NumericMapping \| TileMapping`, with no kind tag. |
-| [`Operation`](/api/index/interfaces/operation/) | interface | `{ id, salt?, reseedOnLoad?, selection, source, target, mapping, blend }`. |
+| [`Operation`](/api/index/interfaces/operation/) | interface | `{ id, salt?, reseedOnLoad?, selection, source, target, mapping, blend }`. `selection` is `Selection[]`, the selection's layers, at least one (B-033). |
 | [`TilesetConfig`](/api/index/interfaces/tilesetconfig/) | interface | The engine's input: `rows`, `columns`, `defaultSeed`, `assetSalt?`, `reseedAssetsOnLoad?`, `tiles`, `operations`. |
 | [`Layout`](/api/index/interfaces/layout/) | interface | Renderer-only: `cellSize`, `referenceWidth`, `yOffset`, `horizontalAlignment`. |
 | [`Shape`](/api/index/interfaces/shape/) | interface | `rows`, `columns`, `cellSize`, `bleed`, `yOffset`. |
@@ -107,10 +107,16 @@ Field meanings the comments pin down:
   constrain evaluation order.
 - **`Extent` may lie outside the grid**, because a `rect` may, and clamping it would resize the
   author's rectangle and shift a gradient's midpoint.
-- **`schemaVersion` is the literal `6`** since B-033, which added the `union` Selection
-  (selection layers). Absent or unknown is a load failure. `migrate()` lifts 1, 2, 3 and 5
-  forward with nothing to rewrite, and 4 by renaming the old `everyNth` Selection `rowColumn`
-  (B-009), as the field comment states.
+- **`schemaVersion` is the literal `6`** since B-033, which made `Operation.selection` a list of
+  layers. Absent or unknown is a load failure. `migrate()` lifts 1, 2 and 3 forward with nothing
+  to rewrite, 4 by renaming the old `everyNth` Selection `rowColumn` (B-009), and 5 by wrapping
+  every selection in a one-item list (B-033), as the field comment states.
+- **`Operation.selection` is always a list**, even of one (Pol, B-033). The field comment gives
+  the reason: one shape rather than "a Selection, or a union of them", so nothing downstream has
+  to ask which it holds. The Operation affects every cell any layer selects. Order does not change
+  which cells are selected, only `random` layers' hash channels, which are by position: layer 0
+  keeps the Operation's own `opId:selection`, so a migrated v5 file draws byte-identically, and
+  layer `i ≥ 1` hashes on `opId:i:selection` (see [selection.ts](/engine/selection/)).
 
 ### Callers / callees
 

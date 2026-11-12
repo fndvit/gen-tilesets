@@ -44,11 +44,11 @@ that will be affected.* The response has three parts, and this file supplies the
 
 | Export | Signature | Meaning |
 | --- | --- | --- |
-| `atRisk(config)` | `(TilesetConfig) → Operation[]` | Operations whose Selection is coordinate-bound, per the engine's `isCoordinateBound`. |
+| `atRisk(config)` | `(TilesetConfig) → Operation[]` | Operations with any coordinate-bound selection layer, per the engine's `isCoordinateBound`. |
 | `needsConfirmation(config)` | `(TilesetConfig) → boolean` | `atRisk(config).length > 0` |
-| `Orphan` | interface | `{ operationId, selectionType, reachable, authored?, outside?, empty }`. `outside` is set only for a Selection made of layers (B-033). |
+| `Orphan` | interface | `{ operationId, selectionType, reachable, authored?, outside?, empty }`. `selectionType` is the layer types joined with `" + "` (`selectionTypes` from [layers.ts](/editor/layers/)), so a one-layer selection reads `"rect"` as before. `outside` is set only for a selection of more than one layer (B-033). |
 | `orphans(config, seed, loadSalt = 0)` | `(TilesetConfig, string, number) → Orphan[]` | Coordinate-bound Operations that no longer reach what they were authored to. |
-| `outsideCells(op, config)` | `(Operation, {rows, columns}) → [x, y][]` | The painted list's entries outside the grid (`0 ≤ x < columns`, `0 ≤ y < rows`), as the list's own arrays; empty for a Selection with no list. For a `union`, every Handpick layer's outside entries, in layer order (B-033). Batch 01, T-05. |
+| `outsideCells(op, config)` | `(Operation, {rows, columns}) → [x, y][]` | The painted list's entries outside the grid (`0 ≤ x < columns`, `0 ≤ y < rows`), as the list's own arrays; empty for a selection with no list. Every Handpick layer's outside entries, in layer order (B-033). Batch 01, T-05. |
 | `cameWithFile(op, config, opened)` | `(Operation, TilesetConfig, TilesetFile \| null) → boolean` | Whether the loss was already there in the file as opened, so Undo cannot repair it. Batch 01, T-05. |
 
 **`outsideCells` is the grid's extent, not a Selection test.** **E8** keeps "which cells does this
@@ -59,9 +59,11 @@ for `cameWithFile`.
 **`cameWithFile`** (B-014: after an import, the notice said "Undo puts the grid back", and Undo
 went back to the previous document instead). For a painted list: true when every cell now outside
 the grid was in the opened file's list for that operation id *and* outside that file's grid, so a
-cell a later resize pushed out keeps the Undo wording. A `union` with any Handpick layer takes
-this branch, over the outside cells of all its layers. For a `rect` (or any other bound Selection):
-true while neither it nor the grid has changed since the open. `false` when nothing was opened.
+cell a later resize pushed out keeps the Undo wording. A selection with any Handpick layer takes
+this branch, over the outside cells of all its layers (B-033). For a `rect` (or any other bound
+Selection): true while neither it nor the grid has changed since the open. `false` when nothing
+was opened, when the opened file has no Operation with this id, or when the two selections' layer
+types (`selectionTypes`) differ.
 
 Engine: [`selection`](/api/index/functions/selection/),
 [`isCoordinateBound`](/api/index/functions/iscoordinatebound/),
@@ -70,25 +72,25 @@ Engine: [`selection`](/api/index/functions/selection/),
 
 ### Inputs → outputs
 
-**`atRisk`** filters `config.operations` by `isCoordinateBound(op.selection)`. That resolves a
-`union`'s flag from its layers (B-033), and answers `false` for an unknown type rather than
-throwing.
+**`atRisk`** filters `config.operations` by `isCoordinateBound(op.selection)`, which is true when
+any layer's registration is coordinate-bound (B-033) and treats an unknown type as not bound
+rather than throwing.
 
 **`orphans`**, for each at-risk Operation:
 
 1. `includes = selection(config, op.id, seed, loadSalt)`, the engine's own predicate.
 2. `reachable` is the count of `(x, y)` in `[0, columns) × [0, rows)` where `includes(x, y)`.
-3. `authored` is the total length of every layer's `cells` list, read through
-   [layers.ts](/editor/layers/) (`layersOf`, `cellsOf`). For a plain Selection that is
-   `op.selection.cells.length` if `cells` is an array (a `cellList`); with no list anywhere it is
-   absent.
-4. For a Selection made of layers that has a list, `outside` is `outsideCells(op, config).length`.
-   Otherwise it is absent.
+3. `authored` is the total length of every layer's `cells` list, read with `cellsOf` from
+   [layers.ts](/editor/layers/). With no list in any layer it is absent.
+4. For a selection of more than one layer that has a list, `outside` is
+   `outsideCells(op, config).length`. Otherwise it is absent, and a one-layer selection reads
+   exactly as before layers existed.
 5. The Operation is reported if `reachable === 0`, or if it lost some: `outside > 0` when
    `outside` is defined, otherwise `authored` defined and `reachable < authored`. `empty` is
    `reachable === 0`.
 
-**Why `outside` for layers** (B-033): for a union, `authored − reachable` is not the loss. A `rect`
+**Why `outside` for layers** (B-033): for several layers, `authored − reachable` is not the
+loss. A `rect`
 layer reaches cells nobody painted, and two Handpick layers may paint the same cell. For a single
 list the subtraction is the loss, as before.
 
@@ -98,8 +100,8 @@ is. `authored` and `outside` are spread in or omitted rather than set to `undefi
 
 ### Invariants
 
-- **Read from the registry's `coordinateBound` declaration** (through `isCoordinateBound`, since a
-  `union`'s depends on its layers), never a list of names. A Selection registered later would
+- **Read from the registry's `coordinateBound` declaration** (through `isCoordinateBound`, which
+  asks it of every selection layer), never a list of names. A Selection registered later would
   otherwise be silently exempted from the confirmation.
 - **Confirmation only where something is at risk.** *"A dialogue that appears every time teaches
   the author to dismiss it before reading."* An empty `atRisk` means the edit applies directly.
@@ -116,28 +118,28 @@ is. `authored` and `outside` are spread in or omitted rather than set to `undefi
 
 | Caller | Uses |
 | --- | --- |
-| `App.svelte:44` | imports `atRisk`, `cameWithFile`, `needsConfirmation`, `orphans` |
-| `App.svelte:286` | `needsConfirmation(config)` in `destructive()`: hold the transition as `pending`, or apply it |
-| `App.svelte:304` | `risked = atRisk(config)`, the names in the confirmation |
-| `App.svelte:311` | `orphaned = orphans(config, config.defaultSeed, loadSalt)` |
+| `App.svelte:45` | imports `atRisk`, `cameWithFile`, `needsConfirmation`, `orphans` |
+| `App.svelte:287` | `needsConfirmation(config)` in `destructive()`: hold the transition as `pending`, or apply it |
+| `App.svelte:305` | `risked = atRisk(config)`, the names in the confirmation |
+| `App.svelte:312` | `orphaned = orphans(config, config.defaultSeed, loadSalt)` |
 
 Callees: [`selection`](/api/index/functions/selection/) and
-[`isCoordinateBound`](/api/index/functions/iscoordinatebound/) from the engine; `layersOf` and
-`cellsOf` from [layers.ts](/editor/layers/).
+[`isCoordinateBound`](/api/index/functions/iscoordinatebound/) from the engine; `cellsOf` and
+`selectionTypes` from [layers.ts](/editor/layers/).
 
 ### Tests: `orphans.test.ts`
 
-- The registrations whose flag is exactly `true` are `["cellList", "rect"]`, and every registered
-  Selection declares the flag as a boolean or a function; `union`'s is a function.
+- The registrations whose flag is `true` are `["cellList", "rect"]`, and every registered
+  Selection declares the flag as a boolean.
 - **E12.** Nothing is asked when every Selection is procedural. Only the at-risk Operations are
   named. Nothing is asked on an empty document.
 - **Orphans.** Silent while everything fits. A `rect` wholly outside the grid is reported; one that
   merely overhangs is not. It counts unreachable painted cells, reports a `cellList` whose every
   entry is outside, never modifies the config, and ignores procedural Selections however few
   cells they match.
-- **Selection layers (B-033).** A union is at risk exactly when one of its layers is
+- **Selection layers (B-033).** An Operation is at risk exactly when one of its layers is
   coordinate-bound. A Handpick layer's lost cells are counted (`outside: 2`) even when a `rect`
-  layer still reaches cells. A union whose painted cells all fit is not reported. `outsideCells`
+  layer still reaches cells. An Operation whose layers' painted cells all fit is not reported. `outsideCells`
   lists the outside cells of every Handpick layer, in layer order.
 
 ### Gotchas & rejected alternatives

@@ -66,8 +66,8 @@ from [paint.ts](/editor/paint/), true when the params are exactly the integers `
   and `rectangle` is `null` whenever `painting` is not. `paint.test.ts` checks that no registered
   Selection has both shapes.
 - **What is written never covers a cell outside the grid** (D-01); the outline may.
-- **Nothing touches the file.** `onChange` is `drawRect`, which assigns into
-  `draft.selectionParams`.
+- **Nothing touches the file.** `onChange` is `drawRect`, which assigns into the active selection
+  layer's `params` in the draft (B-033).
 
 ### Callers / callees
 

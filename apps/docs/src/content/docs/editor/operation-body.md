@@ -69,28 +69,25 @@ key. The body's own gap is `--space-6` (12px).
 
 #### Selection
 
-`selectionItems` is every `selections.all()` registration except those that hold layers, labelled
-by `labelFor`, sorted into
+`selectionItems` is every `selections.all()` registration, labelled by `labelFor`, sorted into
 Figma's order (`all`, `checkerboard`, `everyNth`, `rowColumn`, `random`, `rect`, `cellList`), with
 its `.svg` glyph as `src`. A name with no artwork gets a label-only cell after these.
 `every-nth.svg` counts cells row after row with n = 3, which is the v5 `everyNth` (B-009);
 `row-column.svg`, every 2nd column, is hand-written because Figma has no node for it. A
-**coordinate-bound** Selection (`r.coordinateBound === true`) is disabled while any breakpoint
+**coordinate-bound** Selection (`r.coordinateBound`) is disabled while any breakpoint
 names `rows` or `columns` (`resizedBy`), because `document.ts` would refuse the commit
 (`COORDINATE_BOUND_RESIZE`). The hint then reads "Handpick holds literal cells, and breakpoint N
 changes rows or columns."
 
-**A Selection made of layers is never offered** (B-033). `union` is filtered out with
-`holdsLayers` from [layers.ts](/editor/layers/): found by its declared `selectionList` parameter,
-not by name. The editor builds a union from a layer list rather than picking it. The comparison is
-`=== true` because `coordinateBound` may be a function of the parameters, and only a
-layer-holding Selection's is, which the filter has already removed.
-
-`chooseSelection(name)` sets `selectionType` and replaces `selectionParams` with
-`defaultParams(schema)`. The Selection's [ParamFields](/editor/param-fields/) go in the options
-block, shown only when the chosen Selection has parameters. They get
-`hints={selectionParamHints(draft.selectionType)}` ([param-hints.ts](/editor/param-hints/)), so
-Every Nth's N says that the picture depends on the column count (B-009).
+**The step edits one selection layer, the active one** (B-033). An Operation's selection is a
+list of layers, and `layer` is `activeLayer(draft)` from [draft.svelte.ts](/editor/draft/). The
+glyph grid's value is `layer.type`, and `chooseSelection(name)` sets `layer.type` and replaces
+`layer.params` with `defaultParams(schema)`. The source says Block 2 edits only the first layer;
+Block 3 adds the list that changes `draft.activeLayer`. The Selection's
+[ParamFields](/editor/param-fields/) go in the options block, shown only when the layer's
+Selection has parameters. They read and write `layer.params` and get
+`hints={selectionParamHints(layer.type)}` ([param-hints.ts](/editor/param-hints/)), so Every
+Nth's N says that the picture depends on the column count (B-009).
 
 #### Attribute
 
@@ -147,7 +144,8 @@ is absent, not disabled. For `tileId` that leaves a single `set` cell.
 
 #### Discard / Save
 
-`chosen(step)` is the step's answer (`selectionType`, `target`, `sourceType`, `blend`).
+`chosen(step)` is the step's answer (`target`, `sourceType`, `blend`). The Selection step is
+settled when every layer has a type, and then answers the active layer's `type` (B-033).
 `unanswered` lists `STEP_LABELS[step]` for each step with no answer. When all four are answered but
 `isComplete(draft)` is false (an empty palette, or weights summing to zero), it adds "the
 mapping". The button reads "Save" when editing, "Add" otherwise, is disabled while `unanswered`
@@ -194,12 +192,12 @@ an unregistered name gives `null`.
 
 Callees: [`acceptedBlends`](/api/index/functions/acceptedblends/),
 [`selections`](/api/index/variables/selections/), [`sources`](/api/index/variables/sources/),
-[`TARGETS`](/api/index/variables/targets/); `holdsLayers` ([layers.ts](/editor/layers/)); the
-Selection glyphs in
+[`TARGETS`](/api/index/variables/targets/); the Selection glyphs in
 `assets/glyphs/selection/`; `isTileTarget` (`controls/mapping.ts`);
 [NumericMapping](/editor/numeric-mapping/), [PaletteList](/editor/palette-list/),
 [ParamFields](/editor/param-fields/); `addOperation`, `replaceOperation` (`document.ts`);
-`defaultParams`, `isComplete`, `retarget`, `STEPS`, `toOperation` (`draft.svelte.ts`); `session`;
+`activeLayer`, `defaultParams`, `isComplete`, `retarget`, `STEPS`, `toOperation`
+(`draft.svelte.ts`); `session`;
 [Button](/editor/ui-button/), [Checkbox](/editor/ui-checkbox/),
 [GlyphGrid](/editor/ui-glyph-grid/), [Hint](/editor/ui-hint/);
 `labelFor` ([labels.ts](/editor/operation-labels/)).
@@ -235,8 +233,9 @@ No test file for the component. The logic it calls is pinned elsewhere:
   the stored range. A range set before switching to `constant` keeps its second value, hidden, and
   it is committed as-is. Only `range[0]` affects the picture, so the output is right, but the file
   carries a value the author cannot see. (inconsistency, carried over from `OperationDraft.svelte`)
-- The comment above `selectionItems` (lines 111–116, about a disabled coordinate-bound Selection)
-  sits above `glyphOrder` and `rank`, not above the code it describes. (stale comment, minor)
+- An earlier version of this page said the comment about a disabled coordinate-bound Selection
+  sat above `glyphOrder` and `rank`. In the current source it sits directly above
+  `selectionItems` (lines 163–168), so the note no longer applies.
 - The disabled-Selection hint names "Handpick" by hand, though it is driven by
-  `r.coordinateBound === true`. A second coordinate-bound Selection would be disabled under the same
+  `r.coordinateBound`. A second coordinate-bound Selection would be disabled under the same
   sentence. (inconsistency, latent)

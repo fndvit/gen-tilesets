@@ -147,7 +147,6 @@ describe("E9 — totality over the actual registries", () => {
       "random",
       "rect",
       "rowColumn",
-      "union",
     ]);
     // `04` §5.2 lists five Sources; `vignette` is not registered. Flagged as an
     // engine gap, not worked around -- when it lands, this line changes and the
@@ -160,7 +159,7 @@ describe("E9 — totality over the actual registries", () => {
       for (const [param, spec] of Object.entries(schema)) {
         const affordance = affordanceFor(spec);
         expect(affordance.kind, `${name}.${param}`).toMatch(
-          /^(slider|number|segmented|cellList|selectionList)$/,
+          /^(slider|number|segmented|cellList)$/,
         );
       }
     });

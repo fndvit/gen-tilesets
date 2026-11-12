@@ -38,7 +38,8 @@
   import { editorProvider, replaceAll, stored } from "./assets.js";
   import { trimToGrid, type Transition } from "./document.js";
   import { paintedTiles } from "./controls/palette.js";
-  import { draftFile, shadowConfig } from "./draft.svelte.js";
+  import { activeLayer, draftFile, shadowConfig } from "./draft.svelte.js";
+  import { selectionTypes } from "./layers.js";
   import { drafting } from "./drafting.svelte.js";
   import { opening } from "./opening.svelte.js";
   import { atRisk, cameWithFile, needsConfirmation, orphans } from "./orphans.js";
@@ -382,14 +383,17 @@
    * `05` §5.1's list type is the one parameter `09` cannot generate a control
    * for mechanically (§7.3, the single exception to **E9**), so this is the only
    * place the editor looks a parameter type up by name.
+   *
+   * Of the **active layer** (B-033): the brush and the drag edit the layer the
+   * Selection step has open, and only it.
    */
+  const layer = $derived(drafting.draft === null ? null : activeLayer(drafting.draft));
   const painting = $derived.by(() => {
-    const draft = drafting.draft;
-    if (draft === null || draft.selectionType === null) return null;
-    const schema = selections.get(draft.selectionType).params;
+    if (layer === null || layer.type === null) return null;
+    const schema = selections.get(layer.type).params;
     const name = Object.keys(schema).find((key) => schema[key]!.type === "cellList");
     if (name === undefined) return null;
-    return { name, cells: (draft.selectionParams[name] ?? []) as Cell[] };
+    return { name, cells: (layer.params[name] ?? []) as Cell[] };
   });
 
   /**
@@ -406,10 +410,9 @@
    * brush wins: `rectangle` is `null` whenever `painting` is not.
    */
   const rectangle = $derived.by(() => {
-    const draft = drafting.draft;
-    if (draft === null || draft.selectionType === null || painting !== null) return null;
-    if (!rectParams(selections.get(draft.selectionType).params)) return null;
-    const p = draft.selectionParams;
+    if (layer === null || layer.type === null || painting !== null) return null;
+    if (!rectParams(selections.get(layer.type).params)) return null;
+    const p = layer.params;
     const ok = ["x", "y", "width", "height"].every((k) => typeof p[k] === "number");
     return { rect: ok ? ({ x: p.x, y: p.y, width: p.width, height: p.height } as Rect) : null };
   });
@@ -456,14 +459,12 @@
    * reaches it as one transition when it is complete (`DECISIONS.md` D7).
    */
   function paintCells(name: string, cells: Cell[]): void {
-    const draft = drafting.draft;
-    if (draft !== null) draft.selectionParams[name] = cells;
+    if (layer !== null) layer.params[name] = cells;
   }
 
   /** The rectangle drag's write, the same way: into the draft, never the file. */
   function drawRect(rect: Rect): void {
-    const draft = drafting.draft;
-    if (draft !== null) Object.assign(draft.selectionParams, rect);
+    if (layer !== null) Object.assign(layer.params, rect);
   }
 </script>
 
@@ -653,7 +654,7 @@
     {#each risked as op (op.id)}
       <li>
         <span class="index t-console" aria-hidden="true">{config.operations.indexOf(op) + 1}</span>
-        <span class="t-console">{op.id} · {op.selection.type}</span>
+        <span class="t-console">{op.id} · {selectionTypes(op.selection)}</span>
       </li>
     {/each}
   </ul>

@@ -1,238 +1,258 @@
 # Selection layers (B-033)
 
 Progress record for the big-task session. B-033 was chosen on 2026-11-11. The session runs in
-blocks, and each block is confirmed before the next starts. Pol approved the plan below (Block 1
-decisions included) on 2026-11-11.
+blocks, and each block is confirmed before the next starts.
+
+**History.** The first Block 2 (commit 61d6c74, 2026-11-11) added a `union` Selection beside the
+plain one. On 2026-11-12 Pol asked for one shape instead: `Operation.selection` is always a list of
+layers. The plan below is that revision. The union build is undone in the follow-up commit, not
+rewritten out of history.
+
 ## Context
 
-B-033 (`BACKLOG.md`): an operation's Selection can be made of several **layers**, each one of
-today's selections (Handpick, Drag/rect, Row/Column, Every Nth, Checkerboard, Random, All). The
-operation affects every cell **any** layer selects. In the editor, the Selection step lists the
-layers with a "+ Add selection layer" button, and the overlay shows the combination live. There is
-no "Done" button. An operation with one layer saves exactly as today.
+B-033 lets an operation's Selection be made of several layers. An operation affects every cell
+that any of its layers selects.
 
-This is a **big** task under `docs/Batch-workflow.md` (new Selection type, new `ParamSpec`, schema
-bump), so it runs like B-009: in blocks, each one analysed, built, reviewed, tested and confirmed by
-Pol before the next. The progress record lives in `docs/plans/selection-layers.md`, in the format of
-`docs/plans/every-nth.md`. Its first commit goes on branch `b-033-selection-layers`, cut from `dev`.
-The PRs target `dev`, and Pol merges.
+Block 2 was built on `b-033-selection-layers` (commit 61d6c74, not pushed). It added a `union`
+Selection, kept a single layer as the plain object, and needed a lot of machinery to tell the two
+shapes apart:
+- a `selectionList` ParamSpec;
+- a parameter-dependent `coordinateBound`;
+- a no-nesting rule;
+- keeping `union` out of the picker;
+- `layersOf` and `withLayer` in the editor.
 
-## Block 1: decisions
+Pol, 2026-11-12: **`Operation.selection` is always an array of layers, even for one layer.** The
+key keeps its name, `selection`. One shape means:
+- no `union` type and no new ParamSpec;
+- `coordinateBound` goes back to a plain boolean;
+- the editor's draft is always a list.
 
-From the backlog, already decided:
-- A `union` Selection with a new list param type.
-- Validation recurses into the layers. Schema bump with no content migration.
-- Extent is the bounding box of the layers, or the whole grid if any layer has none.
-- The union is coordinate-bound if any layer is.
-- Each `random` layer gets its own hash channel.
+Older files still load. The 5 → 6 migration wraps each old selection in a one-item list, and
+layer 0 keeps the operation's old random channel, so a migrated file draws byte-identically. What
+breaks:
+- code that hands `generate()` an old-shaped config without `migrate()`;
+- code that builds an `Operation` in TypeScript.
 
-Pol, 2026-11-11:
-- **Random layers are channelled by position.** Layer 0 keeps today's channel
-  (`opId:selection`), so adding a second layer never changes the first layer's scatter, and old
-  files draw the same. Layer i ≥ 1 hashes on its own channel. Deleting or moving a layer reshuffles
-  the Random layers after it. The file stays as clean as today.
+Under 0.x that costs a version bump and a changelog line.
 
-Decided here, not asked (Pol can overrule them at Block 1 review):
-- **A union holds at least 2 layers, and a layer can't be a union.** One layer is saved as the
-  plain selection, so a 1-layer union would be a second way to write the same thing, and
-  `cameWithFile`'s JSON comparison would see two different files. Nesting adds nothing that a
-  union doesn't already do.
-- **An empty Handpick layer is skipped in the extent box.** Its zero-area extent would otherwise
-  pull the box towards (0,0). If every layer is zero-area, the extent is zero-area.
-- **`union` never shows in the type picker.** The editor builds it from the layer list.
+Unchanged from Block 1 (Pol):
+- random layers are channelled **by position**. Layer 0 keeps `opId:selection`, and layer i ≥ 1
+  uses `opId:i:selection`;
+- the extent is the bounding box of the layers, or the whole grid if any layer has none;
+- an operation pins the grid if any layer is coordinate-bound.
 
-## Block 2: engine and schema (+ the editor changes needed to stay green)
+Decided here, not asked:
+- A selection must hold **at least one layer**. An empty list would be an operation that silently
+  does nothing.
+- Layers are plain Selection objects, with no wrapper. B-034 can later reserve one sibling key
+  (e.g. `"except": true`), the way `type` is reserved today.
+
+## Block 2 rework (same branch, a follow-up commit; then one PR)
+
+**Undo the union machinery.** Remove:
+- the `union` registration and the `selectionList` ParamSpec;
+- `coordinateBound` as a function, and `extent` returning `undefined`;
+- the `selectionList` branches in `affordance.ts`, `ParamFields.svelte`, `defaultParams` and
+  `validate.ts`;
+- the picker filter in `OperationBody.svelte`;
+- `holdsLayers`, `layersParam`, `layersOf` and `withLayer` in `apps/editor/src/layers.ts`.
+
+Keep:
+- `layerOwner` (`hash.ts`);
+- the `shape.ts` message that names the bound layer types;
+- `Orphan.outside`;
+- `isCoordinateBound`, which now takes a list.
 
 **Engine (`packages/tileset/src`)**
-1. `registry/registry.ts`: add a new `ParamSpec` variant, `{ type: "selectionList" }`.
-2. `registry/selections.ts`: register `union` with `params: { layers: { type: "selectionList" } }`.
-   - **`coordinateBound`** becomes `boolean | ((params) => boolean)`. `union` uses
-     `layers.some(isCoordinateBound)`. Export a helper,
-     `isCoordinateBound(selection: Selection): boolean`, and route every reader through it. The
-     comment records the rejected options: a static `true` would fire the E12 confirmation on
-     procedural unions, and §9.3 says that teaches authors to dismiss it.
-   - **`extent`**: the bounding box of the layers' declared extents. Return `undefined` (the whole
-     grid) if any layer declares none. Skip zero-area extents.
-   - **`impl`**: `layers.some((layer, i) => reg(layer).impl(layer, x, y, layerCtx(ctx, i)))`.
-     - `layerCtx(ctx, 0)` is `ctx` itself.
-     - For i ≥ 1 it is `{ ...ctx, operationId: layerOwner(ctx.operationId, i) }`, cached per
-       `ctx` in a `WeakMap`, so nothing is allocated per cell.
-     - `random`'s channel then comes out as `op:<i>:selection`. The colon is excluded from ids
-       (`06` §5.3), so it can't collide with another operation's channel. Only Selections ever see
-       a layer ctx, never Sources.
-   - Comment at the point of use, recording the rejected alternatives: widening `EvalCtx` (O4 is
-     closed), and a stable per-layer id (Pol chose by position).
-3. `hash.ts`: `layerOwner` sits beside `selectionChannel`. Update the "closed at three shapes"
-   note (X3) and the `channelCache` bound comment, which now grows with layers × operations.
+1. `types.ts`:
+   - `Operation.selection: Selection[]`, commented: "layers; ORed; at least one; order matters
+     only for random channels (B-033)";
+   - `schemaVersion: 6`, with its history comment.
+2. Shared layer preparation, used by both `generate()` and `selection()` so they cannot disagree
+   (E8):
+   - **`ctx.ts`** `operationCtx` computes `extent` as the bounding box over the layers. The rule
+     moves here from the union registration: skip zero-area extents; the grid if any layer has
+     none.
+   - **`selection.ts`** gains `selectionPredicate(op, ctx)`. It resolves each layer's
+     registration and ctx **once** (layer 0 uses `ctx`; layer i ≥ 1 uses
+     `{...ctx, operationId: layerOwner(op.id, i)}`), and returns `(x, y) => any layer matches`.
+     There is no WeakMap; the per-layer ctx is built once per operation. `generate.ts`'s
+     `PreparedOperation` holds that predicate instead of `selection: SelectionRegistration`.
+   - The O4 and position-channel rationale comments move with the code.
+3. `registry/selections.ts`:
+   - `isCoordinateBound(selection: readonly Selection[])` is true if any layer's registration is
+     bound;
+   - it stays total over malformed input (not an array, unknown types).
 4. `validate.ts`:
-   - add a `selectionList` case to `param()`. It must be an array of at least 2 items, and each
-     item goes through `tagged(..., "selection")`;
-   - an item whose registration has a `selectionList` param is an error ("a layer cannot itself
-     be a union"). Read the existing `ValidationErrorCode`s first, and reuse one if it fits;
-   - `taggedParams`' "absent is optional" rule does **not** apply to `selectionList`;
-   - set `SCHEMA_VERSION = 6`.
-5. `migrate.ts`: add a `{from: 5, to: 6}` row with a "nothing to do" note. `types.ts`:
-   `schemaVersion: 6`, and its history comment.
-6. `shape.ts`: `coordinateBoundOperations` uses `isCoordinateBound`. Update the header note.
-   `index.ts`: export `isCoordinateBound`.
-7. `generate.ts`, `selection.ts`, `ctx.ts`: no change in logic. They already dispatch through the
-   registry and `extent?.()`. Check `selection.ts`'s E8 header still reads true.
+   - `selection` must be an array (`TYPE_MISMATCH`) with at least one layer (`OUT_OF_RANGE`);
+   - each layer goes through `tagged(..., "selection")` at `/selection/<i>`;
+   - `pinningOperations`' well-shaped filter checks for an array of objects with a string `type`;
+   - `SCHEMA_VERSION = 6`.
+5. `migrate.ts`, the 5 → 6 row, which now rewrites content:
+   - an operation whose `selection` is a non-array object becomes `[selection]`;
+   - anything else is left alone for `validate()` to report;
+   - a malformed `config` or `operations` is tolerated;
+   - nothing is mutated. Same discipline as 4 → 5.
+6. `shape.ts`: `coordinateBoundOperations` and the message use the list. The procedural-name list
+   goes back to `!r.coordinateBound`. `index.ts` exports `isCoordinateBound`, plus
+   `selectionPredicate` only if the editor needs it (prefer not).
 
-**Editor, minimum to stay green (no layer UI yet)**
-- `controls/affordance.ts`:
-  - `affordanceFor` gets a `selectionList` kind;
-  - `defaultFor` returns `[]`;
-  - `admits` checks for an array;
-  - `ParamFields.svelte` renders nothing for that kind.
-- `OperationBody.svelte`: filter out of the picker any Selection whose params include a
-  `selectionList`. This is a declaration check, not a name check.
-- `orphans.ts` (`atRisk`, the `authored`/`outsideCells`/`cameWithFile` `cells` reads) and
-  `document.ts` `trimToGrid`: go through `isCoordinateBound`, and through a small editor helper
-  `layersOf(selection)` (`[sel]`, or `sel.layers`). Then nested Handpick layers are counted and
-  trimmed.
-- `apps/editor/public/templates/*/tileset.json` go to v6, because `starters.test.ts` requires it.
-  The other fixtures stay old to prove that migration on load works.
+**Editor (`apps/editor/src`)**
+- `draft.svelte.ts`: the draft holds `selectionLayers: {type: string|null; params}[]` (at least
+  one) and `activeLayer: number`.
+  - `fromOperation` deep-copies the layers, for E3/E6 no-aliasing.
+  - `toOperation` and `toShadowOperation` write the array.
+  - The Selection step is chosen when every layer has a type.
+  - **In Block 2 the UI still edits only the active layer (layer 0).** Block 3 adds the list.
+  - Add `draftSelection*` accessors so `OperationBody.svelte` and `App.svelte` (`painting`,
+    `rectangle`, `paintCells`, `drawRect`) read and write the active layer with minimal churn.
+- Every `op.selection.type` / `.cells` reader moves to the list:
+  - `labels.ts` `partsOf`: the layer labels joined with " + ";
+  - `orphans.ts`, `document.ts` `trimToGrid` (map over layers), `advisories.ts`
+    (`selectionType` names the layers);
+  - `tour.ts:334` (`op.selection[0].type`), `lib/sections/motif.ts:74`, and the `App.svelte`
+    resize dialog;
+  - `layers.ts` shrinks to `cellsOf`, or folds into `orphans.ts` if nothing else uses it.
+- Templates: migrate `public/templates/*/tileset.json` to v6 with the real `migrate()` (a
+  one-off script), not by hand.
+
+**Fixtures and literals.** Mechanical: change `selection: {…}` to `selection: [{…}]` in:
+- the engine and editor tests;
+- the demo's inline Svelte configs (`Hosting`, `Square2x2`, `Responsive`, `Decorations`);
+- `PaletteListStory`.
+
+These stay old on purpose, to prove that migration on load works:
+- the demo `public/*/tileset.json` files;
+- the docs `fixtures/basic.json`.
+
+Check that each one's loader migrates first.
 
 **Tests**
-- `registry.test.ts`:
-  - a union of rect + checkerboard selects the OR of the two;
-  - extent: the bounding box; the grid when an `all`/`random` layer has no extent; an empty
-    Handpick layer is skipped;
-  - `isCoordinateBound`: false for procedural layers, true when one layer is rect;
-  - two `random` layers at the same density select different cells;
-  - **layer 0 `random` equals the same `random` used alone, cell for cell.**
-- `validate.test.ts`: fewer than 2 layers is rejected; a nested union is rejected; a bad layer
-  param reports the nested path (`/config/operations/0/selection/layers/1/density`); `layers`
-  is required.
-- `migrate.test.ts`: the paths now end at 6, plus a 5→6 no-op test.
-- `selection.test.ts`: the overlay predicate for a union matches `generate()`'s cells.
-- Editor:
-  - `affordance.test.ts` name list gains `union`;
-  - `orphans.test.ts`: a union with a rect layer is at risk, and a procedural union is not;
-  - `document.test.ts`: `trimToGrid` trims a nested Handpick layer.
-- Docs pages whose **Written from:** names a changed file (CI gate), and the docs build.
-
-**Exit:** `pnpm test`, `pnpm typecheck` and the docs build are green. A hand-written union file
-loads and draws in the editor, shown as a label-only "Union" card.
-
-### Review
-
-**Status:** built 2026-11-11 on `b-033-selection-layers`. Waiting for Pol to confirm before Block 3
-starts.
-
-**What changed**
 - Engine:
-  - `ParamSpec` gains `selectionList`.
-  - `union` is registered:
-    - its impl ORs the layers;
-    - its extent is the bounding box of the layers, or the grid if any layer has none, with
-      zero-area layers skipped;
-    - its `coordinateBound` is a function of `layers`.
-  - `SelectionRegistration.coordinateBound` is now `boolean | (params) => boolean`, and `extent`
-    may return `undefined`.
-  - The new export `isCoordinateBound(selection)` is the one way to ask. `shape.ts` and the editor
-    use it.
-- Random layers:
-  - layer 0 keeps the Operation's `ctx`, so its channel is still `opId:selection`;
-  - layer i ≥ 1 gets `operationId` rewritten to `layerOwner(opId, i)` (`hash.ts`), so its channel
-    is `opId:i:selection`;
-  - the per-layer contexts are cached per `ctx` in a `WeakMap`.
-- `validate()`:
-  - `layers` must be an array (`TYPE_MISMATCH`) and is required (`MISSING_KEY`);
-  - fewer than 2 layers is `OUT_OF_RANGE` at `.../layers`;
-  - each layer is validated as a Selection at its own path;
-  - a layer that itself holds layers is `OUT_OF_RANGE` at `.../layers/i/type`. Existing codes are
-    reused, and no new code was added.
-- Schema v6:
-  - `SCHEMA_VERSION`, `TilesetFile.schemaVersion` and the 5 → 6 row ("nothing to do").
-  - Editor templates are at v6. `starters.test.ts` requires that, as it did in B-009.
-- `shape.ts`:
-  - the resize message names a union's bound layers ("a Selection layer of type "rect"") instead
-    of "the Selection union";
-  - `union` is not listed as a procedural way out.
+  - a two-layer selection is the OR of its layers;
+  - **layer 0 random equals the pre-B-033 rule** (`hash(stage1(seed), selectionChannel(opId),
+    x, y, salt) < density`), checked cell by cell;
+  - two random layers select different cells;
+  - the extent rules;
+  - `isCoordinateBound` on good and malformed input;
+  - validation: not an array, empty, a bad layer at `/selection/1/density`, an unknown layer type;
+  - migrate 5 → 6: wraps, survives malformed input, does not mutate, and **`generate()` on a
+    migrated v5 file with a random selection equals the hand-pinned old cells**;
+  - `selection()` agrees with `generate()` for a multi-layer selection;
+  - the resize message.
 - Editor:
-  - New `layers.ts`: `layersParam`, `holdsLayers`, `layersOf`, `withLayer`, `cellsOf`. Layers are
-    found by a declared `selectionList`, not by the name `union`.
-  - `affordance.ts` gains kind `selectionList`, and `ParamFields` renders nothing for it.
-  - `defaultParams` gives `[]` for a `selectionList`.
-  - `OperationBody` keeps layer-holding Selections out of the picker, and disables a cell on
-    `coordinateBound === true`.
-  - `orphans.ts` and `trimToGrid` read every layer:
-    - a Handpick layer inside a union is counted and trimmed;
-    - `Orphan.outside` carries a union's loss, because `authored − reachable` is wrong when a rect
-      layer reaches cells nobody painted;
-    - `advisories.ts` uses `outside` when it is set.
-- Docs: a new `editor/layers` page, and 20 module pages updated (engine `selections`, `registry`,
-  `validate`, `migrate`, `types`, `shape`, `hash`, `selection`, `index-entry`, `load`, `ctx`;
-  editor `orphans`, `affordance`, `param-fields`, `draft`, `document`, `advisories`,
-  `operation-body`, `starters`, `import`). Some line numbers and counts on those pages were already
-  stale before this block, and were corrected with them. `ARCHITECTURE.md`'s migrate row was
-  updated too.
+  - `draft.test.ts` round-trips 1 and 3 layers with no aliasing;
+  - orphans, `trimToGrid` and `atRisk` on multi-layer selections;
+  - the `affordance.test` name list goes back to seven;
+  - the `import.test` upgrade steps;
+  - labels.
+- Docs: redo the Block 2 page edits for the array shape.
+  - Drop the union and `selectionList` text.
+  - `editor/layers.md` goes if `layers.ts` goes; otherwise it is trimmed.
+  - `engine/types.md`, `validate.md`, `migrate.md`, `selections.md`, `ctx.md`, `selection.md`,
+    `generate`'s page, and the editor pages for `draft`, `labels`, `orphans` and `document`.
+  - Then build the docs.
+- Update `docs/plans/selection-layers.md`: record Pol's change, and replace the Block 2 review.
 
-**Tests:** 682 + 649 = 1331 before, and 698 + 661 = 1359 after. They pin, among other things:
-- a union is the OR of its layers;
-- **a `random` layer 0 draws exactly as the same `random` alone**;
-- two `random` layers select different cells;
-- the extent rules;
-- `isCoordinateBound` on good and malformed input;
-- the validation paths;
-- the 5 → 6 row;
-- the overlay predicate agrees with `generate()` for a rect + random + random union;
-- the resize message;
-- `atRisk`, orphans, `outsideCells` and `trimToGrid` on unions;
-- the `layers.ts` helpers.
+**Exit:**
+- `pnpm test`, `pnpm typecheck` and the docs build are green;
+- every old fixture draws as before;
+- in `pnpm dev`, an imported v5 file shows its operations unchanged.
 
-`pnpm test`, `pnpm typecheck` and the docs build are green.
-
-**No existing output moves.** `generate()` is unchanged, and no file before v6 can hold a union.
-
-**Not done here:** loading a hand-written union file in the editor, which should show a label-only
-"Union" card and the combined overlay. Pol checks it in `pnpm dev`.
-
-**BLOCKED:** none.
+Then give Pol the push and `gh pr create --body-file` line. Pol confirms before Block 3.
 
 ## Block 3: editor layer UI
 
-- **Draft model** (`draft.svelte.ts`): replace `selectionType`/`selectionParams` with
-  `selectionLayers: {type: string|null, params}[]` (always ≥ 1) and `activeLayer: number`.
-  - `fromOperation` unpacks a union into layers and **deep-copies them** (the E3/E6 no-aliasing
-    rule; today's copy is one level deep).
-  - `toOperation`/`toShadowOperation` write one layer as the plain selection (exactly as today),
-    and several as `{type:"union", layers}`.
-  - The Selection step counts as chosen when every layer has a type.
-- **Selection step** (`OperationBody.svelte`):
-  - a list of layer rows: glyph, label, short summary, and × remove when there are 2 or more;
-  - clicking a row makes it the active layer, which expands to today's GlyphGrid and ParamFields
-    for that layer, so one layer is open at a time;
+Simpler now, because the draft is already a list:
+- **Selection step:**
+  - layer rows (glyph, label, summary, and × when there are 2 or more);
+  - clicking a row makes it the active layer, and only the active layer is expanded with today's
+    GlyphGrid and ParamFields;
   - "+ Add selection layer" appends an untyped layer and makes it active;
-  - no Done button; Next/Save as today.
-- **Preview** (`App.svelte`): `painting`/`rectangle` read the **active layer's** type and params.
-  `paintCells`/`drawRect` write into it. `SelectionOverlay` is unchanged: it already shows the
-  union through the engine's `selection()`.
-- **Labels** (`labels.ts`): a union card's selection chip reads its layers joined, e.g.
-  "Drag + Random". Param hints look up the active layer's type.
-- Tests: `draft.test.ts` (round-trips 1 and 3 layers, no aliasing of nested layers, collapsing
-  to one layer saves a plain selection), `labels.test.ts`, `paint.test.ts` if helpers change.
-- The look follows the "Ink on paper" system and the WCAG 2.2 AA sizing rule. The layer rows get
-  strong hover feedback.
-- Manual check in `pnpm dev` (5174):
-  - add a Drag + Random selection; the overlay shows both, live;
-  - drawing on the preview edits only the open layer;
-  - deleting down to one layer saves a plain selection (check the export).
+  - no Done button.
+- **Preview:** drawing goes to the active layer. `SelectionOverlay` is unchanged and shows the
+  combination through `selection()`.
+- "Ink on paper" styling, WCAG 2.2 AA sizes, strong hover feedback.
+- Manual check:
+  - Drag + Random shows both layers live;
+  - drawing edits only the open layer;
+  - deleting a layer works.
 
 ## Block 4: docs and release notes
 
-- Glossary, `guides/responsive` (a union's coordinate-bound status), `guides/decorations`,
-  `editor/*` pages, `ParamFieldsStory`, and `DESIGN_SYSTEM.md` if the layer row adds a pattern.
-- Change entry `docs/changes/b-033/selection-layers.md`, in the format of `docs/changes/b-009/`.
-- Move B-033 to **Done** in `BACKLOG.md`.
-- Draft a changelog line for the release: a new `union` Selection, a new `selectionList`
-  ParamSpec, schema v6, `coordinateBound` may be a function, and the new export
-  `isCoordinateBound`. No existing output changes. No version bump in the task.
+- Glossary, the responsive and decorations guides, `DESIGN_SYSTEM.md` if needed.
+- `docs/changes/b-033/selection-layers.md`.
+- B-033 moves to Done in `BACKLOG.md`.
+- Changelog line: `Operation.selection` is now an array of layers (schema v6); `migrate()` wraps
+  old files, which draw unchanged; a config built in code or passed to `generate()` without
+  `migrate()` must use the array; new `isCoordinateBound` export. No version bump in the task.
 
-## Verification (every block)
+## Verification
 
-- `pnpm test` and `pnpm typecheck` from the root; `pnpm --filter @vit-foundation/tileset-docs build`.
-- The Block 2 regression guard: every existing fixture draws the same (`generate.test.ts` and the
-  migrate tests), and the `random` layer 0 test pins the backward-compatible channel.
-- Block 3: Pol does the manual editor check before the block is confirmed.
+- `pnpm test` and `pnpm typecheck` from the root, and
+  `pnpm --filter @vit-foundation/tileset-docs build`.
+- The regression guards: the migrated-v5 random test, and the old demo and docs fixtures loading
+  unchanged.
+- Pol's manual check in `pnpm dev` at each block.
+
+## Block 2 review (rework, 2026-11-12)
+
+**Status:** built on `b-033-selection-layers`. Waiting for Pol to confirm before Block 3 starts.
+
+**What changed, against the union build**
+- **Removed:**
+  - the `union` registration and the `selectionList` ParamSpec;
+  - `coordinateBound` as a function, and `extent` returning `undefined`;
+  - the `selectionList` branches in `affordance.ts`, `ParamFields.svelte`, `defaultParams` and
+    `validate.ts`;
+  - the picker filter;
+  - `layersOf`, `holdsLayers`, `layersParam` and `withLayer`.
+
+  These files are byte-identical to before Block 2: `registry.ts`, `selections.ts` (bar the new
+  `isCoordinateBound`), `affordance.ts` and `ParamFields.svelte`.
+- **Engine:**
+  - `Operation.selection: Selection[]`;
+  - `selection.ts` `selectionPredicate` ORs the layers. Each layer's registration and ctx is
+    resolved once per Operation: layer 0 keeps the Operation's ctx; layer i ≥ 1 gets
+    `operationId: layerOwner(opId, i)`;
+  - `generate()` uses that predicate;
+  - `ctx.ts` `layersExtent` gives the bounding box over the layers. It is the grid if any layer
+    has no extent, and it skips zero-area layers;
+  - `isCoordinateBound(layers)`;
+  - `validate()`: `selection` must be a non-empty array, and each layer is checked at
+    `/selection/<i>`;
+  - the 5 → 6 row wraps every object selection in a one-item list;
+  - the `shape.ts` message names the bound layer types.
+- **Editor:**
+  - the draft holds `layers` and `activeLayer`, and `activeLayer(draft)` gives the active one;
+  - `fromOperation` deep-copies the layers;
+  - the shadow holds the typed layers only;
+  - the Selection step, the brush and the drag edit the active layer, which is layer 0 until
+    Block 3;
+  - the card chip joins layer labels ("Drag + Random");
+  - `layers.ts` is down to `cellsOf` and `selectionTypes`;
+  - orphans, `trimToGrid`, the resize dialog and `tour.ts` read the list.
+- **Templates** were migrated with the real `migrate()`; the content is identical apart from the
+  wrap. JSON.stringify puts each number of a cell list on its own line, which makes the collage
+  diff large.
+- **Fixtures:**
+  - engine and editor test literals are wrapped;
+  - the demo's inline files (v2/v3), the demo's `public/*/tileset.json` and the docs'
+    `basic.json` stay old, and each loads through `loadTilesetFile`, which migrates first.
+
+**Regression guards:**
+- `migrate.test`: a migrated v5 random selection paints exactly
+  `hash(seed, "op1:selection", x, y, salt) < density`, the old rule written out by hand;
+- `selection.test`: layer 0 random equals random alone; layer 1 equals the hand-written
+  `op1:1:selection` rule;
+- the overlay agrees with `generate()` for a rect + random + random selection.
+
+**Tests:** 682 + 649 = 1331 before B-033, and 701 + 662 = 1363 now. `pnpm test`, `pnpm typecheck`
+and the docs build are green.
+
+**Breaking, under 0.x:** code that builds an `Operation` in TypeScript, or passes an old-shaped
+config to `generate()` without `migrate()`, must now use the array. Files on disk are unaffected.
+
+**Not done here:** in `pnpm dev`, open an older file (or a template) and check that the
+operations look and draw as before. Pol checks it.

@@ -28,7 +28,7 @@ const current = (): TilesetFile => ({
         id: "op1",
         salt: 3,
         reseedOnLoad: false,
-        selection: { type: "checkerboard", parity: 1 },
+        selection: [{ type: "checkerboard", parity: 1 }],
         source: { type: "constant" },
         target: "tileId",
         mapping: { palette: [{ tileId: "leaf", weight: 1 }] },

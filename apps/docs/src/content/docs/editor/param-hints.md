@@ -41,8 +41,8 @@ hint: what N counts is in its name.
 ### Callers
 
 `lib/operations/OperationBody.svelte` passes `sourceParamHints(draft.sourceType)` to the Pattern
-step's [ParamFields](/editor/param-fields/) and `selectionParamHints(draft.selectionType)` to the
-Selection step's, as `hints`, which gives each [ParamControl](/editor/param-control/) its `about`.
+step's [ParamFields](/editor/param-fields/) and `selectionParamHints(layer.type)`, the active selection layer's type
+(B-033), to the Selection step's, as `hints`, which gives each [ParamControl](/editor/param-control/) its `about`.
 The hint then reads "*about* Accepts *range*."
 
 ### Tests

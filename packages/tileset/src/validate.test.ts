@@ -17,7 +17,7 @@ const paint: Operation = {
   id: "op1",
   salt: 0,
   reseedOnLoad: false,
-  selection: { type: "all" },
+  selection: [{ type: "all" }],
   source: { type: "constant" },
   target: "tileId",
   mapping: { palette: [{ tileId: "leaf", weight: 1 }] },
@@ -231,7 +231,7 @@ describe("the V1 codes — 06 §10.3", () => {
   });
 
   it("UNKNOWN_TYPE_NAME on a Selection and on a Source — 05 X7", () => {
-    expect(codes(broken((f) => (f.config.operations[0].selection = { type: "spiral" })))).toEqual([
+    expect(codes(broken((f) => (f.config.operations[0].selection = [{ type: "spiral" }])))).toEqual([
       "UNKNOWN_TYPE_NAME",
     ]);
     expect(codes(broken((f) => (f.config.operations[0].source = { type: "perlin" })))).toEqual([
@@ -296,7 +296,7 @@ describe("strictness — 06 §9.1, C4", () => {
 
   it("rejects an unknown parameter on a registered type", () => {
     expect(
-      codes(broken((f) => (f.config.operations[0].selection = { type: "all", density: 0.5 }))),
+      codes(broken((f) => (f.config.operations[0].selection = [{ type: "all", density: 0.5 }]))),
     ).toEqual(["UNKNOWN_KEY"]);
   });
 
@@ -321,14 +321,14 @@ describe("strictness — 06 §9.1, C4", () => {
 
 describe("parameters — 06 §7.4", () => {
   it("checks a number parameter's bounds", () => {
-    const f = broken((f) => (f.config.operations[0].selection = { type: "random", density: 1.5 }));
+    const f = broken((f) => (f.config.operations[0].selection = [{ type: "random", density: 1.5 }]));
     expect(codes(f)).toEqual(["OUT_OF_RANGE"]);
-    expect(paths(f)).toEqual(["/config/operations/0/selection/density"]);
+    expect(paths(f)).toEqual(["/config/operations/0/selection/0/density"]);
   });
 
   it("checks an enum parameter's admissible set", () => {
     expect(
-      codes(broken((f) => (f.config.operations[0].selection = { type: "checkerboard", parity: 2 }))),
+      codes(broken((f) => (f.config.operations[0].selection = [{ type: "checkerboard", parity: 2 }]))),
     ).toEqual(["OUT_OF_RANGE"]);
   });
 
@@ -336,49 +336,41 @@ describe("parameters — 06 §7.4", () => {
     expect(
       codes(
         broken(
-          (f) => (f.config.operations[0].selection = { type: "rowColumn", axis: "row", n: 2.5 }),
+          (f) => (f.config.operations[0].selection = [{ type: "rowColumn", axis: "row", n: 2.5 }]),
         ),
       ),
     ).toEqual(["NOT_AN_INTEGER"]);
   });
 
-  describe("union — selection layers (B-033)", () => {
-    const sel = (selection: unknown) =>
-      broken((f) => (f.config.operations[0].selection = selection as never));
+  describe("selection layers (B-033)", () => {
+    const sel = (selection: unknown) => broken((f) => (f.config.operations[0].selection = selection));
 
-    it("accepts two or more valid layers", () => {
+    it("accepts several valid layers", () => {
       expect(
-        validate(sel({ type: "union", layers: [{ type: "rect", x: 0, y: 0, width: 2, height: 2 }, { type: "random", density: 0.5 }] })),
+        validate(sel([{ type: "rect", x: 0, y: 0, width: 2, height: 2 }, { type: "random", density: 0.5 }])),
       ).toEqual([]);
     });
 
-    it("refuses fewer than two layers — one layer is saved as the plain Selection", () => {
-      for (const layers of [[], [{ type: "all" }]]) {
-        const f = sel({ type: "union", layers });
-        expect(codes(f)).toEqual(["OUT_OF_RANGE"]);
-        expect(paths(f)).toEqual(["/config/operations/0/selection/layers"]);
-      }
+    it("refuses a selection that is not a list — the pre-v6 shape", () => {
+      const f = sel({ type: "all" });
+      expect(codes(f)).toEqual(["TYPE_MISMATCH"]);
+      expect(paths(f)).toEqual(["/config/operations/0/selection"]);
     });
 
-    it("requires layers, and requires an array", () => {
-      expect(codes(sel({ type: "union" }))).toEqual(["MISSING_KEY"]);
-      expect(codes(sel({ type: "union", layers: { type: "all" } }))).toEqual(["TYPE_MISMATCH"]);
+    it("refuses an empty list — an Operation that would silently affect nothing", () => {
+      const f = sel([]);
+      expect(codes(f)).toEqual(["OUT_OF_RANGE"]);
+      expect(paths(f)).toEqual(["/config/operations/0/selection"]);
     });
 
     it("checks each layer as a Selection, at the layer's own path", () => {
-      const f = sel({ type: "union", layers: [{ type: "all" }, { type: "random", density: 2 }] });
+      const f = sel([{ type: "all" }, { type: "random", density: 2 }]);
       expect(codes(f)).toEqual(["OUT_OF_RANGE"]);
-      expect(paths(f)).toEqual(["/config/operations/0/selection/layers/1/density"]);
-      const g = sel({ type: "union", layers: [{ type: "all" }, { type: "lasso" }] });
+      expect(paths(f)).toEqual(["/config/operations/0/selection/1/density"]);
+      const g = sel([{ type: "all" }, { type: "lasso" }]);
       expect(codes(g)).toEqual(["UNKNOWN_TYPE_NAME"]);
-      expect(paths(g)).toEqual(["/config/operations/0/selection/layers/1/type"]);
-    });
-
-    it("refuses a layer that is itself a union", () => {
-      const inner = { type: "union", layers: [{ type: "all" }, { type: "all" }] };
-      const f = sel({ type: "union", layers: [{ type: "all" }, inner] });
-      expect(codes(f)).toEqual(["OUT_OF_RANGE"]);
-      expect(paths(f)).toEqual(["/config/operations/0/selection/layers/1/type"]);
+      expect(paths(g)).toEqual(["/config/operations/0/selection/1/type"]);
+      expect(codes(sel([{ type: "all" }, 3]))).toEqual(["TYPE_MISMATCH"]);
     });
   });
 
@@ -386,7 +378,7 @@ describe("parameters — 06 §7.4", () => {
   it("accepts a parameter absent where the registry declares a default", () => {
     expect(
       validate(
-        broken((f) => (f.config.operations[0].selection = { type: "rowColumn", axis: "row", n: 2 })),
+        broken((f) => (f.config.operations[0].selection = [{ type: "rowColumn", axis: "row", n: 2 }])),
       ),
     ).toEqual([]);
   });
@@ -397,14 +389,14 @@ describe("parameters — 06 §7.4", () => {
    * silently drawn with the new count.
    */
   it("rejects everyNth with an axis — it is rowColumn's parameter", () => {
-    const f = broken((f) => (f.config.operations[0].selection = { type: "everyNth", axis: "column", n: 3 }));
+    const f = broken((f) => (f.config.operations[0].selection = [{ type: "everyNth", axis: "column", n: 3 }]));
     expect(codes(f)).toEqual(["UNKNOWN_KEY"]);
-    expect(paths(f)).toEqual(["/config/operations/0/selection/axis"]);
+    expect(paths(f)).toEqual(["/config/operations/0/selection/0/axis"]);
   });
 
   it("requires a parameter with no declared default", () => {
     expect(
-      codes(broken((f) => (f.config.operations[0].selection = { type: "checkerboard" }))),
+      codes(broken((f) => (f.config.operations[0].selection = [{ type: "checkerboard" }]))),
     ).toEqual(["MISSING_KEY"]);
   });
 
@@ -413,18 +405,18 @@ describe("parameters — 06 §7.4", () => {
       validate(
         broken(
           (f) =>
-            (f.config.operations[0].selection = {
+            (f.config.operations[0].selection = [{
               type: "cellList",
               cells: [
                 [0, 0],
                 [3, 2],
               ],
-            }),
+            }]),
         ),
       ),
     ).toEqual([]);
     expect(
-      codes(broken((f) => (f.config.operations[0].selection = { type: "cellList", cells: [[0]] }))),
+      codes(broken((f) => (f.config.operations[0].selection = [{ type: "cellList", cells: [[0]] }]))),
     ).toEqual(["TYPE_MISMATCH"]);
   });
 });
@@ -529,13 +521,13 @@ describe("what is not an error — 06 §10.4", () => {
       validate(
         broken(
           (f) =>
-            (f.config.operations[0].selection = {
+            (f.config.operations[0].selection = [{
               type: "rect",
               x: 500,
               y: 500,
               width: 2,
               height: 2,
-            }),
+            }]),
         ),
       ),
     ).toEqual([]);
@@ -570,7 +562,7 @@ describe("responsive rules — 0.7.0", () => {
   const rect: Operation = {
     ...paint,
     id: "gap",
-    selection: { type: "rect", x: 1, y: 1, width: 2, height: 2 },
+    selection: [{ type: "rect", x: 1, y: 1, width: 2, height: 2 }],
   };
 
   it("accepts a file with rules, and one without", () => {

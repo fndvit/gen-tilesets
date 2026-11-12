@@ -63,7 +63,8 @@ export const STEP_LABELS: Record<Step, string> = {
 
 /** The parts of an Operation the summary reads, each `null` while unanswered. */
 export interface SummaryParts {
-  selection: string | null;
+  /** The selection's layer types, in order; empty while none is chosen (B-033). */
+  selection: readonly string[];
   target: string | null;
   mapping: Operation["mapping"] | null;
   source: string | null;
@@ -90,7 +91,8 @@ export function summaryCells(parts: SummaryParts, tiles: readonly Tile[]): Recor
         ? labelFor(parts.target)
         : `${labelFor(parts.target)} ${mappingText(painting(parts.mapping, parts.source), tiles)}`;
   return {
-    selection: label(parts.selection),
+    // Several layers read as one answer: "Drag + Random" (B-033).
+    selection: parts.selection.length === 0 ? UNANSWERED : parts.selection.map(labelFor).join(" + "),
     source: label(parts.source),
     attribute,
     blend: label(parts.blend),
@@ -178,7 +180,7 @@ function tileName(id: string | null, tiles: readonly Tile[]): string {
 /** The summary parts of a committed Operation. */
 export function partsOf(op: Operation): SummaryParts {
   return {
-    selection: op.selection.type,
+    selection: op.selection.map((layer) => layer.type),
     target: op.target,
     mapping: op.mapping,
     source: op.source.type,
@@ -189,7 +191,7 @@ export function partsOf(op: Operation): SummaryParts {
 /** The summary parts of an open draft. The mapping shows once a Target is chosen. */
 export function draftParts(draft: Draft): SummaryParts {
   return {
-    selection: draft.selectionType,
+    selection: draft.layers.flatMap((layer) => (layer.type === null ? [] : [layer.type])),
     target: draft.target,
     mapping: draft.target === null ? null : mappingOf(draft),
     source: draft.sourceType,

@@ -51,7 +51,9 @@ returns non-`null`.
 | `Step` | `"selection" \| "source" \| "attribute" \| "blend"` | The four steps. `source` is labelled "Pattern" (`STEP_LABELS`, [labels.ts](/editor/operation-labels/)). |
 | `STEPS` | `Step[]` | In walking order: Selection → Pattern → Attribute → Blend. |
 | `Draft` | interface | See the table below. |
-| `defaultParams(schema)` | `(ParamSchema) → Record<string, unknown>` | Every declared parameter at its default; `cellList` and `selectionList` (B-033) → `[]`. |
+| `defaultParams(schema)` | `(ParamSchema) → Record<string, unknown>` | Every declared parameter at its default; `cellList` → `[]`. |
+| `DraftLayer` | interface | `{ type: string \| null; params: Record<string, unknown> }`: one selection layer as the draft holds it (B-033). |
+| `activeLayer(draft)` | `(Draft) → DraftLayer` | `draft.layers[draft.activeLayer]`: the layer object itself, not a copy, so a control writes through it into the draft. |
 | `newDraft(id)` | `(string) → Draft` | A fresh create-draft. |
 | `retarget(draft, target)` | `(Draft, TargetName) → void` | Sets the Target; rebuilds the numeric mapping; settles the Blend. Mutates. |
 | `isComplete(draft)` | `(Draft) → boolean` | The gate. |
@@ -70,8 +72,10 @@ returns non-`null`.
 | `id` | `string` | Allocated when the draft opens; never reassigned. |
 | `step` | `Step` | The step being shown. |
 | `salt`, `reseedOnLoad` | `number`, `boolean` | Carried, not authored. `0`/`false` for a create-draft; the Operation's own values for an edit-draft. |
-| `selectionType`, `sourceType` | `string \| null` | `null` until chosen. No default is invented. |
-| `selectionParams`, `sourceParams` | `Record<string, unknown>` | Spread siblings of `type` on commit. |
+| `layers` | `DraftLayer[]` | The Selection's layers (B-033), at least one, since `Operation.selection` is a list. A layer's `type` is `null` until chosen. A create-draft starts with one untyped layer. |
+| `activeLayer` | `number` | The layer the Selection step's controls and the preview's brush and drag edit. Always a valid index into `layers`; `0` on open. |
+| `sourceType` | `string \| null` | `null` until chosen. No default is invented. |
+| `sourceParams` | `Record<string, unknown>` | Spread siblings of `type` on commit. Each layer's `params` are spread beside its `type` the same way. |
 | `target` | `TargetName \| null` | |
 | `blend` | `BlendName \| null` | `null` only until a Target is chosen. |
 | `numeric` | `NumericMapping` | Held alongside `palette`; `target` picks which commits. |
@@ -86,7 +90,8 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 
 ### Inputs → outputs
 
-- **`newDraft(id)`.** `step: "selection"`, every choice `null`, empty params, `numeric:
+- **`newDraft(id)`.** `step: "selection"`, one layer `{ type: null, params: {} }` with
+  `activeLayer: 0`, every other choice `null`, empty params, `numeric:
   { range: [0, 0] }` (a placeholder until a numeric Target is chosen) and
   `palette: [{ tileId: null, weight: 1 }]`. A `null` palette entry is legal and means *clear this
   cell*, so the draft is legal even with an empty tile library.
@@ -94,15 +99,17 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
   `defaultNumericMapping(target)`, so a freshly targeted Operation is a no-op rather than an
   immediate flip or fade. If the current `blend` is `null` or not `isAccepted(target, blend)`, it
   becomes `TARGETS[target].default`. A Blend the new Target still accepts is kept.
-- **`isComplete`.** False if any of `selectionType`, `target`, `sourceType` or `blend` is `null`,
-  or the pair is not accepted. For a tile Target the palette must be non-empty with
+- **`isComplete`.** False if any layer's `type` is `null`, if any of `target`, `sourceType` or
+  `blend` is `null`, or if the pair is not accepted. For a tile Target the palette must be non-empty with
   `paletteTotal > 0`. Otherwise both ends of `numeric.range` must be finite.
 - **`mappingOf`.** A numeric Target gives `numeric`. A tile Target gives `{ palette }`, except
   under a `constant` Source, where it gives `{ palette: [{ tileId, weight: 1 }] }` for the entry
   `t = 0` lands on (`constantEntry`, the first non-zero weight). The draft keeps its whole palette,
   so switching the Pattern back before Save restores the list (T0).
-- **`toShadowOperation`.** `null` until `selectionType` is set. Otherwise it returns the real `id`,
-  `salt`, `reseedOnLoad` and `selection`, the draft's `source` once one is chosen (a
+- **`toShadowOperation`.** `selection` is the layers that have a type, in order (B-033); a layer
+  just added and not yet typed is left out, so the overlay keeps showing the others while the
+  author picks. `null` while no layer has a type. Otherwise it returns the real `id`, `salt`,
+  `reseedOnLoad` and that `selection`, the draft's `source` once one is chosen (a
   `{ type: "constant" }` placeholder before), and the placeholders `target: "opacity"`,
   `mapping: { range: [1, 1] }` and `blend: "set"`.
 - **`shadowConfig(config, draft)`.** `null` when `toShadowOperation` is. Otherwise the config with
@@ -113,15 +120,16 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
   config has `toOperation(draft)` in it by the same rule. Built from `toOperation`, not from the
   shadow, so the live picture is exactly what Save commits (Constant's one entry included). It
   never writes to `file` (**E3**).
-- **`fromOperation(op)`.** It un-spreads `type` from `selection` and `source`. It copies
+- **`fromOperation(op)`.** It un-spreads `type` from each selection layer and from `source`. The
+  layers are deep-copied (`copyJson`, a JSON round-trip) and `activeLayer` is `0`. It copies
   `salt ?? 0` and `reseedOnLoad === true`. For a tile mapping it deep-copies each palette entry and
   seeds `numeric` from `newDraft`. For a numeric mapping it copies `range` and seeds `palette` from
   `newDraft`.
 - **`toOperation`.** `null` unless complete. Otherwise it returns
-  `{ id, salt, reseedOnLoad, selection: { type, ...params }, source: { type, ...params }, target,
-  mapping: mappingOf(draft), blend }`.
+  `{ id, salt, reseedOnLoad, selection: [{ type, ...params }, …], source: { type, ...params },
+  target, mapping: mappingOf(draft), blend }`, with one selection entry per layer, in order.
 - **`draftDiffers(draft, op)`.** For a create-draft (`op` is `null`), true once any of
-  `selectionType`, `target` or `sourceType` is set. For an edit-draft, true if `toOperation(draft)`
+  layer's `type`, `target` or `sourceType` is set. For an edit-draft, true if `toOperation(draft)`
   is `null` (an edit made incomplete, such as an emptied palette, can be discarded but not saved).
   Otherwise it compares `toOperation(draft)` with `toOperation(fromOperation(op))` as JSON with
   object keys sorted (`stableJson`), so key order, the open step and the unused mapping slot never
@@ -140,9 +148,12 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
   convenience, and exactly one reaches a file.
 - **`type` is reserved in the parameter namespace**, which makes spreading parameters beside
   `type`, and un-spreading them, unambiguous.
-- **Nothing aliases the file.** `fromOperation` copies every container one level deep. Sharing one
-  would let a control edit `session.file` with no transition, defeating E3 and E6. A `cellList`
-  array is not cloned, because the brush replaces it wholesale (`App.svelte`'s `paintCells`).
+- **Nothing aliases the file.** `fromOperation` copies every container one level deep, except
+  the selection layers, which it copies whole (B-033). Sharing one would let a control edit
+  `session.file` with no transition, defeating E3 and E6. Each layer is its own object with its
+  own `params`, and a parameter may itself be an array (a `cellList`). The brush replaces a
+  `cellList` wholesale (`App.svelte`'s `paintCells`), but the source says copying it costs nothing
+  and makes the rule hold without relying on that.
 - **The shadow's placeholders are never read.** `selection()` reads only the selection, id, salt
   and `reseedOnLoad`, through a closure the source says invariant O4 fixes. `salt` is real
   because an edit-draft's overlay would otherwise disagree with the picture. The `source` is real
@@ -154,16 +165,18 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 | Caller | Uses |
 | --- | --- |
 | `drafting.svelte.ts:27`, `:56`, `:69` | `newDraft`, `fromOperation`, `Draft` |
-| `lib/operations/OperationBody.svelte:327`, `:332` | `defaultParams(...)` when a Selection or Source type is chosen |
-| `lib/operations/OperationBody.svelte:310`, `:313` | `STEPS` and `isComplete` for Save's "Still open" hint |
-| `lib/operations/OperationBody.svelte:335` | `toOperation` on commit, then `replaceOperation`/`addOperation` (`:337`) |
-| `lib/operations/OperationBody.svelte:459` | `retarget(draft, target)` |
-| `lib/operations/OperationBody.svelte` | `shadowConfig(file.config, draft)` for the palette's measured coverage |
+| `lib/operations/OperationBody.svelte:233` | `activeLayer(draft)`: the layer the Selection step edits |
+| `lib/operations/OperationBody.svelte:325`, `:330` | `defaultParams(...)` when a Selection or Source type is chosen |
+| `lib/operations/OperationBody.svelte:355`, `:358` | `STEPS` and `isComplete` for Save's "Still open" hint |
+| `lib/operations/OperationBody.svelte:380` | `toOperation` on commit, then `replaceOperation`/`addOperation` (`:382`) |
+| `lib/operations/OperationBody.svelte:513` | `retarget(draft, target)` |
+| `lib/operations/OperationBody.svelte:278` | `shadowConfig(file.config, draft)` for the palette's measured coverage |
 | `opening.svelte.ts:40` | `draftDiffers` before switching away from an open draft |
-| `lib/operations/labels.ts:176` | `mappingOf(draft)` for the header's summary |
-| `App.svelte` | `shadowConfig(config, draft)` for the overlay; `draftFile(file, draft)` for the live preview |
+| `lib/operations/labels.ts:196` | `mappingOf(draft)` for the header's summary; `draftParts` also reads `draft.layers` |
+| `App.svelte:390` | `activeLayer(drafting.draft)`: the layer the brush and the drag write |
+| `App.svelte:432`, `:110` | `shadowConfig(config, draft)` for the overlay; `draftFile(file, draft)` for the live preview |
 
-`mappingOf` is also used internally (`:350`) and by `controls/mapping.test.ts`.
+`mappingOf` is also used internally (`:472`) and by `controls/mapping.test.ts`.
 
 ### Tests
 
@@ -184,6 +197,11 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
   Operation is unchanged whatever step is open; an edited parameter, a new Blend and a new salt
   are changes; retargeting there and back is not, since the unused mapping never commits; an edit
   made incomplete is a change.
+  **Selection layers (B-033):** one layer and three round-trip in order, opening on layer 0;
+  pushing into a reopened layer's `cells`, editing a cell in it, or changing a layer's `density`
+  leaves the source Operation untouched; a write through `activeLayer(draft)` lands in
+  `draft.layers`; a draft with an untyped layer is incomplete and `toOperation` is `null`, while
+  `toShadowOperation` still carries the typed layers; a new draft has no shadow.
 - **`blend.test.ts`.** A new draft's `blend` is `null`. For every Target, `retarget` yields
   `TARGETS[target].default`, and the other three steps stay `null`. Retargeting keeps an accepted
   Blend and falls back when the new Target vetoes it, or accepts nothing else. `isComplete`
@@ -212,7 +230,7 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 
 ### Review notes
 
-- `isComplete`'s docstring (`draft.svelte.ts:186-188`) says *"The mapping is not listed … Step 6b
+- `isComplete`'s docstring (`draft.svelte.ts:223-225`) says *"The mapping is not listed … Step 6b
   adds it to this check."* The body already checks the mapping (palette total, finite range), so
   the sentence describes a past step. (stale comment)
 - The file is named `.svelte.ts` but contains no rune. `drafting.svelte.ts` and `draft.test.ts`

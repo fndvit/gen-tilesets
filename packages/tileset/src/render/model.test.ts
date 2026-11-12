@@ -32,7 +32,7 @@ const hero = (): TilesetFile => ({
     operations: [
       {
         id: "fill",
-        selection: { type: "all" },
+        selection: [{ type: "all" }],
         source: { type: "random" },
         target: "tileId",
         mapping: { palette: [{ tileId: "t", weight: 1 }, { tileId: null, weight: 1 }] },
@@ -344,7 +344,7 @@ describe("TilesetModel: development-build checks", () => {
     const file = hero();
     file.config.operations.push({
       id: "box",
-      selection: { type: "rect", x: 0, y: 0, width: 4, height: 2 },
+      selection: [{ type: "rect", x: 0, y: 0, width: 4, height: 2 }],
       source: { type: "constant" },
       target: "tileId",
       mapping: { palette: [{ tileId: "t", weight: 1 }] },

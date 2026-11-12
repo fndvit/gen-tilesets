@@ -25,7 +25,6 @@
  * | `integer` with one bound or none | a numeric field with integer steps                     |
  * | `enum`                           | a segmented control over `values`                      |
  * | `cellList`                       | **not generated** — §7.3                               |
- * | `selectionList`                  | **not generated** — the Selection step's layer list    |
  *
  * The rule is stated at the level of *bounds* rather than as a table of widgets
  * "so a registered type added later gets a working control with nothing written
@@ -37,12 +36,6 @@
  * reason `09` cannot generate every control mechanically", and it is permitted
  * "because the schema names it explicitly rather than because the mapping ran
  * out". It is Step 7's brush.
- *
- * `selectionList` (B-033, `union`'s `layers`) is the second, for the same
- * reason: the schema names it, and its control is the Selection step's own
- * layer list rather than a field. `union` itself is never offered in the type
- * picker, so `ParamFields` never meets it in practice; it renders nothing for it
- * rather than a numeric field showing an array.
  *
  * ## `editor.control` hints are not implemented, and cannot break this
  *
@@ -65,9 +58,7 @@ export type Affordance =
   /** A segmented control over `values` — the enum row, and the narrow-integer row. */
   | { kind: "segmented"; values: (string | number)[] }
   /** Not generated. The author paints it (§7.3). */
-  | { kind: "cellList" }
-  /** Not generated. The Selection step's layer list builds it (B-033). */
-  | { kind: "selectionList" };
+  | { kind: "cellList" };
 
 /**
  * Where a bounded integer stops being a slider and becomes a stepper.
@@ -97,7 +88,6 @@ function upperBound(spec: ParamSpec): number | undefined {
  */
 export function affordanceFor(spec: ParamSpec): Affordance {
   if (spec.type === "cellList") return { kind: "cellList" };
-  if (spec.type === "selectionList") return { kind: "selectionList" };
   if (spec.type === "enum") return { kind: "segmented", values: spec.values };
 
   const min = lowerBound(spec);
@@ -150,7 +140,6 @@ export function affordanceFor(spec: ParamSpec): Affordance {
 export function defaultFor(spec: ParamSpec): string | number {
   if (spec.type === "enum") return spec.default ?? spec.values[0]!;
   if (spec.type === "cellList") return 0; // unused: cellList is not generated
-  if (spec.type === "selectionList") return 0; // unused: defaultParams writes []
   if (spec.default !== undefined) return spec.default;
 
   const min = lowerBound(spec);
@@ -189,11 +178,6 @@ export function admits(spec: ParamSpec, value: unknown): boolean {
 
   if (spec.type === "enum") return spec.values.includes(value as string | number);
 
-  // The shape only. Each layer is a whole Selection, and `validate()` is what
-  // checks one; the editor builds layers from controls that already admitted
-  // every value in them.
-  if (spec.type === "selectionList") return Array.isArray(value);
-
   if (typeof value !== "number" || !Number.isFinite(value)) return false;
   if (spec.type === "integer" && !Number.isInteger(value)) return false;
 
@@ -220,7 +204,7 @@ export function admits(spec: ParamSpec, value: unknown): boolean {
  * and offered 1, which `admits` refuses.
  */
 export function rangeLabel(spec: ParamSpec): string {
-  if (spec.type === "enum" || spec.type === "cellList" || spec.type === "selectionList") return "";
+  if (spec.type === "enum" || spec.type === "cellList") return "";
   const number = spec.type === "number";
   const lo = lowerBound(spec);
   const hi = upperBound(spec);

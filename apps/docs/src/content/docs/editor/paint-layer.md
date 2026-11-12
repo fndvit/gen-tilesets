@@ -67,7 +67,8 @@ re-implemented.
 - **Re-entering a cell is a no-op.** `addCell` is idempotent and `removeCell` is total.
 - **Bounded at the call site, not in `cellAt`.** `cellAt` stays unbounded because a `rect` drag
   needs the coordinates it actually reached.
-- **Nothing touches the file.** `onChange` writes `draft.selectionParams` (`App.svelte:336`–`339`).
+- **Nothing touches the file.** `onChange` writes the active selection layer's `params` in the
+  draft (`paintCells`, `App.svelte:461`–`463`; B-033).
 
 ### Callers / callees
 
