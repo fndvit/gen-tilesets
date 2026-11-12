@@ -48,6 +48,10 @@ export function resolveTargets<T>(step: Pick<TourStep, "targets" | "fallback">, 
  */
 export function oneWindow(boxes: readonly Box[], viewport: Viewport): boolean {
   if (boxes.length < 2) return true;
+  // A box with nothing visible, after the first target was revealed, is out of its scroller: clipped,
+  // it collapses onto the edge and its span would seem to fit. Step 5 stacked, where the Operations
+  // "+" is in view and the picture a window below it (2026-11-12).
+  if (boxes.some((b) => b.bottom <= b.top || b.right <= b.left)) return false;
   const top = Math.min(...boxes.map((b) => b.top));
   const bottom = Math.max(...boxes.map((b) => b.bottom));
   const left = Math.min(...boxes.map((b) => b.left));
@@ -118,8 +122,9 @@ export interface BubbleInput {
   /** 16px: the bubble's side gutters when it spans the window. */
   gutter: number;
   /**
-   * In the sidebar column rather than beside it: step 6, whose second cut-out
-   * is the picture beside the sidebar, which a bubble there would cover.
+   * In the sidebar column rather than beside it: the build steps (5 to 11),
+   * whose second cut-out is the picture beside the sidebar, which a bubble
+   * there would cover.
    */
   inSidebar: boolean;
   /**
@@ -134,8 +139,8 @@ export interface BubbleInput {
  * Where the bubble goes (DESIGN_SYSTEM.md "Placement"):
  * - **Two columns:** beside the sidebar, level with the first cut-out, kept
  *   inside the window (`placeBeside`, as the Explainer is placed).
- * - **Step 6 in two columns:** in the sidebar column, below the card or above
- *   it, left-aligned with it.
+ * - **Steps 5 to 11 in two columns:** in the sidebar column, below the card or
+ *   "+" or above it, left-aligned with it as far as the bubble's width allows.
  * - **Stacked, or no room beside:** below the first cut-out, or above it when
  *   it doesn't fit below, the window's width less `gutter` on each side.
  *
@@ -158,9 +163,13 @@ export function placeBubble(input: BubbleInput): BubblePlacement {
   }
 
   if (twoColumns && inSidebar) {
-    // Never wider than the room from the card's left edge to the sidebar's.
-    const w = Math.min(width, sidebar.right - margin - anchor.left);
-    return { top: aboveOrBelow(anchor, heightAt(w), viewport, margin), left: anchor.left, width: w };
+    // Left-aligned with the cut-out, but moved left as far as it needs to be its full width
+    // inside the sidebar: a card starts near the sidebar's left edge and keeps its alignment,
+    // and step 5's Operations "+", at the right, would otherwise leave the bubble a sliver
+    // (2026-11-12). Never past the sidebar's left edge, and never wider than the room left.
+    const left = Math.max(sidebar.left + margin, Math.min(anchor.left, sidebar.right - margin - width));
+    const w = Math.min(width, sidebar.right - margin - left);
+    return { top: aboveOrBelow(anchor, heightAt(w), viewport, margin), left, width: w };
   }
 
   const w = Math.max(0, viewport.width - 2 * gutter);

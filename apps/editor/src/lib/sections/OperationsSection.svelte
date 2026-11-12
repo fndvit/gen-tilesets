@@ -43,7 +43,7 @@
   import Explainer from "../ui/Explainer.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import { OPERATIONS_EXPLAINER } from "./operations-explainer.js";
-  import { exampleOperation } from "../../tour.js";
+  import { mosaicOperations, type TargetKey } from "../../tour.js";
   import Dialog from "../ui/Dialog.svelte";
 
   const operations = $derived(session.file.config.operations);
@@ -69,8 +69,16 @@
 
   const guard = opening.guard;
 
-  /** The card the tour's "An operation" step opens and cuts out (`tour.ts`). */
-  const example = $derived(exampleOperation(operations));
+  /**
+   * Mosaic's three operations, which the tour's build steps open and cut out
+   * as `op-1` to `op-3` (`tour.ts`), or `null` in any other file.
+   */
+  const mosaic = $derived(mosaicOperations(operations));
+
+  function tourKey(id: string): TargetKey | undefined {
+    const at = mosaic?.indexOf(id) ?? -1;
+    return at < 0 ? undefined : (`op-${at + 1}` as TargetKey);
+  }
 
   /** After `opening.open`, bring the opened card into view once the section has unfolded. */
   $effect(() => {
@@ -173,7 +181,7 @@
         canMoveUp={index > 0}
         canMoveDown={index < operations.length - 1}
         panelId={open ? bodyId : undefined}
-        tour={op.id === example ? "op-example" : undefined}
+        tour={tourKey(op.id)}
       >
         {#if open && draft}
           <OperationBody {draft} editing id={bodyId} onClose={() => drafting.discard()} />

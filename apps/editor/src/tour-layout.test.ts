@@ -17,14 +17,14 @@ describe("resolveTargets", () => {
   });
 
   it("finds every target that is there", () => {
-    expect(resolveTargets({ targets: ["op-example", "preview"], fallback: "ops-add" }, present("op-example", "preview", "ops-add"))).toEqual([
-      "op-example",
+    expect(resolveTargets({ targets: ["op-1", "preview"], fallback: "ops-add" }, present("op-1", "preview", "ops-add"))).toEqual([
+      "op-1",
       "preview",
     ]);
   });
 
   it("uses the fallback alone when the first target is missing", () => {
-    expect(resolveTargets({ targets: ["op-example", "preview"], fallback: "ops-add" }, present("preview", "ops-add"))).toEqual(["ops-add"]);
+    expect(resolveTargets({ targets: ["op-1", "preview"], fallback: "ops-add" }, present("preview", "ops-add"))).toEqual(["ops-add"]);
     expect(resolveTargets({ targets: ["tile-group"], fallback: "tiles-header" }, present("tiles-header"))).toEqual(["tiles-header"]);
   });
 
@@ -53,6 +53,11 @@ describe("oneWindow", () => {
 
   it("is false when the span is wider than the window", () => {
     expect(oneWindow([box(0, 0, 200, 100), box(300, 0, 200, 100)], view)).toBe(false);
+  });
+
+  it("is false when a target's visible part is empty: clipped out of view, onto the edge", () => {
+    // Step 5 stacked: the "+" in view, the picture clipped to nothing at its top.
+    expect(oneWindow([box(340, 638, 28, 28), box(16, 1222, 358, 0)], view)).toBe(false);
   });
 });
 
@@ -130,6 +135,11 @@ describe("placeBubble", () => {
   it("on step 6 in two columns, stays in the sidebar column, below the card, left-aligned with it", () => {
     const card = box(24, 300, 384, 200);
     expect(placeBubble({ ...base, holes: [card, box(500, 100, 800, 500)], inSidebar: true })).toEqual({ top: 508, left: 24, width: 340 });
+  });
+
+  it("in the sidebar column, moves left of a small cut-out at the sidebar's right to keep its width", () => {
+    const plus = box(368, 700, 28, 28);
+    expect(placeBubble({ ...base, holes: [plus, box(500, 100, 800, 500)], inSidebar: true })).toEqual({ top: 700 - 8 - 160, left: 84, width: 340 });
   });
 
   it("on step 6, goes above the card when it doesn't fit below", () => {
