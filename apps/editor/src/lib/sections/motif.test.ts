@@ -19,7 +19,7 @@ describe("motifStyle", () => {
     expect(config.tiles).toHaveLength(1);
     expect(config.tiles[0]!.assets[0]!.meta!.src).toBe(squareSrc(MOTIF_COLOUR));
     expect(decodeURIComponent(squareSrc("#123456"))).toContain('fill="#123456"');
-    expect(config.operations.map((op) => op.selection.type)).toEqual(["checkerboard"]);
+    expect(config.operations.map((op) => op.selection[0]!.type)).toEqual(["checkerboard"]);
   });
 });
 

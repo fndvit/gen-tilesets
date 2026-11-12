@@ -24,7 +24,8 @@
  * Selections. `registry/selections.ts` flags `rect` and `cellList`
  * `coordinateBound: true` — they hold literal cell coordinates — while `all`,
  * `checkerboard`, `rowColumn`, `everyNth` and `random` are rules and hold at any
- * size. `everyNth` holds but *looks* different at another column count: it
+ * size. A selection is a list of layers (B-033), and pins the grid when any
+ * layer is coordinate-bound (`isCoordinateBound`). `everyNth` holds but *looks* different at another column count: it
  * counts cells row after row, so where each row's count starts moves with
  * `columns`. And
  * randomness is addressed by `(x, y)` rather than drawn from a stream
@@ -53,7 +54,7 @@
  * `<TileDecoration>` writes it — but reuse is no longer only reachable as one.
  */
 
-import { selections } from "./registry/selections.js";
+import { isCoordinateBound, selections } from "./registry/selections.js";
 import type { Operation, Shape, TilesetFile } from "./types.js";
 
 /** The field names, in the order messages list them. */
@@ -182,15 +183,24 @@ export function shapeFieldProblem(
  * findings.
  */
 export function coordinateBoundOperations(operations: readonly Operation[]): Operation[] {
-  return operations.filter(
-    (op) => selections.has(op.selection.type) && selections.get(op.selection.type).coordinateBound,
-  );
+  return operations.filter((op) => isCoordinateBound(op.selection));
+}
+
+/**
+ * How the message names what pins the grid: the coordinate-bound **layers**'
+ * types (B-033), so a selection of `checkerboard` + `rect` is named by its
+ * `rect`. A one-layer selection reads exactly as before layers existed.
+ */
+function pinningSelection(selection: Operation["selection"]): string {
+  const bound = [...new Set(selection.filter((layer) => isCoordinateBound([layer])).map((l) => l.type))];
+  const names = bound.map((t) => `"${t}"`).join(", ");
+  return bound.length === 1 ? `the coordinate-bound Selection ${names}` : `the coordinate-bound Selections ${names}`;
 }
 
 /** The message for one pinning Operation. Shared with `validate()`'s rule walk. */
 export function coordinateBoundMessage(op: Operation): string {
   return (
-    `Operation "${op.id}" uses the coordinate-bound Selection "${op.selection.type}", ` +
+    `Operation "${op.id}" uses ${pinningSelection(op.selection)}, ` +
     `which holds literal cell coordinates, so the grid's rows and columns cannot change. ` +
     `cellSize, bleed and yOffset can. To resize, use only procedural Selections ` +
     `(${selections

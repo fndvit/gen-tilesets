@@ -44,7 +44,7 @@ Exported from the engine entry point (`index.ts:121–126`).
 | [`validate`](/api/index/functions/validate/) | `(file: unknown) → ValidationError[]` | Empty array means valid. Never throws on bad input. |
 | [`ValidationError`](/api/index/interfaces/validationerror/) | interface | `{ path, code, message }`. `path` is an RFC 6901 JSON Pointer. |
 | [`ErrorCode`](/api/index/type-aliases/errorcode/) | string union | The sixteen codes below. |
-| [`SCHEMA_VERSION`](/api/index/variables/schema_version/) | `5` | The one version this build knows. 5 since B-009 (`everyNth` renamed `rowColumn`), 4 was 0.8.0, 3 was 0.7.0, 2 was ADR-005 (per its doc comment). |
+| [`SCHEMA_VERSION`](/api/index/variables/schema_version/) | `6` | The one version this build knows. 6 since B-033 (`Operation.selection` a list of layers), 5 was B-009 (`everyNth` renamed `rowColumn`), 4 was 0.8.0, 3 was 0.7.0, 2 was ADR-005 (per its doc comment). |
 
 **`message` is not part of the contract.** The source says to branch on `code`; matching on
 prose would make every reworded message a silent behaviour change in another package. A
@@ -52,7 +52,7 @@ published code is never reassigned to different semantics.
 
 ### Inputs → outputs
 
-The walk runs in this order (`validate.ts:899–933`):
+The walk runs in this order (`validate.ts:916–951`):
 
 1. Not a plain object → one `TYPE_MISMATCH` at `""` (the root), and stop.
 2. `schemaVersion` absent → `SCHEMA_VERSION_MISSING`, and stop. Not exactly `SCHEMA_VERSION` →
@@ -74,16 +74,16 @@ The walk runs in this order (`validate.ts:899–933`):
 | `SCHEMA_VERSION_UNKNOWN` | `schemaVersion` is anything other than the number `SCHEMA_VERSION` (older, newer, a string). | `/schemaVersion` |
 | `MISSING_KEY` | A required key is absent or `undefined` (a `null` value counts as present). A tagged object's parameter with no registry default is absent. A responsive rule has neither `minWidth` nor `maxWidth`, or sets no shape field. | The missing key's own path, e.g. `/config/rows`; for the two rule cases, the rule (`/responsive/<i>`). |
 | `UNKNOWN_KEY` | A key not in the known set, at any depth. Not raised inside an asset's `meta`, and not raised on a Selection/Source whose `type` is unknown. | The unknown key, escaped (`/config/a~1b~0c` for `a/b~c`). |
-| `TYPE_MISMATCH` | Wrong JavaScript type, including `null` anywhere but a palette `tileId`. Also: root not an object; a `range` that is not a two-element array; a `cellList` entry that is not a two-element array; `meta` not an object; `responsive` not an array; a rule's shape field not a number. | The offending value. |
+| `TYPE_MISMATCH` | Wrong JavaScript type, including `null` anywhere but a palette `tileId`. Also: root not an object; an Operation's `selection` not an array (the pre-v6 shape, B-033); a `range` that is not a two-element array; a `cellList` entry that is not a two-element array; `meta` not an object; `responsive` not an array; a rule's shape field not a number. | The offending value. |
 | `NOT_AN_INTEGER` | A finite number with a fractional part (or beyond the safe-integer range) where an integer is required: `rows`, `columns`, salts, `steps`, `integer` parameters, `cellList` coordinates, a rule's `rows`/`columns`. | The value. |
 | `NOT_FINITE` | `NaN` or `±Infinity` in any number field. Not `TYPE_MISMATCH`: they are numbers. | The value. |
-| `OUT_OF_RANGE` | A numeric bound fails; an `enum` parameter outside its values; `target` not a Target name (of any type); `horizontalAlignment` not `"column"`/`"gutter"`; `defaultSeed` empty; a palette with no entries; a rule's `minWidth`/`maxWidth` below 0; `minWidth > maxWidth`; a band whose resolved shape leaves no box. | The value; for an empty palette, `…/mapping/palette`; for `minWidth > maxWidth`, the rule's `minWidth`; for the box check, `/responsive/<i>` of the blamed rule. |
+| `OUT_OF_RANGE` | A numeric bound fails; an `enum` parameter outside its values; `target` not a Target name (of any type); `horizontalAlignment` not `"column"`/`"gutter"`; `defaultSeed` empty; a palette with no entries; a rule's `minWidth`/`maxWidth` below 0; `minWidth > maxWidth`; a band whose resolved shape leaves no box; an Operation's `selection` with no layers (B-033). | The value; for an empty palette, `…/mapping/palette`; for an empty selection, `…/selection`; for `minWidth > maxWidth`, the rule's `minWidth`; for the box check, `/responsive/<i>` of the blamed rule. |
 | `INVALID_IDENTIFIER` | A Tile id, TileAsset id, Operation id or palette `tileId` that does not match `^[A-Za-z0-9_-]+$`. | The id. |
 | `DUPLICATE_ID` | A Tile id used twice in `tiles`; a TileAsset id used twice **within one Tile**; an Operation id used twice. | The second (and later) occurrence's `id`. |
 | `EMPTY_ASSET_LIST` | A Tile's `assets` is `[]`. | `…/tiles/<i>/assets` |
 | `ZERO_WEIGHT_SUM` | Every weight in a Tile's assets, or in a palette, is legal but they sum to `≤ 0`. Suppressed if any weight was already reported. | The array (`…/assets` or `…/mapping/palette`). |
 | `DANGLING_TILE_REF` | A non-null palette `tileId` names no Tile in `tiles`. | `…/palette/<i>/tileId` |
-| `UNKNOWN_TYPE_NAME` | A Selection or Source `type` is not in its registry. | `…/selection/type` or `…/source/type` |
+| `UNKNOWN_TYPE_NAME` | A Selection layer's or a Source's `type` is not in its registry. | `…/selection/<i>/type` or `…/source/type` |
 | `INVALID_TARGET_BLEND` | `blend` is a string not in `acceptedBlends(target)`. This includes an unregistered Blend name. Only checked when `target` is legal. | `…/operations/<i>/blend` |
 | `COORDINATE_BOUND_RESIZE` | A responsive rule names `rows` or `columns` while the stack holds a coordinate-bound Operation. One error per (field, Operation) pair. | `/responsive/<i>/rows` or `/responsive/<i>/columns` |
 
@@ -126,7 +126,13 @@ Known keys: `id`, `salt`, `reseedOnLoad`, `selection`, `source`, `target`, `mapp
 - `id`: identifier, unique. The source calls this a correctness requirement: hash channels are
   namespaced by Operation id, so two Operations sharing one would share their random values.
 - `salt` optional `uint32`; `reseedOnLoad` optional boolean.
-- `selection`, `source`: required tagged objects; see below.
+- `selection`: required **list of Selection layers** (B-033, schema v6), checked by
+  `selectionLayers()`. Not an array → `TYPE_MISMATCH` at `…/selection`, and stop. An empty list →
+  `OUT_OF_RANGE` at `…/selection`: the source calls it an Operation that silently affects nothing,
+  a plausible-looking file with a dead Operation in it and no error anywhere. Each layer then goes
+  through `tagged(…, "selection")` at its own path, `…/selection/<i>`, so a bad parameter is
+  reported at `/selection/1/density`, not at `/selection`.
+- `source`: required tagged object; see below.
 - `target`: required; must be a key of `TARGETS`, else `OUT_OF_RANGE` (a non-string is also
   `OUT_OF_RANGE`, not `TYPE_MISMATCH`).
 - `blend`: required **bare string**, never a tagged object. Checked against `acceptedBlends(target)`,
@@ -136,7 +142,7 @@ Known keys: `id`, `salt`, `reseedOnLoad`, `selection`, `source`, `target`, `mapp
 
 #### Tagged objects and parameters
 
-`tagged()` checks a Selection or Source: object, then `type` present, then a string, then
+`tagged()` checks a Selection layer or a Source: object, then `type` present, then a string, then
 registered. An unregistered name is `UNKNOWN_TYPE_NAME`, and **nothing further is checked**: there
 is no schema to check against, and reporting every parameter as unknown would bury the one error
 that matters. Otherwise `taggedParams()` applies the registry's `ParamSchema`:
@@ -184,9 +190,11 @@ Optional array. The source describes four layers:
 2. **A rule must say when and what.** No condition, or no shape field, is `MISSING_KEY` at the
    rule. A rule with no condition would be the base under another name.
 3. **`COORDINATE_BOUND_RESIZE`.** `pinningOperations` filters the file's Operations to the
-   well-shaped ones (object, `selection.type` a string, `id` a string) and asks
-   `coordinateBoundOperations` from `shape.ts` which are coordinate-bound. Malformed Operations
-   are skipped so one defect is not reported twice.
+   well-shaped ones (object, `selection` an array, `id` a string) and asks
+   `coordinateBoundOperations` from `shape.ts` which are coordinate-bound: those with any
+   coordinate-bound layer (B-033). Malformed Operations are skipped so one defect is not reported
+   twice; malformed layers inside a list need no filtering, because `isCoordinateBound` is total
+   over them.
 4. **Every band has a box** (`everyBandHasABox`). Runs only if the whole file is otherwise
    error-free. For each width from `bandWidths(rules)` it resolves the active rules and reshapes
    the file; if `layout.referenceWidth` is not `> 0` (`columns - bleed` leaves nothing) it raises
@@ -239,8 +247,13 @@ an unknown Selection type is left to `validate()`), `apps/editor/src/document.te
   registered type; `meta` contents uninspected but `meta` itself must be an object; RFC 6901
   escaping.
 - **Parameters:** number bounds, enum, integer, a defaulted parameter absent, a required one
-  missing, `cellList` pairs. `everyNth` with an `axis` is `UNKNOWN_KEY` at `…/selection/axis`:
+  missing, `cellList` pairs. `everyNth` with an `axis` is `UNKNOWN_KEY` at `…/selection/0/axis`:
   `axis` is `rowColumn`'s parameter since schema v5.
+- **Selection layers (B-033):** two valid layers are accepted; a selection that is not a list
+  (the pre-v6 object) is `TYPE_MISMATCH` at `…/selection`; an empty list is `OUT_OF_RANGE` at
+  `…/selection`; a bad layer parameter is reported at the layer's own path
+  (`…/selection/1/density`), an unknown layer type at `…/selection/1/type`, and a layer that is not
+  an object is `TYPE_MISMATCH`.
 - **Mapping kind from target:** `palette` on an `opacity` mapping gives `UNKNOWN_KEY` +
   `MISSING_KEY` at the two expected paths; `steps: 1`; empty palette; unknown target.
 - **Salts:** fractional → `NOT_AN_INTEGER`; `-1` and `2³²` → `OUT_OF_RANGE`; `2³² − 1` valid.

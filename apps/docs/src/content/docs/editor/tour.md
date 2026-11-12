@@ -45,7 +45,7 @@ failed to open runs as a replay ([first-visit.ts](/editor/first-visit/)).
 | `seenStore(storage?)` | function | `get()` and `set()` on `localStorage`, each behind a try/catch. |
 | `end(seen)` | function | Ends a tour by Done, Skip tour or Esc alike. It sets the flag and returns `null`. |
 | `isFirstVisit(kept, seen)` | function | `!kept && !seen`. |
-| `exampleOperation(operations)` | function | The id "An operation" opens: the 3rd operation, if it is `op5` with a random Selection, as in Mosaic. Otherwise `null`. |
+| `exampleOperation(operations)` | function | The id "An operation" opens: the 3rd operation, if it is `op5` whose first selection layer is `random` (`op.selection[0]?.type`, B-033), as in Mosaic. Otherwise `null`. |
 
 ### Behaviour
 

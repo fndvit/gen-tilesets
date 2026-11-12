@@ -117,8 +117,9 @@ Which component renders which, in source order. Conditional children are marked.
 | `liveFailures` | the `failures` whose asset still has the same `meta` object, and, for one reported while a draft was drawn, whose tile a palette in `shown` still names (`paintedTiles`), as text | `current` |
 | `cameWith` | the orphaned Operations for which `cameWithFile(op, config, session.opened)` ([orphans.ts](/editor/orphans/)) holds | `current` |
 | `current` | `documentNotices(file, orphaned, liveFailures, { onOpen: openOperation, onRemove: trimOperation, cameWithFile: cameWith })` from `advisories.ts` | `conditions` |
-| `painting` | the draft's Selection schema, looked up via [`selections`](/api/index/variables/selections/), searched for a param of type `cellList` | `PaintLayer`, `PreviewFrame`'s `painting` |
-| `rectangle` | `null` while `painting` is set; else, when `rectParams` ([paint.ts](/editor/paint/)) holds for the draft's Selection schema, `{ rect }`, the four values or `null` while one is not a number | `RectLayer` |
+| `layer` | `activeLayer(drafting.draft)` from [draft.svelte.ts](/editor/draft/): the selection layer the Selection step has open (B-033), or `null` with no draft | `painting`, `rectangle`, `paintCells`, `drawRect` |
+| `painting` | the active layer's Selection schema, looked up via [`selections`](/api/index/variables/selections/), searched for a param of type `cellList`; `{ name, cells }` from `layer.params` | `PaintLayer`, `PreviewFrame`'s `painting` |
+| `rectangle` | `null` while `painting` is set; else, when `rectParams` ([paint.ts](/editor/paint/)) holds for the active layer's Selection schema, `{ rect }`, the four values from `layer.params` or `null` while one is not a number | `RectLayer` |
 | `loadSalt` | `preview.loadSalt` ([view.svelte.ts](/editor/preview-width/)) | `<Tileset>`, `SelectionOverlay`, `orphaned` |
 | `shadow` | `shadowConfig(config, draft)` ([draft.svelte.ts](/editor/draft/)) | `SelectionOverlay` |
 
@@ -159,7 +160,7 @@ Which component renders which, in source order. Conditional children are marked.
   writes `pruned(preview.hidden, file.config.operations)` back, so an id the file no longer has is
   forgotten and a new operation given that id starts visible.
 - **`renderBox`** is bound out so `PaintLayer` and `RectLayer` can convert pointer events into render space.
-- **`drawRect(rect)`** assigns the four values into `draft.selectionParams`, as `paintCells` writes the brush's list. The file is untouched until the draft is saved.
+- **`drawRect(rect)`** assigns the four values into the active layer's `params`, as `paintCells` writes the brush's list there (B-033: the brush and the drag edit the layer the Selection step has open, and only it). The file is untouched until the draft is saved.
   Since the canvas substrate became the default, the box is the canvas's wrapper `<div>`, which
   is why it is typed `HTMLElement`.
 
@@ -188,7 +189,8 @@ size, design width and the alignment toggle, once the value is committed (the tw
 `NumericInput`'s `commit="blur"`). If `needsConfirmation(config)` is true it parks
 `{ field, value, apply: transition }` in `pending` and opens a [`Dialog`](/editor/ui-dialog/);
 otherwise it applies at once. The dialog asks "Change cell size to 54?", lists every Operation in
-`risked` in a well (its index square, then `id · selection type`), and its verb, "Change cell
+`risked` in a well (its index square, then `id · ` and the selection's layer types joined with
+" + ", from `selectionTypes` in [layers.ts](/editor/layers/), B-033), and its verb, "Change cell
 size", calls `session.apply(pending.apply)`. Cancel drops `pending`; the field already shows the
 file's value, because its draft went when it committed. Holding a `Transition` rather than a
 value means the confirm step does not have to work out which field the value belonged to.
@@ -258,7 +260,7 @@ failures.
 - **Advisories never block and never modify the file** (**E16**): orphans, inert flags and the
   empty-document note.
 - **The draft is not in the document** (**E3**). The overlay resolves against a local shadow
-  config, and `paintCells` writes into `draft.selectionParams` only.
+  config, and `paintCells` writes into the active layer's `params` only.
 
 ### Callers / callees
 

@@ -3,7 +3,7 @@ import type { EvalCtx } from "../ctx.js";
 import { DEV } from "../dev.js";
 import { stage1 } from "../hash.js";
 import { Registry } from "./registry.js";
-import { selections } from "./selections.js";
+import { isCoordinateBound, selections } from "./selections.js";
 import { evalSource, sources } from "./sources.js";
 
 // `extent` defaults to the grid, derived from whatever `rows`/`columns` end up
@@ -261,6 +261,25 @@ describe("Selection presets — 04 §4.2", () => {
     for (const name of ["rect", "cellList"]) {
       expect(selections.get(name).extent, name).toBeTypeOf("function");
     }
+  });
+});
+
+describe("isCoordinateBound — over a selection's layers (B-033)", () => {
+  const rect = { type: "rect", x: 0, y: 0, width: 2, height: 1 };
+  const checker = { type: "checkerboard", parity: 1 };
+
+  it("is true exactly when one layer is coordinate-bound", () => {
+    expect(isCoordinateBound([checker, { type: "random", density: 0.5 }])).toBe(false);
+    expect(isCoordinateBound([checker, rect])).toBe(true);
+    expect(isCoordinateBound([{ type: "cellList", cells: [] }])).toBe(true);
+    expect(isCoordinateBound([checker])).toBe(false);
+  });
+
+  it("is total over unvalidated input", () => {
+    expect(isCoordinateBound([{ type: "nope" }])).toBe(false);
+    expect(isCoordinateBound(rect as never)).toBe(false);
+    expect(isCoordinateBound([null, 3, rect] as never)).toBe(true);
+    expect(isCoordinateBound(null as never)).toBe(false);
   });
 });
 

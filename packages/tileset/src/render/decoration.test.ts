@@ -54,7 +54,7 @@ const style = (): TilesetFile => ({
     operations: [
       {
         id: "fill",
-        selection: { type: "all" },
+        selection: [{ type: "all" }],
         source: { type: "random" },
         target: "tileId",
         mapping: { palette: [{ tileId: "t", weight: 1 }, { tileId: "u", weight: 1 }] },
@@ -115,7 +115,7 @@ describe("TileDecorationRenderer", () => {
 
   it("throws a style that cannot be placed to the caller, from the constructor and from update()", () => {
     const bad = style();
-    bad.config.operations[0]!.selection = { type: "rect", x: 0, y: 0, width: 2, height: 2 } as never;
+    bad.config.operations[0]!.selection = [{ type: "rect", x: 0, y: 0, width: 2, height: 2 }];
     const host = document.createElement("div");
     expect(() => new TileDecorationRenderer(host, { style: bad, rows: 2, columns: 3, cellSize: 40 })).toThrow(
       /cannot be placed at 3 x 2/,

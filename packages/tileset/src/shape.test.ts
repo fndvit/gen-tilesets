@@ -64,7 +64,7 @@ const style = (ops?: Operation[]): TilesetFile => ({
         id: "fill",
         salt: 0,
         reseedOnLoad: false,
-        selection: { type: "all" },
+        selection: [{ type: "all" }],
         source: { type: "random" },
         target: "tileId",
         mapping: {
@@ -80,7 +80,7 @@ const style = (ops?: Operation[]): TilesetFile => ({
         id: "spin",
         salt: 1,
         reseedOnLoad: false,
-        selection: { type: "random", density: 0.5 },
+        selection: [{ type: "random", density: 0.5 }],
         source: { type: "random" },
         target: "rotation",
         mapping: { range: [0, 270], steps: 4 },
@@ -102,7 +102,7 @@ const coordinateBound = (type: string, params: Record<string, unknown>): Operati
   id: `op-${type}`,
   salt: 0,
   reseedOnLoad: false,
-  selection: { type, ...params },
+  selection: [{ type, ...params }],
   source: { type: "constant" },
   target: "tileId",
   mapping: { palette: [{ tileId: "solid", weight: 1 }] },
@@ -338,7 +338,7 @@ describe("reshape — variation and determinism", () => {
   it("does not hold for gradient, which stretches to the new grid — the documented exception", () => {
     const ramp: Operation = {
       id: "ramp",
-      selection: { type: "all" },
+      selection: [{ type: "all" }],
       source: { type: "gradient", angle: 0 },
       target: "opacity",
       mapping: { range: [0, 1] },
@@ -405,7 +405,7 @@ describe("reshapeErrors", () => {
         const errors = reshapeErrors(style([op]), s);
         expect(errors).toHaveLength(1);
         expect(errors[0]).toContain(op.id);
-        expect(errors[0]).toContain(op.selection.type as string);
+        expect(errors[0]).toContain(op.selection[0]!.type);
       }
     }
   });
@@ -441,6 +441,22 @@ describe("reshapeErrors", () => {
     ];
     expect(coordinateBoundOperations(ops).map((op) => op.id)).toEqual(["op-rect"]);
     expect(reshapeErrors(style(ops), { rows: 2 })).toHaveLength(1);
+  });
+
+  it("pins the grid exactly when one of an Operation's layers is bound (B-033)", () => {
+    const layered = (id: string, selection: Operation["selection"]): Operation => ({
+      ...coordinateBound("all", {}),
+      id,
+      selection,
+    });
+    const bound = layered("mixed", [{ type: "checkerboard", parity: 0 }, { type: "rect", x: 0, y: 0, width: 2, height: 2 }]);
+    const procedural = layered("rules", [{ type: "checkerboard", parity: 0 }, { type: "random", density: 0.5 }]);
+    expect(coordinateBoundOperations([bound, procedural]).map((op) => op.id)).toEqual(["mixed"]);
+    const errors = reshapeErrors(style([bound, procedural]), { rows: 2 });
+    expect(errors).toHaveLength(1);
+    // Named by the bound layer, not by the procedural one beside it.
+    expect(errors[0]).toContain('the coordinate-bound Selection "rect"');
+    expect(errors[0]).not.toContain('Selection "checkerboard"');
   });
 
   it("leaves an unknown Selection type to validate()", () => {

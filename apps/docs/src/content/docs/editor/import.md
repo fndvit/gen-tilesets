@@ -127,10 +127,10 @@ Callees: `FILE_NAME` from `export.ts`, `TextDecoder`, `JSON.parse`, `migrate`, `
   `[{ id: 7 }, null]`) without throwing, and skips an asset with no `meta.src`.
 - **End to end through a real zip** (`fflate` `zipSync`/`unzipSync`). A current export comes back
   as `migrate()` → `"current"` and validates. A v1 archive migrates, validates, and equals the
-  original with all three assets present. A v5 archive yields `"newer"`. A v1 archive with an
+  original with all three assets present. An archive at `SCHEMA_VERSION + 1` (7 today) yields `"newer"`. A v1 archive with an
   unknown key migrates and then reports `UNKNOWN_KEY` at `/colour`, not at `/schemaVersion`.
 - **`prepareArchive`.** A current archive is ready, with its pictures as named, typed `File`s and
-  no upgrades. A v1 archive is ready, with upgrades from 1, 2 and 3. A newer archive is `"newer"`
+  no upgrades. A v1 archive is ready, with upgrades from 1, 2, 3, 4 and 5. A newer archive is `"newer"`
   even when it is also invalid, so validation never ran. An unknown key is `"invalid"` with
   `UNKNOWN_KEY` at `/colour`. A missing picture is still ready, without it. An empty archive
   throws.

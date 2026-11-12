@@ -160,7 +160,7 @@ describe("the draft's mapping — 06 C8", () => {
 describe("completeness — E5's gate before anything reaches the file", () => {
   const filled = () => {
     const draft = newDraft("op1");
-    draft.selectionType = "all";
+    draft.layers[0]!.type = "all";
     draft.sourceType = "random";
     draft.blend = "set";
     return draft;
@@ -204,11 +204,11 @@ describe("completeness — E5's gate before anything reaches the file", () => {
 
   it("builds an Operation whose parameters are spread siblings of `type` — 06 §7.1", () => {
     const draft = filled();
-    draft.selectionType = "rowColumn";
-    draft.selectionParams = { axis: "column", n: 3, offset: 0 };
+    draft.layers[0]!.type = "rowColumn";
+    draft.layers[0]!.params = { axis: "column", n: 3, offset: 0 };
     retarget(draft, "scaleX");
     const op = toOperation(draft)!;
-    expect(op.selection).toEqual({ type: "rowColumn", axis: "column", n: 3, offset: 0 });
+    expect(op.selection).toEqual([{ type: "rowColumn", axis: "column", n: 3, offset: 0 }]);
     expect(op.id).toBe("op1");
     expect(op.mapping).toEqual({ range: [1, 1] });
   });

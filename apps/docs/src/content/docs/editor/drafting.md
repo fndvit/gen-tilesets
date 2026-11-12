@@ -52,8 +52,8 @@ hash channels, stack index and salt intact. `discard` does not reset `mode`. Tha
 because `editing` is false while `open` is `null` and the next `start` or `edit` sets the mode.
 
 The returned `draft` is the live `$state` object. Callers mutate it in place:
-`App.svelte`'s `paintCells` writes `draft.selectionParams[name]`, `OperationBody.svelte`'s
-controls write the other fields, and `OperationsSection.svelte` sets `draft.step` and, after a
+`App.svelte`'s `paintCells` writes `params[name]` of the active selection layer
+(`activeLayer(draft)`, B-033), `OperationBody.svelte`'s controls write the other fields, and `OperationsSection.svelte` sets `draft.step` and, after a
 re-seed, `draft.salt`.
 
 ### Invariants

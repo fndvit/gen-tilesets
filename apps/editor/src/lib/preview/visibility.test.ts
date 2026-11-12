@@ -12,7 +12,7 @@ import { pruned, toggled, withoutHidden } from "./visibility.js";
 const op = (id: string): Operation =>
   ({
     id,
-    selection: { type: "all" },
+    selection: [{ type: "all" }],
     source: { type: "constant", value: 1 },
     target: "opacity",
     blend: "replace",

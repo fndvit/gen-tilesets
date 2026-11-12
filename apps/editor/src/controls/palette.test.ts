@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyTileMapping, type Operation, type PaletteEntry, type TilesetConfig } from "@vit-foundation/gen-tilesets";
+import { applyTileMapping, type Operation, type PaletteEntry, type Selection, type TilesetConfig } from "@vit-foundation/gen-tilesets";
 import { newDocument } from "../document.js";
 import {
   add,
@@ -130,11 +130,11 @@ describe("keptText", () => {
 
 describe("coverage", () => {
   const SEED = "fixed-seed-1";
-  const op = (source: Operation["source"], palette: PaletteEntry[], selection: Operation["selection"] = { type: "all" }): Operation => ({
+  const op = (source: Operation["source"], palette: PaletteEntry[], selection: Selection = { type: "all" }): Operation => ({
     id: "op1",
     salt: 0,
     reseedOnLoad: false,
-    selection,
+    selection: [selection],
     source,
     target: "tileId",
     mapping: { palette },
@@ -258,7 +258,7 @@ describe("paintedTiles", () => {
       operations: [
         {
           id: "op1",
-          selection: { type: "all" },
+          selection: [{ type: "all" }],
           source: { type: "random" },
           target: "tileId",
           mapping: { palette: [{ tileId: "a", weight: 1 }, { tileId: null, weight: 1 }] },
@@ -266,7 +266,7 @@ describe("paintedTiles", () => {
         },
         {
           id: "op2",
-          selection: { type: "all" },
+          selection: [{ type: "all" }],
           source: { type: "random" },
           target: "opacity",
           mapping: { range: [0, 1] },
@@ -274,7 +274,7 @@ describe("paintedTiles", () => {
         },
         {
           id: "op3",
-          selection: { type: "all" },
+          selection: [{ type: "all" }],
           source: { type: "random" },
           target: "tileId",
           mapping: { palette: [{ tileId: "b", weight: 0 }] },

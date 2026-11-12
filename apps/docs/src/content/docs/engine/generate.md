@@ -58,8 +58,11 @@ only.
 
 1. `effectiveSeeds(seed, loadSalt)` gives `{plain, onLoad}`. The asset channel's seed is
    `pickSeed(seeds, config.reseedAssetsOnLoad)`.
-2. Each Operation is prepared once: its Selection, Source and Blend registrations, and its
-   `operationCtx`. An unknown type name throws at the registry lookup.
+2. Each Operation is prepared once: its `operationCtx`, its Source and Blend registrations, and
+   `selected`, the predicate `selectionPredicate(op, ctx)` from [selection.ts](/engine/selection/)
+   builds over all of its selection layers (B-033). That function is shared with `selection()`, so
+   the editor's overlay and the picture combine layers the same way (**E8**). An unknown type name
+   throws at the registry lookup.
 3. Each Tile is prepared once with `prepareTile` (assets sorted, weights summed), keyed by id.
 4. `assetSalt` defaults to `0`.
 
@@ -68,7 +71,7 @@ only.
 | Step | What happens | Branches |
 | --- | --- | --- |
 | 1 | `initialTileState()`: `tileId` and `assetId` `null`, attributes at their defaults. | — |
-| 2a | `selection.impl(params, x, y, ctx)`. | Not selected → next Operation. |
+| 2a | `selected(x, y)`: true when any selection layer matches. | Not selected → next Operation. |
 | 2b | `evalSource(...)` gives `t` in `[0, 1]` closed (asserted in `DEV`). | — |
 | 2b′ | `target === "tileId"`: `applyTileMapping`, then `blend.impl(v, state.tileId)`. | A numeric mapping on `tileId` is skipped (`continue`). |
 | 2c–d | Otherwise: `applyNumericMapping`, `blend.impl(v, state[attr])`, then `writeAttribute`, which drops a non-finite result and bounds the value. | A palette mapping on an attribute is skipped (`continue`). |
@@ -104,7 +107,7 @@ Output: `{ rows, columns, cells }` with `cells.length === rows * columns`.
 Callees: `initialTileState`, `writeAttribute` (`attributes.ts`); `prepareTile`, `walkWeights`
 (`assets.ts`); `operationCtx` (`ctx.ts`); `effectiveSeeds`, `pickSeed`, `hash`, `ASSET_CHANNEL`
 (`hash.ts`); `applyNumericMapping`, `applyTileMapping`, `isTileMapping` (`mapping.ts`);
-`selections`, `sources`/`evalSource`, `blends` (`registry/`).
+`selectionPredicate` (`selection.ts`); `sources`/`evalSource`, `blends` (`registry/`).
 
 ### Tests: `generate.test.ts`
 

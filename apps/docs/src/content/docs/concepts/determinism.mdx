@@ -70,7 +70,7 @@ value = hash(effectiveSeed, channel, x, y, salt) → [0, 1)
 | --- | --- | --- | --- |
 | `random` Source (`sources.ts:84`) | the Operation's effective seed | `operationId` | `Operation.salt` |
 | `valueNoise` lattice (`sources.ts:142`) | the same | `operationId` | per-octave salt |
-| `random` Selection (`selections.ts:213`) | the same | `operationId + ":selection"` | `Operation.salt` |
+| `random` Selection (`selections.ts:245`) | the same | layer 0: `operationId + ":selection"`; layer i ≥ 1: `operationId:i:selection` | `Operation.salt` |
 | Asset walk (`generate.ts`, step 3) | the assets' effective seed | `"asset"` | `config.assetSalt` |
 
 Because the channel is part of the key, two Operations never share a stream of numbers, and an
@@ -78,6 +78,13 @@ Operation's Selection and its Source are independent. Changing `Operation.salt` 
 Operation's Source *and* Selection and nothing else. That is the editor's per-Operation reroll
 (`reseed.ts`, which increments the salt and wraps at 2³²). `assetSalt` does the same for the asset
 choice alone.
+
+An Operation's `selection` is a list of layers, and its `random` layers are channelled **by
+position**: layer 0 keeps the channel a single Selection always had, and each later layer gets its
+own. So two `random` layers in one Operation pick different cells, and a file from before layers
+existed (schema 5 or older), whose one Selection `migrate()` wraps into a one-layer list, draws
+byte-identically. The cost is that removing a layer moves the scatter of the `random` layers after
+it. The editor says so on the layer's remove button.
 
 ### The effective seed and `loadSalt`
 

@@ -225,7 +225,7 @@ const painted = (id: string, cells: [number, number][]): Operation => ({
   id,
   salt: 0,
   reseedOnLoad: false,
-  selection: { type: "cellList", cells },
+  selection: [{ type: "cellList", cells }],
   source: { type: "constant" },
   target: "opacity",
   mapping: { range: [1, 1] },
@@ -242,7 +242,7 @@ describe("trimToGrid — the notice's Remove action", () => {
     const file = shaped([painted("op1", [[0, 0], [9, 0], [1, 1], [0, 9]])], { columns: 4, rows: 3 });
     const c = file.config;
     const next = trimToGrid("op1")(file);
-    expect((next.config.operations[0]!.selection as { cells?: unknown }).cells).toEqual([[0, 0], [1, 1]]);
+    expect((next.config.operations[0]!.selection[0] as { cells?: unknown }).cells).toEqual([[0, 0], [1, 1]]);
     expect(orphans(c, SEED)).toHaveLength(1);
     expect(orphans(next.config, SEED)).toEqual([]);
   });
@@ -257,8 +257,26 @@ describe("trimToGrid — the notice's Remove action", () => {
     expect(next.layout).toBe(file.layout);
   });
 
+  it("trims every Handpick layer and leaves the other layers alone (B-033)", () => {
+    const rect = { type: "rect", x: 10, y: 10, width: 2, height: 2 };
+    const layered: Operation = {
+      ...painted("op1", []),
+      selection: [{ type: "cellList", cells: [[0, 0], [9, 0]] }, rect, { type: "cellList", cells: [[0, 9], [1, 1]] }],
+    };
+    const file = shaped([layered], { columns: 4, rows: 3 });
+    const next = trimToGrid("op1")(file);
+    expect(next.config.operations[0]!.selection).toEqual([
+      { type: "cellList", cells: [[0, 0]] },
+      rect,
+      { type: "cellList", cells: [[1, 1]] },
+    ]);
+    expect(orphans(next.config, SEED)).toEqual([]);
+    // Never mutated: the input still holds the outside cells.
+    expect((file.config.operations[0]!.selection[0] as { cells?: unknown }).cells).toEqual([[0, 0], [9, 0]]);
+  });
+
   it("refuses by identity: unknown id, nothing outside, or not a painted list", () => {
-    const rect: Operation = { ...painted("op2", []), selection: { type: "rect", x: 10, y: 10, width: 2, height: 2 } };
+    const rect: Operation = { ...painted("op2", []), selection: [{ type: "rect", x: 10, y: 10, width: 2, height: 2 }] };
     const file = shaped([painted("op1", [[0, 0]]), rect], { columns: 4, rows: 3 });
     expect(trimToGrid("nope")(file)).toBe(file);
     expect(trimToGrid("op1")(file)).toBe(file);

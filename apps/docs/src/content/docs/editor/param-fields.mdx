@@ -74,9 +74,9 @@ Order follows the schema's own key order.
 
 | Caller | Use |
 | --- | --- |
-| `lib/operations/OperationBody.svelte:49` | import |
-| `lib/operations/OperationBody.svelte:251` | Selection step: `schema={selectionSchema}`, `values={draft.selectionParams}`, writes `draft.selectionParams[name]` |
-| `lib/operations/OperationBody.svelte:290` | Source step: `schema={sourceSchema}`, `values={draft.sourceParams}`, writes `draft.sourceParams[name]` |
+| `lib/operations/OperationBody.svelte:67` | import |
+| `lib/operations/OperationBody.svelte:453` | Selection step: `schema={selectionSchema}`, `values={layer.params}`, writes `layer.params[name]`, where `layer` is the draft's active selection layer (B-033) |
+| `lib/operations/OperationBody.svelte:471` | Source step: `schema={sourceSchema}`, `values={draft.sourceParams}`, writes `draft.sourceParams[name]` |
 
 Callees: `affordanceFor` (`affordance.ts`, line 12), `ui/FieldRow.svelte` (line 13),
 `ParamControl.svelte` (line 14).

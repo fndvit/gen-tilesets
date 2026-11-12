@@ -252,7 +252,7 @@ describe("prepareArchive", () => {
     expect(prepared.kind).toBe("ready");
     if (prepared.kind !== "ready") return;
     expect(prepared.file).toEqual(file);
-    expect(prepared.upgrades.map((step) => step.from)).toEqual([1, 2, 3, 4]);
+    expect(prepared.upgrades.map((step) => step.from)).toEqual([1, 2, 3, 4, 5]);
   });
 
   it("refuses a newer archive before validating it", () => {

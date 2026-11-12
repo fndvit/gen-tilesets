@@ -24,7 +24,7 @@ const run = (file: TilesetFile, ...transitions: Transition[]) => transitions.red
 
 const rect: Operation = {
   id: "gap",
-  selection: { type: "rect", x: 0, y: 0, width: 2, height: 2 },
+  selection: [{ type: "rect", x: 0, y: 0, width: 2, height: 2 }],
   source: { type: "constant" },
   target: "opacity",
   mapping: { range: [0, 0] },

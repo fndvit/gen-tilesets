@@ -30,7 +30,7 @@
 
 import { pickSeed, type EffectiveSeeds } from "./hash.js";
 import { selections } from "./registry/selections.js";
-import type { Extent, Operation, TilesetConfig } from "./types.js";
+import type { Extent, Operation, Selection, TilesetConfig } from "./types.js";
 
 export interface EvalCtx {
   /**
@@ -95,8 +95,7 @@ export function operationCtx(
   // `selections.get` throws on an unknown type (X7) -- which is the established
   // answer and not a new failure mode, since both callers already resolve the
   // same registration for `impl`. C5 keeps validation elsewhere.
-  const registration = selections.get(op.selection.type);
-  const declared = registration.extent?.(op.selection as Record<string, unknown>);
+  const declared = layersExtent(op.selection);
 
   return {
     rows: config.rows,
@@ -108,5 +107,42 @@ export function operationCtx(
     operationId: op.id,
     // 06 §5.1: absent means 0.
     salt: op.salt ?? 0,
+  };
+}
+
+/**
+ * The extent of a selection's layers (B-033): the bounding box of the extents
+ * they declare, or **`undefined` — the whole grid — when any layer declares
+ * none.** A gradient over `rect` + `random` sweeps the grid, because the
+ * `random` layer can reach any cell of it. A lone layer's extent is its own,
+ * exactly as before layers existed.
+ *
+ * **Zero-area extents are skipped** — an empty Handpick layer's `{0,0,0,0}`
+ * would otherwise drag the box to the origin. If every layer is zero-area the
+ * result is zero-area, which `gradient` already guards (see `cellList`).
+ */
+export function layersExtent(layers: readonly Selection[]): Extent | undefined {
+  let box: Extent | undefined;
+  let zero: Extent | undefined;
+  for (const layer of layers) {
+    const declared = selections.get(layer.type).extent?.(layer as Record<string, unknown>);
+    if (declared === undefined) return undefined;
+    if (declared.width <= 0 || declared.height <= 0) {
+      zero ??= declared;
+      continue;
+    }
+    box = box === undefined ? declared : boundingBox(box, declared);
+  }
+  return box ?? zero;
+}
+
+function boundingBox(a: Extent, b: Extent): Extent {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return {
+    x,
+    y,
+    width: Math.max(a.x + a.width, b.x + b.width) - x,
+    height: Math.max(a.y + a.height, b.y + b.height) - y,
   };
 }

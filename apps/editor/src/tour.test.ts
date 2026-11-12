@@ -152,7 +152,7 @@ describe("isFirstVisit", () => {
 });
 
 describe("exampleOperation", () => {
-  const op = (id: string, type: string) => ({ id, selection: { type } }) as Parameters<typeof exampleOperation>[0][number];
+  const op = (id: string, type: string) => ({ id, selection: [{ type }] }) as Parameters<typeof exampleOperation>[0][number];
   const mosaic = [op("op1", "all"), op("op4", "all"), op("op5", "random")];
 
   it("is Mosaic's operation 3, op5, a random Selection", () => {

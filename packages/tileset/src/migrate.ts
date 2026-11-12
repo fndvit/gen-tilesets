@@ -136,6 +136,28 @@ export const MIGRATIONS: readonly Migration[] = [
       return { ...file, schemaVersion: 5, config: { ...config, operations } };
     },
   },
+  {
+    from: 5,
+    to: 6,
+    // B-033 made `Operation.selection` a list of layers, always -- even of one
+    // (Pol). Wrapping each older selection in a one-item list is the whole
+    // rewrite, and it draws byte-identically: layer 0 hashes on the Operation's
+    // own `opId:selection` channel, exactly as the lone Selection did.
+    //
+    // 4 -> 5's discipline: it runs before `validate()`, so it assumes nothing.
+    // A `config` or `operations` that is not what it should be is left for
+    // `validate()`, and only a selection that is an object (not already an
+    // array) is wrapped.
+    note: "wrapped every Operation's selection in a list — a selection is made of layers now",
+    upgrade: (file) => {
+      const config = file.config;
+      if (!isObject(config) || !Array.isArray(config.operations)) return { ...file, schemaVersion: 6 };
+      const operations = config.operations.map((op: unknown) =>
+        isObject(op) && isObject(op.selection) ? { ...op, selection: [op.selection] } : op,
+      );
+      return { ...file, schemaVersion: 6, config: { ...config, operations } };
+    },
+  },
 ];
 
 function isObject(value: unknown): value is Record<string, unknown> {

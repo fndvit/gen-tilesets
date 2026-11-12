@@ -50,7 +50,7 @@ describe("a stack of whole values — 09 §4.4", () => {
         id: "painted",
         salt: 0,
         reseedOnLoad: false,
-        selection: { type: "cellList", cells: [[9, 4]] },
+        selection: [{ type: "cellList", cells: [[9, 4]] }],
         source: { type: "constant" },
         target: "opacity",
         mapping: { range: [1, 1] },
@@ -61,10 +61,12 @@ describe("a stack of whole values — 09 §4.4", () => {
     // 400px cells in a 1000px design width: 3 columns, parity-corrected to 4.
     expect(h.current.config.columns).toBeLessThan(9);
     const back = undone(h);
-    expect(back.current.config.operations[0]!.selection).toEqual({
-      type: "cellList",
-      cells: [[9, 4]],
-    });
+    expect(back.current.config.operations[0]!.selection).toEqual([
+      {
+        type: "cellList",
+        cells: [[9, 4]],
+      },
+    ]);
   });
 });
 

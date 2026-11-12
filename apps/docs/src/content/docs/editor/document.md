@@ -69,7 +69,10 @@ transition of its own: it is committed with the rest of the Operation by `replac
 `addOperation`, `removeOperation`, `replaceOperation`, `moveOperation`, and (batch 01, T-05)
 `trimToGrid`, which drops a painted list's cells outside the grid: the orphan notice's "Remove N
 cells outside the grid". It is not §9.4's refused migration: nothing is moved or guessed, and a cell
-outside the grid draws nowhere, so no picture changes.
+outside the grid draws nowhere, so no picture changes. Since a selection is a list of layers
+(B-033), it maps over `op.selection`: every Handpick layer (one with a `cells` list, read with
+`cellsOf` from [layers.ts](/editor/layers/)) is trimmed, and any other layer, such as a `rect`, is
+kept as it is.
 
 #### Breakpoints (responsive rules)
 
@@ -199,14 +202,14 @@ index is an argument: the subject is named by id, but a destination has no id.
 | `App.svelte:346` | `ENGINE_VERSION` shown in the header |
 | `lib/sections/TilesSection.svelte:73`, `:80`, `:102`, `:112`, `:127`, `:133`, `:174` | `addTiles`, `addAssets`, `tileReferences`, `deleteTile`, `deleteAsset`, `setAssetWeight` (weight passed as `String(weight)`), `renameTile`, `resetAssetWeights` |
 | `lib/sections/OperationsSection.svelte:92`, `:110`, `:112`, `:113` | `rerollOperation`, `removeOperation`, `moveOperation` |
-| `lib/operations/OperationBody.svelte:257` | `replaceOperation` or `addOperation` on commit |
+| `lib/operations/OperationBody.svelte:382` | `replaceOperation` or `addOperation` on commit |
 
 `setReseedOnLoad` was removed in Block F: since Block E the flag is a toggle on the draft,
 committed with the rest of the Operation by `replaceOperation`, and only a test called it.
 
 Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseReferenceWidth`,
 `parseYOffset`, `parseWeight`, `RULE_PARSERS` (`fields.ts`); `nextSalt` (`reseed.ts`);
-`outsideCells` (`orphans.ts`, for `trimToGrid`);
+`outsideCells` (`orphans.ts`, for `trimToGrid`); `cellsOf` (`layers.ts`, for `trimToGrid`);
 `memorableSeed` (`seed.ts`); [`validate`](/api/index/functions/validate/) and
 [`shapeOf`](/api/index/functions/shapeof/) from the engine.
 

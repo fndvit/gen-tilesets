@@ -82,8 +82,8 @@ Entries are held in a private `Map`, so order is insertion order.
 | --- | --- |
 | `registry/selections.ts:23`, `registry/sources.ts:33`, `registry/blends.ts:27` | `Registry` (each builds one instance), `ParamSchema` |
 | `validate.ts:37` | `ParamSchema`, `ParamSpec` types, to walk a tagged object's parameters |
-| `apps/editor/src/draft.svelte.ts:119` | `ParamSchema`, in `defaultParams` |
-| `apps/editor/src/controls/affordance.ts:73–158` | `ParamSpec`, in `affordanceFor`, `defaultFor`, `admits` |
+| `apps/editor/src/draft.svelte.ts:136` | `ParamSchema`, in `defaultParams` |
+| `apps/editor/src/controls/affordance.ts:89–215` | `ParamSpec`, in `affordanceFor`, `defaultFor`, `admits`, `rangeLabel` |
 | `apps/editor/src/controls/ParamFields.svelte:16`, `ParamControl.svelte:15` | `ParamSchema` / `ParamSpec` as prop types |
 | `index.ts:102` | re-export |
 
@@ -114,8 +114,8 @@ Callees: none.
 
 ### Review notes
 
-- `Registration<Impl>` (`registry.ts:20`) is exported but has no users. Each registry file
+- `Registration<Impl>` (`registry.ts:26`) is exported but has no users. Each registry file
   declares its own registration interface instead. It looks like dead code.
-- `registry.ts:30` attributes the tolerated `random` name collision to *"`CONVENTIONS.md`
+- `registry.ts:36` attributes the tolerated `random` name collision to *"`CONVENTIONS.md`
   §10.3"*; the matching test (`registry.test.ts:39`) cites *"01 §10.3"*. The two citations
   disagree. (Not followed; this note is only about the inconsistency.)

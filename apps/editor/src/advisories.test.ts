@@ -24,7 +24,7 @@ const op = (over: Partial<Operation> = {}): Operation => ({
   id: "op1",
   salt: 0,
   reseedOnLoad: false,
-  selection: { type: "all" },
+  selection: [{ type: "all" }],
   source: { type: "random" },
   target: "opacity",
   mapping: { range: [0, 1] },

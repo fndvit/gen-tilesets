@@ -57,6 +57,7 @@ revisable until 1.0.0.
 | [`pickSeed`](/api/index/functions/pickseed/) | `(seeds, reseedOnLoad: boolean \| undefined) → number` | `onLoad` only when the flag is exactly `true`. |
 | [`ASSET_CHANNEL`](/api/index/variables/asset_channel/) | `"asset"` | The asset channel string. |
 | [`selectionChannel`](/api/index/functions/selectionchannel/) | `(operationId) → string` | `operationId + ":selection"`. |
+| `layerOwner` | `(operationId, layer: number) → string` | `operationId + ":" + layer`: the owner a selection layer `i ≥ 1` hashes as (B-033). Exported from `hash.ts` but not re-exported by `index.ts`. |
 
 `fold`, `fmix32`, `TWO_32` and `channelCache` are private.
 
@@ -64,6 +65,10 @@ revisable until 1.0.0.
 
 - **Channel strings** come in three shapes: an `operationId` (a Source's draws), `operationId +
   ":selection"` (a `random` Selection's draws), and `"asset"`.
+- **Selection layers** (B-033) still use the selection shape, `<owner>:selection`. Layer 0 is
+  the Operation itself and keeps `opId:selection`; layer `i ≥ 1` hashes as
+  `layerOwner(opId, i)`, so a `random` layer's channel is `opId:i:selection`. The source calls
+  this **still the selection channel's shape, not a fourth one** (X3).
 - **`salt`** is folded as `>>> 0`, so a non-integer or out-of-range salt is truncated. The comment
   says this is the behaviour the schema is written against, since every consumer truncates.
 - **`x`, `y`** are folded as `>>> 0` too, so negative coordinates are accepted and wrap to large
@@ -93,17 +98,20 @@ And from the function comments:
   so the overlay cannot show cells the Operation does not act on under the very flag meant to make
   them differ.
 - **The colon is not a legal identifier character**, so no Operation can be named into another
-  Operation's selection channel.
+  Operation's selection channel. The same rule keeps layer channels apart: a layer owner
+  `opId:i` can never be another Operation's id, so two layers of one Operation, and a layer and any
+  other Operation, never share a channel.
 
 ### Callers / callees
 
 | Symbol | Called from |
 | --- | --- |
-| `hash` | `generate.ts:157` (asset channel), `registry/sources.ts:84` (`random`), `registry/sources.ts:142` (`valueNoise`, per octave), `registry/selections.ts:213` (`random` Selection, selection channel) |
-| `effectiveSeeds` | `generate.ts:71`, `selection.ts:94` |
-| `pickSeed` | `generate.ts:72` (asset channel), `ctx.ts:107` (each Operation) |
-| `selectionChannel` | `registry/selections.ts:213` |
-| `ASSET_CHANNEL` | `generate.ts:157` |
+| `hash` | `generate.ts:161` (asset channel), `registry/sources.ts:84` (`random`), `registry/sources.ts:142` (`valueNoise`, per octave), `registry/selections.ts:249` (`random` Selection, selection channel) |
+| `effectiveSeeds` | `generate.ts:72`, `selection.ts:93` |
+| `pickSeed` | `generate.ts:73` (asset channel), `ctx.ts:106` (each Operation) |
+| `selectionChannel` | `registry/selections.ts:249` |
+| `layerOwner` | `selection.ts:128` (`selectionPredicate`, one `EvalCtx` per layer `i ≥ 1`) |
+| `ASSET_CHANNEL` | `generate.ts:161` |
 | `stage1`, `channelU32`, `hashU32`, `mixLoad` | Only inside `hash.ts` (and its test). |
 
 Grep finds no caller in `apps/editor/src` or `apps/demo/src`.
@@ -138,7 +146,7 @@ Grep finds no caller in `apps/editor/src` or `apps/demo/src`.
   that both mechanisms now handle `t = 1` explicitly. `hash()` itself still returns `[0, 1)`, and
   the asset walk still relies on that, so the guarantee holds; the stated reason is stale.
 - `channelCache`'s comment says the set of distinct channel strings is bounded by the operation
-  count. The cache is module-level and never cleared, so in a long-lived process (the editor) it
+  count times each Operation's selection layers. The cache is module-level and never cleared, so in a long-lived process (the editor) it
   grows with every distinct `operationId` ever generated, not with the current stack. Probably
   harmless in practice, but the bound as stated is per config, not per process.
 - The doc comment *"The three channel-string shapes. The set is closed at three"* sits above

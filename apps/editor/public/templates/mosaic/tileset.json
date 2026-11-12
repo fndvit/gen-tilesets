@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "engineVersion": "0.11.0",
   "config": {
     "rows": 10,
@@ -188,9 +188,11 @@
         "id": "op1",
         "salt": 184,
         "reseedOnLoad": true,
-        "selection": {
-          "type": "all"
-        },
+        "selection": [
+          {
+            "type": "all"
+          }
+        ],
         "source": {
           "type": "valueNoise",
           "cellsPerFeature": 5,
@@ -223,9 +225,11 @@
         "id": "op4",
         "salt": 141,
         "reseedOnLoad": true,
-        "selection": {
-          "type": "all"
-        },
+        "selection": [
+          {
+            "type": "all"
+          }
+        ],
         "source": {
           "type": "random"
         },
@@ -243,10 +247,12 @@
         "id": "op5",
         "salt": 0,
         "reseedOnLoad": false,
-        "selection": {
-          "type": "random",
-          "density": 0.03
-        },
+        "selection": [
+          {
+            "type": "random",
+            "density": 0.03
+          }
+        ],
         "source": {
           "type": "constant"
         },

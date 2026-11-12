@@ -22,14 +22,15 @@ import { operationCtx, type EvalCtx } from "./ctx.js";
 import { ASSET_CHANNEL, effectiveSeeds, hash, pickSeed } from "./hash.js";
 import { applyNumericMapping, applyTileMapping, isTileMapping } from "./mapping.js";
 import { blends, type BlendRegistration } from "./registry/blends.js";
-import { selections, type SelectionRegistration } from "./registry/selections.js";
 import { evalSource, sources, type SourceRegistration } from "./registry/sources.js";
+import { selectionPredicate } from "./selection.js";
 import type { AttributeName, Grid, Operation, TileState, TilesetConfig } from "./types.js";
 
 /** Registry lookups and the effective seed, hoisted out of the cell loop. */
 interface PreparedOperation {
   op: Operation;
-  selection: SelectionRegistration;
+  /** Every layer resolved once — `selectionPredicate`, shared with `selection()` (E8). */
+  selected: (x: number, y: number) => boolean;
   source: SourceRegistration;
   blend: BlendRegistration;
   ctx: EvalCtx;
@@ -71,13 +72,16 @@ export function generate(
   const seeds = effectiveSeeds(seed, loadSalt);
   const effectiveAssets = pickSeed(seeds, config.reseedAssetsOnLoad);
 
-  const prepared: PreparedOperation[] = config.operations.map((op) => ({
-    op,
-    selection: selections.get(op.selection.type),
-    source: sources.get(op.source.type),
-    blend: blends.get(op.blend),
-    ctx: operationCtx(config, op, seeds),
-  }));
+  const prepared: PreparedOperation[] = config.operations.map((op) => {
+    const ctx = operationCtx(config, op, seeds);
+    return {
+      op,
+      selected: selectionPredicate(op, ctx),
+      source: sources.get(op.source.type),
+      blend: blends.get(op.blend),
+      ctx,
+    };
+  });
 
   // Sorting a Tile's assets is O(a log a) and cannot change during a generation,
   // so it is hoisted out of the per-cell walk (03 §4.2).
@@ -115,9 +119,9 @@ function generateCell(
   const state = initialTileState();
 
   // Step 2 -- each Operation in stack order, blending onto the accumulated state.
-  for (const { op, selection, source, blend, ctx } of prepared) {
-    // (a) Is this cell in the Operation's Selection?
-    if (!selection.impl(op.selection as Record<string, unknown>, x, y, ctx)) continue;
+  for (const { op, selected, source, blend, ctx } of prepared) {
+    // (a) Is this cell in the Operation's Selection -- in any of its layers?
+    if (!selected(x, y)) continue;
 
     // (b) The Source's number, in [0, 1] closed. Asserted against X6 in dev
     // builds -- `gradient` reaches both ends, every other Source stays under 1.

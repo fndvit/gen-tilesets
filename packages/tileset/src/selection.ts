@@ -33,8 +33,8 @@
  * No `schemaVersion` bump, and no picture already drawn moves.
  */
 
-import { operationCtx } from "./ctx.js";
-import { effectiveSeeds } from "./hash.js";
+import { operationCtx, type EvalCtx } from "./ctx.js";
+import { effectiveSeeds, layerOwner } from "./hash.js";
 import { selections } from "./registry/selections.js";
 import type { Operation, TilesetConfig } from "./types.js";
 
@@ -90,9 +90,51 @@ export function selection(
   // Resolved once, outside the returned closure. The predicate is called per
   // cell, and the effective seed cannot change between those calls -- it is a
   // function of arguments already fixed.
-  const registration = selections.get(op.selection.type);
-  const ctx = operationCtx(config, op, effectiveSeeds(seed, loadSalt));
-  const params = op.selection as Record<string, unknown>;
+  return selectionPredicate(op, operationCtx(config, op, effectiveSeeds(seed, loadSalt)));
+}
 
-  return (x, y) => registration.impl(params, x, y, ctx);
+/**
+ * The Operation's selection as one predicate: true where **any layer** selects
+ * the cell (B-033). Shared by `generate()` and {@link selection} rather than
+ * written twice, on **E8**'s reasoning — the overlay must show the cells the
+ * Operation acts on, and two constructions of the layers' contexts could
+ * disagree about a channel while both looked right.
+ *
+ * Every layer's registration and context is resolved **here, once per
+ * Operation**, never per cell.
+ *
+ * ## Each layer's hash channel is by position (Pol, B-033 Block 1)
+ *
+ * Layer 0 gets the Operation's own `ctx`, so a `random` layer 0 hashes on
+ * `opId:selection` exactly as a lone Selection did: a v5 file migrated to a
+ * one-item list draws byte-identically, and adding a second layer never moves
+ * the first one's scatter. Layer i >= 1 gets `operationId` rewritten to
+ * `layerOwner(opId, i)`, so its channel is `opId:i:selection`. Without that, two
+ * `random` layers at the same density would select the same cells. Deleting or
+ * moving a layer reshuffles the `random` layers after it — accepted, like a
+ * reroll. Rejected: a stable per-layer id saved in the file, an extra key on
+ * every layer for a property nobody asked for.
+ *
+ * **Why rewrite `operationId` rather than add a field.** `EvalCtx` is closed by
+ * **O4**, and a field read only by a layered `random` would be one every Source
+ * and renderer must carry. Only a Selection ever sees a layer ctx — the Source
+ * still gets the Operation's — and a Selection reads `operationId` only to name
+ * its channel.
+ */
+export function selectionPredicate(op: Operation, ctx: EvalCtx): (x: number, y: number) => boolean {
+  const layers = op.selection.map((layer, i) => ({
+    impl: selections.get(layer.type).impl,
+    params: layer as Record<string, unknown>,
+    ctx: i === 0 ? ctx : { ...ctx, operationId: layerOwner(op.id, i) },
+  }));
+
+  // The common case, one layer, without the loop.
+  if (layers.length === 1) {
+    const [only] = layers as [(typeof layers)[0]];
+    return (x, y) => only.impl(only.params, x, y, only.ctx);
+  }
+  return (x, y) => {
+    for (const layer of layers) if (layer.impl(layer.params, x, y, layer.ctx)) return true;
+    return false;
+  };
 }

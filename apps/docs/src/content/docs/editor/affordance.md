@@ -81,7 +81,7 @@ did not hold.
 #### `defaultFor`
 
 1. `enum` → `spec.default ?? values[0]`.
-2. `cellList` → `0` (unused; `defaultParams` in `draft.svelte.ts:124` substitutes `[]`).
+2. `cellList` → `0` (unused; `defaultParams` in `draft.svelte.ts:141` substitutes `[]`).
 3. `spec.default` if declared.
 4. A lower bound: if it is **exclusive** (`number`, `exclusiveMin` set, no `min`), return
    `min + 1` when there is no upper bound, else the midpoint. Otherwise return the lower bound.
@@ -118,9 +118,9 @@ did not hold.
 
 | Caller | Uses |
 | --- | --- |
-| `controls/ParamFields.svelte:12`, `:32` | `affordanceFor` |
-| `controls/ParamControl.svelte:20` | `admits`, `rangeLabel`, `Affordance` |
-| `draft.svelte.ts:42`, `:124` | `defaultFor`, inside `defaultParams` |
+| `controls/ParamFields.svelte:12`, `:37` | `affordanceFor` |
+| `controls/ParamControl.svelte:21` | `admits`, `rangeLabel`, `Affordance` |
+| `draft.svelte.ts:45`, `:141` | `defaultFor`, inside `defaultParams` |
 | `controls/affordance.test.ts:4` | all four functions |
 
 Callees: none at runtime. It imports only the `ParamSpec` type.
@@ -142,7 +142,8 @@ Callees: none at runtime. It imports only the `ParamSpec` type.
   and never to an excluded bound.
 - **The sweep over the real registries:** pins the registered names (`all`, `cellList`,
   `checkerboard`, `everyNth`, `random`, `rect`, `rowColumn`; `constant`, `gradient`, `random`,
-  `valueNoise`), so an empty registry cannot pass; for each type, every parameter gets a known kind and
+  `valueNoise`), so an empty registry cannot pass; for each type, every parameter gets a known
+  kind and
   `defaultParams` produces values the schema admits; no schema declares a `type` parameter.
 
 ### Gotchas & rejected alternatives

@@ -18,7 +18,7 @@
  */
 
 import type { EvalCtx } from "../ctx.js";
-import type { Extent } from "../types.js";
+import type { Extent, Selection } from "../types.js";
 import { hash, selectionChannel } from "../hash.js";
 import { Registry, type ParamSchema } from "./registry.js";
 
@@ -294,3 +294,26 @@ selections.register({
     return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
   },
 });
+
+/**
+ * Whether an Operation's selection holds literal cell coordinates, so it pins
+ * `rows` and `columns` (`04` §4.4, `09` **E12**): true when **any layer** is
+ * coordinate-bound (B-033). A selection is a list of layers since schema v6, so
+ * this — not one registration's flag — is the question every caller asks.
+ *
+ * **Total over unvalidated input**, because `validate()`'s resize rule and the
+ * editor call it on files not yet known to be valid: a selection that is not an
+ * array, a layer that is not an object, or an unknown type counts as not bound,
+ * and is left to the error `validate()` raises at its own path.
+ */
+export function isCoordinateBound(selection: readonly Selection[]): boolean {
+  if (!Array.isArray(selection)) return false;
+  return selection.some(
+    (layer) =>
+      typeof layer === "object" &&
+      layer !== null &&
+      typeof layer.type === "string" &&
+      selections.has(layer.type) &&
+      selections.get(layer.type).coordinateBound,
+  );
+}

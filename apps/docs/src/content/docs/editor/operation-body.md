@@ -6,6 +6,7 @@ sidebar:
 ---
 
 **Written from:** `apps/editor/src/lib/operations/OperationBody.svelte`,
+`apps/editor/src/lib/operations/selection-glyphs.ts`,
 `apps/editor/src/lib/operations/pattern-art.ts`, `pattern-art.test.ts`, `draft.test.ts`,
 `controls/mapping.test.ts`, `blend.test.ts`, `rules.test.ts`, and its call sites in
 `sections/OperationsSection.svelte`. The draft's logic is in [draft.svelte.ts](/editor/draft/).
@@ -70,19 +71,22 @@ key. The body's own gap is `--space-6` (12px).
 #### Selection
 
 `selectionItems` is every `selections.all()` registration, labelled by `labelFor`, sorted into
-Figma's order (`all`, `checkerboard`, `everyNth`, `rowColumn`, `random`, `rect`, `cellList`), with
-its `.svg` glyph as `src`. A name with no artwork gets a label-only cell after these.
-`every-nth.svg` counts cells row after row with n = 3, which is the v5 `everyNth` (B-009);
-`row-column.svg`, every 2nd column, is hand-written because Figma has no node for it. A
-**coordinate-bound** Selection is disabled while any breakpoint names `rows` or `columns`
-(`resizedBy`), because `document.ts` would refuse the commit (`COORDINATE_BOUND_RESIZE`). The hint
-then reads "Handpick holds literal cells, and breakpoint N changes rows or columns."
+the order of `SELECTION_GLYPHS` (`selection-glyphs.ts`: `all`, `checkerboard`, `everyNth`,
+`rowColumn`, `random`, `rect`, `cellList`, Figma's order), with its `.svg` glyph as `src`. A name
+with no artwork gets a label-only cell after these. `every-nth.svg` counts cells row after row
+with n = 3, which is the v5 `everyNth` (B-009); `row-column.svg`, every 2nd column, is
+hand-written because Figma has no node for it. The table lives in its own file because
+[SelectionLayers](/editor/selection-layers/) draws the same glyphs in its rows. A
+**coordinate-bound** Selection (`r.coordinateBound`) is disabled while any breakpoint
+names `rows` or `columns` (`resizedBy`), because `document.ts` would refuse the commit
+(`COORDINATE_BOUND_RESIZE`). The hint then reads "Handpick holds literal cells, and breakpoint N
+changes rows or columns."
 
-`chooseSelection(name)` sets `selectionType` and replaces `selectionParams` with
-`defaultParams(schema)`. The Selection's [ParamFields](/editor/param-fields/) go in the options
-block, shown only when the chosen Selection has parameters. They get
-`hints={selectionParamHints(draft.selectionType)}` ([param-hints.ts](/editor/param-hints/)), so
-Every Nth's N says that the picture depends on the column count (B-009).
+**Under the question, the step is [SelectionLayers](/editor/selection-layers/)** (B-033,
+Block 3), given `draft`, `items={selectionItems}` and this component's `options` snippet. With
+one layer it shows the glyph grid and the options block as the step always did, plus
+"+ Add selection layer". With two or more it shows one row per layer, and only the open layer
+(`draft.activeLayer`) has the grid and the fields.
 
 #### Attribute
 
@@ -139,8 +143,12 @@ is absent, not disabled. For `tileId` that leaves a single `set` cell.
 
 #### Discard / Save
 
-`chosen(step)` is the step's answer (`selectionType`, `target`, `sourceType`, `blend`).
-`unanswered` lists `STEP_LABELS[step]` for each step with no answer. When all four are answered but
+`chosen(step)` is the step's answer (`target`, `sourceType`, `blend`). The Selection step is
+settled when every layer has a type, and then answers the first layer's `type` (B-033). While a
+layer is untyped the step's row is not settled, so its number stays hollow, but its answer is
+`partialSelection(draft)`, such as "Drag + not set", and not a bare "Not set".
+`unanswered` lists `STEP_LABELS[step]` for each step with no answer. For the Selection step it
+adds which layers have no type (`untypedLayers`): "Still open: Selection (layer 2 has no type).". When all four are answered but
 `isComplete(draft)` is false (an empty palette, or weights summing to zero), it adds "the
 mapping". The button reads "Save" when editing, "Add" otherwise, is disabled while `unanswered`
 is not empty, and has the hint "Still open: …". The `.actions` row sets `--hint-top: auto`,
@@ -186,14 +194,16 @@ an unregistered name gives `null`.
 
 Callees: [`acceptedBlends`](/api/index/functions/acceptedblends/),
 [`selections`](/api/index/variables/selections/), [`sources`](/api/index/variables/sources/),
-[`TARGETS`](/api/index/variables/targets/); the six Selection glyphs in
+[`TARGETS`](/api/index/variables/targets/); the Selection glyphs in
 `assets/glyphs/selection/`; `isTileTarget` (`controls/mapping.ts`);
 [NumericMapping](/editor/numeric-mapping/), [PaletteList](/editor/palette-list/),
 [ParamFields](/editor/param-fields/); `addOperation`, `replaceOperation` (`document.ts`);
-`defaultParams`, `isComplete`, `retarget`, `STEPS`, `toOperation` (`draft.svelte.ts`); `session`;
+`defaultParams`, `isComplete`, `retarget`, `STEPS`, `toOperation`
+(`draft.svelte.ts`); `session`; [SelectionLayers](/editor/selection-layers/);
+`SELECTION_GLYPHS` (`selection-glyphs.ts`);
 [Button](/editor/ui-button/), [Checkbox](/editor/ui-checkbox/),
 [GlyphGrid](/editor/ui-glyph-grid/), [Hint](/editor/ui-hint/);
-`labelFor` ([labels.ts](/editor/operation-labels/)).
+`labelFor`, `partialSelection`, `untypedLayers` ([labels.ts](/editor/operation-labels/)).
 
 ### Tests
 
@@ -226,8 +236,9 @@ No test file for the component. The logic it calls is pinned elsewhere:
   the stored range. A range set before switching to `constant` keeps its second value, hidden, and
   it is committed as-is. Only `range[0]` affects the picture, so the output is right, but the file
   carries a value the author cannot see. (inconsistency, carried over from `OperationDraft.svelte`)
-- The comment above `selectionItems` (lines 111–116, about a disabled coordinate-bound Selection)
-  sits above `glyphOrder` and `rank`, not above the code it describes. (stale comment, minor)
+- An earlier version of this page said the comment about a disabled coordinate-bound Selection
+  sat above `glyphOrder` and `rank`. In the current source it sits directly above
+  `selectionItems` (lines 163–168), so the note no longer applies.
 - The disabled-Selection hint names "Handpick" by hand, though it is driven by
   `r.coordinateBound`. A second coordinate-bound Selection would be disabled under the same
   sentence. (inconsistency, latent)

@@ -9,8 +9,9 @@ with `dropped: <reason>`.
 - **B-006** The relation between the ‘Grid and Size’ and ‘Breakpoints’ section is confusing even for me. We should re-think how do these 2 work, the user must understand better what creating a breakpoint mean and what it implies. This needs to be clearer. For example, some attributes on breakpoints like ‘cellSize’ seem to not affect the preview at all. Why is there a “Columns” field in breakpoints but not in Grid & Size? Once a breakpoint is created, it should be clear which view are we seeing at all times. This might mean reworking how the breakpoints sections is presented;
 - **B-007** When adding a pattern to an operation, the user might want to re-use it for another one. I.e: the same noise function applied to a scale operation might be wanted for the rotation in another one. Allow different operations to use the same pattern as others;
 - **B-008** Currently we have Offset X & Y separated. Same with Scale. Instead, group them as a single attribute (Offset, Scale), and add X & Y as parameters inside the same attribute, so the user can choose to affect both at the same time, or just one of them;
-- **B-009** The ‘EveryNth’ selection does not work how I imagine it. For me ‘everyNth’ means that every N cells, a cell is selected, and changing a row does not reset that count. The current behaviour acts more as a ‘Row’ or ‘Column’ selection, which is fine to have, but with another name. This means: change the behaviour of everyNth so it works like it should, and create another selection for ‘Row/Column’;
 - **B-013** Bug: I have been able to scroll past the editor — *Open: batch-01 T-04 (PR #20) fixed the one case it reproduced (horizontal scroll from the "Preview size" hint at 660 px). No vertical scroll reproduced; needs the file or state it happened in.*
+- **B-034** "Except" selection layers: a layer that removes cells instead of adding them (e.g. everything except a rect). Layer order starts to matter. Depends on B-033. It builds on B-033's list shape: an "except" layer could be a reserved sibling key on a layer (e.g. `"except": true`), the way `type` is reserved. Reordering layers belongs here;
+- **B-035** "Reseed on load" is offered only when an operation's Source is stochastic (`apps/editor/src/reseed.ts` `isStochastic` reads `sources.get(...).stochastic`). An operation with a `random` Selection also depends on the seed — it hashes `effectiveSeed` and the salt — but gets no toggle when its Source is not stochastic. A proper fix needs Selections to declare `stochastic` too, which changes the Registry contract; today the editor finds `random` by name (`draft.svelte.ts` `shiftsScatter`);
 
 ## Done
 
@@ -41,3 +42,5 @@ with `dropped: <reason>`.
 - **B-030** After Export: what to do with tileset.zip: batch-03 T-08, PR #25
 - **B-031** More tiles (Shapes in the gallery) and the Mosaic template: batch-03 T-02, PR #24
 - **B-032** Collage template without its no-op operation: batch-03 T-01, PR #24
+- **B-009** Every Nth counts row after row; the old rule is Row/Column: b-009 blocks 1–4, PRs #27–#30
+- **B-033** Selection layers: b-033 blocks 1–4, PR #31
