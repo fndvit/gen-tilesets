@@ -48,7 +48,7 @@ Decided here, not asked:
 - Layers are plain Selection objects, with no wrapper. B-034 can later reserve one sibling key
   (e.g. `"except": true`), the way `type` is reserved today.
 
-## Block 2 rework (same branch, a follow-up commit; then one PR)
+## Block 2 rework (same branch, a follow-up commit)
 
 **Undo the union machinery.** Remove:
 - the `union` registration and the `selectionList` ParamSpec;
@@ -160,41 +160,7 @@ Check that each one's loader migrates first.
 - every old fixture draws as before;
 - in `pnpm dev`, an imported v5 file shows its operations unchanged.
 
-Then give Pol the push and `gh pr create --body-file` line. Pol confirms before Block 3.
-
-## Block 3: editor layer UI
-
-Simpler now, because the draft is already a list:
-- **Selection step:**
-  - layer rows (glyph, label, summary, and × when there are 2 or more);
-  - clicking a row makes it the active layer, and only the active layer is expanded with today's
-    GlyphGrid and ParamFields;
-  - "+ Add selection layer" appends an untyped layer and makes it active;
-  - no Done button.
-- **Preview:** drawing goes to the active layer. `SelectionOverlay` is unchanged and shows the
-  combination through `selection()`.
-- "Ink on paper" styling, WCAG 2.2 AA sizes, strong hover feedback.
-- Manual check:
-  - Drag + Random shows both layers live;
-  - drawing edits only the open layer;
-  - deleting a layer works.
-
-## Block 4: docs and release notes
-
-- Glossary, the responsive and decorations guides, `DESIGN_SYSTEM.md` if needed.
-- `docs/changes/b-033/selection-layers.md`.
-- B-033 moves to Done in `BACKLOG.md`.
-- Changelog line: `Operation.selection` is now an array of layers (schema v6); `migrate()` wraps
-  old files, which draw unchanged; a config built in code or passed to `generate()` without
-  `migrate()` must use the array; new `isCoordinateBound` export. No version bump in the task.
-
-## Verification
-
-- `pnpm test` and `pnpm typecheck` from the root, and
-  `pnpm --filter @vit-foundation/tileset-docs build`.
-- The regression guards: the migrated-v5 random test, and the old demo and docs fixtures loading
-  unchanged.
-- Pol's manual check in `pnpm dev` at each block.
+Pol confirms before Block 3.
 
 ## Block 2 review (rework, 2026-11-12)
 
@@ -256,3 +222,178 @@ config to `generate()` without `migrate()`, must now use the array. Files on dis
 
 **Not done here:** in `pnpm dev`, open an older file (or a template) and check that the
 operations look and draw as before. Pol checks it.
+
+## One PR for all blocks (Pol, 2026-11-12)
+
+Blocks 2, 3 and 4 all go on `b-033-selection-layers` and ship as **one PR** into `dev`, opened
+after Block 4.
+- Don't open a PR per block.
+- Each block is still confirmed by Pol before the next one starts.
+- Pushing and `gh pr create` are denied to Claude here: give Pol the command (see the end of
+  Block 4).
+
+## Block 3: editor layer UI (handoff brief, for a fresh conversation)
+
+**Before starting:**
+1. Read `CLAUDE.md`, `ARCHITECTURE.md` and this whole file. Don't re-ask Block 1's questions or
+   the list-shape decision; they are answered.
+2. Read `apps/editor/DESIGN_SYSTEM.md`: Component patterns, Interaction conventions,
+   Accessibility.
+3. **Ask Pol whether Block 2's manual check passed** (an older file or a template opens and
+   draws as before). If it didn't, fix that first.
+
+**Branch:** keep working on `b-033-selection-layers`. Its head has the Block 2 rework (11a71c7).
+Check `git log` and `git status`, and pull first if Pol pushed.
+
+**Where things stand (Block 2):** the data model is already done. Don't redo it.
+- `draft.svelte.ts`:
+  - `Draft.layers: DraftLayer[]` holds at least one layer, each
+    `{type: string | null; params}`;
+  - `Draft.activeLayer` is an index;
+  - `activeLayer(draft)` returns the live layer object;
+  - `toOperation` refuses while any layer is untyped;
+  - `toShadowOperation` keeps the typed layers only (`null` if there are none);
+  - `fromOperation` deep-copies.
+- `OperationBody.svelte` keeps `const layer = $derived(activeLayer(draft))`. The GlyphGrid,
+  `ParamFields`, `chooseSelection` and `chosen("selection")` all go through it.
+- `App.svelte`: `painting`, `rectangle`, `paintCells` and `drawRect` read and write the active
+  layer. `SelectionOverlay` draws the combination through the engine's `selection()`.
+- `labels.ts`: the card chip already joins the layer labels ("Drag + Random").
+
+What's missing is UI: a way to see the layers, add one, remove one, and choose which one is open.
+
+### Analyse first, then confirm with Pol before coding
+
+Write the analysis below into this file as "Block 3: analysis". Ask Pol only the questions marked
+**Ask**. Lead with the visible consequence, in plain words, with an ASCII mock-up in the question's
+preview.
+
+1. **The Selection step's layout. Ask: pick between two mock-ups.** Recommended: an accordion of
+   layer rows under the step's question.
+   - Each row: the layer's glyph (the GlyphGrid artwork, small), its label ("Drag", "Random"),
+     a mono summary (see 2), and a 28px **IconButton** × "Remove layer N", shown only when there
+     are 2 or more layers.
+   - The open (active) row expands to today's GlyphGrid and options well, so only one layer is
+     open at a time.
+   - Under the rows, an **Add row** (`AddBar`, `bar`): "+ Add selection layer".
+   - **With one layer the step looks like today, plus the Add row**, so a single-layer user
+     sees no new clutter. Decide whether a single layer still shows a row header: recommended
+     no.
+   - The alternative: a compact chip strip of layers above the GlyphGrid.
+2. **Row summary text: decide, don't ask.** Put a pure function `layerSummary(layer)` in
+   `lib/operations/labels.ts` so it can be tested, e.g.:
+   - Drag: `"3×2 at 0,0"`;
+   - Handpick: `"5 cells"`;
+   - Random: `"30%"`;
+   - Every Nth / Row/Column: `"every 3rd"`;
+   - Checkered: `"parity 0"`;
+   - All: `""`;
+   - untyped: `"choose…"`.
+
+   It must be driven by the params generically where it can, not by a per-type table. Read
+   `labels.ts` and `param-hints.ts` first. A small per-type table may be acceptable for the
+   wording, the way `NAMED` is.
+3. **Adding a layer: decide.** It appends `{type: null, params: {}}` and makes it active.
+   - The overlay keeps showing the typed layers (the shadow already drops untyped ones).
+   - Next and Save stay gated until it has a type (`isComplete`). Say so in the Save button's
+     disabled hint.
+4. **Removing a layer: decide.**
+   - Removing the active one makes its neighbour active (the previous one, else the next).
+   - Focus moves to the new active row's header, never to `<body>`.
+   - Removing never leaves zero layers: the × is hidden at one layer.
+   - Removing a layer shifts the Random scatter of the layers after it (Block 1, by position).
+     **Ask** whether that needs a hint on the ×; recommended: a short hint, "Random layers after
+     this one get a new scatter".
+5. **Reordering: none in Block 3.** Order only affects Random scatter. Record this as decided;
+   it can come with B-034, where order matters.
+6. **Preview gestures:** the brush and the drag already follow `activeLayer`.
+   - Check that switching the active row swaps between the brush and the drag correctly.
+   - Check that an untyped active layer mounts neither.
+   - Check that the hidden-operations logic (batch 02) still works.
+   - Read `lib/RectLayer.svelte`, `lib/PaintLayer.svelte` and the `App.svelte` mounting block.
+7. **Coordinate-bound types under resizing breakpoints:** the picker already disables Drag and
+   Handpick per layer (`selectionItems`). Confirm that the hint still reads right with several
+   layers.
+8. **Card and stepper answers:** `chosen("selection")` and the chip already handle several
+   layers. Check the step row's answer text with an untyped layer present.
+9. **The tour:** `tour.ts` only reads `op.selection[0]`. Check whether any tour step targets the
+   Selection step's DOM (`data-tour` or selectors in `tour.ts`) that the new layout moves.
+10. **Accessibility (WCAG 2.2 AA, `accessibility-sizing` memory: Claude decides sizes, strong
+    hover):**
+    - rows are buttons with `aria-expanded` and `aria-controls`;
+    - × has an accessible name with the layer number and type;
+    - targets are at least 24px (2.5.8);
+    - the focus ring follows the design system;
+    - hover is a clear wash;
+    - there is no drag-only interaction.
+
+### Build (after Pol confirms the analysis)
+
+- Put state changes in plain `.ts` functions in `draft.svelte.ts`, so they can be tested:
+  `addLayer(draft)`, `removeLayer(draft, i)` and `openLayer(draft, i)`. Svelte components can't
+  be unit-tested here (CLAUDE.md, Testing).
+- Put the layout in `OperationBody.svelte`, or a new `lib/operations/SelectionLayers.svelte` if
+  that keeps the body readable. Reuse `GlyphGrid`, `AddBar`, `IconButton`, `Hint` and the
+  `options` snippet.
+- Tests:
+  - `draft.test.ts`: add, remove and open, including active-index rules, never zero layers, and
+    removing the active layer;
+  - `labels.test.ts` for `layerSummary`.
+- Docs: the module pages for every changed file (`editor/operation-body`, `editor/draft`,
+  `editor/operation-labels`, a page for any new component; the CI coverage gate). Run
+  `pnpm --filter @vit-foundation/tileset-docs build`.
+- `DESIGN_SYSTEM.md`: add a **Selection layers** row to Component patterns, describing what was
+  built.
+- Gate: `pnpm test`, `pnpm typecheck` and the docs build are green.
+- Write "Block 3: review" here, in Block 2's format (what changed, tests before and after,
+  anything not done).
+- Commit on the branch. **Don't push or open a PR yet.**
+- **Pol's manual check** in `pnpm dev` (port 5174):
+  - add Drag + Random: the overlay shows both, live;
+  - drawing edits only the open layer;
+  - adding and removing layers, including the active one;
+  - one layer looks like today;
+  - Save stays off while a layer is untyped;
+  - an export of a two-layer operation has a two-item `selection`.
+
+## Block 4: docs, release notes, the PR
+
+**Start after Pol confirms Block 3.**
+- **Concept and guide pages** (left out of Blocks 2 and 3 on purpose):
+  - `apps/docs/src/content/docs/concepts/glossary.md`: Selection is now "a list of layers";
+  - `guides/responsive`: an operation pins the grid if any layer is coordinate-bound;
+  - `guides/decorations`: its `selection` literal becomes a list, and check the `avoid` scope
+    text;
+  - any other page with a `selection: {` literal. Grep `apps/docs/src/content/docs` and the
+    stories.
+- **Change entry** `docs/changes/b-033/selection-layers.md`, in the format of
+  `docs/changes/b-009/every-nth.md` (read `docs/changes/README.md`). It says:
+  - Output: no existing picture changes;
+  - Schema: v6, with migration;
+  - Package: yes, a breaking type change under 0.x.
+- `BACKLOG.md`: move B-033 to **Done** ("B-033 Selection layers: b-033 blocks 1–4, PR #NN").
+  B-034 stays open, and now depends on the list shape: an "except" layer could be a reserved
+  sibling key on a layer, e.g. `"except": true`. Note that on B-034's line.
+- **Changelog line**, drafted for the release (no version bump in the task): "`Operation.selection`
+  is now a list of selection layers; an operation affects every cell any layer selects (schema
+  v6). `migrate()` wraps older files' selections and they draw unchanged. A config built in code,
+  or passed to `generate()` without `migrate()`, must use the list. New export
+  `isCoordinateBound`."
+- Write "Block 4: review" here. Gate green, then commit.
+- **The PR:**
+  - Write the body to the scratchpad, covering Blocks 1–4: the decisions, the breaking change,
+    tests before and after, Pol's checks, and the changelog line.
+  - Then give Pol:
+    `! git push -u origin b-033-selection-layers && gh pr create --base dev --title "B-033: selection layers" --body-file <path>`
+  - The branch also carries the backlog commit (B-033/B-034) and the first `union` attempt, which
+    a later commit undoes. Say so in the body.
+- After Pol merges: update `b-033-selection-layers` in memory. Don't open a PR just to record
+  that (`no-pr-for-trivial-doc-updates`).
+
+## Verification (every block)
+
+- `pnpm test` and `pnpm typecheck` from the root, and
+  `pnpm --filter @vit-foundation/tileset-docs build`.
+- The regression guards: the migrated-v5 random test, and the old demo and docs fixtures loading
+  unchanged.
+- Pol's manual check in `pnpm dev` at each block.
