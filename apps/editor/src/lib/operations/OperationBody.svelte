@@ -51,23 +51,15 @@
     type BlendName,
     type TargetName,
   } from "@vit-foundation/gen-tilesets";
-  import allGlyph from "../../assets/glyphs/selection/all.svg";
-  import checkeredGlyph from "../../assets/glyphs/selection/checkered.svg";
-  import everyNthGlyph from "../../assets/glyphs/selection/every-nth.svg";
-  import handpickGlyph from "../../assets/glyphs/selection/handpick.svg";
-  import rowColumnGlyph from "../../assets/glyphs/selection/row-column.svg";
-  import randomGlyph from "../../assets/glyphs/selection/random.svg";
-  import rectGlyph from "../../assets/glyphs/selection/rect.svg";
   import { isTileTarget } from "../../controls/mapping.js";
   import FieldPreview from "../../controls/FieldPreview.svelte";
   import { coverageOf, fieldCells } from "../../controls/palette.js";
-  import { selectionParamHints, sourceParamHints } from "../../controls/param-hints.js";
+  import { sourceParamHints } from "../../controls/param-hints.js";
   import NumericMappingControl from "../../controls/NumericMapping.svelte";
   import PaletteList from "../../controls/PaletteList.svelte";
   import ParamFields from "../../controls/ParamFields.svelte";
   import { addOperation, replaceOperation } from "../../document.js";
   import {
-    activeLayer,
     defaultParams,
     isComplete,
     retarget,
@@ -88,13 +80,17 @@
   import {
     draftParts,
     labelFor,
+    partialSelection,
     STEP_LABELS,
     summaryCells,
     writesOf,
+    untypedLayers,
     writesText,
   } from "./labels.js";
   import { NOISE_EXPLAINER } from "./noise-explainer.js";
   import { PATTERN_ORDER, patternSvg } from "./pattern-art.js";
+  import { SELECTION_GLYPHS } from "./selection-glyphs.js";
+  import SelectionLayers from "./SelectionLayers.svelte";
 
   interface Props {
     /**
@@ -114,24 +110,6 @@
 
   const ownId = $props.id();
   const base = $derived(id ?? ownId);
-
-  /**
-   * Selection artwork, by registry name, in Figma's order. A name missing here
-   * gets a label-only cell after these.
-   *
-   * `every-nth.svg` counts cells row after row with n = 3 (cells 0, 3, 6, …),
-   * which is the v5 `everyNth` (B-009). `row-column.svg` is hand-written, every
-   * 2nd column: Figma has no node for it.
-   */
-  const SELECTION_GLYPHS: Record<string, string> = {
-    all: allGlyph,
-    checkerboard: checkeredGlyph,
-    everyNth: everyNthGlyph,
-    rowColumn: rowColumnGlyph,
-    random: randomGlyph,
-    rect: rectGlyph,
-    cellList: handpickGlyph,
-  };
 
   /**
    * The Pattern's question names tiles when the Target is Tile, and also while
@@ -226,12 +204,6 @@
       : acceptedBlends(draft.target).map((b) => ({ value: b, label: labelFor(b) })),
   );
 
-  /**
-   * The layer the Selection step edits (B-033). Block 2 edits the first layer
-   * only; Block 3 adds the list that changes `draft.activeLayer`.
-   */
-  const layer = $derived(activeLayer(draft));
-  const selectionSchema = $derived(layer.type === null ? null : selections.get(layer.type).params);
   const sourceSchema = $derived(
     draft.sourceType === null ? null : sources.get(draft.sourceType).params,
   );
@@ -318,13 +290,9 @@
 
   /**
    * Choosing a type materializes every parameter at its schema default (§7.1,
-   * `06` §5.1), so the fields show exactly what the file will contain.
+   * `06` §5.1), so the fields show exactly what the file will contain. A
+   * Selection layer's choice is made the same way, in `SelectionLayers`.
    */
-  function chooseSelection(name: string): void {
-    layer.type = name;
-    layer.params = defaultParams(selections.get(name).params);
-  }
-
   function chooseSource(name: string): void {
     draft.sourceType = name;
     draft.sourceParams = defaultParams(sources.get(name).params);
@@ -340,7 +308,7 @@
   /** What each step has settled. */
   function chosen(step: Step): string | null {
     // Settled when every layer has a type (B-033).
-    if (step === "selection") return draft.layers.every((l) => l.type !== null) ? layer.type : null;
+    if (step === "selection") return draft.layers.every((l) => l.type !== null) ? draft.layers[0]!.type : null;
     if (step === "source") return draft.sourceType;
     if (step === "attribute") return draft.target;
     return draft.blend;
@@ -352,7 +320,12 @@
    * §7.2), so answering the attribute answers the Blend too (§7.7).
    */
   const unanswered = $derived.by(() => {
-    const open = STEPS.filter((step) => chosen(step) === null).map((step) => STEP_LABELS[step]);
+    // A layer added and not typed yet is named, since the step's row reads
+    // partly answered ("Drag + not set") and "Selection" alone would puzzle.
+    const gap = untypedLayers(draft);
+    const open = STEPS.filter((step) => chosen(step) === null).map((step) =>
+      step === "selection" && gap !== null ? `${STEP_LABELS[step]} (${gap})` : STEP_LABELS[step],
+    );
     // Every step answered and still not whole: `06` §7.3's rules on the mapping
     // — an empty palette, or weights summing to zero.
     if (open.length === 0 && !isComplete(draft)) open.push("the mapping");
@@ -399,7 +372,11 @@
           <span class="dot t-console" aria-hidden="true">{i + 1}</span>
           <span class="name t-title">{STEP_LABELS[step]}</span>
           <span class="answer t-console" class:unset={chosen(step) === null}>
-            {chosen(step) === null ? "Not set" : answers[step]}
+            {chosen(step) !== null
+              ? answers[step]
+              : step === "selection"
+                ? (partialSelection(draft) ?? "Not set")
+                : "Not set"}
           </span>
         </button>
         {#if active}
@@ -437,28 +414,8 @@
   </Hint>
 
   {#if draft.step === "selection"}
-    <!--
-      **Invariant O2** — a Selection is a pure function of `(x, y)` and its own
-      parameters; it never reads the accumulated `TileState`.
-    -->
-    <GlyphGrid
-      items={selectionItems}
-      value={layer.type}
-      onChange={chooseSelection}
-      label="Selection"
-    />
-    {#if layer.type !== null && selectionSchema && hasFields(selectionSchema)}
-      {@const schema = selectionSchema}
-      {#snippet fields()}
-        <ParamFields
-          {schema}
-          values={layer.params}
-          hints={selectionParamHints(layer.type)}
-          onChange={(name, value) => (layer.params[name] = value)}
-        />
-      {/snippet}
-      {@render options(layer.type, fields)}
-    {/if}
+    <!-- The layers, one open at a time (B-033); one layer looks as it always did. -->
+    <SelectionLayers {draft} items={selectionItems} {options} />
   {:else if draft.step === "source"}
     <!-- Every Source emits a value in [0, 1); the mapping gives it units. -->
     <GlyphGrid items={sourceItems} value={draft.sourceType} onChange={chooseSource} label="Pattern" />

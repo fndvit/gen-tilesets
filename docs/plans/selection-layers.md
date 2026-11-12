@@ -356,6 +356,105 @@ preview.
   - Save stays off while a layer is untyped;
   - an export of a two-layer operation has a two-item `selection`.
 
+## Block 3: analysis (2026-11-12)
+
+**Pol's answers:**
+- Block 2's manual check: not done yet when Block 3 started. Pol still has to do it.
+- Layout: **accordion rows**.
+- The × gets a **short hint** when a Random layer comes after it.
+
+**Decided:**
+1. **Layout.**
+   - With one layer, the step is today's step plus "+ Add selection layer" (`AddBar`, `bar`).
+     There is no row header.
+   - With two or more, each layer is a row.
+     - The header is a button with `aria-expanded` and `aria-controls`. It shows a small glyph
+       (a dashed square while untyped), "Layer N", the label and a muted mono summary.
+     - A 28px × `IconButton` sits beside the header, as a sibling and not nested inside it.
+     - The open row expands to the GlyphGrid and the options well. One row is open at a time.
+2. **`layerSummary(layer)`** (`labels.ts`) is driven by the params.
+   - A `cellList` param gives "N cells".
+   - The rect shape (`rectParams`) gives "3×2 at 0,0".
+   - A 0–1 number gives a percentage.
+   - No params gives "".
+   - Untyped gives "choose…".
+   - A small table words the two "every Nth" types: "every 3rd", "every 3rd column", and
+     ", offset N" when the offset is not zero.
+   - Anything else falls back to "name value" pairs ("parity 0"), so a later type still gets a
+     summary (E9).
+3. **Adding** appends an untyped layer and opens it.
+   - The overlay keeps the typed layers.
+   - Next and Save stay gated. Save's hint names the untyped layer.
+   - The step row reads "Drag + not set".
+4. **Removing:**
+   - Removing the open layer opens the previous one, or the next if it was first. Removing an
+     earlier one keeps the same layer open.
+   - Focus moves to the open row's header, or to the Add bar once one layer is left.
+   - The × is hidden at one layer.
+   - The hint shows only when a later layer is `random`. That is a name check, because a
+     Selection has no `stochastic` declaration to read, and adding one changes the Registry
+     contract (the same reason `rectParams` gives).
+5. **No reordering.** Order only moves the Random scatter. It can come with B-034.
+6. **Gestures:** the brush and the drag already follow `activeLayer`. An untyped open layer
+   mounts neither. Hidden operations are keyed by operation id, so layers don't touch them.
+7. **The coordinate-bound hint** is per type, and the picker is shared, so it is unchanged.
+8. **The tour** targets the card and reads `op.selection[0]`, so it is unchanged.
+9. **Accessibility:**
+   - targets are at least 24px;
+   - the × is named "Remove layer N (Type)";
+   - the focus ring is the system's;
+   - hover is a wash;
+   - nothing is drag-only.
+
+## Block 3 review (2026-11-12)
+
+**Status:** built on `b-033-selection-layers`, not pushed. Waiting for Pol to confirm before
+Block 4 starts. **Block 2's manual check is still open too.**
+
+**What changed**
+- **`draft.svelte.ts`:**
+  - `addLayer` appends an untyped layer and opens it;
+  - `removeLayer` never removes the last layer, keeps the same layer open, and opens the
+    neighbour when the open one goes;
+  - `openLayer` clamps its index;
+  - `shiftsScatter` drives the × hint. It is a `random` name check, with the reason at the point
+    of use.
+- **`labels.ts`:**
+  - `layerSummary` is driven by the parameters, with `NTH_WORDING` for the two every-Nth types;
+  - `partialSelection` gives the step row "Drag + not set";
+  - `untypedLayers` names the untyped layers in Save's hint.
+- **New `SelectionLayers.svelte`:**
+  - one layer is today's step plus "+ Add selection layer";
+  - two or more are accordion rows (glyph, Layer N, label, summary, ×), with one open;
+  - focus goes to the open row's header after a removal, or to the Add row once one layer is
+    left.
+- **New `selection-glyphs.ts`:** `SELECTION_GLYPHS` moved out of `OperationBody` so the rows can
+  share it.
+- **`OperationBody.svelte`:**
+  - the Selection branch renders `SelectionLayers`;
+  - `layer`, `selectionSchema` and `chooseSelection` moved out;
+  - the step row and Save's hint read the partial state.
+- **Docs:**
+  - the pages for `draft`, `operation-body` and `operation-labels`;
+  - a new `editor/selection-layers` page, which also covers `selection-glyphs.ts`;
+  - a **Selection layers** row in `DESIGN_SYSTEM.md`.
+
+**Checked in a headless browser** against the running dev server (Mosaic, operation 1):
+- one layer is unchanged apart from the Add row;
+- adding shows "All + not set", Save is disabled with "Still open: Selection (layer 2 has no
+  type).", and the new row reads "Not set … choose…";
+- picking Random enables Save, and the × of layer 1 gets the scatter hint;
+- reopening layer 1 swaps the grid;
+- removing the open layer 1 leaves one layer and focuses the Add row;
+- there were no console errors.
+
+**Tests:** 701 + 662 = 1363 before Block 3, and 701 + 680 = 1381 now. `pnpm test`,
+`pnpm typecheck` and the docs build are green.
+
+**Not done here:** Pol's manual check in `pnpm dev`. The overlay shows both layers live, and
+drawing edits only the open layer. The Drag/Handpick gestures swap as rows open. An export of a
+two-layer operation has a two-item `selection`.
+
 ## Block 4: docs, release notes, the PR
 
 **Start after Pol confirms Block 3.**

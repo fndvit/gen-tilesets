@@ -13,9 +13,16 @@
  * (**E9**).
  */
 
-import { isTileMapping, type Operation, type Tile } from "@vit-foundation/gen-tilesets";
+import {
+  isTileMapping,
+  selections,
+  type Operation,
+  type ParamSpec,
+  type Tile,
+} from "@vit-foundation/gen-tilesets";
 import { constantEntry } from "../../controls/palette.js";
-import { mappingOf, STEPS, type Draft, type Step } from "../../draft.svelte.js";
+import { mappingOf, STEPS, type Draft, type DraftLayer, type Step } from "../../draft.svelte.js";
+import { rectParams } from "../../paint.js";
 
 const NAMED: Record<string, string> = {
   cellList: "Handpick",
@@ -197,4 +204,96 @@ export function draftParts(draft: Draft): SummaryParts {
     source: draft.sourceType,
     blend: draft.blend,
   };
+}
+
+/**
+ * A selection layer's settings in a few words, for its row in the Selection
+ * step (B-033, Block 3): `"3×2 at 0,0"`, `"5 cells"`, `"30%"`, `"every 3rd"`.
+ *
+ * **Driven by the parameters, not by the type's name**, so a Selection
+ * registered later still gets a summary with no change here (**E9**):
+ * - a `cellList` parameter counts its cells;
+ * - the rectangle shape (`rectParams`, the one the preview drag recognises)
+ *   reads as size and corner;
+ * - a number on `[0, 1]` reads as a percentage, the way a density is thought of;
+ * - anything else reads as `"name value"` pairs (`"parity 0"`).
+ *
+ * The two "every Nth" types are worded by name in `NTH_WORDING`, the way
+ * `NAMED` words labels: "n 3, offset 0" is exact but reads as code. A layer
+ * with no parameters (All) has nothing to add, so `""`; one with no type yet
+ * reads `"choose…"`.
+ */
+export function layerSummary(layer: DraftLayer): string {
+  if (layer.type === null) return "choose…";
+  const schema = selections.get(layer.type).params;
+  const p = layer.params;
+  const worded = NTH_WORDING[layer.type]?.(p);
+  if (worded !== undefined) return worded;
+  if (rectParams(schema)) return `${p.width}×${p.height} at ${p.x},${p.y}`;
+  return Object.entries(schema)
+    .map(([name, spec]) => paramText(name, spec, p[name]))
+    .join(", ");
+}
+
+/** One parameter's words: a count, a percentage, or `"name value"`. */
+function paramText(name: string, spec: ParamSpec, value: unknown): string {
+  if (spec.type === "cellList") {
+    const n = Array.isArray(value) ? value.length : 0;
+    return n === 1 ? "1 cell" : `${n} cells`;
+  }
+  if (spec.type === "number" && spec.min === 0 && spec.max === 1 && typeof value === "number") {
+    return `${Math.round(value * 1000) / 10}%`;
+  }
+  return `${labelFor(name).toLowerCase()} ${String(value)}`;
+}
+
+/**
+ * The "every Nth" Selections, worded: `"every 3rd"`, `"every 2nd column"`, and
+ * `"every cell"` / `"every row"` at N = 1. A non-zero offset is appended, since
+ * it moves which cells are picked.
+ */
+const NTH_WORDING: Record<string, (p: Record<string, unknown>) => string> = {
+  everyNth: (p) => `${every(p.n, "cell")}${offsetText(p.offset)}`,
+  rowColumn: (p) => `${every(p.n, String(p.axis))}${offsetText(p.offset)}`,
+};
+
+function every(n: unknown, unit: string): string {
+  if (n === 1) return `every ${unit}`;
+  const tail = unit === "cell" ? "" : ` ${unit}`;
+  return `every ${typeof n === "number" ? ordinal(n) : String(n)}${tail}`;
+}
+
+function offsetText(offset: unknown): string {
+  return offset === 0 || offset === undefined ? "" : `, offset ${String(offset)}`;
+}
+
+/** `1st`, `2nd`, `3rd`, `4th`, `11th`, `12th`, `13th`, `21st`. */
+function ordinal(n: number): string {
+  const teen = Math.abs(n) % 100;
+  if (teen >= 11 && teen <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][Math.abs(n) % 10] ?? "th"}`;
+}
+
+/**
+ * The Selection step's answer on its row while a layer is still untyped:
+ * `"Drag + not set"`, in layer order. `null` when no layer has a type (the row
+ * says "Not set") or when every layer has one (`summaryCells` answers).
+ */
+export function partialSelection(draft: Draft): string | null {
+  const typed = draft.layers.filter((layer) => layer.type !== null).length;
+  if (typed === 0 || typed === draft.layers.length) return null;
+  return draft.layers.map((layer) => (layer.type === null ? "not set" : labelFor(layer.type))).join(" + ");
+}
+
+/**
+ * Which layers have no type, for Save's hint: `"layer 2 has no type"`,
+ * `"layers 2 and 3 have no type"`. `null` while there is only one layer, where
+ * "Selection" alone already says it.
+ */
+export function untypedLayers(draft: Draft): string | null {
+  if (draft.layers.length < 2) return null;
+  const open = draft.layers.flatMap((layer, i) => (layer.type === null ? [i + 1] : []));
+  if (open.length === 0) return null;
+  if (open.length === 1) return `layer ${open[0]} has no type`;
+  return `layers ${open.slice(0, -1).join(", ")} and ${open.at(-1)} have no type`;
 }

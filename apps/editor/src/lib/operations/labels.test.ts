@@ -4,10 +4,13 @@ import { newDraft } from "../../draft.svelte.js";
 import {
   draftParts,
   labelFor,
+  layerSummary,
+  partialSelection,
   partsOf,
   STEP_LABELS,
   summarize,
   summaryCells,
+  untypedLayers,
   writesOf,
   writesText,
 } from "./labels.js";
@@ -186,5 +189,69 @@ describe("writesOf", () => {
     const draft = newDraft("op1");
     expect(writesOf(draftParts(draft), tiles)).toBeNull();
     expect(writesText(null)).toBe("—");
+  });
+});
+
+describe("layerSummary (B-033, Block 3)", () => {
+  it("reads a rectangle as its size and corner", () => {
+    expect(layerSummary({ type: "rect", params: { x: 1, y: 4, width: 3, height: 2 } })).toBe("3×2 at 1,4");
+  });
+
+  it("counts painted cells", () => {
+    expect(layerSummary({ type: "cellList", params: { cells: [[0, 0], [1, 1]] } })).toBe("2 cells");
+    expect(layerSummary({ type: "cellList", params: { cells: [[0, 0]] } })).toBe("1 cell");
+    expect(layerSummary({ type: "cellList", params: { cells: [] } })).toBe("0 cells");
+  });
+
+  it("reads a 0–1 number as a percentage", () => {
+    expect(layerSummary({ type: "random", params: { density: 0.3 } })).toBe("30%");
+    expect(layerSummary({ type: "random", params: { density: 0.025 } })).toBe("2.5%");
+  });
+
+  it("words the every-Nth types", () => {
+    expect(layerSummary({ type: "everyNth", params: { n: 3, offset: 0 } })).toBe("every 3rd");
+    expect(layerSummary({ type: "everyNth", params: { n: 1, offset: 0 } })).toBe("every cell");
+    expect(layerSummary({ type: "everyNth", params: { n: 12, offset: 2 } })).toBe("every 12th, offset 2");
+    expect(layerSummary({ type: "rowColumn", params: { axis: "column", n: 2, offset: 0 } })).toBe(
+      "every 2nd column",
+    );
+    expect(layerSummary({ type: "rowColumn", params: { axis: "row", n: 1, offset: 0 } })).toBe("every row");
+    expect(layerSummary({ type: "rowColumn", params: { axis: "row", n: 21, offset: 0 } })).toBe("every 21st row");
+  });
+
+  it("falls back to name and value for any other parameter", () => {
+    expect(layerSummary({ type: "checkerboard", params: { parity: 0 } })).toBe("parity 0");
+  });
+
+  it("has nothing to add for a layer with no parameters, and asks for a type while untyped", () => {
+    expect(layerSummary({ type: "all", params: {} })).toBe("");
+    expect(layerSummary({ type: null, params: {} })).toBe("choose…");
+  });
+});
+
+describe("a partly typed selection (B-033, Block 3)", () => {
+  const draft = newDraft("op1");
+  draft.layers = [
+    { type: "rect", params: {} },
+    { type: null, params: {} },
+    { type: "random", params: {} },
+    { type: null, params: {} },
+  ];
+
+  it("answers the step row with the typed layers and the gaps, in order", () => {
+    expect(partialSelection(draft)).toBe("Drag + not set + Random + not set");
+  });
+
+  it("names the untyped layers for Save's hint", () => {
+    expect(untypedLayers(draft)).toBe("layers 2 and 4 have no type");
+    expect(untypedLayers({ ...draft, layers: draft.layers.slice(0, 2) })).toBe("layer 2 has no type");
+  });
+
+  it("says nothing extra with one layer, or once every layer has a type", () => {
+    expect(partialSelection(newDraft("op2"))).toBeNull();
+    expect(untypedLayers(newDraft("op2"))).toBeNull();
+    const typed = { ...draft, layers: [draft.layers[0]!, draft.layers[2]!] };
+    expect(partialSelection(typed)).toBeNull();
+    expect(untypedLayers(typed)).toBeNull();
   });
 });

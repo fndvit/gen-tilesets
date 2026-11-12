@@ -158,6 +158,63 @@ export function activeLayer(draft: Draft): DraftLayer {
   return draft.layers[draft.activeLayer]!;
 }
 
+/**
+ * Adds an untyped layer at the end and opens it (B-033, Block 3).
+ *
+ * Untyped rather than a copy of the open layer: no Selection type has a
+ * default anywhere (`DECISIONS.md` D7), and a copy would select exactly the
+ * same cells, so the new layer would add nothing until changed. The draft is
+ * incomplete until the author picks a type (`isComplete`); the overlay keeps
+ * the typed layers meanwhile (`toShadowOperation`).
+ */
+export function addLayer(draft: Draft): void {
+  draft.layers.push({ type: null, params: {} });
+  draft.activeLayer = draft.layers.length - 1;
+}
+
+/**
+ * Removes layer `i` and returns the index now open.
+ *
+ * **Never the last layer.** A selection holds at least one (`validate()`
+ * refuses an empty list), so removing the only one is a no-op; the UI hides
+ * the × at one layer, and this is the gate behind it.
+ *
+ * **The open layer stays the same layer.** Removing one before it shifts the
+ * index down by one. Removing the open one opens its predecessor, which is the
+ * row the eye was just above, or the new first layer when it was first. Rejected:
+ * leaving the index alone, which would silently open the *next* layer when an
+ * earlier one went, and point past the end when the last one went.
+ */
+export function removeLayer(draft: Draft, i: number): number {
+  if (draft.layers.length <= 1 || i < 0 || i >= draft.layers.length) return draft.activeLayer;
+  draft.layers.splice(i, 1);
+  if (i < draft.activeLayer || (i === draft.activeLayer && i > 0)) draft.activeLayer -= 1;
+  return draft.activeLayer;
+}
+
+/** Opens layer `i`, clamped into range so `activeLayer` is always a valid index. */
+export function openLayer(draft: Draft, i: number): void {
+  draft.activeLayer = Math.min(Math.max(0, Math.trunc(i)), draft.layers.length - 1);
+}
+
+/**
+ * Whether removing layer `i` moves the scatter of a Random layer after it —
+ * the × hint (Pol, Block 3).
+ *
+ * Random layers are channelled **by position** (`layerOwner`, Block 1): layer
+ * `j` hashes on `opId:j:selection`. Removing an earlier layer renumbers the
+ * ones after it, so a Random layer there gets a new channel and a new scatter.
+ *
+ * **A name check, the one in this file.** A Selection registration has no
+ * `stochastic` declaration to read (Sources do, **X5**), and adding one changes
+ * the Registry contract, which `rectParams` (`paint.ts`) already declined for
+ * the same kind of reason. The cost is only a missing hint on a stochastic
+ * Selection registered later; nothing about the picture depends on it.
+ */
+export function shiftsScatter(draft: Draft, i: number): boolean {
+  return draft.layers.slice(i + 1).some((layer) => layer.type === "random");
+}
+
 /** The layers that have a type, as the Selections they denote. */
 function typedLayers(draft: Draft): Selection[] {
   return draft.layers.flatMap((layer) => (layer.type === null ? [] : [{ type: layer.type, ...layer.params }]));

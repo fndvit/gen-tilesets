@@ -17,13 +17,17 @@ import { describe, expect, it } from "vitest";
 import { newDocument } from "./document.js";
 import {
   activeLayer,
+  addLayer,
   draftDiffers,
   draftFile,
   fromOperation,
   isComplete,
   newDraft,
+  openLayer,
+  removeLayer,
   retarget,
   shadowConfig,
+  shiftsScatter,
   STEPS,
   toOperation,
   toShadowOperation,
@@ -366,5 +370,83 @@ describe("selection layers (B-033)", () => {
 
   it("has no shadow until some layer has a type", () => {
     expect(toShadowOperation(newDraft("op1"))).toBeNull();
+  });
+});
+
+describe("adding, removing and opening layers (B-033, Block 3)", () => {
+  const three = (): Draft => {
+    const draft = newDraft("op1");
+    draft.layers = [
+      { type: "rect", params: { x: 0, y: 0, width: 2, height: 2 } },
+      { type: "random", params: { density: 0.3 } },
+      { type: "cellList", params: { cells: [] } },
+    ];
+    return draft;
+  };
+
+  it("adds an untyped layer at the end and opens it", () => {
+    const draft = three();
+    addLayer(draft);
+    expect(draft.layers).toHaveLength(4);
+    expect(draft.layers[3]).toEqual({ type: null, params: {} });
+    expect(draft.activeLayer).toBe(3);
+    expect(isComplete(draft)).toBe(false);
+  });
+
+  it("never removes the last layer", () => {
+    const draft = newDraft("op1");
+    expect(removeLayer(draft, 0)).toBe(0);
+    expect(draft.layers).toHaveLength(1);
+  });
+
+  it("ignores an index out of range", () => {
+    const draft = three();
+    removeLayer(draft, 3);
+    removeLayer(draft, -1);
+    expect(draft.layers).toHaveLength(3);
+  });
+
+  it("opens the previous layer when the open one is removed", () => {
+    const draft = three();
+    draft.activeLayer = 2;
+    expect(removeLayer(draft, 2)).toBe(1);
+    expect(activeLayer(draft).type).toBe("random");
+  });
+
+  it("opens the new first layer when the open first one is removed", () => {
+    const draft = three();
+    expect(removeLayer(draft, 0)).toBe(0);
+    expect(activeLayer(draft).type).toBe("random");
+  });
+
+  it("keeps the same layer open when an earlier one is removed", () => {
+    const draft = three();
+    draft.activeLayer = 2;
+    expect(removeLayer(draft, 0)).toBe(1);
+    expect(activeLayer(draft).type).toBe("cellList");
+  });
+
+  it("keeps the open layer when a later one is removed", () => {
+    const draft = three();
+    draft.activeLayer = 0;
+    expect(removeLayer(draft, 2)).toBe(0);
+    expect(activeLayer(draft).type).toBe("rect");
+  });
+
+  it("opens a layer, clamped into range", () => {
+    const draft = three();
+    openLayer(draft, 1);
+    expect(draft.activeLayer).toBe(1);
+    openLayer(draft, 9);
+    expect(draft.activeLayer).toBe(2);
+    openLayer(draft, -4);
+    expect(draft.activeLayer).toBe(0);
+  });
+
+  it("says when a removal moves a later Random layer's scatter", () => {
+    const draft = three();
+    expect(shiftsScatter(draft, 0)).toBe(true);
+    expect(shiftsScatter(draft, 1)).toBe(false);
+    expect(shiftsScatter(draft, 2)).toBe(false);
   });
 });

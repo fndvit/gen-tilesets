@@ -5,7 +5,8 @@ sidebar:
   order: 46
 ---
 
-**Written from:** `apps/editor/src/lib/operations/labels.ts` and `lib/operations/labels.test.ts`.
+**Written from:** `apps/editor/src/lib/operations/labels.ts` and `lib/operations/labels.test.ts`,
+and its call sites in `lib/operations/SelectionLayers.svelte` and `OperationBody.svelte`.
 
 ## Overview
 
@@ -37,6 +38,9 @@ All * Random * Tile [sand, clear] * Set
 | `writesText` | `(writes: Writes \| null) => string` | The same as one line, `"Tile · Pink, Blue"`; `—` for `null`. |
 | `partsOf` | `(op: Operation) => SummaryParts` | The parts of a stored Operation. |
 | `draftParts` | `(draft: Draft) => SummaryParts` | The parts of an open draft. |
+| `layerSummary` | `(layer: DraftLayer) => string` | A selection layer's settings in a few words, for its row (B-033, Block 3): `"3×2 at 0,0"`, `"5 cells"`, `"30%"`, `"every 3rd"`. |
+| `partialSelection` | `(draft: Draft) => string \| null` | The Selection step row's answer while some layers are untyped: `"Drag + not set"`. `null` when none or all are typed. |
+| `untypedLayers` | `(draft: Draft) => string \| null` | For Save's hint: `"layer 2 has no type"`, `"layers 2 and 4 have no type"`. `null` at one layer or when all are typed. |
 
 ### Inputs → outputs
 
@@ -65,6 +69,14 @@ All * Random * Tile [sand, clear] * Set
 - **`draftParts(draft)`** reads the draft's types, Target and Blend. For the selection it takes
   the layers that have a type; an untyped layer is left out, not shown as a gap. The mapping is
   `mappingOf(draft)` once a Target is chosen, and `null` before.
+- **`layerSummary(layer)`** is driven by the layer's parameter schema (`selections.get(type)`),
+  so a Selection registered later still gets a summary (**E9**): a `cellList` parameter counts
+  its cells ("1 cell", "5 cells"); the rectangle shape (`rectParams`, `paint.ts`) reads
+  `"W×H at X,Y"`; a number on `[0, 1]` reads as a percentage to one decimal ("2.5%"); anything
+  else reads `"name value"`, joined by ", " ("parity 0"). `NTH_WORDING` words the two "every Nth"
+  types, as `NAMED` words labels: `everyNth` is "every 3rd" ("every cell" at N = 1) and
+  `rowColumn` "every 2nd column" ("every row" at N = 1), each with ", offset N" when the offset
+  is not 0. A layer with no parameters (All) is `""`, and an untyped one `"choose…"`.
 - **Under Constant, one tile.** `writesOf` and `summaryCells` name only the entry that paints
   (`constantEntry`, the first non-zero weight), as the stepper does and as Save writes. A file
   saved before T3 can still hold the others, and the card names what the operation *does*, so
@@ -75,16 +87,17 @@ All * Random * Tile [sand, clear] * Set
 - **A name with no entry still reads** (**E9**). A Selection, Source or param registered later
   gets a sentence-case label with no change here.
 - **Tile ids never reach the summary** while the Tile exists.
-- **Pure.** No state, no Svelte runes. It imports only `isTileMapping` and types from the package,
-  `mappingOf`, `STEPS`, `Draft` and `Step` from `draft.svelte.ts`, and `constantEntry` from
-  `controls/palette.ts`.
+- **Pure.** No state, no Svelte runes. It imports `isTileMapping`, `selections` and types from
+  the package, `mappingOf`, `STEPS`, `Draft`, `DraftLayer` and `Step` from `draft.svelte.ts`,
+  `constantEntry` from `controls/palette.ts`, and `rectParams` from `paint.ts`.
 
 ### Callers / callees
 
 | Caller | Use |
 | --- | --- |
 | `sections/OperationsSection.svelte:36`, `operations/OperationCard.svelte:36` | `draftParts` and `partsOf` for each card; the card's `summaryCells` and `writesOf` |
-| `operations/OperationBody.svelte` | `labelFor` for every glyph cell; `STEP_LABELS` for the step rows, "Next: …" and Save's "Still open" hint |
+| `operations/OperationBody.svelte` | `labelFor` for every glyph cell; `STEP_LABELS` for the step rows, "Next: …" and Save's "Still open" hint; `partialSelection` and `untypedLayers` for the Selection row and that hint |
+| `operations/SelectionLayers.svelte` | `labelFor` and `layerSummary` for each layer's row |
 | `operations/OperationCard.svelte` | `STEP_LABELS` for the chips' step names |
 | `controls/ParamControl.svelte:32` | `labelFor(name)` as the field label |
 | `controls/NumericMapping.svelte:98` | `labelFor(target)` as the mapping's label |
@@ -100,7 +113,11 @@ new draft; two selection layers read "Drag + Random", and a draft's untyped laye
 (B-033); a numeric operation read in step order; `steps` shown only when present;
 palette tiles named, never by id, with an empty entry called "clear"; under Constant, only the
 entry that paints, skipping a zero first weight, while other Patterns list every entry; and a fresh draft reading
-`— * — * — * —`.
+`— * — * — * —`. **Block 3:** `layerSummary` for a rectangle, painted cells (0, 1, several), a
+density (whole and fractional percent), both every-Nth types (N = 1, ordinals 2nd, 3rd, 12th,
+21st, an offset), the name-value fallback, no parameters, and untyped; `partialSelection` in
+layer order with two gaps; `untypedLayers` for one gap and two; both `null` at one layer and when
+every layer is typed.
 
 ### Gotchas & rejected alternatives
 

@@ -7,7 +7,7 @@ sidebar:
 
 **Written from:** `apps/editor/src/draft.svelte.ts`, `draft.test.ts`, `blend.test.ts`,
 `controls/mapping.test.ts` (the parts that import this module), and the call sites in
-`drafting.svelte.ts`, `lib/operations/OperationBody.svelte`, `lib/operations/OperationHeader.svelte`,
+`drafting.svelte.ts`, `lib/operations/OperationBody.svelte`, `lib/operations/SelectionLayers.svelte`, `lib/operations/OperationHeader.svelte`,
 `lib/sections/OperationsSection.svelte` and `App.svelte`.
 
 ## Overview
@@ -54,6 +54,10 @@ returns non-`null`.
 | `defaultParams(schema)` | `(ParamSchema) → Record<string, unknown>` | Every declared parameter at its default; `cellList` → `[]`. |
 | `DraftLayer` | interface | `{ type: string \| null; params: Record<string, unknown> }`: one selection layer as the draft holds it (B-033). |
 | `activeLayer(draft)` | `(Draft) → DraftLayer` | `draft.layers[draft.activeLayer]`: the layer object itself, not a copy, so a control writes through it into the draft. |
+| `addLayer(draft)` | `(Draft) → void` | Appends an untyped layer and opens it (B-033, Block 3). Mutates. |
+| `removeLayer(draft, i)` | `(Draft, number) → number` | Removes layer `i` and returns the index now open. A no-op at one layer or out of range. Mutates. |
+| `openLayer(draft, i)` | `(Draft, number) → void` | Opens layer `i`, clamped into range. Mutates. |
+| `shiftsScatter(draft, i)` | `(Draft, number) → boolean` | Whether a `random` layer comes after layer `i`, so removing `i` gives it a new scatter. The × hint. |
 | `newDraft(id)` | `(string) → Draft` | A fresh create-draft. |
 | `retarget(draft, target)` | `(Draft, TargetName) → void` | Sets the Target; rebuilds the numeric mapping; settles the Blend. Mutates. |
 | `isComplete(draft)` | `(Draft) → boolean` | The gate. |
@@ -128,6 +132,14 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 - **`toOperation`.** `null` unless complete. Otherwise it returns
   `{ id, salt, reseedOnLoad, selection: [{ type, ...params }, …], source: { type, ...params },
   target, mapping: mappingOf(draft), blend }`, with one selection entry per layer, in order.
+- **Layer edits (B-033, Block 3).** `addLayer` pushes `{ type: null, params: {} }` and sets
+  `activeLayer` to it. It is untyped rather than a copy of the open layer, because no Selection
+  type has a default and a copy would select the same cells. `removeLayer(draft, i)` splices layer
+  `i` unless it is the only one. The open layer stays the same layer: removing an earlier one
+  shifts `activeLayer` down by one, and removing the open one opens its predecessor, or the new
+  first layer when it was first. `openLayer` clamps its index. `shiftsScatter` is a name check
+  for `random`, the one in the file: a Selection registration has no `stochastic` declaration,
+  and adding one changes the Registry contract.
 - **`draftDiffers(draft, op)`.** For a create-draft (`op` is `null`), true once any of
   layer's `type`, `target` or `sourceType` is set. For an edit-draft, true if `toOperation(draft)`
   is `null` (an edit made incomplete, such as an emptied palette, can be discarded but not saved).
@@ -165,12 +177,12 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
 | Caller | Uses |
 | --- | --- |
 | `drafting.svelte.ts:27`, `:56`, `:69` | `newDraft`, `fromOperation`, `Draft` |
-| `lib/operations/OperationBody.svelte:233` | `activeLayer(draft)`: the layer the Selection step edits |
-| `lib/operations/OperationBody.svelte:325`, `:330` | `defaultParams(...)` when a Selection or Source type is chosen |
-| `lib/operations/OperationBody.svelte:355`, `:358` | `STEPS` and `isComplete` for Save's "Still open" hint |
-| `lib/operations/OperationBody.svelte:380` | `toOperation` on commit, then `replaceOperation`/`addOperation` (`:382`) |
-| `lib/operations/OperationBody.svelte:513` | `retarget(draft, target)` |
-| `lib/operations/OperationBody.svelte:278` | `shadowConfig(file.config, draft)` for the palette's measured coverage |
+| `lib/operations/SelectionLayers.svelte` | `addLayer`, `removeLayer`, `openLayer`, `shiftsScatter`, and `defaultParams(...)` when a layer's type is chosen |
+| `lib/operations/OperationBody.svelte:298` | `defaultParams(...)` when a Source type is chosen |
+| `lib/operations/OperationBody.svelte:326`, `:331` | `STEPS` and `isComplete` for Save's "Still open" hint |
+| `lib/operations/OperationBody.svelte:353` | `toOperation` on commit, then `replaceOperation`/`addOperation` |
+| `lib/operations/OperationBody.svelte:470` | `retarget(draft, target)` |
+| `lib/operations/OperationBody.svelte:250` | `shadowConfig(file.config, draft)` for the palette's measured coverage |
 | `opening.svelte.ts:40` | `draftDiffers` before switching away from an open draft |
 | `lib/operations/labels.ts:196` | `mappingOf(draft)` for the header's summary; `draftParts` also reads `draft.layers` |
 | `App.svelte:390` | `activeLayer(drafting.draft)`: the layer the brush and the drag write |
@@ -202,6 +214,10 @@ Editor: `defaultFor` (`controls/affordance.js`), `defaultNumericMapping` and `is
   leaves the source Operation untouched; a write through `activeLayer(draft)` lands in
   `draft.layers`; a draft with an untyped layer is incomplete and `toOperation` is `null`, while
   `toShadowOperation` still carries the typed layers; a new draft has no shadow.
+  **Adding, removing and opening layers (Block 3):** an added layer is untyped, last and open;
+  the last layer is never removed, nor an index out of range; removing the open layer opens the
+  previous one, or the new first; removing an earlier layer keeps the same layer open, and a later
+  one leaves it alone; `openLayer` clamps; `shiftsScatter` is true only before a Random layer.
 - **`blend.test.ts`.** A new draft's `blend` is `null`. For every Target, `retarget` yields
   `TARGETS[target].default`, and the other three steps stay `null`. Retargeting keeps an accepted
   Blend and falls back when the new Target vetoes it, or accepts nothing else. `isComplete`
