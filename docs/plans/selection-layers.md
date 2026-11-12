@@ -585,6 +585,47 @@ There is no version bump in this task. Put the draft in the PR body and in "Bloc
   task done. Fill in the PR number in `BACKLOG.md` in the next PR that touches it, not in a
   PR of its own.
 
+## Block 4 review (2026-11-12)
+
+**Status:** done on `b-033-selection-layers`, not pushed. The PR into `dev` is written and waits
+for Pol to open it.
+
+**What changed**
+- **Docs pages:**
+  - `concepts/glossary.md`: the Selection row says a selection is a list of layers, ORed, and that
+    an Operation is coordinate-bound if any layer is. The Channel row gives the per-layer channel.
+  - `concepts/determinism.mdx`: the channel table row gives the per-layer channel, and a new
+    paragraph says why channels go by position. The citation moved from `selections.ts:213` to
+    `:245`, because the brief's line number had gone stale.
+  - `guides/responsive.md`: coordinate-bound means any layer is `rect` or `cellList`.
+  - `guides/decorations.md`: the no-`rect`/`cellList` rule covers every layer, the literal is now
+    `selection: [{ type: "all" }]`, and the extent is the bounding box of the layers.
+    The page had no `avoid` text to check.
+  - `guides/engine.md`, `packages/tileset/README.md` and `ARCHITECTURE.md` were re-read and
+    needed nothing.
+- **Change entry:** `docs/changes/b-033/selection-layers.md`, with `Output: unchanged` and
+  `Package: yes`.
+- **`BACKLOG.md`:**
+  - the old B-033 line, which still described `union`, is gone;
+  - B-033 is under Done as "PR pending";
+  - B-034 says it builds on the list shape (an `"except": true` sibling key) and that reordering
+    belongs with it.
+
+**Changelog line** (draft, for the release; not written into `CHANGELOG.md`):
+
+> `Operation.selection` is now a list of selection layers; an operation affects every cell any
+> layer selects (schema v6). `migrate()` wraps older files' selections and they draw unchanged.
+> A config built in code, or passed to `generate()` without `migrate()`, must use the list.
+> New export `isCoordinateBound`.
+
+**Tests:** 701 + 683 = 1384 before and after; this block is docs only. `pnpm test`,
+`pnpm typecheck`, the docs build and `pnpm changelog check` are green.
+
+**Not done here:**
+- pushing and opening the PR (Pol);
+- the PR number in `BACKLOG.md`, which goes in the next PR that touches it;
+- the version bump and the `CHANGELOG.md` section, which happen at release.
+
 ## Verification (every block)
 
 - `pnpm test` and `pnpm typecheck` from the root, and
