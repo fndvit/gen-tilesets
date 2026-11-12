@@ -39,7 +39,7 @@
   import { opening } from "../opening.svelte.js";
   import { session } from "../session.svelte.js";
   import { tourPreview } from "../tour-preview.svelte.js";
-  import { clip, cutout, oneWindow, placeBubble, resolveTargets, scrollDelta, type Box, type BubblePlacement } from "../tour-layout.js";
+  import { clip, cutout, oneWindow, placeBubble, reach, resolveTargets, scrollDelta, type Box, type BubblePlacement } from "../tour-layout.js";
   import {
     back,
     count,
@@ -145,9 +145,13 @@
     // Room for the cut-out's pad and the ring with its halo (`ring(hole, 3)`, a 2px stroke), so a
     // target brought in from above or below isn't ringed off the window's edge.
     const room = px("--space-2") + 4;
-    const box = el.getBoundingClientRect();
-    const delta = scrollDelta({ top: room, bottom: window.innerHeight - room }, scroller ? clip(box, visibleIn(el)) : box);
+    const delta = scrollDelta({ top: room, bottom: window.innerHeight - room }, reachOf(el));
     if (delta !== 0) window.scrollBy({ top: delta, behavior: "instant" });
+  }
+
+  /** What the target can show once revealed (`tour-layout.ts` `reach`). */
+  function reachOf(el: HTMLElement): Box {
+    return reach(el.getBoundingClientRect(), scrollParent(el) ? visibleIn(el) : null);
   }
 
   /** The visible box of the target's scroller, or the window when it has none. */
@@ -220,7 +224,7 @@
     // Operations "+", below the open Tiles) clips to nothing and would read as out of the window.
     if (targets[0]) reveal(targets[0]);
     const view = { width: window.innerWidth, height: window.innerHeight };
-    const seen = targets.map((t) => clip(t.getBoundingClientRect(), visibleIn(t)));
+    const seen = targets.map(reachOf);
     if (now.alone !== undefined && !oneWindow(seen, view)) {
       const alone = find(now.alone);
       if (alone) {

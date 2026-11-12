@@ -39,24 +39,28 @@ export function resolveTargets<T>(step: Pick<TourStep, "targets" | "fallback">, 
 }
 
 /**
- * Whether the boxes (the targets' visible parts) can be seen in one window:
- * their span fits its height and width. When they can't, `Tour.svelte` cuts
- * out the step's `alone` target instead. Step 6's card and picture share the
- * window in two columns; stacked, the open card fills the window and the
- * picture is a window's height below it, so its ring would be off screen (O4).
- * Measured, not the 40rem media query, as `placeBubble` measures two columns.
+ * Whether the boxes can be seen in one window as they are, after the first
+ * target was revealed: each is there and wholly inside the window. When they
+ * can't, `Tour.svelte` cuts out the step's `alone` target instead. Step 6's
+ * card and picture share the window in two columns; stacked, the open card
+ * fills the window and the picture is a window's height below it, so its ring
+ * would be off screen (O4). Measured, not the 40rem media query, as
+ * `placeBubble` measures two columns.
+ *
+ * Each box is what its target can show (`reach`): clipped to its scroller, or
+ * whole when the page scrolls it. Inside the window, not "their span fits it":
+ * only the first target is revealed, so a later one that would fit beside it
+ * but lies below the window stays there. Step 5 at 390 × 844: the "+" at 638
+ * and the picture at 1222 to 1408 span 770px, under the window's 844, yet the
+ * picture is off screen (Block 3 sweep, 2026-11-12). Rejected: scrolling the
+ * span into view, which would leave the bubble no room beside two cut-outs on
+ * a phone, and changes what the stacked steps show (Pol, O4: the picture alone).
  */
 export function oneWindow(boxes: readonly Box[], viewport: Viewport): boolean {
   if (boxes.length < 2) return true;
-  // A box with nothing visible, after the first target was revealed, is out of its scroller: clipped,
-  // it collapses onto the edge and its span would seem to fit. Step 5 stacked, where the Operations
-  // "+" is in view and the picture a window below it (2026-11-12).
-  if (boxes.some((b) => b.bottom <= b.top || b.right <= b.left)) return false;
-  const top = Math.min(...boxes.map((b) => b.top));
-  const bottom = Math.max(...boxes.map((b) => b.bottom));
-  const left = Math.min(...boxes.map((b) => b.left));
-  const right = Math.max(...boxes.map((b) => b.right));
-  return bottom - top <= viewport.height && right - left <= viewport.width;
+  return boxes.every(
+    (b) => b.bottom > b.top && b.right > b.left && b.top >= 0 && b.left >= 0 && b.bottom <= viewport.height && b.right <= viewport.width,
+  );
 }
 
 /**
@@ -87,6 +91,23 @@ export function clip(box: Box, within: Box): Box {
     bottom: Math.max(top, Math.min(box.bottom, within.bottom)),
     right: Math.max(left, Math.min(box.right, within.right)),
   };
+}
+
+/**
+ * What a target can show once revealed: its visible part in its scroller
+ * (`clip`), or the whole box when it has none and the page scrolls it. That is
+ * what `oneWindow` must measure, and what the page scroll brings into view.
+ *
+ * Not clipped to the window: a page-scrolled target partly off it would read
+ * as only its visible part, and a too-tall pair would seem to fit. Step 11
+ * stacked, at 390 and 320: operation 3's card at the window's bottom and the
+ * picture's top just under it, so the clipped pair fit and the picture's hole
+ * ran off the window, where the picture alone was wanted (Block 3 sweep,
+ * 2026-11-12). A target wholly past the window is the same case, collapsed
+ * onto its edge (O4, step 6's picture).
+ */
+export function reach(box: Box, scroller: Box | null): Box {
+  return scroller === null ? box : clip(box, scroller);
 }
 
 /**

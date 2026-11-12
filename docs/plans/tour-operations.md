@@ -52,9 +52,72 @@ Answers:
 Left as it was, on purpose: the "Draft · not saved" tag shows on steps 6–9 while the card is
 open, as the old step 6 did.
 
-## Block 3: sweep and docs (handoff brief, for a fresh conversation)
+## Block 3: sweep and docs (done 2026-11-12)
 
-**Status:** not started.
+**Status:** done. The sweep passed after one fix, and the docs are written. The PR is open (below).
+
+### Sweep results
+
+Probe: Playwright with axe-core 4.10.2. The scripts are `walk2.mjs`, `exits2.mjs`, `replay2.mjs` and `axe2.mjs`
+in that session's scratchpad (`…/df70b2e3-e74d-47d4-b6c0-2f49bcad6a7b/scratchpad/t/`), with
+`lib.mjs` as before.
+
+**Found and fixed: stacked, a build step cut out a picture that was off the window.**
+- Step 11 at 390 × 844 and 320 × 700 cut out operation 3's card *and* the picture, whose hole ran
+  off the window's bottom. `oneWindow` measured the picture clipped to the window: only the strip
+  showing, so the pair "fit".
+- Measuring it whole (`reach`) then broke step 5 at 390 × 844. The "+" and the picture span 770px
+  of 844, so the span "fit", but only the first target is scrolled into view and the picture
+  stayed a window below. The old clip had caught that case only by accident.
+- Fix: `oneWindow` asks whether each target is wholly inside the window, as measured after the
+  first is revealed, not whether their span fits. `tour-layout.ts` says why, with what was
+  rejected. Tests were added for both cases. No behaviour or text changed from what
+  DESIGN_SYSTEM.md says: stacked, the picture alone.
+
+**After the fix, everything passes:**
+1. **Steps**, at 1440 × 900, 768 × 900, 390 × 844 and 320 × 700, all 14 at each size:
+   - the title and "n of 14";
+   - the buttons (Skip operations on 5–11 only);
+   - focus on the primary button;
+   - the live region text;
+   - no horizontal scroll;
+   - no page errors.
+2. **Cut-outs.** Two holes on 5–11 at 1440 and 768. The picture alone on 5–11 at 390 and 320.
+   Every hole is inside the window and matches its target's visible box within 1.5px. The bubble
+   never covers a hole's top 32px.
+3. **Picture**, from screenshots at all four sizes: empty at 5, the All marking at 6–7, tiles at
+   8–9, rotations at 10, Special at 11, whole at 12.
+4. **The card** is open at Selection, Pattern, Attribute and Blend on 6–9, and closed on 5, 10
+   and 11. After Done, and after Skip tour or Esc on 6 and on 10: there is no draft, Undo is
+   disabled, and the exported `.json`'s config equals `public/templates/mosaic/tileset.json`'s.
+5. **Exits:**
+   - Skip operations from each of 5–11 lands on Breakpoints, 12 of 14, with the whole picture;
+   - Back from there goes to Operation 3;
+   - Back from 5 goes to Tile group with the whole picture;
+   - Skip tour and Esc on 6 and on 10 restore everything;
+   - a reload after any of them shows no tour.
+6. **Replay.** "?" after a first visit, and after New → Empty, gives 8 steps, no build and no Skip
+   operations, and focus returns to "Show the tour".
+7. **Guard**, tested live: a first visit served a Mosaic whose operation 3 selects All runs as a
+   replay, with 8 steps and the replay's Welcome.
+8. **axe-core** (`wcag2a/aa`, `wcag21a/aa`, `wcag22aa`) on steps 1, 5, 6 and 11 at 1440 and 320: no
+   violations, as O4.
+9. **Reduced motion:** steps 5–11 place the same at 1440 and 320, and the holes' and bubble's
+   transition is 0s (0.12s without it).
+10. **Known exception still holds:** Tile group at 320 × 700 covers that group's third slider.
+
+### Docs written
+
+- **Docs site.** Blocks 1–2 had updated no page, and `tour-preview.svelte.ts` had none, so the
+  coverage gate would have failed CI.
+  - New page: `editor/tour-preview`.
+  - Rewritten for 14 steps: `tour`, `tour-dialog`, `tour-layout`, and `operation-card`'s `tour`
+    row.
+- `ARCHITECTURE.md`: a row for `tour-preview.svelte.ts`, and the `tour.ts` row now names the build.
+- `BACKLOG.md`: B-036 logged as in progress. It moves to Done after the PR merges.
+- `docs/changes/tour-operations/B-036.md`.
+
+## Block 3 handoff brief (kept for the record)
 
 Start by reading this file, then `apps/editor/DESIGN_SYSTEM.md` § "Onboarding: the tour", then
 `apps/editor/src/tour.ts` and `apps/editor/src/lib/Tour.svelte`. Check out `tour-operations`.

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { aboveOrBelow, clip, cutout, oneWindow, placeBubble, resolveTargets, scrollDelta, type BubbleInput } from "./tour-layout.js";
+import { aboveOrBelow, clip, cutout, oneWindow, placeBubble, reach, resolveTargets, scrollDelta, type BubbleInput } from "./tour-layout.js";
 import type { TargetKey } from "./tour.js";
 
 const box = (left: number, top: number, w: number, h: number) => ({ left, top, right: left + w, bottom: top + h });
@@ -42,22 +42,30 @@ describe("oneWindow", () => {
     expect(oneWindow([box(24, 104, 327, 2000)], view)).toBe(true);
   });
 
-  it("is true when the boxes' span fits the window: step 6 in two columns", () => {
+  it("is true when every box is inside the window: step 6 in two columns", () => {
     expect(oneWindow([box(16, 60, 400, 780), box(460, 120, 900, 500)], { width: 1440, height: 900 })).toBe(true);
   });
 
-  it("is false when the span is taller than the window: step 6 stacked", () => {
+  it("is false when a box runs past the window: step 6 stacked", () => {
     // The open card's visible part, then the picture a window's height down (measured at 375 × 812).
     expect(oneWindow([box(24, 104, 327, 708), box(36, 1161, 303, 212)], view)).toBe(false);
   });
 
-  it("is false when the span is wider than the window", () => {
+  it("is false when a box is wider than the window", () => {
     expect(oneWindow([box(0, 0, 200, 100), box(300, 0, 200, 100)], view)).toBe(false);
   });
 
-  it("is false when a target's visible part is empty: clipped out of view, onto the edge", () => {
-    // Step 5 stacked: the "+" in view, the picture clipped to nothing at its top.
-    expect(oneWindow([box(340, 638, 28, 28), box(16, 1222, 358, 0)], view)).toBe(false);
+  it("is false when a target's visible part is empty: clipped out of its scroller", () => {
+    expect(oneWindow([box(340, 638, 28, 28), box(16, 700, 358, 0)], view)).toBe(false);
+  });
+
+  it("is false when the span would fit but a box lies below the window: step 5 at 390 × 844", () => {
+    // The "+" in view; the picture whole (`reach`), 770px from the "+"'s top, under the window's 844.
+    expect(oneWindow([box(312, 638, 28, 28), box(36, 1222, 318, 186)], { width: 390, height: 844 })).toBe(false);
+  });
+
+  it("is false when a box starts in the window and ends past it: step 11 stacked", () => {
+    expect(oneWindow([box(24, 640, 342, 110), box(16, 790, 358, 186)], { width: 390, height: 844 })).toBe(false);
   });
 });
 
@@ -72,6 +80,22 @@ describe("clip", () => {
     const sidebar = box(0, 60, 432, 600);
     expect(clip(box(24, 100, 384, 900), sidebar)).toEqual({ left: 24, top: 100, right: 408, bottom: 660 });
     expect(clip(box(24, 700, 384, 50), sidebar)).toEqual({ left: 24, top: 700, right: 408, bottom: 700 });
+  });
+});
+
+describe("reach", () => {
+  it("clips a target to its scroller, and keeps a page-scrolled one whole", () => {
+    const sidebar = box(0, 60, 432, 600);
+    expect(reach(box(24, 100, 384, 900), sidebar)).toEqual(clip(box(24, 100, 384, 900), sidebar));
+    expect(reach(box(16, 800, 358, 500), null)).toEqual(box(16, 800, 358, 500));
+  });
+
+  it("keeps a page-scrolled target's part past the window: step 11 stacked", () => {
+    // 390 × 844: operation 3's card at the window's bottom, the picture starting under it.
+    // Clipped to the window, the picture would read as 54px tall and the pair as fitting.
+    const card = box(24, 640, 342, 110);
+    const picture = box(16, 790, 358, 186);
+    expect(oneWindow([card, reach(picture, null)], { width: 390, height: 844 })).toBe(false);
   });
 });
 
