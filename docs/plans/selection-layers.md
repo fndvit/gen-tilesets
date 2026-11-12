@@ -408,8 +408,8 @@ preview.
 
 ## Block 3 review (2026-11-12)
 
-**Status:** built on `b-033-selection-layers`, not pushed. Waiting for Pol to confirm before
-Block 4 starts. **Block 2's manual check is still open too.**
+**Status:** built on `b-033-selection-layers`, not pushed. **Pol confirmed Blocks 2 and 3,
+including the Block 3 fix, on 2026-11-12.** Block 4 can start.
 
 **What changed**
 - **`draft.svelte.ts`:**
@@ -467,39 +467,123 @@ two-layer operation has a two-item `selection`.
   is unchanged: `isComplete` and `toOperation` on the real draft still refuse an untyped layer.
 - **Tests:** three more in `draft.test.ts`.
 
-## Block 4: docs, release notes, the PR
+## Block 4: docs, release notes, the PR (handoff brief, for a fresh conversation)
 
-**Start after Pol confirms Block 3.**
-- **Concept and guide pages** (left out of Blocks 2 and 3 on purpose):
-  - `apps/docs/src/content/docs/concepts/glossary.md`: Selection is now "a list of layers";
-  - `guides/responsive`: an operation pins the grid if any layer is coordinate-bound;
-  - `guides/decorations`: its `selection` literal becomes a list, and check the `avoid` scope
-    text;
-  - any other page with a `selection: {` literal. Grep `apps/docs/src/content/docs` and the
-    stories.
-- **Change entry** `docs/changes/b-033/selection-layers.md`, in the format of
-  `docs/changes/b-009/every-nth.md` (read `docs/changes/README.md`). It says:
-  - Output: no existing picture changes;
-  - Schema: v6, with migration;
-  - Package: yes, a breaking type change under 0.x.
-- `BACKLOG.md`: move B-033 to **Done** ("B-033 Selection layers: b-033 blocks 1–4, PR #NN").
-  B-034 stays open, and now depends on the list shape: an "except" layer could be a reserved
-  sibling key on a layer, e.g. `"except": true`. Note that on B-034's line.
-- **Changelog line**, drafted for the release (no version bump in the task): "`Operation.selection`
-  is now a list of selection layers; an operation affects every cell any layer selects (schema
-  v6). `migrate()` wraps older files' selections and they draw unchanged. A config built in code,
-  or passed to `generate()` without `migrate()`, must use the list. New export
-  `isCoordinateBound`."
-- Write "Block 4: review" here. Gate green, then commit.
-- **The PR:**
-  - Write the body to the scratchpad, covering Blocks 1–4: the decisions, the breaking change,
-    tests before and after, Pol's checks, and the changelog line.
-  - Then give Pol:
-    `! git push -u origin b-033-selection-layers && gh pr create --base dev --title "B-033: selection layers" --body-file <path>`
-  - The branch also carries the backlog commit (B-033/B-034) and the first `union` attempt, which
-    a later commit undoes. Say so in the body.
-- After Pol merges: update `b-033-selection-layers` in memory. Don't open a PR just to record
-  that (`no-pr-for-trivial-doc-updates`).
+**Pol confirmed Blocks 2 and 3 on 2026-11-12.** No more questions are open; Block 4 is writing,
+not deciding. Ask Pol only if something below turns out to be false.
+
+**Before starting:**
+1. Read `CLAUDE.md`, `ARCHITECTURE.md`, and this whole file (the Context, Block 1 decisions, the
+   Block 2 rework, and the Block 3 analysis and review are what the PR body summarises).
+2. Read `docs/changes/README.md` and the entry format in `docs/Batch-workflow.md`, under "Change
+   entries". Use `docs/changes/b-009/every-nth.md` as the model.
+3. **Branch:** `b-033-selection-layers`, head `ba7df5e` or later. Check `git log` and `git
+   status`. The PR goes into **`dev`**, not `main` (`main` is far behind; `git log origin/dev..HEAD`
+   is the PR's real commit list, seven commits at the time of writing).
+
+### 1. Docs pages (left out of Blocks 2 and 3 on purpose)
+
+Checked on 2026-11-12; these are the pages that still describe a single Selection:
+- `apps/docs/src/content/docs/concepts/glossary.md`:
+  - **Selection** row (line ~35): an Operation's selection is a list of one or more layers,
+    each one of the listed types; the Operation affects every cell any layer selects. An
+    Operation is coordinate-bound if any layer is.
+  - **Channel** row (line ~55): layer 0 keeps `operationId + ":selection"`; layer i ≥ 1 uses
+    `operationId:i:selection`.
+- `apps/docs/src/content/docs/concepts/determinism.mdx`: the channel table row for the
+  `random` Selection (line ~73) and the paragraph after it. Same channel rule, and say why it
+  is by position (Block 1): a migrated file's one layer keeps its old channel, so it draws
+  byte-identically. Also check the `selections.ts:213` line citation still points at the
+  `random` Selection.
+- `apps/docs/src/content/docs/guides/responsive.md`: lines ~32 and ~144 say "a coordinate-bound
+  Operation". Add that an Operation is coordinate-bound when **any** of its layers is (`rect`,
+  `cellList`).
+- `apps/docs/src/content/docs/guides/decorations.md` line ~51: `selection: { type: "all" }`
+  becomes `selection: [{ type: "all" }]`. Then read the page's `avoid` scope text and check it
+  still holds with several layers (the extent is the bounding box of the layers, or the whole
+  grid if any layer has none).
+- `apps/docs/src/content/docs/guides/engine.md`: read it, and fix any Operation literal or
+  Selection wording; grep found no literal there.
+- **Don't edit** `apps/docs/src/content/docs/api/`: it is generated and git-ignored.
+- **Don't edit** the demo fixtures (`apps/demo/src/Hosting.svelte`, `Decorations.svelte`,
+  `Responsive.svelte`, `Square2x2.svelte`, `apps/demo/public/*/tileset.json`). They declare old
+  `schemaVersion`s and go through `loadTilesetFile`, so they are the migration's regression
+  guard. Their single-object `selection` is correct for their version.
+- `packages/tileset/README.md` has no Selection text; `ARCHITECTURE.md` was already updated in
+  Block 2 (lines ~109, ~111). Re-read both to be sure, don't assume.
+
+### 2. Change entry
+
+New file `docs/changes/b-033/selection-layers.md`, in `every-nth.md`'s format:
+- Title: `# B-033 Selection layers: an operation's selection is a list of layers`.
+- Header: `Backlog: B-033 · Tier: big · Areas: engine, schema, operations-ui · Decisions: Pol,
+  2026-11-12 (selection is always a list; accordion layer UI; × hint only before a Random layer)`.
+- `Output: unchanged` (no existing picture changes; a migrated file draws byte-identically).
+  Check what values `pnpm changelog check` accepts for `Output:` before writing it.
+- `Package: yes`.
+- **What changed:** `Operation.selection` is an array of one or more Selections; an Operation
+  affects every cell any layer selects. Schema 5 → 6; `migrate()` wraps each older selection in
+  a one-item list. Random layers are channelled by position. Extent = bounding box of the
+  layers, or the whole grid if any has none. Coordinate-bound if any layer is. New export
+  `isCoordinateBound` (it was not exported before; check `git diff origin/dev --
+  packages/tileset/src/index.ts`). **Breaking under 0.x:** a config built in TypeScript, or
+  passed to `generate()` without `migrate()`, must use the list. `validate()` refuses an empty
+  list.
+- **Notes:** the plan and reviews are in `docs/plans/selection-layers.md`; rejected: the `union`
+  Selection (61d6c74, undone in 11a71c7), a chip strip instead of the accordion, a default type
+  for an added layer, reordering (it only moves Random scatter; may come with B-034). Editor: the
+  Selection step's layer list (`SelectionLayers.svelte`), and the live picture keeps the typed
+  layers while a new one is untyped (Block 3 fix). The version bump and the `CHANGELOG.md`
+  section happen at release.
+- Run `pnpm changelog check`.
+
+### 3. Backlog
+
+`BACKLOG.md` line ~14 still describes the **union** design ("a `union` Selection (new list param
+type, …, no migration)"), which is no longer true.
+- Move B-033 to **Done**, in the form the other Done lines use (read them):
+  "B-033 Selection layers: b-033 blocks 1–4, PR #NN". The PR number isn't known until Pol opens
+  it, so write `PR pending` and leave the number for the post-merge memory update. Don't open a
+  PR just to fill it in (`no-pr-for-trivial-doc-updates`).
+- B-034 stays open. Add to its line that it now builds on the list shape: an "except" layer could
+  be a reserved sibling key on a layer (e.g. `"except": true`), the way `type` is reserved, and
+  that order will start to matter, so reordering layers belongs with it.
+
+### 4. Changelog line (drafted, not written into `CHANGELOG.md`)
+
+There is no version bump in this task. Put the draft in the PR body and in "Block 4: review":
+
+> `Operation.selection` is now a list of selection layers; an operation affects every cell any
+> layer selects (schema v6). `migrate()` wraps older files' selections and they draw unchanged.
+> A config built in code, or passed to `generate()` without `migrate()`, must use the list.
+> New export `isCoordinateBound`.
+
+### 5. Gate, review, commit
+
+- `pnpm test`, `pnpm typecheck`, `pnpm --filter @vit-foundation/tileset-docs build`, and
+  `pnpm changelog check`. All green.
+- Write "Block 4: review" in this file, in Block 3's format (what changed, tests before and
+  after, anything not done). Test counts at the end of Block 3 plus its fix: 701 + 683.
+- Commit on the branch. Don't push.
+
+### 6. The PR
+
+- Write the body to **that conversation's** scratchpad (give Pol the full absolute path). It
+  covers Blocks 1–4:
+  - the decisions: a list, not a `union`; channels by position; extent; coordinate-bound; at
+    least one layer; the accordion; the × hint; no reordering;
+  - the breaking change and who it affects;
+  - tests before (701 + 662 before Block 3) and after;
+  - Pol's checks (Blocks 2 and 3 confirmed 2026-11-12);
+  - the changelog line;
+  - that the branch also carries the backlog commit (ca51172) and the first `union` attempt
+    (61d6c74), which 11a71c7 undoes;
+  - the Claude Code attribution line at the end.
+- Pushing and `gh pr create` are denied to Claude (`merge-push-permissions`). Give Pol:
+  `! git push -u origin b-033-selection-layers && gh pr create --base dev --title "B-033: selection layers" --body-file <path>`
+- After Pol merges: update the `b-033-selection-layers` memory with the PR number and mark the
+  task done. Fill in the PR number in `BACKLOG.md` in the next PR that touches it, not in a
+  PR of its own.
 
 ## Verification (every block)
 
