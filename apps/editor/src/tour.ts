@@ -173,7 +173,7 @@ const BUILD: readonly TourStep[] = (
       title: "Operation 1: Selection",
       text: [
         "Every operation has four steps. **Selection** picks the cells it changes.",
-        "Operation 1 picks All: every cell, marked on the picture.",
+        "Operation 1 picks **All**: every cell, marked on the picture.",
       ],
       targets: ["op-1", "preview"],
       ops: 0,
@@ -184,7 +184,7 @@ const BUILD: readonly TourStep[] = (
       title: "Operation 1: Pattern",
       text: [
         "**Pattern** gives each selected cell a value from 0 to 1.",
-        "Operation 1 uses Noise, which gives nearby cells similar values, so they form patches.",
+        "Operation 1 uses **Noise**, which gives nearby cells similar values, so they form patches.",
       ],
       targets: ["op-1", "preview"],
       ops: 0,
@@ -194,7 +194,7 @@ const BUILD: readonly TourStep[] = (
       id: "op1-attribute",
       title: "Operation 1: Attribute",
       text: [
-        "**Attribute** says what the values change, here the tile.",
+        "**Attribute** says what the values change, here **Tile**.",
         "The palette turns low values into its first tiles and high values into its last.",
       ],
       targets: ["op-1", "preview"],
@@ -212,14 +212,14 @@ const BUILD: readonly TourStep[] = (
     {
       id: "op2",
       title: "Operation 2",
-      text: ["Operation 2 selects every cell again and gives each a random **rotation**: 0, 90, 180 or 270 degrees."],
+      text: ["Operation 2 selects **All** again and gives each cell a random **rotation**: 0, 90, 180 or 270 degrees."],
       targets: ["op-2", "preview"],
       ops: 2,
     },
     {
       id: "op3",
       title: "Operation 3",
-      text: ["Operation 3 selects about 3 in every 100 cells at random and gives them the tile 'Special', painted over what was there."],
+      text: ["Operation 3 selects about 3 in every 100 cells at random and gives them the tile **Special**, painted over what was there."],
       targets: ["op-3", "preview"],
       ops: 3,
     },
