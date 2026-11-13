@@ -67,7 +67,8 @@
   import { keeping } from "./keeping.svelte.js";
   import { notices } from "./notices.svelte.js";
   import { session } from "./session.svelte.js";
-  import type { TourRun } from "./tour.js";
+  import { stagedFile, type TourRun } from "./tour.js";
+  import { tourPreview } from "./tour-preview.svelte.js";
 
   /**
    * The tour to start at mount, from `main.ts`: `null` when this is not a first
@@ -121,8 +122,17 @@
    * failed tile no drawn operation paints is not on screen.)
    */
   const shown = $derived(
-    withoutHidden(drawn ?? file, preview.hidden, drafting.editing ? (drafting.draft?.id ?? null) : null),
+    withoutHidden(staged(drawn ?? file), preview.hidden, drafting.editing ? (drafting.draft?.id ?? null) : null),
   );
+
+  /**
+   * While the tour builds Mosaic, only its first operations (`tour-preview.svelte.ts`).
+   * Applied to `drawn` as well as `file`, because the tour opens operation 1's
+   * card, and the draft's file must not bring the later operations back.
+   */
+  function staged(f: TilesetFile): TilesetFile {
+    return tourPreview.kept === null ? f : stagedFile(f, tourPreview.kept);
+  }
 
   /**
    * Forget hidden ids the file no longer has. An id is given again once the

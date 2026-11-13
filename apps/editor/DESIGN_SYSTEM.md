@@ -139,7 +139,7 @@ controls, so it gets a step up (Pol, O3c). See *Onboarding: the tour*, "The step
 | **Popup** | A white panel, radius 12, `--shadow-float`, with no frame or black title bar | Reports after an action where nothing happened: an import refused, an export failed, a Tiles refusal (a taken name, a tile in use, the last variant, the last non-zero weight), a palette refusal (the last entry, the last non-zero weight) |
 | **Explainer popover** | A non-modal popover like the Tile picker's (white, radius 12, `--shadow-float`, `--space-6` padding, placed as in *Explainer placement*, at most 340px wide): a `.t-title` heading with a ✕, then `.t-body` running text, each param as a `.t-title` name over a muted explanation, small ink-and-grey bars for measured figures, and a muted note under a hairline. Esc, ✕ or a click outside closes it, and focus returns to the trigger. It explains; it never holds a control. It is the one exception to "explanations are hints": an explanation too long for a hint and needed without a mouse goes here | "How noise works" (the Pattern step under Noise): patches, Cells per feature (patch size, not shares), Octaves (the middle bias, measured: equal entries paint about 23/52/26, 15/68/17, 12/75/14 for 1, 2, 3), the ends advice (about 3× under 2 octaves), and that the ≈% belongs to the position in the list |
 | **Explainer placement** (batch 02, T-03) | Placed from the panel's measured size, never a guess. In the sidebar it opens **beside the sidebar**, over the preview, `--space-4` from the sidebar's edge, level with its trigger's top, moved up just enough to stay `--space-4` inside the window; a panel taller than the window sits at the top margin and scrolls. It covers only its own width of the preview, never the whole picture (Pol, D-04). Where it does not fit beside the sidebar (the stacked layout below 40rem, or a preview column narrower than the panel), it hangs below its trigger, or above when it does not fit below and above has more room, right edge to the trigger's right edge; it scrolls when taller than that side. The heading names what it explains, because beside the sidebar it no longer touches its button | "How operations work", "How randomness works", "How noise works" |
-| **Tour** (`Tour`, `tour.ts`) | A native modal `<dialog>` over the whole window: a 40% ink scrim with the target cut out and ringed in ink (two targets on step 6), and a step bubble (an Explainer-like panel: the step's name and "3 of 9", the text, then Skip tour, Back and Next). Step 1 is a centred Welcome card. See *Onboarding: the tour* | First visit, and "?" in the top bar |
+| **Tour** (`Tour`, `tour.ts`) | A native modal `<dialog>` over the whole window: a 40% ink scrim with the target cut out and ringed in ink (two targets on steps 5 to 11), and a step bubble (an Explainer-like panel: the step's name and "3 of 14", the text, then Skip tour, Back and Next, and Skip operations on steps 5 to 11). Step 1 is a centred Welcome card. See *Onboarding: the tour* | First visit, and "?" in the top bar |
 | **Notice** (`Notice`, `NoticeStack`, `notices` store, `advisories.ts`) | A 360px white card, radius 8, `--shadow-float`, never blocking. It holds a 16px icon, then the title in `.t-title`, data (file names, numbers) in ink `.t-console`, a muted `.t-body` explanation, optional tertiary actions, and a 28px ✕. An advisory has the `info` icon in ink. A failure has the `alert` icon in `--color-danger`, which is its only colour: no edge, no fill. ✕ dismisses it until its condition changes. A notice goes away by itself when its condition does | Asset load failures (one notice for all), files that did not attach in Tiles (one notice per drop), advisories 1, 2, 3, 4, 5 and 7, an import's upgrade and unreadable pictures |
 | **Inline advisory** (`Advisory`) | A muted `info` icon and a muted `.t-body` line under the control it is about. No box, no colour, no ✕. It shows only while its condition holds. Constant's kept-entries line in the palette uses it too | Advisories about one control: duplicate tile names (6) and rotation ends (9). Advisory 8 (palette reordered under random) is retired: under Random the palette has no order to change |
 | **Dialog** (`Dialog`) | The Popup panel asking one question. The title is the question ("Change columns to 8?"), and the body says what changes and how to undo it, with any affected operations listed in a well. Buttons: Cancel (secondary), then the verb that names the action (primary, at the far right: "Change columns", not "OK"). Danger is in the words, never in red. Focus starts on Cancel, Esc cancels, and focus returns to the trigger | Destructive resize (E12), unsaved changes. New is now the **New tileset** Form popup |
@@ -228,7 +228,7 @@ image follows these rules (Pol, X0):
 | Each gallery grid (My tiles, Collection) is one Tab stop with arrow-key movement (roving `tabindex`), like the Tile picker. Space or Enter toggles | 2.1.1, 2.4.3 | 21 cells, and later more, would otherwise be 21 Tab stops |
 | The gallery's "N picked" line is a polite live region | 4.1.3 | It says what a toggle did without moving focus |
 | A Field error names the problem in words, is tied to the field (`aria-invalid`, `aria-describedby`), and takes focus to the field | 3.3.1, 3.3.2, 4.1.2 | Shown on Add, never while typing |
-| The tour is a modal `<dialog>`: the editor behind it is inert, Tab stays in the bubble, Esc skips, and focus returns to "?" after a replay. Each step is announced by a polite live region, because focus lands on the same Next button every time | 2.1.2, 2.4.3, 4.1.3 | Skip tour is on every step but the last, where Done ends it the same way |
+| The tour is a modal `<dialog>`: the editor behind it is inert, Tab stays in the bubble, Esc skips, and focus returns to "?" after a replay. Each step is announced by a polite live region, because focus lands on the same Next button every time | 2.1.2, 2.4.3, 4.1.3 | Skip tour is on every step but the last, where Done ends it the same way. Skip operations, on steps 5 to 11, is a button with its own name, and the live region announces Breakpoints after it |
 | The tour's ring is ink with a white halo on a 40% ink scrim, and the bubble's text is ink on white, 18.9:1; no text in it is muted (Pol, 2026-11-10) | 1.4.3, 1.4.11 | The ring is not the accent, so it is never mistaken for the focus ring on Next |
 | Notices are announced without taking focus: advisories in a polite live region, failures in an assertive one. A failure is told apart by its icon's shape and its words, not by colour alone | 4.1.3, 1.4.1 | Dialogs are modal `<dialog>`s with `role="alertdialog"` |
 
@@ -428,8 +428,10 @@ Picked by Pol at O0 and O1, and the text revised by Pol after O2 (`docs/plans/st
 
 ### Steps
 
-The first visit has nine steps. A replay has eight: step 6 describes Mosaic, so it is in the
-first-visit tour only.
+The first visit has fourteen steps. A replay has eight: steps 5 to 11 rebuild Mosaic one operation
+at a time (*Building Mosaic*, below), so they are in the first-visit tour only, and a replay has
+one short Operations step in their place (Pol, 2026-11-12, after a novice user's test: the single
+"An operation" step over the finished picture did not explain operations).
 
 Each step's text is a lead sentence, then short paragraphs, then, on some steps, a closing line in
 ink, like the rest (*aside*; it was muted until Pol asked for no grey text in the tour, 2026-11-10). **Bold** marks the name of a control or a term the paragraph is about
@@ -438,18 +440,24 @@ separated by " / " below.
 
 | # | Step | Target (the cut-out) | Text |
 |---|---|---|---|
-| 1 | Welcome | none: a centred card | "This is the generative tileset editor. A tileset is a grid of pictures, laid out by operations that each change part of the grid, one on top of another." / "Use the gallery's pictures or upload your own, then export the tileset for a website or as an image." Aside, on the first visit: "This is Mosaic, an example tileset. The next eight steps show how it is made. You can skip the tour at any time." On a replay: "The next seven steps show how a tileset is made. You can skip the tour at any time." |
+| 1 | Welcome | none: a centred card | "This is the generative tileset editor. A tileset is a grid of pictures, laid out by operations that each change part of the grid, one on top of another." / "Use the gallery's pictures or upload your own, then export the tileset for a website or as an image." Aside, on the first visit: "This is Mosaic, an example tileset. The next thirteen steps show how it is made. You can skip the tour at any time." On a replay: "The next seven steps show how a tileset is made. You can skip the tour at any time." |
 | 2 | Grid & size | the whole Grid & size section | "Set the cell size and the number of rows." / "**Design width** is the page width you design for: the grid gets just enough columns to cover it, and the whole tileset scales with the page at other widths." |
 | 3 | Tiles | the Tiles section header's "+" (Add tile group) | "Add tile groups. Pick pictures from the gallery, or upload your own." |
 | 4 | Tile group | the first tile group (Filled Quarter in Mosaic) | "A tile group is one tile with one or more pictures, its **variants**." / "Operations decide where the tile goes, and each of those cells draws one of its pictures." / "The **sliders** set how often each picture is drawn." |
-| 5 | Operations | the Operations section header's "+" (Add operation) | "Operations fill the grid. Each one changes some cells: their tile, or its rotation, scale, offset or opacity." / "They run **from top to bottom**, and a later one paints over an earlier one." |
-| 6 | An operation (first visit only) | Mosaic's operation 3, opened, **and** the preview's picture | "This is operation 3." / "Its **Selection** is Random: about 3 in every 100 cells, scattered over the grid and marked on the picture." / "Its **Pattern**, Constant, gives each of those cells the same tile, in this case named 'Special'." Aside: "Operation 1 laid out the other four tiles with Noise, and operation 2 turned every cell." |
-| 7 | Breakpoints | the Breakpoints section header | "Change how the tileset looks at different screen sizes." Aside: "Only useful if you export it for a website." |
-| 8 | Randomness | the whole Randomness footer | "Everything random follows from the seed: the same seed always gives the same picture." / "**New seed** redraws every operation." / "**Re-seed**, on an operation's card, redraws only that one." / "**Reroll assets** only swaps pictures within each tile group." Aside: "Click on the ⓘ buttons to know more info." The ⓘ is drawn as the editor's `info` icon, the picture on the (i) buttons, and is spoken as "information". |
-| 9 | Your own tileset | the top bar's **New** button | On the first visit: "Start building your own tileset with **New**, or close this and keep exploring Mosaic." On a replay: "Start building your own tileset with **New**, or close this and keep working on this one." (Pol, after O3a) |
+| 5 | Operations (first visit) | the Operations section header's "+" (Add operation) **and** the preview's picture, now empty | "Operations fill the grid. Each one changes some cells: their tile, or its rotation, scale, offset or opacity." / "They run **from top to bottom**, and a later one paints over an earlier one." Aside: "Mosaic has three. Let's empty the picture and build it again, one at a time." |
+| 6 | Operation 1: Selection | operation 1's card, open at Selection, and the picture | "Every operation has four steps. **Selection** picks the cells it changes." / "Operation 1 picks **All**: every cell, marked on the picture." |
+| 7 | Operation 1: Pattern | the card, open at Pattern, and the picture | "**Pattern** gives each selected cell a value from 0 to 1." / "Operation 1 uses **Noise**, which gives nearby cells similar values, so they form patches." |
+| 8 | Operation 1: Attribute | the card, open at Attribute, and the picture, now with operation 1 | "**Attribute** says what the values change, here **Tile**." / "The palette turns low values into its first tiles and high values into its last." |
+| 9 | Operation 1: Blend | the card, open at Blend, and the picture | "**Blend** says how the new value meets what earlier operations wrote." / "**Set**, used here, replaces it." |
+| 10 | Operation 2 | operation 2's card, closed, and the picture, now with operations 1 and 2 | "Operation 2 selects **All** again and gives each cell a random **rotation**: 0, 90, 180 or 270 degrees." |
+| 11 | Operation 3 | operation 3's card, closed, and the picture, now the whole of Mosaic | "Operation 3 selects about 3 in every 100 cells at random and gives them the tile **Special**, painted over what was there." |
+| 5 | Operations (replay) | the Operations section header's "+" (Add operation) | "Operations fill the grid. Each one changes some cells: their tile, or its rotation, scale, offset or opacity." / "They run **from top to bottom**, and a later one paints over an earlier one." |
+| 12 | Breakpoints | the Breakpoints section header | "Change how the tileset looks at different screen sizes." Aside: "Only useful if you export it for a website." |
+| 13 | Randomness | the whole Randomness footer | "Everything random follows from the seed: the same seed always gives the same picture." / "**New seed** redraws every operation." / "**Re-seed**, on an operation's card, redraws only that one." / "**Reroll assets** only swaps pictures within each tile group." Aside: "Click on the ⓘ buttons to know more info." The ⓘ is drawn as the editor's `info` icon, the picture on the (i) buttons, and is spoken as "information". |
+| 14 | Your own tileset | the top bar's **New** button | On the first visit: "Start building your own tileset with **New**, or close this and keep exploring Mosaic." On a replay: "Start building your own tileset with **New**, or close this and keep working on this one." (Pol, after O3a) |
 
-The count is for the run in progress, "<n> of <total>". So Breakpoints is 7 of 9 on the first
-visit and 6 of 8 on a replay, where the steps after step 5 move up one.
+The count is for the run in progress, "<n> of <total>". So Breakpoints is 12 of 14 on the first
+visit and 6 of 8 on a replay.
 
 - Tiles and Operations point at the header's "+", not the Add row at the end of the section: the
   "+" is always on screen, open or closed.
@@ -459,12 +467,27 @@ visit and 6 of 8 on a replay, where the steps after step 5 move up one.
   "turn" or "fade" (Pol).
 - A target that is missing points at its section's header instead (O0). With no tile groups,
   step 4 points at the Tiles header.
-- **Step 6** opens operation 3's card, as pressing its title does, so the stepper shows and the
-  preview draws the selection overlay (the Random Selection's scattered cells, in `--color-selection`). Leaving the step
-  by any way (Next, Back, Skip tour, Esc) closes the card again without saving: the tour never
-  edits the file and never leaves a draft open.
-- **If Mosaic fails to load** on the first visit, the tour runs as a replay does: the replay's
-  Welcome and last-step text and no step 6, eight steps in all, because there is no Mosaic to describe.
+- **If Mosaic fails to load** on the first visit, or the open file's operations are not Mosaic's
+  three as the text describes them, the tour runs as a replay does: the replay's Welcome and
+  last-step text and the short Operations step, eight steps in all, because there is no Mosaic to
+  describe.
+
+#### Building Mosaic (steps 5 to 11, first visit only)
+
+- **The picture follows the step.** Step 5 empties the preview; steps 6 and 7 keep it empty; step 8
+  draws operation 1; step 10 adds operation 2; step 11 adds operation 3, which is the whole of
+  Mosaic again. Each picture is the first operations of the finished one, exactly, because the
+  engine hashes by position and each operation has its own salt. Back rewinds it the same way.
+  Only the preview is staged: the file keeps every operation, and nothing is saved or undoable.
+- **Operation 1's card opens** on step 6, as pressing its title does, at the step being explained
+  (Selection, Pattern, Attribute, Blend), and moves to the next on each Next. At Selection the
+  preview draws the selection overlay over the empty grid: All marks every cell. Steps 10 and 11
+  point at operations 2 and 3's closed cards.
+- **Leaving the build** by any way (Next past step 11, Skip operations, Back to step 4, Skip tour,
+  Esc) closes the card again without saving and puts the whole picture back: the tour never edits
+  the file and never leaves a draft open.
+- **Skip operations** (tertiary, beside Skip tour) is on steps 5 to 11 and goes to Breakpoints.
+  Back from Breakpoints goes to step 11.
 - A target out of view is scrolled into view in its own scroller first (`ui/reveal.ts`), then in
   the page (stacked), leaving room inside the window for the cut-out and its ring. Then the
   cut-out and bubble are placed. They follow a resize or a reflow.
@@ -478,10 +501,10 @@ visit and 6 of 8 on a replay, where the steps after step 5 move up one.
   it, so its text contrast does not depend on it. A press on the scrim does nothing: it does not
   skip, so a stray click doesn't end the tour.
 - **Cut-out:** the target's box plus `--space-2` (4px) on every side, radius `--radius` (8px).
-  Nothing in it is dimmed. A step has one cut-out, except step 6, which has two: the opened card
-  and the preview's picture. **Stacked**, where the open card fills the window and the picture is
-  a window's height below it, step 6 cuts out the picture alone: it shows the cells the text
-  is about, and the card, still open, is what draws it (Pol, O4). Whether the two fit one window
+  Nothing in it is dimmed. A step has one cut-out, except steps 5 to 11, which have two: the
+  Operations "+" or an operation's card, and the preview's picture. **Stacked**, where the two
+  don't fit one window, those steps cut out the picture alone: it shows what the text is about,
+  and an open card, still open, is what draws the marking (Pol, O4). Whether the two fit one window
   is measured, as two columns is.
 - **Ring:** 2px ink (`--rule-strong`, `--color-ink`) on each cut-out's edge, with a 2px white halo
   outside it so it reads on the scrim. It is ink, not the accent: the accent means focus and
@@ -497,13 +520,14 @@ Explainer, and its text a step larger, because it is read once as prose rather t
 the controls (Pol, O3c: the 13px text read flat).
 
 1. **Header:** the step's name in `.t-section` at the left, and the count in ink `.t-console` at
-   the right: "3 of 9" (Pol, O1). The count includes Welcome, so the pointing steps are 2 to 9
+   the right: "3 of 14" (Pol, O1). The count includes Welcome, so the pointing steps are 2 to 14
    (2 to 8 on a replay).
 2. **Text:** `--text-tour-size` (15px), ink, `--leading-tour` (1.5), `--space-6` between
    paragraphs. Bold terms are `--weight-semibold`. The aside, last, is the same size,
    also ink.
 3. **Footer:** **Skip tour** (tertiary) at the left; **Back** (secondary) and **Next** (primary) at
-   the right.
+   the right. On steps 5 to 11, **Skip operations** (tertiary) follows Skip tour; where the four
+   don't fit one line, the footer wraps and Back and Next stay at the bottom right.
    - On Grid & size (step 2), Back is shown and goes back to Welcome, so every pointing step has
      the same footer (Pol, O1).
    - On the last step (Your own tileset), Next reads **Done** and Skip tour is not shown: Done and Skip
@@ -523,9 +547,10 @@ The bubble is placed from its measured size, as the **Explainer placement** plac
   with the cut-out's top, and moved up just enough to stay `--space-4` inside the window.
 - **Stacked (below 40rem), or where it doesn't fit beside:** below the cut-out, `--space-4` under
   it; above it when it doesn't fit below. It is the window's width less 16px on each side.
-- **Step 6, in two columns:** beside the sidebar would cover the picture it cuts out, so the bubble
-  stays in the sidebar column instead: below the opened card, or above it when it doesn't fit
-  below, left-aligned with the card.
+- **Steps 5 to 11, in two columns:** beside the sidebar would cover the picture they cut out, so the bubble
+  stays in the sidebar column instead: below the card or "+", or above it when it doesn't fit
+  below, left-aligned with it, or moved left as far as it needs to keep its width (the "+" is at
+  the sidebar's right).
 - **Fitting neither below nor above** (a cut-out taller than the window less the bubble: operation
   4's open card at 1440 × 900), the bubble sits at the window's bottom, `--space-4` inside it. It
   covers the cut-out's end, not its head, which names what the text is about (O3b).

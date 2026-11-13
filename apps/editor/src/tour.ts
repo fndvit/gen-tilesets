@@ -20,14 +20,26 @@
  * ## Two runs
  *
  * The first visit opens Mosaic and runs every step. A replay ("?") runs over
- * whatever is open, so it leaves out the step that describes Mosaic's
- * operation 3, says "seven" rather than "eight" on Welcome, and its last step
- * says "this one" rather than Mosaic. A first visit
- * whose Mosaic failed to open runs as a replay, because there is no Mosaic
- * to describe (`first-visit.ts`).
+ * whatever is open, so it leaves out the steps that rebuild Mosaic, says
+ * "seven" rather than "thirteen" on Welcome, and its last step says "this one"
+ * rather than Mosaic. A first visit whose Mosaic failed to open runs as a
+ * replay, because there is no Mosaic to describe (`first-visit.ts`); so does
+ * one whose operations are not Mosaic's three (`runFor`).
+ *
+ * ## Building Mosaic
+ *
+ * On a first visit, steps 5 to 11 (`build`) empty the preview and draw it
+ * again one operation at a time, with operation 1's card open at each of its
+ * four steps (Pol, 2026-11-12: a novice user did not understand operations
+ * from one step over the finished picture). A step says what to draw (`ops`)
+ * and which card to open (`open`); `Tour.svelte` does it. The preview stage
+ * is a function of the step, so Back rewinds it with no state of its own.
+ * Rejected: a separate sub-tour with its own index, which would need its own
+ * Back and count; one flat list keeps "5 of 14" true.
  */
 
 import type { Operation } from "@vit-foundation/gen-tilesets";
+import type { Step } from "./draft.svelte.js";
 
 /**
  * What a step cuts out, as the `data-tour` value O3b looks for. Each names one
@@ -39,7 +51,9 @@ export type TargetKey =
   | "tiles-header"
   | "tile-group"
   | "ops-add"
-  | "op-example"
+  | "op-1"
+  | "op-2"
+  | "op-3"
   | "preview"
   | "breakpoints"
   | "footer"
@@ -58,18 +72,28 @@ export interface TourStep {
    * tour); it was muted before.
    */
   aside?: string;
-  /** Empty on Welcome, which is a centred card. Two on "An operation". */
+  /** Empty on Welcome, which is a centred card. Two on each build step. */
   targets: readonly TargetKey[];
-  /** Describes Mosaic, so it is left out of a replay. */
-  firstVisitOnly?: true;
+  /**
+   * One of the steps that rebuild Mosaic (5 to 11): first visit only, Skip
+   * operations is shown on it, and the bubble stays in the sidebar column.
+   */
+  build?: true;
+  /** How many of the file's operations the preview draws. Absent: all of them. */
+  ops?: number;
+  /**
+   * The card to open, by position among Mosaic's three (`mosaicOperations`),
+   * and the step of it to show. Absent: no card open.
+   */
+  open?: { op: 0 | 1 | 2; stage: Step };
   /**
    * Cut out instead when the first target is missing (O0): no tile groups → the
-   * Tiles header; no Mosaic operation 3 → the Operations "+".
+   * Tiles header; an operation's card not drawn → the Operations "+".
    */
   fallback?: TargetKey;
   /**
    * Cut out alone where the targets can't be seen in one window (`oneWindow`):
-   * step 6 stacked, where the open card fills the window and the picture is
+   * a build step stacked, where the card fills the window and the picture is
    * below it (O4).
    */
   alone?: TargetKey;
@@ -82,7 +106,7 @@ const WELCOME_SHARED = [
 
 /** Welcome's aside. */
 const WELCOME_SECOND: Record<TourRun, string> = {
-  first: "This is Mosaic, an example tileset. The next eight steps show how it is made. You can skip the tour at any time.",
+  first: "This is Mosaic, an example tileset. The next thirteen steps show how it is made. You can skip the tour at any time.",
   replay: "The next seven steps show how a tileset is made. You can skip the tour at any time.",
 };
 
@@ -92,8 +116,13 @@ const OWN_TEXT: Record<TourRun, string> = {
   replay: "Start building your own tileset with **New**, or close this and keep working on this one.",
 };
 
-/** Every step after Welcome, in order. */
-const POINTING: readonly TourStep[] = [
+const OPERATIONS_TEXT = [
+  "Operations fill the grid. Each one changes some cells: their tile, or its rotation, scale, offset or opacity.",
+  "They run **from top to bottom**, and a later one paints over an earlier one.",
+];
+
+/** Before the operations, in order. */
+const BEFORE: readonly TourStep[] = [
   {
     id: "grid",
     title: "Grid & size",
@@ -120,34 +149,85 @@ const POINTING: readonly TourStep[] = [
     targets: ["tile-group"],
     fallback: "tiles-header",
   },
-  {
-    id: "operations",
-    title: "Operations",
-    text: [
-      "Operations fill the grid. Each one changes some cells: their tile, or its rotation, scale, offset or opacity.",
-      "They run **from top to bottom**, and a later one paints over an earlier one.",
-    ],
-    targets: ["ops-add"],
-  },
-  {
-    id: "operation",
-    title: "An operation",
-    text: [
-      "This is operation 3.",
-      "Its **Selection** is Random: about 3 in every 100 cells, scattered over the grid and marked on the picture.",
-      "Its **Pattern**, Constant, gives each of those cells the same tile, in this case named 'Special'.",
-    ],
-    aside: "Operation 1 laid out the other four tiles with Noise, and operation 2 turned every cell.",
-    targets: ["op-example", "preview"],
-    firstVisitOnly: true,
-    // Only Mosaic's own operation 3 carries `op-example` (`exampleOperation`).
-    // In a Mosaic changed since this text was written, point at the stack instead.
-    fallback: "ops-add",
-    // Stacked, the picture rather than the card: it shows the cells the text is about,
-    // and the card is still open, marking them (Pol, O4). Rejected: the card alone, which left
-    // "marked on the picture" pointing at nothing on screen.
-    alone: "preview",
-  },
+];
+
+/** A replay's one Operations step: it can't describe what is open. */
+const OPERATIONS: TourStep = { id: "operations", title: "Operations", text: OPERATIONS_TEXT, targets: ["ops-add"] };
+
+/**
+ * The first visit's steps 5 to 11: Mosaic emptied, then drawn again. Every one
+ * cuts out the picture beside what it is about, and the picture alone stacked.
+ */
+const BUILD: readonly TourStep[] = (
+  [
+    {
+      id: "operations",
+      title: "Operations",
+      text: OPERATIONS_TEXT,
+      aside: "Mosaic has three. Let's empty the picture and build it again, one at a time.",
+      targets: ["ops-add", "preview"],
+      ops: 0,
+    },
+    {
+      id: "op1-selection",
+      title: "Operation 1: Selection",
+      text: [
+        "Every operation has four steps. **Selection** picks the cells it changes.",
+        "Operation 1 picks **All**: every cell, marked on the picture.",
+      ],
+      targets: ["op-1", "preview"],
+      ops: 0,
+      open: { op: 0, stage: "selection" },
+    },
+    {
+      id: "op1-pattern",
+      title: "Operation 1: Pattern",
+      text: [
+        "**Pattern** gives each selected cell a value from 0 to 1.",
+        "Operation 1 uses **Noise**, which gives nearby cells similar values, so they form patches.",
+      ],
+      targets: ["op-1", "preview"],
+      ops: 0,
+      open: { op: 0, stage: "source" },
+    },
+    {
+      id: "op1-attribute",
+      title: "Operation 1: Attribute",
+      text: [
+        "**Attribute** says what the values change, here **Tile**.",
+        "The palette turns low values into its first tiles and high values into its last.",
+      ],
+      targets: ["op-1", "preview"],
+      ops: 1,
+      open: { op: 0, stage: "attribute" },
+    },
+    {
+      id: "op1-blend",
+      title: "Operation 1: Blend",
+      text: ["**Blend** says how the new value meets what earlier operations wrote.", "**Set**, used here, replaces it."],
+      targets: ["op-1", "preview"],
+      ops: 1,
+      open: { op: 0, stage: "blend" },
+    },
+    {
+      id: "op2",
+      title: "Operation 2",
+      text: ["Operation 2 selects **All** again and gives each cell a random **rotation**: 0, 90, 180 or 270 degrees."],
+      targets: ["op-2", "preview"],
+      ops: 2,
+    },
+    {
+      id: "op3",
+      title: "Operation 3",
+      text: ["Operation 3 selects about 3 in every 100 cells at random and gives them the tile **Special**, painted over what was there."],
+      targets: ["op-3", "preview"],
+      ops: 3,
+    },
+  ] satisfies Omit<TourStep, "build" | "fallback" | "alone">[]
+).map((step) => ({ ...step, build: true, fallback: "ops-add", alone: "preview" }));
+
+/** After the operations, in order, up to the last step. */
+const AFTER: readonly TourStep[] = [
   {
     id: "breakpoints",
     title: "Breakpoints",
@@ -169,11 +249,11 @@ const POINTING: readonly TourStep[] = [
   },
 ];
 
-/** The run's steps, Welcome first: nine on a first visit, eight on a replay. */
+/** The run's steps, Welcome first: fourteen on a first visit, eight on a replay. */
 export function stepsFor(run: TourRun): TourStep[] {
   const welcome: TourStep = { id: "welcome", title: "Welcome", text: WELCOME_SHARED, aside: WELCOME_SECOND[run], targets: [] };
   const own: TourStep = { id: "own", title: "Your own tileset", text: [OWN_TEXT[run]], targets: ["new"] };
-  return [welcome, ...POINTING.filter((step) => run === "first" || !step.firstVisitOnly), own];
+  return [welcome, ...BEFORE, ...(run === "first" ? BUILD : [OPERATIONS]), ...AFTER, own];
 }
 
 export interface Span {
@@ -254,7 +334,7 @@ export function back(state: TourState): TourState {
   return state.index === 0 ? state : { ...state, index: state.index - 1 };
 }
 
-/** "3 of 9". The count includes Welcome, so the pointing steps are 2 to 9 (2 to 8 on a replay). */
+/** "3 of 14". The count includes Welcome, so the pointing steps are 2 to 14 (2 to 8 on a replay). */
 export function count(state: TourState): string {
   return `${state.index + 1} of ${state.steps.length}`;
 }
@@ -267,6 +347,22 @@ export function primaryLabel(state: TourState): "Start tour" | "Next" | "Done" {
 /** Skip tour is shown on every step but the last, where Done ends the tour the same way. */
 export function showsSkip(state: TourState): boolean {
   return !isLast(state);
+}
+
+/** Skip operations is shown on the build steps, 5 to 11, and nowhere on a replay. */
+export function showsSkipOperations(state: TourState): boolean {
+  return current(state).build === true;
+}
+
+/**
+ * Past the build, to Breakpoints. Back from there goes to the last build step,
+ * as it would after Next: the list is flat. Off a build step it does nothing.
+ */
+export function skipOperations(state: TourState): TourState {
+  if (!showsSkipOperations(state)) return state;
+  let index = state.index;
+  while (state.steps[index]?.build) index++;
+  return { ...state, index };
 }
 
 /**
@@ -321,17 +417,52 @@ export function end(seen: SeenStore): null {
   return null;
 }
 
+type MosaicShape = Pick<Operation, "id" | "selection" | "source" | "target">;
+
+/** What each of Mosaic's operations must be for the build steps' text to be true of it. */
+const MOSAIC: readonly { id: string; selection: string; source: string; target: string }[] = [
+  { id: "op1", selection: "all", source: "valueNoise", target: "tileId" },
+  { id: "op4", selection: "all", source: "random", target: "rotation" },
+  { id: "op5", selection: "random", source: "constant", target: "tileId" },
+];
+
 /**
- * The operation "An operation" opens: Mosaic's operation 3, `op5`, a
- * random Selection, as the step's text describes it. Found by position
- * **and** checked by id and Selection, so that a Mosaic edited later can't
- * have the tour open a card the text doesn't describe; `null` then, and the
- * step points at the Operations "+" (its `fallback`). Rejected: by id alone,
- * which would survive a reorder that makes "operation 3" wrong.
+ * The ids of Mosaic's three operations, in order, when the file's operations
+ * are those three as the build steps describe them; `null` otherwise, and the
+ * tour runs as a replay (`runFor`). Checked by position **and** by id, kind of
+ * Selection, Source and Attribute, so a Mosaic edited later can't have the
+ * tour describe operations it no longer has. Rejected: by id alone, which
+ * would survive a reorder that makes "operation 2" wrong.
  */
-export function exampleOperation(operations: readonly Pick<Operation, "id" | "selection">[]): string | null {
-  const op = operations[2];
-  return op !== undefined && op.id === "op5" && op.selection[0]?.type === "random" ? op.id : null;
+export function mosaicOperations(operations: readonly MosaicShape[]): [string, string, string] | null {
+  if (operations.length !== MOSAIC.length) return null;
+  const fits = MOSAIC.every((want, i) => {
+    const op = operations[i]!;
+    return (
+      op.id === want.id &&
+      op.selection.length === 1 &&
+      op.selection[0]!.type === want.selection &&
+      op.source.type === want.source &&
+      op.target === want.target
+    );
+  });
+  return fits ? [MOSAIC[0]!.id, MOSAIC[1]!.id, MOSAIC[2]!.id] : null;
+}
+
+/** The run a tour starts as: a first visit with no Mosaic to rebuild runs as a replay. */
+export function runFor(run: TourRun, operations: readonly MosaicShape[]): TourRun {
+  return run === "first" && mosaicOperations(operations) === null ? "replay" : run;
+}
+
+/**
+ * The file as a build step's preview draws it: its first `kept` operations.
+ * Each is exactly the finished picture's first layers, because the engine
+ * hashes by position and each operation has its own salt. The same object when
+ * nothing is cut, so a derived value downstream doesn't change for nothing.
+ */
+export function stagedFile<F extends { config: { operations: readonly unknown[] } }>(file: F, kept: number): F {
+  if (kept >= file.config.operations.length) return file;
+  return { ...file, config: { ...file.config, operations: file.config.operations.slice(0, kept) } };
 }
 
 /** A first visit: nothing was kept from an earlier one, and the tour has not been seen. */

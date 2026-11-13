@@ -5,7 +5,8 @@ sidebar:
   order: 97
 ---
 
-**Written from:** `apps/editor/src/lib/Tour.svelte`, and the call site in `App.svelte`.
+**Written from:** `apps/editor/src/lib/Tour.svelte`, and the call site in `App.svelte`. It writes
+[tour-preview.svelte.ts](/editor/tour-preview/).
 
 ## Overview
 
@@ -42,8 +43,10 @@ trigger, so focus goes to the Grid & size header as after any first-visit tour.
 - **The Welcome card** is centred, `--tour-welcome-w` (440px) wide (the window less 16px on each side
   below 40rem), with Skip tour and Start tour at the right and no count.
 - **The step bubble** is `--tour-bubble-w` (380px) wide with `--tour-pad` padding. It has the
-  title (`.t-section`) and count ("3 of 9") in its header, the text, then Skip tour at the left
-  (not on the last step) and Back and Next (or Done) at the right.
+  title (`.t-section`) and count ("3 of 14") in its header, the text, then Skip tour at the left
+  (not on the last step) and Back and Next (or Done) at the right. On the build steps (5 to 11),
+  Skip operations follows Skip tour; where the four don't fit one line, the footer wraps and Back
+  and Next stay at the bottom right.
 - **The text** is `--text-tour-size` (15px) at `--leading-tour`, a step above `.t-body`, because it
   is prose read once (Pol, O3c). Each paragraph is cut by `spans` from [tour.ts](/editor/tour/), and
   its marked terms are `<strong>` at `--weight-semibold`. A span with `icon` is drawn as the
@@ -56,35 +59,46 @@ trigger, so focus goes to the Grid & size header as after any first-visit tour.
 
 ### On each step
 
-1. Leaving "An operation", close the card it opened, unsaved (`drafting.discard()`).
-2. Entering it, open Mosaic's operation 3 through `opening.open(id, "attribute")`, as pressing the
-   card's title does, if `exampleOperation` finds it. Then wait out the card's slide.
-3. Find the targets by `data-tour` (`resolveTargets`, with the step's fallback). An element that
-   isn't drawn counts as missing. Where the targets' visible parts can't share the window
-   (`oneWindow`), the step's `alone` target instead: step 6 stacked cuts out the picture (O4).
-4. Scroll the first target into view in its scroller, below a stuck section header, then in the
+1. Set how much of the file the preview draws: `tourPreview.kept` = the step's `ops`, or `null`
+   (all of it) off the build.
+2. Close the card the tour opened, unsaved (`drafting.discard()`), if this step opens none or
+   another.
+3. Open the step's card (`open`), by its id from `mosaicOperations`, through
+   `opening.open(id, stage)`, as pressing the card's title does; on the card already open, that
+   only moves it to the stage. Only a fresh card's slide is waited out; a change of stage swaps
+   the body, and the `ResizeObserver` measures again.
+4. Find the targets by `data-tour` (`resolveTargets`, with the step's fallback). An element that
+   isn't drawn counts as missing.
+5. Scroll the first target into view in its scroller, below a stuck section header, then in the
    page (below 40rem the page scrolls too). In the page it keeps room for the cut-out's pad and
-   the ring, and a target with no scroller is not clipped to the window first: clipped, a target
-   past the window's edge collapsed onto it, and the page never brought it in (O4). Every scroll is instant: the hole and the bubble are
-   what move, and measuring after a smooth scroll would have to guess when it ends.
-5. Measure: each target's box, clipped to its scroller and grown by `--space-2`; then
-   `placeBubble`.
-6. Focus the primary button, and announce the step.
+   the ring. Every scroll is instant: the hole and the bubble are what move, and measuring after a
+   smooth scroll would have to guess when it ends.
+6. Where the targets can't be seen in one window as they now are (`oneWindow` over each target's
+   `reach`), cut out the step's `alone` target instead, and reveal it: the build steps stacked cut
+   out the picture (O4).
+7. Measure: each target's box, clipped to its scroller and grown by `--space-2`; then
+   `placeBubble`, in the sidebar column on a build step with both its targets.
+8. Focus the primary button, and announce the step.
 
 A window resize, or a `ResizeObserver` on the targets, measures again. Each step bumps a counter,
 so a step still waiting out the slide can't place over the next one.
 
 ### Ending
 
-Done, Skip tour and Esc all call `end(seenStore())`, which sets the seen flag, then close the
-dialog, move focus, and call `onEnd`.
+Done, Skip tour and Esc all close the card the tour opened, set `tourPreview.kept` to `null`, and
+call `end(seenStore())`, which sets the seen flag; then they close the dialog, move focus, and call
+`onEnd`. Unmounting also puts `kept` back to `null`, however the tour goes away. The tour never
+edits the file: after it, there is no draft and Undo is disabled.
 
 ### Tests
 
 None here: `.svelte` files can't be unit-tested (CLAUDE.md). The geometry is
 [tour-layout.ts](/editor/tour-layout/) and the model is [tour.ts](/editor/tour/), both tested. The
 O3b browser probe walked both runs at 1440 × 900 and 375 × 800, Esc, Back and Esc on step 6, a
-press on the scrim and in a cut-out, Tab, and axe-core.
+press on the scrim and in a cut-out, Tab, and axe-core. The B-036 sweep (tour-operations Block 3)
+walked all fourteen steps at 1440 × 900, 768 × 900, 390 × 844 and 320 × 700 and with reduced
+motion, every exit from the build, both replays, the Mosaic guard and axe-core; it found the
+stacked cut-out bug `oneWindow` now says why it fixed.
 
 ### Gotchas & rejected alternatives
 

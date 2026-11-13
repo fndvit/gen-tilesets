@@ -69,7 +69,7 @@ and does not scroll here as well, so it scrolls once.
 | `onReseedOnLoad?(on)` | Sets the flag from the checkbox; the checkbox is absent without it. |
 | `panelId?` | The open body's id, for the title's `aria-controls`. |
 | `children?` | The stepper, shown while open. |
-| `tour?` | `data-tour` on the `<article>`. `OperationsSection` sets `op-example` on Mosaic's operation 3, `op5` (`exampleOperation` in [tour.ts](/editor/tour/)), which the [tour](/editor/tour-dialog/)'s "An operation" opens and cuts out (B-017). |
+| `tour?` | `data-tour` on the `<article>`. `OperationsSection` sets `op-1`, `op-2` and `op-3` on Mosaic's three operations (`mosaicOperations` in [tour.ts](/editor/tour/)), which the [tour](/editor/tour-dialog/)'s build steps open and cut out (B-017, B-036). Unset in any other file. |
 
 ### Reveal on open
 

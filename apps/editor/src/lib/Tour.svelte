@@ -19,8 +19,10 @@
   not the accent, which is focus's, and Next has focus while the ring shows
   (Pol, O1).
 
-  **On each step**, in order: close the card "An operation" opened if this is
-  another step; open it if this is that step, then wait out its slide; find
+  **On each step**, in order: set how much of the file the preview draws
+  (`tour-preview.svelte.ts`; all of it off the build); close the card the tour
+  opened if this step opens none or another; open the step's card at its
+  stage, or move the open one to it, then wait out a fresh card's slide; find
   the targets by `data-tour` (`Section.svelte` says why), with the step's
   fallback, or its `alone` target where they can't share the window
   (`oneWindow`); scroll the first into view in its scroller and then the page;
@@ -36,18 +38,22 @@
   import { drafting } from "../drafting.svelte.js";
   import { opening } from "../opening.svelte.js";
   import { session } from "../session.svelte.js";
-  import { clip, cutout, oneWindow, placeBubble, resolveTargets, scrollDelta, type Box, type BubblePlacement } from "../tour-layout.js";
+  import { tourPreview } from "../tour-preview.svelte.js";
+  import { clip, cutout, oneWindow, placeBubble, reach, resolveTargets, scrollDelta, type Box, type BubblePlacement } from "../tour-layout.js";
   import {
     back,
     count,
     current,
     end,
-    exampleOperation,
+    mosaicOperations,
     next,
     plain,
     primaryLabel,
+    runFor,
     seenStore,
     showsSkip,
+    showsSkipOperations,
+    skipOperations,
     spans,
     type Span,
     start,
@@ -74,9 +80,10 @@
 
   let { run, onEnd, returnFocus }: Props = $props();
 
-  // A tour starts once, from the run it was mounted with.
+  // A tour starts once, from the run it was mounted with: a first visit with no
+  // Mosaic to rebuild runs as a replay (`runFor`).
   // svelte-ignore state_referenced_locally
-  let tour = $state<TourState>(start(run));
+  let tour = $state<TourState>(start(runFor(run, session.file.config.operations)));
   const step = $derived(current(tour));
   const welcome = $derived(tour.index === 0);
 
@@ -92,8 +99,8 @@
 
   const ids = $props.id();
 
-  /** Whether the tour opened "An operation"'s card, so it closes only what it opened. */
-  let opened = false;
+  /** The card the tour opened, so it closes only what it opened. */
+  let opened: string | null = null;
   /** Bumped on each step, so a step still waiting out a slide can't place over the next one. */
   let generation = 0;
   let targets: HTMLElement[] = [];
@@ -138,9 +145,13 @@
     // Room for the cut-out's pad and the ring with its halo (`ring(hole, 3)`, a 2px stroke), so a
     // target brought in from above or below isn't ringed off the window's edge.
     const room = px("--space-2") + 4;
-    const box = el.getBoundingClientRect();
-    const delta = scrollDelta({ top: room, bottom: window.innerHeight - room }, scroller ? clip(box, visibleIn(el)) : box);
+    const delta = scrollDelta({ top: room, bottom: window.innerHeight - room }, reachOf(el));
     if (delta !== 0) window.scrollBy({ top: delta, behavior: "instant" });
+  }
+
+  /** What the target can show once revealed (`tour-layout.ts` `reach`). */
+  function reachOf(el: HTMLElement): Box {
+    return reach(el.getBoundingClientRect(), scrollParent(el) ? visibleIn(el) : null);
   }
 
   /** The visible box of the target's scroller, or the window when it has none. */
@@ -170,8 +181,8 @@
       width: px("--tour-bubble-w"),
       margin: px("--space-4"),
       gutter: px("--space-7"),
-      // Only when the card was found: on its fallback, step 6 points at the "+" like any step.
-      inSidebar: step.id === "operation" && holes.length > 1,
+      // Only when both were found: on its fallback, a build step points at the "+" like any step.
+      inSidebar: step.build === true && holes.length > 1,
       heightAt: (w) => {
         el.style.width = `${w}px`;
         return el.offsetHeight;
@@ -179,26 +190,29 @@
     });
   }
 
-  /** Closes the card "An operation" opened, unsaved: the tour never edits the file or leaves a draft. */
-  function closeExample(): void {
-    if (!opened) return;
-    opened = false;
+  /** Closes the card the tour opened, unsaved: the tour never edits the file or leaves a draft. */
+  function closeOpened(): void {
+    if (opened === null) return;
+    opened = null;
     drafting.discard();
   }
 
   async function show(state: TourState): Promise<void> {
     const mine = ++generation;
     const now = current(state);
-    if (now.id !== "operation") closeExample();
+    tourPreview.kept = now.ops ?? null;
+    const mosaic = mosaicOperations(session.file.config.operations);
+    const want = now.open !== undefined && mosaic !== null ? mosaic[now.open.op] : null;
+    if (want === null || want !== opened) closeOpened();
     let wait = 0;
-    if (now.id === "operation" && !opened) {
-      const id = exampleOperation(session.file.config.operations);
-      if (id !== null) {
-        // What pressing the card's title does. On a first visit no draft is open, so the guard never asks.
-        opening.open(id, "attribute");
-        opened = drafting.editing && drafting.draft?.id === id;
-        if (dialog) wait = motionDuration(dialog);
-      }
+    if (want !== null && now.open !== undefined) {
+      const fresh = opened === null;
+      // What pressing the card's stepper does; on a fresh card, its title. On a first visit no
+      // draft is open, so the guard never asks.
+      opening.open(want, now.open.stage);
+      opened = drafting.editing && drafting.draft?.id === want ? want : null;
+      // Only a fresh card slides open; a change of stage swaps the body, and the observer re-measures.
+      if (fresh && opened !== null && dialog) wait = motionDuration(dialog);
     }
     await tick();
     // The card's body slides open; the reveal needs its final height.
@@ -206,12 +220,18 @@
     if (mine !== generation) return;
 
     targets = resolveTargets(now, find);
-    const view = { width: window.innerWidth, height: window.innerHeight };
-    if (now.alone !== undefined && !oneWindow(targets.map((t) => clip(t.getBoundingClientRect(), visibleIn(t))), view)) {
-      const alone = find(now.alone);
-      if (alone) targets = [alone];
-    }
+    // Revealed before `oneWindow` measures: a target scrolled out of its scroller (step 5's
+    // Operations "+", below the open Tiles) clips to nothing and would read as out of the window.
     if (targets[0]) reveal(targets[0]);
+    const view = { width: window.innerWidth, height: window.innerHeight };
+    const seen = targets.map(reachOf);
+    if (now.alone !== undefined && !oneWindow(seen, view)) {
+      const alone = find(now.alone);
+      if (alone) {
+        targets = [alone];
+        reveal(alone);
+      }
+    }
     observer?.disconnect();
     observer = new ResizeObserver(() => measure());
     for (const t of targets) observer.observe(t);
@@ -237,7 +257,8 @@
   /** Done, Skip tour and Esc alike: each sets the seen flag (`tour.ts` `end`). */
   function finish(): void {
     generation++;
-    closeExample();
+    closeOpened();
+    tourPreview.kept = null;
     observer?.disconnect();
     end(seenStore());
     dialog?.close();
@@ -253,7 +274,11 @@
 
   $effect(() => {
     if (dialog && !dialog.open) dialog.showModal();
-    return () => observer?.disconnect();
+    return () => {
+      observer?.disconnect();
+      // However the tour goes away, the preview draws the whole file again.
+      tourPreview.kept = null;
+    };
   });
 
   // Only `tour` drives a step. Untracked, because `show` reads the file and the
@@ -343,8 +368,16 @@
       {/if}
     </div>
     <div class="foot">
-      {#if showsSkip(tour)}
-        <Button label="Skip tour" variant={welcome ? "secondary" : "tertiary"} onclick={finish} />
+      {#if showsSkip(tour) || showsSkipOperations(tour)}
+        <span class="skips">
+          {#if showsSkip(tour)}
+            <Button label="Skip tour" variant={welcome ? "secondary" : "tertiary"} onclick={finish} />
+          {/if}
+          <!-- Steps 5 to 11 rebuild Mosaic; this goes on to Breakpoints (Pol, 2026-11-12). -->
+          {#if showsSkipOperations(tour)}
+            <Button label="Skip operations" variant="tertiary" onclick={() => (tour = skipOperations(tour))} />
+          {/if}
+        </span>
       {/if}
       <span class="go">
         {#if !welcome}
@@ -489,11 +522,22 @@
     color: var(--color-ink);
   }
 
-  /* Skip tour at the left, Back and the primary at the right; on Welcome, both at the right. */
+  /*
+    Skip tour at the left, Back and the primary at the right; on Welcome, both at the right.
+    On the build steps Skip operations follows Skip tour, and where the four don't fit one line
+    the footer wraps: `.go` keeps `margin-left: auto`, so Back and Next stay bottom-right.
+  */
   .foot {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .skips {
+    display: flex;
+    flex-wrap: wrap;
     gap: var(--space-4);
   }
 
