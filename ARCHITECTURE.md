@@ -277,13 +277,17 @@ State is the file itself. There is no second document model (**E3**).
 | `tour.ts` | The tour's model: its steps (text in `DESIGN_SYSTEM.md` § "Onboarding: the tour"), where it is, and whether it has been seen. On a first visit, steps 5 to 11 rebuild Mosaic one operation at a time (`mosaicOperations` guards it, `runFor` falls back to a replay). `lib/Tour.svelte` draws it. |
 | `tour-layout.ts` | Where the tour draws: the cut-outs, the holes in the scrim, the scroll to a target, the bubble's place. Pure; `Tour.svelte` measures and passes numbers in. |
 | `tour-preview.svelte.ts` | How many operations the preview draws while the tour rebuilds Mosaic (steps 5 to 11), or `null` for all. `Tour.svelte` writes it; `App.svelte`'s `shown` reads it through `stagedFile` (`tour.ts`). Only the picture is staged: the file, undo and the export never see it. |
-| `first-visit.ts` | The first visit: Collage opens before the editor mounts, then the tour runs over it. |
+| `first-visit.ts` | The first visit: Mosaic opens before the editor mounts (`FIRST_VISIT_TEMPLATE`), then the tour runs over it. |
 | `export.ts` / `download.ts` / `import.ts` | `tileset.json` plus an asset folder, as a zip (**E14**), and its inverse. Import matches assets by reading `meta.src` back, never by parsing a path. |
+| `export-next.ts` | The window after a zip export (B-030): what it says, and its "Don't show again" flag, kept the way the tour's seen flag is. |
+| `layers.ts` | Selection layers as the editor reads them (B-033): a layer's painted `cells`, and the layer types joined for a notice. Every question about "the painted cells" asks it of every layer. |
 | `orphans.ts` | The destructive re-derive: at-risk before, orphaned after (**E12**). |
 | `reseed.ts` / `seed.ts` | Seed, both salts, the load flags, and the memorable seed generator. |
 | `paint.ts` | The `cellList` brush and client → render-space conversion. |
 | `reference.ts` | Reference-image geometry. A **viewing control** — writes no field, joins no export. |
 | `derive.ts` | The one derivation in editor code: `columns = ceil(referenceWidth / cellSize)`. |
+| `lib/preview/visibility.ts` | Hidden operations (B-012). View state only, never a field of the file: the preview and Export image draw `withoutHidden(…)`; advisories, the `.json` export and undo read the saved file. |
+| `lib/ui/reveal.ts` | How far to scroll so a section the user just opened can be seen (B-020, B-027), without its header leaving the top of the view. |
 | `controls/affordance.ts` | `ParamSpec` → control. Total by construction (**E9**). |
 
 Components live in `lib/` and `controls/`. `App.svelte` holds the shell and the shadow config

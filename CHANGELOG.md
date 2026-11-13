@@ -11,7 +11,8 @@ says why. Both are in the frozen archive, `../gen-tileset-spec-archive/`.
 `docs/changes/`; at release, `pnpm changelog draft` turns the unreleased `Package: yes` entries
 into a new section, which is then edited into this file's voice. The `<!-- change: … -->`
 comments mark which entries a section was built from: keep them. Editor-only changes are
-recorded in `docs/changes/` and not here. The sections up to 0.11.0 were written by hand before
+recorded in `docs/changes/` and not here, except for one short `### Editor` paragraph per release
+that names the headlines and points there. The sections up to 0.11.0 were written by hand before
 that, cover the editor too, and are not edited.
 
 ---
@@ -41,6 +42,9 @@ Additive: generated and drawn output is unchanged for every existing call.
 ---
 
 ## 0.10.0 — public on npm, as `@vit-foundation/gen-tilesets`
+
+*Correction, 2026-11-13: neither 0.10.0 nor 0.11.0 was ever published. 0.12.0 is the first version
+on npm.*
 
 The package is renamed from `@fndvit/gen-tilesets` to **`@vit-foundation/gen-tilesets`** and
 published **publicly on npmjs.com**. Installing it needs no token and no `.npmrc`, and CDNs

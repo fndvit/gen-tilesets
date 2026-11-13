@@ -53,7 +53,7 @@ export const FILE_NAME = "tileset.json";
  * a `TilesetFile`", so there is no projection here that could disagree with what
  * previewed.
  *
- * - `schemaVersion: 2` — required, and the file is never written without it.
+ * - `schemaVersion: SCHEMA_VERSION` — required, and the file is never written without it.
  * - `engineVersion` — the pinned package of **E2**, so it is truthful by
  *   construction rather than by being remembered. **Stamped here, at export**,
  *   because `newDocument()` is the only other place that writes it: an imported
