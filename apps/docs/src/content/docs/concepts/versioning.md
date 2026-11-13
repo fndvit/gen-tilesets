@@ -50,7 +50,7 @@ anyway: an older engine meeting a file that *uses* the new feature should refuse
 not with a confusing `OUT_OF_RANGE` error on a target it has never heard of. The last two rewrite
 content. `4→5` renames every `everyNth` selection to `rowColumn`, because `everyNth` now names a
 row-major count. `5→6` wraps each selection in a one-item list. Both keep an old file drawing
-exactly as it did. See [migrate.ts](/engine/migrate/).
+exactly as it did.
 
 `migrate()` walks the table rather than indexing it, so a missing row is a refusal
 (`"unrecognized"`) and never a silent skip. It reads the declared number strictly: `"1"` is not `1`.
@@ -91,7 +91,9 @@ own quotation warns about. Also listed in [Review findings](/review-findings/). 
 `version` field is the only place the release number is written. `.github/workflows/publish.yml` runs on any `v*` tag: it installs, runs `pnpm test` and
 `pnpm typecheck`, builds, packs the tarball with `pnpm pack` and publishes it publicly to npmjs.com
 with `npm publish`, authenticated by npm trusted publishing (a GitHub OIDC token, no secret). The tag does not set the version. The workflow publishes whatever
-`package.json` says.
+`package.json` says. The exception is 0.12.0, the first version on npm. It is published by hand,
+with no tag pushed, because trusted publishing can only be set up on a package that already exists
+(`packages/tileset/RELEASING.md`).
 
 The workspace consumes the package's `src/` (its `exports`), and the tarball carries `dist/` (its
 `publishConfig.exports`, built by `svelte-package`, with `files: ["dist"]`). So `pnpm dev` exercises
@@ -105,4 +107,7 @@ for a local publish. `.github/workflows/ci.yml` builds the package on every push
   file written by 0.6.0 loads in 0.8.0 on the strength of its `schemaVersion` alone.
 - **Changing output is not a schema change.** `schemaVersion` describes the file's *shape*. A
   release that changes what `generate()` draws for an unchanged file leaves it untouched. See
-  [Determinism and positional hashing](/concepts/determinism/).
+  [Determinism and positional hashing](/concepts/determinism/). 0.12.0 is the case in between: it
+  gave the name `everyNth` a new meaning, so it bumped the schema and moved old files to
+  `rowColumn`. A migrated file draws as before; only a config that skips `migrate()` sees the new
+  rule.

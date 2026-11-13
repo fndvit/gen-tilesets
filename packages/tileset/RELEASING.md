@@ -12,9 +12,13 @@ npmjs.com settings trust `fndvit/gen-tilesets`'s `publish.yml`, and the job prov
 with a GitHub OIDC token. No npm token, no secret to rotate, and npm attaches provenance.
 
 Trusted publishing can only be configured on a package that already exists, so the first version
-on npm, 0.12.0, is published by hand: `pnpm build && pnpm pack` in this directory, then
-`npm publish ./vit-foundation-gen-tilesets-0.12.0.tgz --access public` from an account in the
-`vit-foundation` npm org. CI publishes every later version, once the trusted publisher is configured
+on npm, 0.12.0, is published by hand: `pnpm test && pnpm typecheck && pnpm build && pnpm pack` in
+this directory, then `npm publish ./vit-foundation-gen-tilesets-0.12.0.tgz --access public` from an
+account in the `vit-foundation` npm org. Publishing a tarball skips `prepublishOnly`, so the tests
+and the typecheck have to be run by hand. **Do not push a `v0.12.0` tag**: `publish.yml` runs on
+every `v*` tag. Before the manual publish the run fails, because trusted publishing cannot
+authenticate a package that does not exist yet. After it, the run fails because 0.12.0 already
+exists. CI publishes every later version, once the trusted publisher is configured
 on npmjs.com. 0.10.0 and 0.11.0 were never published. Versions up to 0.9.0 are on GitHub Packages
 as `@fndvit/gen-tilesets`.
 

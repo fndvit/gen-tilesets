@@ -1,8 +1,8 @@
 # Release 0.12.0: dev → main, first npm publish
 
-Handoff brief. Block 1 (the audit) was done and **Pol confirmed the checklist on 2026-11-13**. Blocks
-2–4 are for a new conversation. This file is not committed yet: commit it as the first commit on
-`release-0.12.0`.
+Handoff brief. Block 1 (the audit) was done and **Pol confirmed the checklist on 2026-11-13**.
+Block 2 was done and confirmed on 2026-11-13, on branch `release-0.12.0`. "Where things stand"
+describes `dev` before Block 2. On the branch, the version is 0.12.0.
 
 ## Where things stand (2026-11-13)
 
@@ -127,7 +127,8 @@ Check every line number against the file first. They were right on 2026-11-13.
    After Pol merges it: `! git pull --ff-only origin dev && gh pr create --base main --head dev --title "Release 0.12.0" --body-file <file>`
    Then Pol merges with "Create a merge commit".
 4. Pol publishes from an up-to-date `main`:
-   - `cd packages/tileset && pnpm build && pnpm pack`
+   - `cd packages/tileset && pnpm test && pnpm typecheck && pnpm build && pnpm pack` (a tarball
+     publish skips `prepublishOnly`)
    - `npm publish ./vit-foundation-gen-tilesets-0.12.0.tgz --access public` (OTP)
    - Configure the trusted publisher on npmjs.com: `fndvit` / `gen-tilesets` / `publish.yml`.
    - Regenerate the npm recovery codes.

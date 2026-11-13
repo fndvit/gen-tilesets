@@ -74,7 +74,8 @@ version bump and a changelog line, not a crisis.
 which tests, typechecks, builds and publishes **publicly to npmjs.com** under the `vit-foundation`
 org, authenticated by npm trusted publishing (no token secret). Bump
 `packages/tileset/package.json` first — the tag does not set the version, and a tag whose version
-is already published fails.
+is already published fails. The exception is 0.12.0, the first npm version: it is published by hand
+and gets no pushed tag (`RELEASING.md`).
 
 **Never edit the version in two places.** `apps/editor/vite.config.ts` derives
 `__ENGINE_VERSION__` from `packages/tileset/package.json`; that is Invariant **E2**, and writing

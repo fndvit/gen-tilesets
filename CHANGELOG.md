@@ -34,9 +34,11 @@ the two new migration rows rewrite it. The schema goes from 4 to 6.
 affects every cell that any layer selects. `migrate()`'s 5 → 6 row wraps each older selection in a
 one-item list, so a migrated file draws byte-identically. `random` layers are channelled by
 position: layer 0 keeps `opId:selection`, as the lone Selection did, and layer i ≥ 1 uses
-`opId:i:selection`. The extent is the bounding box of the layers, or the whole grid if any layer
-has none, and an Operation is coordinate-bound if any layer is. `validate()` refuses a selection
-that is not an array, and an empty list.
+`opId:i:selection`. The extent is the bounding box of the layers, skipping a layer whose extent
+has zero area, or the whole grid if any layer has none, and an Operation is coordinate-bound if any layer is. `validate()` refuses a selection
+that is not an array, and an empty list. The coordinate-bound message, which `reshapeErrors` and
+`validate()`'s `COORDINATE_BOUND_RESIZE` error both use, now names every coordinate-bound layer type,
+so its text changed.
 
 The cost: every consumer that builds an Operation by hand changes its `selection`, even for one
 layer. A `union` Selection beside the plain one would have spared that. It was built first

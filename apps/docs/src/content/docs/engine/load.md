@@ -98,8 +98,5 @@ The file tests **the sequence**, not the parts. `migrate.test.ts` and `validate.
 
 ### Review notes
 
-- `load.ts` (docstring of `assertValidFile`) says *"`TilesetFile.schemaVersion` is the literal
-  type `2`"*, but `types.ts:334` declares `schemaVersion: 6`. The comment is stale. The argument
-  still holds; only the number is wrong.
-- `load.test.ts:15` says *"A v2 file that validates clean"*. The fixture uses `SCHEMA_VERSION`,
-  which is 6.
+- `load.ts` (docstring of `assertValidFile`) and `load.test.ts:15` named version `2` until 0.12.0.
+  Both now refer to the current version, `SCHEMA_VERSION`. (fixed)
