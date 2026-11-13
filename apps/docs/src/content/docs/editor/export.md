@@ -109,7 +109,7 @@ Callees: `ENGINE_VERSION` from [document.ts](/editor/document/), `JSON.stringify
 
 - **`export.test.ts`.** The header notes that zipping and download are `download.ts`'s and are
   untested. These tests cover what goes in.
-  - *The file.* It carries `schemaVersion: 4` and a string `engineVersion`, writes `assetSalt`,
+  - *The file.* It carries `schemaVersion: SCHEMA_VERSION` (6) and a string `engineVersion`, writes `assetSalt`,
     `reseedAssetsOnLoad` and `yOffset` explicitly, omits `steps` and contains no `null`, and ends
     in `}\n`. An imported file stamped `0.6.0` is written with the current `ENGINE_VERSION`, the
     in-memory file keeps `0.6.0`, and the keys keep their order.
@@ -129,8 +129,9 @@ Callees: `ENGINE_VERSION` from [document.ts](/editor/document/), `JSON.stringify
 
 ### Review notes
 
-- `serialize`'s docstring (`export.ts:56`) says *"`schemaVersion: 2` — required"*. The document is
-  `schemaVersion: 4` (`document.ts:128`, and `export.test.ts` asserts 4). (stale comment)
+- `serialize`'s docstring (`export.ts:56`) names `schemaVersion: SCHEMA_VERSION`, which
+  `newDocument()` writes (`document.ts:131`) and `export.test.ts` asserts. It said `2` until
+  0.12.0. (fixed)
 - User-facing error messages here (`export.ts:106-107`, `:122-123`), in `import.ts:71-72` and in
   `assets.ts:278-279` cite spec sections (`09 §11.1`, `E14`, `09 §15 Q8`). The spec is archived
   and not available to the author reading the message. (doc gap)

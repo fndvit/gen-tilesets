@@ -18,7 +18,7 @@ with `dropped: <reason>`.
 - **B-001** Re-order sections: batch-01 T-03, PR #20
 - **B-002** Sticky section headers: batch-01 T-08, PR #19
 - **B-003** Grid button → On/off switch: batch-01 T-01, PR #20
-- **B-004** Tile motif in the sidebar free space: batch-01 T-06, PR #20
+- **B-004** Tile motif in the sidebar free space: batch-01 T-06, PR #20; motif removed 2026-11-13 (0157602)
 - **B-011** Drag to draw a Rect selection: batch-02 T-01, PR #22
 - **B-012** Hide/unhide operations: batch-02 T-02, PR #22
 - **B-014** Painted cells outside the grid: batch-01 T-05, PR #20

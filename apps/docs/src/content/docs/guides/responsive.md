@@ -72,7 +72,7 @@ A rule is a width condition plus the shape fields it changes:
 
 ```json
 {
-  "schemaVersion": 4,
+  "schemaVersion": 6,
   "config": { "rows": 8, "columns": 25, "…": "…" },
   "layout": { "cellSize": 60, "referenceWidth": 1440, "yOffset": 0, "horizontalAlignment": "column" },
   "responsive": [

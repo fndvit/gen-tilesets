@@ -1,6 +1,6 @@
 {
   "name": "@vit-foundation/gen-tilesets",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Procedural tileset generator: a pure, deterministic engine and a Svelte renderer.",
   "license": "MIT",
   "repository": {

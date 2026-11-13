@@ -12,7 +12,7 @@ import { assertValidFile, loadTilesetFile } from "./load.js";
 import type { TilesetFile } from "./types.js";
 import { SCHEMA_VERSION } from "./validate.js";
 
-/** A v2 file that validates clean, used as the shape everything else varies. */
+/** A current-version file that validates clean, used as the shape everything else varies. */
 const current = (): TilesetFile => ({
   schemaVersion: SCHEMA_VERSION,
   engineVersion: "0.0.0",

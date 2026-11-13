@@ -51,5 +51,5 @@ a throw. `INSTALL_COMMAND` names the package in `packages/tileset/package.json`,
 
 ### Gotchas
 
-- The package is not on npm yet, so the command fails until the first publish. It ships anyway:
-  the release is pending, and the window describes the steps that will work then.
+- 0.12.0 is the first version of the package on npm, so the command works from 0.12.0 on. Before
+  that release the window showed a command that failed.
