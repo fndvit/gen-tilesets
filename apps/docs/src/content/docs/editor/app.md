@@ -68,8 +68,6 @@ Which component renders which, in source order. Conditional children are marked.
             - an [`OperationHeader`](/editor/operation-header/) per Operation, and
               [`OperationBody`](/editor/operation-body/) under the open one (*if* a draft is open)
           - [`BreakpointsSection`](/editor/breakpoints-section/) (open when the file has rules)
-        - [`SidebarMotif`](/editor/sidebar-motif/): the tile motif in the free space under the
-          sections (the `ScrollArea` is in `fill` mode for it)
       - [`SidebarFooter`](/editor/sidebar-footer/) (`.fixed`)
         - [`ImportPanel`](/editor/import-panel/), [`Popup`](/editor/ui-popup/)s for reports
     - `section.preview`: [`PreviewTopBar`](/editor/preview-bars/), then `.canvas` (the backdrop)
@@ -278,7 +276,7 @@ Callees, by import: from the package, [`selections`](/api/index/variables/select
 `Tileset.svelte`; from the editor, `advisories.ts` (`documentNotices`), `entry.svelte.ts`,
 `notices.svelte.ts` (and the `Notice` type from `notices.ts`), `assets.ts` (`editorProvider`, `replaceAll`, `stored`), `document.ts`
 (the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `opening.svelte.ts`, `orphans.ts`, `session.svelte.ts`,
-the six `lib/sections/` components (Grid, Tiles, Operations, Breakpoints, SidebarMotif, SidebarFooter),
+the five `lib/sections/` components (Grid, Tiles, Operations, Breakpoints, SidebarFooter),
 `PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer`, `RectLayer`, `ui/Dialog` and
 `sections/NewTileset`;
 `lib/preview/visibility.ts` (`withoutHidden`, `pruned`); `paint.ts`
