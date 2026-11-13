@@ -33,7 +33,7 @@
       "Bash(git branch * -D*)",
       "Bash(git push * --delete*)",
       "Bash(git push * -d *)",
-      "Bash(git push * :*)",
+      "Bash(git push * :**)",
       "Bash(gh pr merge*)"
     ]
   }
