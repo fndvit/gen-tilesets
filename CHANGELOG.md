@@ -17,6 +17,68 @@ that, cover the editor too, and are not edited.
 
 ---
 
+## 0.12.0 — selection layers and a row-major Every Nth
+
+**The first version on npm.** 0.10.0 and 0.11.0 were never published, so this one carries their
+changes too (see those sections).
+
+**Output changes, and it is breaking under 0.x.** A config built in TypeScript, or passed to
+`generate()` without `migrate()`, must now write `selection: [...]`, and an `everyNth` in it counts
+row after row. A file that goes through `migrate()` or `loadTilesetFile` draws exactly as before:
+the two new migration rows rewrite it. The schema goes from 4 to 6.
+
+### Changed: an operation's selection is a list of layers
+<!-- change: docs/changes/b-033/selection-layers.md -->
+
+`Operation.selection` is an array of one or more Selections, called layers, and an Operation
+affects every cell that any layer selects. `migrate()`'s 5 → 6 row wraps each older selection in a
+one-item list, so a migrated file draws byte-identically. `random` layers are channelled by
+position: layer 0 keeps `opId:selection`, as the lone Selection did, and layer i ≥ 1 uses
+`opId:i:selection`. The extent is the bounding box of the layers, or the whole grid if any layer
+has none, and an Operation is coordinate-bound if any layer is. `validate()` refuses a selection
+that is not an array, and an empty list.
+
+The cost: every consumer that builds an Operation by hand changes its `selection`, even for one
+layer. A `union` Selection beside the plain one would have spared that. It was built first
+(61d6c74) and undone (11a71c7) when Pol chose one shape for every selection.
+
+### Added: `isCoordinateBound(layers)`
+<!-- change: docs/changes/b-033/selection-layers.md -->
+
+Exported from the package root. It says whether a list of layers is tied to cell coordinates, the
+question `coordinateBoundOperations` asks of each Operation. The editor's orphan notice uses it.
+
+### Changed: Every Nth counts row after row; the old rule is `rowColumn`
+<!-- change: docs/changes/b-009/every-nth.md -->
+
+`everyNth` now counts cells left to right, row after row: it selects
+`(y · columns + x − offset) % n === 0`, with `n` and `offset` and no `axis`. The old
+every-Nth-column-or-row Selection is `rowColumn`, with the same params and rule as before.
+`migrate()`'s 4 → 5 row renames an old file's `everyNth` to `rowColumn`. It is the first migration
+row that rewrites content, not only the version number.
+
+The cost: Every Nth's picture now depends on the column count. With N = 3, 10 columns make
+diagonals and 9 make vertical stripes, so a responsive tileset whose column count changes changes
+its pattern. Counting against the design width instead was rejected: the count is over the grid as
+drawn (Pol).
+
+### Editor
+
+The editor is not part of the package, and its changes since 0.9.0 are recorded in `docs/changes/`
+(batch-01 to batch-03, `starters-onboarding`, `tour-operations`, `b-024`, `b-004`). The headlines:
+- the sidebar's new order and sticky section headers
+- (i) explainers
+- dragging to draw a Rect
+- hiding operations
+- templates, the Tile gallery, and Mosaic opening on a first visit
+- the tour, which rebuilds Mosaic one operation at a time
+- Reseed on load as a checkbox
+- the window after an export
+- the Selection step's layers
+- the sidebar tile motif, removed
+
+---
+
 ## 0.11.0 — `renderImage`: a tileset as a PNG
 
 ### Added: `renderImage` and `imageSize`
