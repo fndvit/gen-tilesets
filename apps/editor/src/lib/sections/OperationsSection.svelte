@@ -18,23 +18,32 @@
   unfolds when `opening.open` asks to show an operation.
 
   **No `disabled` toggle** (§4.1): there is no field for one, and adding one is
-  a `schemaVersion` bump. Reordering is arrows, not a drag (`DECISIONS.md`
+  a `schemaVersion` bump. What there is instead is **hiding** (batch 02 T-02,
+  B-012, D-02 A): the card's eye puts the id in `preview.hidden`, view state
+  that the preview and Export image draw through and the file never sees. Reordering is arrows, not a drag (`DECISIONS.md`
   D44): one gesture is one transition and one undo entry (D32).
 -->
 <script lang="ts">
   import { tick } from "svelte";
   import type { Operation } from "@vit-foundation/gen-tilesets";
-  import { moveOperation, removeOperation, rerollOperation } from "../../document.js";
+  import { moveOperation, removeOperation, replaceOperation, rerollOperation } from "../../document.js";
+  import { reseedOnLoadChip, withReseedOnLoad } from "../../reseed.js";
   import { type Step } from "../../draft.svelte.js";
   import { drafting } from "../../drafting.svelte.js";
   import { nextOperationId } from "../../ids.js";
   import { opening } from "../../opening.svelte.js";
+  import { preview } from "../preview/view.svelte.js";
+  import { toggled } from "../preview/visibility.js";
   import { session } from "../../session.svelte.js";
   import Section from "../Section.svelte";
   import OperationBody from "../operations/OperationBody.svelte";
   import OperationCard from "../operations/OperationCard.svelte";
   import { draftParts, partsOf } from "../operations/labels.js";
   import AddBar from "../ui/AddBar.svelte";
+  import Explainer from "../ui/Explainer.svelte";
+  import IconButton from "../ui/IconButton.svelte";
+  import { OPERATIONS_EXPLAINER } from "./operations-explainer.js";
+  import { mosaicOperations, type TargetKey } from "../../tour.js";
   import Dialog from "../ui/Dialog.svelte";
 
   const operations = $derived(session.file.config.operations);
@@ -59,6 +68,17 @@
   });
 
   const guard = opening.guard;
+
+  /**
+   * Mosaic's three operations, which the tour's build steps open and cut out
+   * as `op-1` to `op-3` (`tour.ts`), or `null` in any other file.
+   */
+  const mosaic = $derived(mosaicOperations(operations));
+
+  function tourKey(id: string): TargetKey | undefined {
+    const at = mosaic?.indexOf(id) ?? -1;
+    return at < 0 ? undefined : (`op-${at + 1}` as TargetKey);
+  }
 
   /** After `opening.open`, bring the opened card into view once the section has unfolded. */
   $effect(() => {
@@ -94,15 +114,50 @@
       if (after) draft.salt = after.salt ?? 0;
     }
   }
+
+  /**
+   * The closed card's Reseed on load control (batch 01, T-11, B-021; a
+   * checkbox since batch 03 T-07, B-029): a file edit made at once, through
+   * the existing `replaceOperation`, so it is one undo entry. An open draft of
+   * the same Operation takes the value too, as `reseed` copies the salt, so its
+   * Save does not undo the toggle. (This control shows only on a closed card;
+   * the open card's checkbox writes the draft. So today that draft is never
+   * open; the copy keeps the rule true if that changes.)
+   */
+  function setReseedOnLoad(op: Operation, on: boolean): void {
+    session.apply(replaceOperation(withReseedOnLoad(op, on)));
+    if (draft !== null && editingId === op.id) draft.reseedOnLoad = on;
+  }
+
+  /**
+   * "How operations work" (batch 01, T-07, B-018), wired as `OperationBody`
+   * wires "How noise works": the trigger while its popover is open, else
+   * `undefined`. It explains the stack as a whole, so it hangs from the
+   * section's header rather than from any one card.
+   */
+  let explaining = $state<HTMLButtonElement | undefined>(undefined);
+  let explainTrigger = $state<HTMLButtonElement | undefined>(undefined);
 </script>
+
+{#snippet info()}
+  <IconButton
+    icon="info"
+    label="How operations work"
+    expanded={explaining !== undefined}
+    bind:element={explainTrigger}
+    onclick={() => (explaining = explaining === undefined ? explainTrigger : undefined)}
+  />
+{/snippet}
 
 <Section
   title="Operations"
+  actions={info}
   summary={operations.length === 0
     ? "None"
     : `${operations.length} ${operations.length === 1 ? "operation" : "operations"}`}
   addLabel="Add operation"
   onAdd={create}
+  tourAdd="ops-add"
   reveal={opening.revealed}
 >
   <div class="stack">
@@ -117,11 +172,16 @@
         onClose={() => guard(() => drafting.discard())}
         onDelete={() => session.apply(removeOperation(op.id))}
         onReseed={() => reseed(op)}
+        hidden={preview.hidden.has(op.id)}
+        onToggleHidden={() => (preview.hidden = toggled(preview.hidden, op.id))}
+        reseedOnLoad={reseedOnLoadChip(op) ?? undefined}
+        onReseedOnLoad={(on) => setReseedOnLoad(op, on)}
         onMoveUp={() => session.apply(moveOperation(op.id, index - 1))}
         onMoveDown={() => session.apply(moveOperation(op.id, index + 1))}
         canMoveUp={index > 0}
         canMoveDown={index < operations.length - 1}
         panelId={open ? bodyId : undefined}
+        tour={tourKey(op.id)}
       >
         {#if open && draft}
           <OperationBody {draft} editing id={bodyId} onClose={() => drafting.discard()} />
@@ -151,6 +211,18 @@
     <AddBar label="Add operation" onclick={create} />
   </div>
 </Section>
+
+{#if explaining !== undefined}
+  <Explainer
+    anchor={explaining}
+    content={OPERATIONS_EXPLAINER}
+    onClose={(refocus) => {
+      const trigger = explaining;
+      explaining = undefined;
+      if (refocus) trigger?.focus();
+    }}
+  />
+{/if}
 
 <Dialog
   title="Discard your changes?"

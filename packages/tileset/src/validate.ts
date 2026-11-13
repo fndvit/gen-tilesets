@@ -92,8 +92,8 @@ export type ErrorCode =
   | "INVALID_TARGET_BLEND"
   | "COORDINATE_BOUND_RESIZE";
 
-/** The one version this build knows — `06` §4.1, **C2**. 4 since 0.8.0 (`translateX`/`translateY`); 3 was 0.7.0 (`responsive`); 2 was ADR-005. */
-export const SCHEMA_VERSION = 4;
+/** The one version this build knows — `06` §4.1, **C2**. 6 since B-033 (`Operation.selection` a list of layers); 5 was B-009 (`everyNth` renamed `rowColumn`); 4 was 0.8.0 (`translateX`/`translateY`); 3 was 0.7.0 (`responsive`); 2 was ADR-005. */
+export const SCHEMA_VERSION = 6;
 
 /** `06` §5.3, **C10**. Excludes `:`, which `04` §4.3 concatenates with. */
 const IDENTIFIER = /^[A-Za-z0-9_-]+$/;
@@ -368,6 +368,22 @@ function tagged(
   taggedParams(e, path, object, registry.get(name).params);
 }
 
+/**
+ * An Operation's `selection`: a list of layers, each a Selection (B-033,
+ * schema v6). Each layer is checked by the same walk as any tagged object, at
+ * its own path — `/selection/1/density`, not `/selection`.
+ *
+ * **At least one.** An empty list is an Operation that silently affects nothing:
+ * a plausible-looking file with a dead Operation in it and no error anywhere.
+ * `OUT_OF_RANGE`, as for any count outside its admissible set.
+ */
+function selectionLayers(e: Errors, path: string, value: unknown): void {
+  if (!e.typed(path, value, "an array of Selection layers", Array.isArray(value))) return;
+  const layers = value as unknown[];
+  if (layers.length === 0) e.add(path, "OUT_OF_RANGE", "must hold at least one Selection layer");
+  layers.forEach((layer, i) => tagged(e, at(path, i), layer, "selection"));
+}
+
 // ---------------------------------------------------------------------------
 // Mapping — §7.3, C8
 // ---------------------------------------------------------------------------
@@ -614,7 +630,7 @@ function operation(
     e.typed(at(path, "reseedOnLoad"), object.reseedOnLoad, "a boolean", typeof object.reseedOnLoad === "boolean");
   }
 
-  if (required(e, path, object, "selection")) tagged(e, at(path, "selection"), object.selection, "selection");
+  if (required(e, path, object, "selection")) selectionLayers(e, at(path, "selection"), object.selection);
   if (required(e, path, object, "source")) tagged(e, at(path, "source"), object.source, "source");
 
   let target: TargetName | null = null;
@@ -855,9 +871,10 @@ function responsive(e: Errors, path: string, value: unknown, file: Record<string
 function pinningOperations(file: Record<string, unknown>): Operation[] {
   const config = file.config;
   if (!isObject(config) || !Array.isArray(config.operations)) return [];
+  // `isCoordinateBound` is total over malformed layers, so only the list itself
+  // and the id need shaping here.
   const wellShaped = (config.operations as unknown[]).filter(
-    (op): op is Operation =>
-      isObject(op) && isObject(op.selection) && typeof op.selection.type === "string" && typeof op.id === "string",
+    (op): op is Operation => isObject(op) && Array.isArray(op.selection) && typeof op.id === "string",
   );
   return coordinateBoundOperations(wellShaped);
 }

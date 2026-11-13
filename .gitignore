@@ -39,7 +39,5 @@ pnpm-debug.log*
 .shots/
 
 # Internal notes, kept locally only
-/ARCHITECTURE.md
-/CLAUDE.md
 /RESPONSIVE-HOSTING.md
 /SUBPIXEL-GEOMETRY.md

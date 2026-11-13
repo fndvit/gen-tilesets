@@ -17,6 +17,15 @@
   focus starts (`initialFocus`): its first field, not the ✕ that comes first in
   the DOM, which is where `showModal()` would put it (`DESIGN_SYSTEM.md` *Form
   popup*).
+
+  `divided` draws a hairline over the actions, for a Form popup whose body
+  scrolls under a footer that holds more than buttons (the Tile gallery's
+  count and Upload…).
+
+  `wide` gives the panel 592px in place of 480px, for a popup whose warning
+  must fit on one line (New tileset, Import's question; the Tile gallery
+  matches them). `LossWarning.svelte` measures 522px in 13px Helvetica Neue, so the panel needs
+  576px with the icon and padding; the rest is slack for a wider fallback font.
 -->
 <script lang="ts">
   import type { Snippet } from "svelte";
@@ -39,6 +48,10 @@
     closable?: boolean;
     /** The element to focus once open, in place of the first focusable one. */
     initialFocus?: () => HTMLElement | null | undefined;
+    /** A hairline over the actions, for a body that scrolls under them (the Tile gallery). */
+    divided?: boolean;
+    /** 592px in place of 480px (New tileset, Import's question, the Tile gallery). */
+    wide?: boolean;
   }
 
   let {
@@ -50,6 +63,8 @@
     alert = false,
     closable = false,
     initialFocus,
+    divided = false,
+    wide = false,
   }: Props = $props();
 
   let dialog = $state<HTMLDialogElement | null>(null);
@@ -74,6 +89,7 @@
 <dialog
   bind:this={dialog}
   class="popup theme-default"
+  class:wide
   role={alert ? "alertdialog" : undefined}
   aria-labelledby={titleId}
   onclose={closed}
@@ -87,7 +103,7 @@
   <div class="body">
     {@render children()}
   </div>
-  <div class="actions">
+  <div class="actions" class:divided>
     {#if actions}
       {@render actions(() => dialog?.close())}
     {:else}
@@ -108,6 +124,10 @@
     background: var(--color-panel);
     box-shadow: var(--shadow-float);
     color: var(--color-ink);
+  }
+
+  .popup.wide {
+    width: min(592px, calc(100vw - 2 * var(--space-6)));
   }
 
   .popup[open] {
@@ -147,5 +167,11 @@
     justify-content: flex-end;
     gap: var(--space-4);
     padding: var(--space-4) var(--space-7) var(--space-7);
+  }
+
+  .actions.divided {
+    margin-top: var(--space-4);
+    padding-top: var(--space-6);
+    border-top: var(--rule-w) solid var(--color-track);
   }
 </style>

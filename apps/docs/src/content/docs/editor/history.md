@@ -16,7 +16,8 @@ is nothing to reverse and nothing else to reset, because the picture is drawn en
 file.
 
 Every action is undoable, including the destructive ones such as changing the design width. The
-one exception is starting a new document, which asks first and then starts a fresh history. That
+exceptions are starting a new document and opening one whole (Import, a template), which ask
+first and then start a fresh history. That
 matters, because undo is the only repair the editor offers when a
 change strands work the author placed by hand. An edit that the editor refused, which left the
 file exactly as it was, adds nothing to the history, so undo never appears to do nothing.
@@ -45,7 +46,6 @@ including the design-width change.*
 | `History<T>` | `{ past: T[]; current: T; gesture?: string }` | `past` is oldest first; its last element is what one undo returns to. `gesture` names the live drag `current` belongs to. |
 | `historyOf(current)` | `(T) → History<T>` | `{ past: [], current }` |
 | `applied(history, f, limit?)` | `(History<T>, (T) → T, number) → History<T>` | Apply `f`; push the replaced value unless `f` returned its input. |
-| `replaced(history, value, limit?)` | `(History<T>, T, number) → History<T>` | Replace outright, still pushing. |
 | `undone(history)` | `(History<T>) → History<T>` | Pop one. A no-op at the bottom. |
 | `appliedLive(history, key, f, limit?)` | `(History<T>, string, (T) → T, number) → History<T>` | One frame of live gesture `key`: the first frame is `applied` (one push); later frames replace `current` without pushing. A refused first frame starts no gesture. |
 | `settled(history)` | `(History<T>) → History<T>` | End the gesture, so the next drag is a new entry. Every other operation also returns a history without one. |
@@ -54,7 +54,6 @@ including the design-width change.*
 
 - **`applied`.** `next = f(current)`. If `next === current` it returns `history` itself, by
   identity. Otherwise it returns `{ past: [...past, current].slice(-limit), current: next }`.
-- **`replaced`.** It always pushes, with the same slice.
 - **`undone`.** If `past` is empty it returns `history` unchanged. Otherwise it returns
   `{ past: past.slice(0, -1), current: past.at(-1) }`.
 - Every result is a fresh object. Nothing is mutated.
@@ -70,20 +69,19 @@ including the design-width change.*
 - **Bounded.** `UNDO_LIMIT` is a *UI constant with no authority anywhere*. It exists because a
   slider dragged across frames changes the file every frame, so an unbounded stack would hold
   every intermediate value of every drag.
-- **`replaced` exists for actions that are not transitions of the current file.** The comment
-  names an import (`session.open`). *New document* used to be one too; it now starts a fresh
-  history with `historyOf` instead, a confirmed exception to **E6** that `session.svelte.ts`
-  `reset` explains (see [session](/editor/session/)).
+- **Actions that are not transitions of the current file start a fresh history.** `session`'s
+  `reset` and `open` call `historyOf`, confirmed exceptions to **E6** that `session.svelte.ts`
+  explains (see [session](/editor/session/)). `replaced`, which pushed instead, was deleted with
+  its test (2026-11-09): undo after an import restored a document without its pictures.
 
 ### Callers / callees
 
 | Caller | Uses |
 | --- | --- |
-| `session.svelte.ts:42` | imports `applied`, `historyOf`, `replaced`, `undone`, `History` |
-| `session.svelte.ts:52`, `:112` | `historyOf(newDocument())`, initially and in `reset` |
-| `session.svelte.ts:84` | `applied(history, transition)` in `apply` |
-| `session.svelte.ts:97` | `undone(history)` in `undo` |
-| `session.svelte.ts:136` | `replaced(history, file)` in `open` |
+| `session.svelte.ts` | imports `applied`, `appliedLive`, `historyOf`, `settled`, `undone`, `History` |
+| `session.svelte.ts` | `historyOf(newDocument())`, initially and in `reset`; `historyOf(file)` in `open` |
+| `session.svelte.ts` | `applied(history, transition)` in `apply` |
+| `session.svelte.ts` | `undone(history)` in `undo` |
 
 Callees: none.
 
@@ -92,8 +90,7 @@ Callees: none.
 - **Whole values.** It starts with nothing to undo. It restores the previous value in full (two
   edits, one undo restores `yOffset` and keeps `rows`, a second undo is `toEqual` the start). It
   undoes a design-width change (`columns` 20 → 10). It restores a coordinate-bound `cellList`
-  Selection with the file. `replaced` is undoable (the test is still titled after *New document*;
-  see the review notes).
+  Selection with the file.
 - **Refusals.** `setRows("0")`, `setRows("abc")` and `setYOffset("1.4")` leave the history `toBe`
   identical. `setRows("5")` on a file already at 5 rows **does** push an entry.
 - **Bounded.** It keeps the most recent entries and drops the oldest. `UNDO_LIMIT` is 100.
@@ -121,4 +118,5 @@ Callees: none.
   New document starts a fresh history instead.
 - `history.test.ts:70` was titled *"New document is undoable — no editor action is outside the
   stack"* after `session.reset` stopped calling `replaced`. (stale test name) **Fixed:** it is now
-  titled for import's path, which still uses `replaced`.
+  titled for import's path. Both `replaced` and that test were deleted on 2026-11-09, when import
+  stopped being undoable.

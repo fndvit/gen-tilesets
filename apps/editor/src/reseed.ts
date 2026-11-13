@@ -54,6 +54,27 @@ export function isStochastic(sourceType: string): boolean {
 }
 
 /**
+ * The closed card's "Reseed on load" chip (batch 01, T-11, B-021): `null`
+ * where the chip is absent, else whether the flag is on.
+ *
+ * Absent exactly where the toggle is absent inside the card (`OperationBody`
+ * shows it only over a stochastic Source), by the same registry declaration,
+ * so the two can never disagree about which operations it applies to.
+ */
+export function reseedOnLoadChip(op: Operation): boolean | null {
+  return isStochastic(op.source.type) ? op.reseedOnLoad === true : null;
+}
+
+/**
+ * The operation with its flag set as the chip asks. Written as an explicit
+ * `true` or `false`, as Save writes it (`draft.svelte.ts` `toOperation`), so a
+ * file toggled from the card is identical to one saved from the open card.
+ */
+export function withReseedOnLoad(op: Operation, on: boolean): Operation {
+  return { ...op, reseedOnLoad: on };
+}
+
+/**
  * **The correction the editor must not make** — §8.4.
  *
  * A flagged Operation with a non-stochastic Source is *not* fully inert: the flag
@@ -97,3 +118,17 @@ export function loadVaries(config: TilesetConfig): boolean {
 export function drawLoadSalt(): number {
   return Math.floor(Math.random() * SALT_MODULUS);
 }
+
+/**
+ * The Reseed on load checkbox's hint, on the closed card and in the open
+ * card's Pattern step (B-024): one setting, one explanation.
+ *
+ * Ticking it moves a flagged operation onto the load salt (`mixLoad`), so the
+ * picture changes at once and reads as "my tileset was re-randomised". It was
+ * not: unticking returns the same picture exactly. So the hint says that,
+ * rather than the engine changing (Pol, 2026-11-11). Rejected: making salt 0
+ * the identity in `mixLoad` (changes every flagged file's output and reverses
+ * `02` §6.7), a line always shown under the box, and a pushed notice.
+ */
+export const RESEED_ON_LOAD_HINT =
+  "When ticked, this operation gets a new random draw every time the page loads, so visitors see a different version on each visit. The preview then shows one of those versions; untick to get your original picture back.";

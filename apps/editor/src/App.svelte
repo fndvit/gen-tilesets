@@ -31,36 +31,59 @@
   import { selections } from "@vit-foundation/gen-tilesets";
   import Tileset from "@vit-foundation/gen-tilesets/Tileset.svelte";
   import { naturalRatio, type AssetRef } from "@vit-foundation/gen-tilesets/render";
-  import { activeRules, reshape, ruleOverride, type TilesetFile } from "@vit-foundation/gen-tilesets";
+  import { activeRules, reshape, ruleOverride, type Operation, type TilesetFile } from "@vit-foundation/gen-tilesets";
   import { documentNotices } from "./advisories.js";
   import { entry } from "./entry.svelte.js";
   import type { Notice } from "./notices.js";
   import { editorProvider, replaceAll, stored } from "./assets.js";
-  import type { Transition } from "./document.js";
+  import { trimToGrid, type Transition } from "./document.js";
   import { paintedTiles } from "./controls/palette.js";
-  import { draftFile, shadowConfig } from "./draft.svelte.js";
+  import { activeLayer, draftFile, shadowConfig } from "./draft.svelte.js";
+  import { selectionTypes } from "./layers.js";
   import { drafting } from "./drafting.svelte.js";
   import { opening } from "./opening.svelte.js";
-  import { atRisk, needsConfirmation, orphans } from "./orphans.js";
+  import { atRisk, cameWithFile, needsConfirmation, orphans } from "./orphans.js";
   import PaintLayer from "./lib/PaintLayer.svelte";
+  import RectLayer from "./lib/RectLayer.svelte";
   import PreviewFrame from "./lib/preview/PreviewFrame.svelte";
   import NoticeStack from "./lib/preview/NoticeStack.svelte";
   import PreviewGrid from "./lib/preview/PreviewGrid.svelte";
   import PreviewTopBar from "./lib/preview/PreviewTopBar.svelte";
   import { preview } from "./lib/preview/view.svelte.js";
+  import { pruned, withoutHidden } from "./lib/preview/visibility.js";
   import BreakpointsSection from "./lib/sections/BreakpointsSection.svelte";
-  import DerivedSection from "./lib/sections/DerivedSection.svelte";
   import GridSection from "./lib/sections/GridSection.svelte";
   import SidebarFooter from "./lib/sections/SidebarFooter.svelte";
   import SidebarTopBar from "./lib/sections/SidebarTopBar.svelte";
+  import NewTileset from "./lib/sections/NewTileset.svelte";
   import OperationsSection from "./lib/sections/OperationsSection.svelte";
   import TilesSection from "./lib/sections/TilesSection.svelte";
   import Dialog from "./lib/ui/Dialog.svelte";
   import ScrollArea from "./lib/ui/ScrollArea.svelte";
   import SelectionOverlay from "./lib/SelectionOverlay.svelte";
-  import type { Cell } from "./paint.js";
+  import Tour from "./lib/Tour.svelte";
+  import { rectParams, type Cell, type Rect } from "./paint.js";
+  import { keeping } from "./keeping.svelte.js";
   import { notices } from "./notices.svelte.js";
   import { session } from "./session.svelte.js";
+  import { stagedFile, type TourRun } from "./tour.js";
+  import { tourPreview } from "./tour-preview.svelte.js";
+
+  /**
+   * The tour to start at mount, from `main.ts`: `null` when this is not a first
+   * visit.
+   */
+  let { tourRun = null }: { tourRun?: TourRun | null } = $props();
+
+  /** The tour showing now, if any. Seeded once from the mount prop; "?" sets it to a replay (O3c). */
+  // svelte-ignore state_referenced_locally
+  let touring = $state<TourRun | null>(tourRun);
+  /**
+   * "?", which started the replay, for focus to return to. A first visit whose
+   * Mosaic failed also runs as "replay", with no trigger: focus then goes to
+   * the first section header, as after any first-visit tour.
+   */
+  let tourTrigger = $state<HTMLElement | undefined>(undefined);
 
   const file = $derived(session.file);
   const config = $derived(file.config);
@@ -87,8 +110,38 @@
     drafting.draft === null ? null : draftFile(file, $state.snapshot(drafting.draft)),
   );
 
-  /** What `<Tileset>` draws: the draft's file while there is one, else the saved file. */
-  const shown = $derived(drawn ?? file);
+  /**
+   * What `<Tileset>` draws: the draft's file while there is one, else the saved
+   * file — **less the hidden operations** (batch 02 T-02, D-02 A), except the one
+   * open for editing, which is drawn because you cannot edit what you cannot see.
+   *
+   * Only the picture reads this. Advisories, `shapedAt`, the `.json` export and
+   * undo read `file`, which still holds every operation; a reader of `shown`
+   * would silently lose the hidden ones. (`failures` reads `shown` on purpose: a
+   * failed tile no drawn operation paints is not on screen.)
+   */
+  const shown = $derived(
+    withoutHidden(staged(drawn ?? file), preview.hidden, drafting.editing ? (drafting.draft?.id ?? null) : null),
+  );
+
+  /**
+   * While the tour builds Mosaic, only its first operations (`tour-preview.svelte.ts`).
+   * Applied to `drawn` as well as `file`, because the tour opens operation 1's
+   * card, and the draft's file must not bring the later operations back.
+   */
+  function staged(f: TilesetFile): TilesetFile {
+    return tourPreview.kept === null ? f : stagedFile(f, tourPreview.kept);
+  }
+
+  /**
+   * Forget hidden ids the file no longer has. An id is given again once the
+   * newest operation is deleted (`nextOperationId`), and the next operation
+   * must start visible. `pruned` returns the same set when nothing went, so the
+   * write-back does not retrigger this.
+   */
+  $effect(() => {
+    preview.hidden = pruned(preview.hidden, file.config.operations);
+  });
 
   /**
    * The file **as `<Tileset>` draws it at a preview width** — its rules' cascade
@@ -179,8 +232,10 @@
 
   /**
    * Starts a new tileset, **confirmed and not undoable** (`session.reset`). It
-   * discards everything, so it asks first (a `Dialog`, Stage 2 W4), and it then
-   * reclaims every picture the session held.
+   * discards everything, so it asks first, and it then reclaims every picture
+   * the session held. The asking is the New tileset popup's (B-016), which
+   * replaced the "Start a new tileset?" Dialog: its Empty choice calls this, and
+   * its templates open through Import's sequence instead.
    *
    * Reset first, then empty the store: the outgoing document is then already
    * gone from the preview, so no `<img>` draws an object URL `replaceAll` has
@@ -281,7 +336,39 @@
    * goes away by itself when the document no longer has it; a dismissal is
    * forgotten then too, so the notice returns if the condition does.
    */
-  const current = $derived(documentNotices(file, orphaned, liveFailures, openOperation));
+  /**
+   * The orphan notice's "Remove N cells outside the grid" (batch 01, T-05,
+   * D-03 A): one undoable step through the write path like any edit.
+   */
+  function trimOperation(id: string): void {
+    session.apply(trimToGrid(id));
+  }
+
+  /**
+   * Which orphaned Operations were already like this in the file as opened,
+   * so the notice does not offer an Undo that would leave the document
+   * (`orphans.ts` `cameWithFile`).
+   */
+  const cameWith = $derived(
+    new Set(
+      orphaned
+        .map((o) => config.operations.find((op) => op.id === o.operationId))
+        .filter((op): op is Operation => op !== undefined && cameWithFile(op, config, session.opened))
+        .map((op) => op.id),
+    ),
+  );
+
+  const current = $derived([
+    ...documentNotices(file, orphaned, liveFailures, {
+      onOpen: openOperation,
+      onRemove: trimOperation,
+      cameWithFile: cameWith,
+    }),
+    // "Changes won't be kept across reloads" (B-016 S4a). A condition rather
+    // than a pushed notice, so New and Import, which clear pushed notices, do
+    // not hide a problem that is still there.
+    ...(keeping.notice === null ? [] : [keeping.notice]),
+  ]);
 
   /**
    * The conditions as of the last committed value. A numeric field commits on
@@ -296,20 +383,47 @@
   });
   $effect(() => notices.forget(conditions));
 
+  /** Every document is kept across reloads, written as it changes (`keeping.svelte.ts`). */
+  $effect(() => keeping.schedule(session.file));
+
   /**
    * The draft's `cellList` parameter, if the Selection it is building has one.
    *
    * `05` §5.1's list type is the one parameter `09` cannot generate a control
    * for mechanically (§7.3, the single exception to **E9**), so this is the only
    * place the editor looks a parameter type up by name.
+   *
+   * Of the **active layer** (B-033): the brush and the drag edit the layer the
+   * Selection step has open, and only it.
    */
+  const layer = $derived(drafting.draft === null ? null : activeLayer(drafting.draft));
   const painting = $derived.by(() => {
-    const draft = drafting.draft;
-    if (draft === null || draft.selectionType === null) return null;
-    const schema = selections.get(draft.selectionType).params;
+    if (layer === null || layer.type === null) return null;
+    const schema = selections.get(layer.type).params;
     const name = Object.keys(schema).find((key) => schema[key]!.type === "cellList");
     if (name === undefined) return null;
-    return { name, cells: (draft.selectionParams[name] ?? []) as Cell[] };
+    return { name, cells: (layer.params[name] ?? []) as Cell[] };
+  });
+
+  /**
+   * The draft's rectangle, if the Selection it is building is one (batch 02 T-01).
+   *
+   * Recognised by its **parameter shape** — `rectParams`: exactly the integers
+   * `x`, `y`, `width`, `height` — not by the type's name, because the editor
+   * names no Selection type (**E9**); a registry flag was rejected because it
+   * changes the Registry contract. `rect` is `null` while a field holds no
+   * number (mid-typing), and the layer still mounts: a drag writes all four.
+   *
+   * **Never mounted with the brush.** No registered Selection has both shapes
+   * (`paint.test.ts` checks the registry), and if one ever did, the `cellList`
+   * brush wins: `rectangle` is `null` whenever `painting` is not.
+   */
+  const rectangle = $derived.by(() => {
+    if (layer === null || layer.type === null || painting !== null) return null;
+    if (!rectParams(selections.get(layer.type).params)) return null;
+    const p = layer.params;
+    const ok = ["x", "y", "width", "height"].every((k) => typeof p[k] === "number");
+    return { rect: ok ? ({ x: p.x, y: p.y, width: p.width, height: p.height } as Rect) : null };
   });
 
   /**
@@ -354,8 +468,12 @@
    * reaches it as one transition when it is complete (`DECISIONS.md` D7).
    */
   function paintCells(name: string, cells: Cell[]): void {
-    const draft = drafting.draft;
-    if (draft !== null) draft.selectionParams[name] = cells;
+    if (layer !== null) layer.params[name] = cells;
+  }
+
+  /** The rectangle drag's write, the same way: into the draft, never the file. */
+  function drawRect(rect: Rect): void {
+    if (layer !== null) Object.assign(layer.params, rect);
   }
 </script>
 
@@ -371,19 +489,32 @@
       point of **S2**'s single live preview. `.fixed` (the footer) never
       scrolls.
     -->
-    <SidebarTopBar onNew={() => (askingNew = true)} draft={drawn !== null} />
+    <SidebarTopBar
+      onNew={() => (askingNew = true)}
+      draft={drawn !== null}
+      onTour={(trigger) => {
+        tourTrigger = trigger;
+        touring = "replay";
+      }}
+    />
 
     <div class="sidebar-body">
     <div class="scrollable">
       <ScrollArea>
         <div class="sections">
+          <!--
+            The order a tileset is built in (batch 01, T-03, D-01 A): its size,
+            what it draws, how the tiles are placed, then the rarely used
+            breakpoints last. The Derived numbers are Grid & size's folded
+            Details now (D-02 A). DOM order is Tab order, so this is both.
+          -->
           <GridSection {risked} {destructive} />
-          <BreakpointsSection {risked} />
-          <DerivedSection />
 
           <TilesSection />
 
           <OperationsSection />
+
+          <BreakpointsSection {risked} />
         </div>
       </ScrollArea>
     </div>
@@ -466,6 +597,18 @@
                 param={brush.name}
                 onChange={(cells) => paintCells(brush.name, cells)}
               />
+            {:else if rectangle !== null && renderBox !== null}
+              <!--
+                Batch 02 T-01 — dragging a rectangle Selection. `{:else}` of the
+                brush on purpose: the two layers never both mount (see
+                `rectangle`).
+              -->
+              <RectLayer
+                g={{ layout: here.layout, rows: here.config.rows, columns: here.config.columns, Wpx }}
+                box={renderBox}
+                rect={rectangle.rect}
+                onChange={drawRect}
+              />
             {/if}
           {/snippet}
         </PreviewFrame>
@@ -485,6 +628,11 @@
   </section>
 
 </main>
+
+<!-- B-017. After everything else, though as a modal dialog it is in the top layer wherever it sits. -->
+{#if touring !== null}
+  <Tour run={touring} onEnd={() => (touring = null)} returnFocus={touring === "replay" ? tourTrigger : undefined} />
+{/if}
 
 <!--
   **E12** — explicit confirmation, naming the Operations that will be affected
@@ -509,15 +657,13 @@
     {#each risked as op (op.id)}
       <li>
         <span class="index t-console" aria-hidden="true">{config.operations.indexOf(op) + 1}</span>
-        <span class="t-console">{op.id} · {op.selection.type}</span>
+        <span class="t-console">{op.id} · {selectionTypes(op.selection)}</span>
       </li>
     {/each}
   </ul>
 </Dialog>
 
-<Dialog title="Start a new tileset?" confirmLabel="Start new" bind:open={askingNew} onConfirm={newTileset}>
-  <p class="t-body">Everything in this one is lost, and this can't be undone. Export it first to keep it.</p>
-</Dialog>
+<NewTileset bind:open={askingNew} onEmpty={newTileset} />
 
 <style>
   /*

@@ -38,15 +38,18 @@ seed string. Two spots with the same size and the same seed show the same pictur
 
 ## A style must be reusable at any size
 
-- **No `rect` and no `cellList` Selection.** Both hold literal cell coordinates, which mean nothing
+- **No `rect` and no `cellList` Selection,** in any layer of an Operation's `selection`. Both hold literal cell coordinates, which mean nothing
   in a 3×2 spot. `reshapeErrors(style, { rows, columns })` returns one message per offending
   Operation, and `<TileDecoration>` throws on any of them **in a development build**. Use `all`,
-  `checkerboard`, `everyNth` and `random` instead.
+  `checkerboard`, `everyNth`, `rowColumn` and `random` instead. `everyNth` counts cells row after
+  row, so its picture depends on each spot's width: the same style can give diagonals in one spot
+  and stripes in another.
 - **Put a `{ tileId: null }` entry in a palette.** It clears the cell, and that gives each spot its
   own silhouette, generated from the seed instead of painted by hand. A style without one draws a
   solid block, which is also a legitimate decoration.
-- **`gradient` renormalises per decoration.** It takes its range from the Selection's extent, which
-  under `selection: { type: "all" }` is the whole grid. A ramp authored across 40 columns becomes a
+- **`gradient` renormalises per decoration.** It takes its range from the Selection's extent: the
+  bounding box of the Operation's selection layers, or the whole grid if any layer has none, as
+  under `selection: [{ type: "all" }]`. A ramp authored across 40 columns becomes a
   3-step ramp in a 3-column spot. That is sometimes what you want, but know it happens. `valueNoise`
   does *not* renormalise: its feature size in cells stays the same, so a decoration keeps the grain
   of the tileset it was designed next to.

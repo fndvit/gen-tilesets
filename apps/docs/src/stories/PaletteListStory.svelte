@@ -24,7 +24,7 @@
   const field = $derived.by(() => {
     const op: Operation = {
       id: "story",
-      selection: { type: "all" },
+      selection: [{ type: "all" }],
       source: { type: sourceType, ...defaultParams(sources.get(sourceType).params) },
       target: "tileId",
       mapping: { palette: [{ tileId: null, weight: 1 }] },

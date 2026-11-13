@@ -31,7 +31,8 @@
  * **C5**, and §12.4's rule that a non-empty `ValidationError[]` opens nothing.
  */
 
-import type { TileAsset, TilesetFile } from "@vit-foundation/gen-tilesets";
+import { migrate, validate, type Migration, type TileAsset, type TilesetFile, type ValidationError } from "@vit-foundation/gen-tilesets";
+import type { Incoming } from "./assets.js";
 import { FILE_NAME } from "./export.js";
 
 /** What an archive reader hands over: every file it found, keyed by path. */
@@ -167,4 +168,62 @@ export function mimeOf(path: string): string {
     default:
       return "";
   }
+}
+
+/**
+ * What an archive amounts to, decided before anything is opened.
+ *
+ * `ready` carries everything the swap needs and nothing has been touched yet:
+ * `adopt()` (`adopt.ts`) does the side-effecting half.
+ */
+export type Prepared =
+  | { kind: "newer"; declared: number }
+  | { kind: "invalid"; errors: ValidationError[] }
+  | { kind: "ready"; file: TilesetFile; incoming: Incoming[]; upgrades: Migration[] };
+
+/**
+ * §12.4's sequence up to the swap: read → parse → **migrate** → **validate** →
+ * wrap the bytes as `File`s.
+ *
+ * Pure, and shared by Import and the New tileset popup's templates (B-016), so
+ * a template opens through exactly the steps an exported zip does and cannot
+ * drift from them. It used to be the first half of `ImportPanel`'s `open()`.
+ *
+ * **Migration precedes validation** and is a separate function — `06` §9.2
+ * forbids validation from coercing anything, and rewriting a `schemaVersion`
+ * is a coercion. `validate()` therefore still knows exactly one version, and
+ * sees a file that already claims it.
+ *
+ * Throws only where `readArchive` does: no document, or not JSON.
+ */
+export function prepareArchive(archive: Archive): Prepared {
+  // A `meta.src` the archive did not carry (`missing`) is left to §12.3: the
+  // asset has no file, so it fails to draw and the preview's notice says so.
+  const { file: read, assets } = readArchive(archive);
+
+  const outcome = migrate(read);
+  // §12.4's case, and the only one where *update the editor, not the file* is
+  // the right advice. An **older** file is migrated below, not refused.
+  if (outcome.kind === "newer") return { kind: "newer", declared: outcome.declared };
+  // Absent, non-integer, or a past version with no path. Left to `validate()`,
+  // which reports it at `/schemaVersion` like any other error rather than
+  // getting a screen of its own for a problem it does not have.
+  const file = outcome.kind === "migrated" ? outcome.file : read;
+
+  const errors = validate(file);
+  if (errors.length > 0) return { kind: "invalid", errors };
+
+  const incoming: Incoming[] = assets.map((asset) => ({
+    tileId: asset.tileId,
+    assetId: asset.assetId,
+    file: new File([asset.bytes as BlobPart], nameOf(asset.path), { type: mimeOf(asset.path) }),
+  }));
+
+  return {
+    kind: "ready",
+    // Validated above, so this is a `TilesetFile` by the only test there is.
+    file: file as TilesetFile,
+    incoming,
+    upgrades: outcome.kind === "migrated" ? outcome.steps : [],
+  };
 }

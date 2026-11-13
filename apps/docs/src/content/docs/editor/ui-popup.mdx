@@ -42,6 +42,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 | `alert` | `boolean` | `false` | Sets `role="alertdialog"`, for a question that interrupts. `Dialog` passes it. |
 | `closable` | `boolean` | `false` | A ✕ (`IconButton`, "Close") at the bar's right, for a Form popup. |
 | `initialFocus` | `() => HTMLElement \| null \| undefined` | none | Called right after `showModal()`; focuses what it returns. A Form popup starts on its first field, not on the ✕ that comes first in the DOM. |
+| `wide` | `boolean` | `false` | 592px in place of 480px, for a warning that must fit on one line: New tileset, Import's question (through `Dialog`), and the Tile gallery to match. |
+| `divided` | `boolean` | `false` | A `--color-track` hairline over the actions, for a body that scrolls under a footer holding more than buttons (the [Tile gallery](/editor/tile-gallery/)'s Upload… and count). |
 
 ### Inputs → outputs
 
@@ -60,11 +62,12 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 
 ### Callers / callees
 
-Callers: `lib/ImportPanel.svelte` (refusals only), `lib/sections/SidebarTopBar.svelte` (export
+Callers: `lib/ImportRefused.svelte` (refusals only, for Import and templates), `lib/sections/SidebarTopBar.svelte` (export
 failure only), `lib/sections/TilesSection.svelte` (refusals only; files that do not attach are a
 failure notice since Stage 2 W5), `controls/PaletteList.svelte` (refusals: the last entry, the
-last non-zero weight), `lib/ui/Dialog.svelte` (`actions` and `alert`), and `lib/sections/ExportImage.svelte` (a Form
-popup: `actions`, `closable`, `initialFocus`). Callees: `lib/ui/Button.svelte`,
+last non-zero weight), `lib/ui/Dialog.svelte` (`actions` and `alert`), and three Form popups: `lib/sections/ExportImage.svelte`, `lib/sections/NewTileset.svelte`
+(`actions`, `closable`, `initialFocus`), and the Tile gallery, `lib/tiles/TileGallery.svelte` (also
+`divided`). Callees: `lib/ui/Button.svelte`,
 `lib/ui/IconButton.svelte`.
 
 ### Tests

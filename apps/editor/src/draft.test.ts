@@ -16,13 +16,18 @@ import type { Operation } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { newDocument } from "./document.js";
 import {
+  activeLayer,
+  addLayer,
   draftDiffers,
   draftFile,
   fromOperation,
   isComplete,
   newDraft,
+  openLayer,
+  removeLayer,
   retarget,
   shadowConfig,
+  shiftsScatter,
   STEPS,
   toOperation,
   toShadowOperation,
@@ -33,7 +38,7 @@ const numeric: Operation = {
   id: "op3",
   salt: 7,
   reseedOnLoad: false,
-  selection: { type: "checkerboard", parity: 1 },
+  selection: [{ type: "checkerboard", parity: 1 }],
   source: { type: "random" },
   target: "opacity",
   mapping: { range: [0.25, 0.75], steps: 4 },
@@ -44,7 +49,7 @@ const tileTargeted: Operation = {
   id: "op9",
   salt: 0,
   reseedOnLoad: true,
-  selection: { type: "all" },
+  selection: [{ type: "all" }],
   source: { type: "random" },
   target: "tileId",
   mapping: { palette: [{ tileId: "t1", weight: 2 }, { tileId: null, weight: 1 }] },
@@ -94,8 +99,8 @@ describe("fromOperation", () => {
   /** `06` §7.1 spreads parameters as siblings of `type`; this is that undone. */
   it("un-spreads parameters out of the type", () => {
     const draft = fromOperation(numeric);
-    expect(draft.selectionType).toBe("checkerboard");
-    expect(draft.selectionParams).toEqual({ parity: 1 });
+    expect(draft.layers[0]!.type).toBe("checkerboard");
+    expect(draft.layers[0]!.params).toEqual({ parity: 1 });
     expect(draft.sourceType).toBe("random");
     expect(draft.sourceParams).toEqual({});
   });
@@ -119,11 +124,11 @@ describe("fromOperation", () => {
   it("copies every container rather than aliasing the Operation", () => {
     const draft = fromOperation(tileTargeted);
     draft.palette[0]!.weight = 99;
-    draft.selectionParams.parity = 0;
+    draft.layers[0]!.params.parity = 0;
     expect(tileTargeted.mapping).toEqual({
       palette: [{ tileId: "t1", weight: 2 }, { tileId: null, weight: 1 }],
     });
-    expect(tileTargeted.selection).toEqual({ type: "all" });
+    expect(tileTargeted.selection).toEqual([{ type: "all" }]);
 
     const other = fromOperation(numeric);
     other.numeric.range[0] = -1;
@@ -156,7 +161,7 @@ describe("draftDiffers", () => {
   it("leaves a fresh create-draft unchanged until a step is answered", () => {
     const draft = newDraft("op1");
     expect(draftDiffers(draft, null)).toBe(false);
-    draft.selectionType = "all";
+    draft.layers[0]!.type = "all";
     expect(draftDiffers(draft, null)).toBe(true);
   });
 
@@ -169,7 +174,7 @@ describe("draftDiffers", () => {
 
   it("sees an edited parameter, a new Blend and a new salt", () => {
     const params = fromOperation(numeric);
-    params.selectionParams.parity = 0;
+    params.layers[0]!.params.parity = 0;
     expect(draftDiffers(params, numeric)).toBe(true);
 
     const blend = fromOperation(numeric);
@@ -244,15 +249,15 @@ describe("shadowConfig", () => {
 
   it("appends a create-draft and replaces an edit-draft by id", () => {
     const created = newDraft("op1");
-    created.selectionType = "all";
+    created.layers[0]!.type = "all";
     expect(shadowConfig(config, created)?.config.operations.map((o) => o.id)).toEqual(["op9", "op1"]);
 
     const edited = fromOperation(tileTargeted);
-    edited.selectionType = "checkerboard";
-    edited.selectionParams = { parity: 0 };
+    edited.layers[0]!.type = "checkerboard";
+    edited.layers[0]!.params = { parity: 0 };
     const ops = shadowConfig(config, edited)!.config.operations;
     expect(ops).toHaveLength(1);
-    expect(ops[0]!.selection.type).toBe("checkerboard");
+    expect(ops[0]!.selection[0]!.type).toBe("checkerboard");
   });
 
   it("carries the draft's own Pattern, which coverage evaluates", () => {
@@ -318,5 +323,161 @@ describe("draftFile", () => {
     const before = JSON.stringify(file);
     draftFile(file, created());
     expect(JSON.stringify(file)).toBe(before);
+  });
+});
+
+describe("selection layers (B-033)", () => {
+  const layered: Operation = {
+    ...numeric,
+    selection: [
+      { type: "cellList", cells: [[1, 1], [2, 2]] },
+      { type: "random", density: 0.3 },
+      { type: "rect", x: 0, y: 0, width: 2, height: 2 },
+    ],
+  };
+
+  it("round-trips one layer and three, in order", () => {
+    expect(toOperation(fromOperation(numeric))!.selection).toEqual(numeric.selection);
+    const draft = fromOperation(layered);
+    expect(draft.layers.map((l) => l.type)).toEqual(["cellList", "random", "rect"]);
+    expect(draft.activeLayer).toBe(0);
+    expect(toOperation(draft)!.selection).toEqual(layered.selection);
+  });
+
+  it("copies nested layer data, so painting a layer never edits the file", () => {
+    const draft = fromOperation(layered);
+    (draft.layers[0]!.params.cells as number[][]).push([9, 9]);
+    (draft.layers[0]!.params.cells as number[][])[0]![0] = 5;
+    draft.layers[1]!.params.density = 1;
+    expect(layered.selection[0]).toEqual({ type: "cellList", cells: [[1, 1], [2, 2]] });
+    expect(layered.selection[1]).toEqual({ type: "random", density: 0.3 });
+  });
+
+  it("edits through the active layer, never a copy", () => {
+    const draft = fromOperation(layered);
+    draft.activeLayer = 2;
+    activeLayer(draft).params.width = 5;
+    expect(draft.layers[2]!.params.width).toBe(5);
+  });
+
+  it("is incomplete while any layer has no type, but the shadow shows the typed ones", () => {
+    const draft = fromOperation(layered);
+    draft.layers.push({ type: null, params: {} });
+    expect(isComplete(draft)).toBe(false);
+    expect(toOperation(draft)).toBeNull();
+    expect(toShadowOperation(draft)!.selection).toEqual(layered.selection);
+  });
+
+  it("has no shadow until some layer has a type", () => {
+    expect(toShadowOperation(newDraft("op1"))).toBeNull();
+  });
+
+  // Block 3 fix (Pol, 2026-11-12): adding a layer dropped the draft from the
+  // preview, so the earlier layers looked lost. The picture keeps the typed ones.
+  describe("the live picture with an untyped layer", () => {
+    const file = { ...newDocument(), config: { ...newDocument().config, operations: [numeric, tileTargeted] } };
+
+    it("draws the typed layers, while Save still refuses", () => {
+      const draft = fromOperation({ ...layered, id: "op1" });
+      draft.layers.push({ type: null, params: {} });
+      const drawn = draftFile(file, draft)!;
+      expect(drawn).not.toBeNull();
+      expect(drawn.config.operations.at(-1)!.selection).toEqual(layered.selection);
+      expect(toOperation(draft)).toBeNull();
+      expect(isComplete(draft)).toBe(false);
+    });
+
+    it("is null when the only layer is untyped", () => {
+      const draft = fromOperation({ ...layered, id: "op1" });
+      draft.layers = [{ type: null, params: {} }];
+      expect(draftFile(file, draft)).toBeNull();
+    });
+
+    it("replaces an edit-draft in place, with the typed layers", () => {
+      const edited = fromOperation(layered);
+      edited.layers.push({ type: null, params: {} });
+      const ops = draftFile({ ...file, config: { ...file.config, operations: [layered, tileTargeted] } }, edited)!
+        .config.operations;
+      expect(ops.map((o) => o.id)).toEqual([layered.id, "op9"]);
+      expect(ops[0]!.selection).toEqual(layered.selection);
+    });
+  });
+});
+
+describe("adding, removing and opening layers (B-033, Block 3)", () => {
+  const three = (): Draft => {
+    const draft = newDraft("op1");
+    draft.layers = [
+      { type: "rect", params: { x: 0, y: 0, width: 2, height: 2 } },
+      { type: "random", params: { density: 0.3 } },
+      { type: "cellList", params: { cells: [] } },
+    ];
+    return draft;
+  };
+
+  it("adds an untyped layer at the end and opens it", () => {
+    const draft = three();
+    addLayer(draft);
+    expect(draft.layers).toHaveLength(4);
+    expect(draft.layers[3]).toEqual({ type: null, params: {} });
+    expect(draft.activeLayer).toBe(3);
+    expect(isComplete(draft)).toBe(false);
+  });
+
+  it("never removes the last layer", () => {
+    const draft = newDraft("op1");
+    expect(removeLayer(draft, 0)).toBe(0);
+    expect(draft.layers).toHaveLength(1);
+  });
+
+  it("ignores an index out of range", () => {
+    const draft = three();
+    removeLayer(draft, 3);
+    removeLayer(draft, -1);
+    expect(draft.layers).toHaveLength(3);
+  });
+
+  it("opens the previous layer when the open one is removed", () => {
+    const draft = three();
+    draft.activeLayer = 2;
+    expect(removeLayer(draft, 2)).toBe(1);
+    expect(activeLayer(draft).type).toBe("random");
+  });
+
+  it("opens the new first layer when the open first one is removed", () => {
+    const draft = three();
+    expect(removeLayer(draft, 0)).toBe(0);
+    expect(activeLayer(draft).type).toBe("random");
+  });
+
+  it("keeps the same layer open when an earlier one is removed", () => {
+    const draft = three();
+    draft.activeLayer = 2;
+    expect(removeLayer(draft, 0)).toBe(1);
+    expect(activeLayer(draft).type).toBe("cellList");
+  });
+
+  it("keeps the open layer when a later one is removed", () => {
+    const draft = three();
+    draft.activeLayer = 0;
+    expect(removeLayer(draft, 2)).toBe(0);
+    expect(activeLayer(draft).type).toBe("rect");
+  });
+
+  it("opens a layer, clamped into range", () => {
+    const draft = three();
+    openLayer(draft, 1);
+    expect(draft.activeLayer).toBe(1);
+    openLayer(draft, 9);
+    expect(draft.activeLayer).toBe(2);
+    openLayer(draft, -4);
+    expect(draft.activeLayer).toBe(0);
+  });
+
+  it("says when a removal moves a later Random layer's scatter", () => {
+    const draft = three();
+    expect(shiftsScatter(draft, 0)).toBe(true);
+    expect(shiftsScatter(draft, 1)).toBe(false);
+    expect(shiftsScatter(draft, 2)).toBe(false);
   });
 });

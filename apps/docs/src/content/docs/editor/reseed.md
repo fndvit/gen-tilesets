@@ -52,9 +52,12 @@ The fourth writes no field, so it lives in editor state and reaches `<Tileset>` 
 | `SALT_MODULUS` | `2 ** 32` | Salts are integers in `[0, 2³²)`. |
 | `nextSalt(salt)` | `(number \| undefined) → number` | `((salt ?? 0) + 1) % 2³²` |
 | `isStochastic(sourceType)` | `(string) → boolean` | [`sources`](/api/index/variables/sources/)`.get(type).stochastic` |
+| `reseedOnLoadChip(op)` | `(Operation) → boolean \| null` | The closed card's chip: `null` (absent) unless `isStochastic(op.source.type)`, else `op.reseedOnLoad === true`. Batch 01, T-11. |
+| `withReseedOnLoad(op, on)` | `(Operation, boolean) → Operation` | `{ ...op, reseedOnLoad: on }`, explicit `true`/`false` as Save writes it. Batch 01, T-11. |
 | `inertFlags(config)` | `(TilesetConfig) → Operation[]` | Operations flagged `reseedOnLoad` over a non-stochastic Source. |
 | `loadVaries(config)` | `(TilesetConfig) → boolean` | Whether a fresh `loadSalt` could change anything. |
 | `drawLoadSalt()` | `() → number` | `Math.floor(Math.random() * 2³²)` |
+| `RESEED_ON_LOAD_HINT` | `string` | The Reseed on load checkbox's hint, on both cards (B-024): what the flag does, and why the preview changes while it is ticked. |
 
 ### Inputs → outputs
 
@@ -92,7 +95,8 @@ The fourth writes no field, so it lives in editor state and reaches `<Tileset>` 
 | `App.svelte:187` | `inertFlags(config)` for the advisory |
 | `App.svelte:722` | `loadSalt = drawLoadSalt()` |
 
-`isStochastic` is used only inside this module (`:68`, `:84`). `SALT_MODULUS` is used inside this
+`reseedOnLoadChip` and `withReseedOnLoad` are called by `OperationsSection.svelte` (the card's chip).
+`isStochastic` is otherwise used inside this module. `SALT_MODULUS` is used inside this
 module and in `reseed.test.ts`.
 
 Callees: [`sources`](/api/index/variables/sources/) from the engine; `Math.random`.
@@ -106,6 +110,9 @@ Callees: [`sources`](/api/index/variables/sources/) from the engine; `Math.rando
 - **Reported, not cleared.** `inertFlags` names the flagged non-stochastic Operation.
 - **`loadVaries`.** False with no flags, true with any Operation flag, true with only the asset
   flag, and true for a flag over a non-stochastic Source (while `inertFlags` also reports it).
+- **The card's chip** (batch 01, T-11). Present with the flag over Random and Noise, absent over
+  Constant and Gradient; `withReseedOnLoad` writes only the flag; turning it on makes `loadVaries`
+  true, which enables the footer's fresh-load preview.
 - **`drawLoadSalt`.** Over many draws it is an integer in `[0, 2³²)`, and it draws more than one
   value.
 

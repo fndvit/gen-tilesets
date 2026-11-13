@@ -24,14 +24,16 @@
  * is `06` §9.2's coercion applied to the thing the author cares about most."
  */
 
-import { selection, selections, type Operation, type TilesetConfig } from "@vit-foundation/gen-tilesets";
+import { isCoordinateBound, selection, type Operation, type TilesetConfig, type TilesetFile } from "@vit-foundation/gen-tilesets";
+import { cellsOf, selectionTypes } from "./layers.js";
 
 /**
  * The Operations a design-width change puts at risk — E12's "names the
  * Operations that will be affected".
  *
- * **Read from the registry's `coordinateBound` declaration**, never a list of
- * names. `04` §4.4's table names six Selections and the registry is open; a
+ * **Read from the registry's `coordinateBound` declaration** (through
+ * `isCoordinateBound`, which asks it of every selection layer — B-033), never a
+ * list of names. `04` §4.4's table names six Selections and the registry is open; a
  * Selection registered later would otherwise be classified by a list that had
  * never heard of it, and silently exempted from the confirmation.
  *
@@ -41,7 +43,7 @@ import { selection, selections, type Operation, type TilesetConfig } from "@vit-
  * than no dialogue". So an empty result here means the edit applies directly.
  */
 export function atRisk(config: TilesetConfig): Operation[] {
-  return config.operations.filter((op) => selections.get(op.selection.type).coordinateBound);
+  return config.operations.filter((op) => isCoordinateBound(op.selection));
 }
 
 /** Whether the three destructive fields need confirming at all — E12. */
@@ -63,6 +65,13 @@ export interface Orphan {
   reachable: number;
   /** Entries the author authored, where the Selection has a countable list. */
   authored?: number;
+  /**
+   * Of `authored`, the entries outside the grid — set only for a selection of
+   * several layers (B-033). There `authored − reachable` is not the loss: a
+   * `rect` layer reaches cells nobody painted, and two Handpick layers may paint
+   * the same cell. For a single list the subtraction is the loss, as before.
+   */
+  outside?: number;
   /** True where the Selection now matches nothing at all — `06` §10.4's third. */
   empty: boolean;
 }
@@ -99,22 +108,87 @@ export function orphans(config: TilesetConfig, seed: string, loadSalt = 0): Orph
     // parameter *is* the list. A `rect`'s is not: `04` §4.2 lets it extend past
     // the grid on purpose, so "how much of it is outside" is not a defect to
     // report, only "does it still reach anything".
-    const cells = (op.selection as { cells?: unknown }).cells;
-    const authored = Array.isArray(cells) ? cells.length : undefined;
+    //
+    // A selection of several layers (B-033) counts the lists of all its layers,
+    // and its loss is counted directly — see `Orphan.outside`. One layer reads
+    // exactly as before layers existed.
+    const lists = op.selection.map(cellsOf).filter((c) => c !== undefined);
+    const authored = lists.length === 0 ? undefined : lists.reduce((n, c) => n + c.length, 0);
+    const layered = op.selection.length > 1;
+    const outside = layered && authored !== undefined ? outsideCells(op, config).length : undefined;
 
-    if (reachable === 0 || (authored !== undefined && reachable < authored)) {
+    const lostSome = outside !== undefined ? outside > 0 : authored !== undefined && reachable < authored;
+    if (reachable === 0 || lostSome) {
       out.push({
         operationId: op.id,
-        selectionType: op.selection.type,
+        selectionType: selectionTypes(op.selection),
         reachable,
         // Spread rather than assigned: `exactOptionalPropertyTypes` makes
         // `authored: undefined` a different thing from an absent `authored`, and
         // the absent one is what "this Selection has no countable extent" means.
         ...(authored === undefined ? {} : { authored }),
+        ...(outside === undefined ? {} : { outside }),
         empty: reachable === 0,
       });
     }
   }
 
   return out;
+}
+
+/**
+ * The entries of `op`'s painted list that lie outside `config`'s grid, as the
+ * very arrays the list holds (so a caller can drop them by identity). Empty
+ * for a Selection with no countable list.
+ *
+ * This is the grid's extent, `0 <= x < columns` and `0 <= y < rows`, and not a
+ * Selection test: **E8** keeps "which cells does this Selection match" in the
+ * engine, but "where does the grid end" is two fields of the file. Batch 01
+ * (T-05, B-014): the cells the orphan notice offers to remove.
+ */
+export function outsideCells(op: Operation, config: Pick<TilesetConfig, "rows" | "columns">): [number, number][] {
+  // Every layer's list, in layer order (B-033): a Handpick layer beside another
+  // loses cells to a resize exactly as a lone one does.
+  return op.selection.flatMap((layer) =>
+    (cellsOf(layer) ?? []).filter(([x, y]) => !(x >= 0 && x < config.columns && y >= 0 && y < config.rows)),
+  );
+}
+
+/**
+ * Whether `op`'s loss came with the file the session opened rather than from a
+ * resize made since — which decides whether the orphan notice may say "Undo
+ * puts the grid back" (B-014: after an import, Undo goes back to the previous
+ * *document*, so offering it there is false).
+ *
+ * `opened` is the file as `session.open` received it, or `null` when the
+ * session started from a new document. The history is not consulted: it keeps
+ * no mark of where an open happened, and the write path (`apply`, `history.ts`)
+ * is not changed to add one (T-05's plan).
+ *
+ * - **A painted list** came with the file when every cell now outside the grid
+ *   was already in the opened file's list for this operation id, and already
+ *   outside *that* file's grid. A cell pushed out by a later resize fails the
+ *   second test, so the notice keeps offering Undo, which is then true.
+ * - **Any other coordinate-bound Selection** (a `rect`) came with the file when
+ *   neither it nor the grid has changed since the open: then no edit in this
+ *   session caused the loss.
+ *
+ * Operation ids are reused across documents (`op1`), so after undoing *past*
+ * the open the previous document may share an id with the opened one; the
+ * cell-by-cell test is what keeps that from matching by accident.
+ */
+export function cameWithFile(op: Operation, config: TilesetConfig, opened: TilesetFile | null): boolean {
+  if (opened === null) return false;
+  const was = opened.config.operations.find((o) => o.id === op.id);
+  if (was === undefined || selectionTypes(was.selection) !== selectionTypes(op.selection)) return false;
+
+  const now = outsideCells(op, config);
+  if (op.selection.some((layer) => cellsOf(layer) !== undefined)) {
+    if (now.length === 0) return false;
+    const before = new Set(outsideCells(was, opened.config).map(([x, y]) => `${x},${y}`));
+    return now.every(([x, y]) => before.has(`${x},${y}`));
+  }
+
+  const sameGrid = config.rows === opened.config.rows && config.columns === opened.config.columns;
+  return sameGrid && JSON.stringify(op.selection) === JSON.stringify(was.selection);
 }

@@ -46,7 +46,7 @@ Grouped as the file groups them, in file order.
 | Trigonometry | [`sincos`](/api/index/functions/sincos/) | [`angle.ts`](/engine/angle/) | Shared by `gradient` and the renderer's matrix. Exported here *as well as* from `/render` because it is engine code now. |
 | Hashing | [`ASSET_CHANNEL`](/api/index/variables/asset_channel/), [`channelU32`](/api/index/functions/channelu32/), [`effectiveSeeds`](/api/index/functions/effectiveseeds/), [`hash`](/api/index/functions/hash/), [`hashU32`](/api/index/functions/hashu32/), [`mixLoad`](/api/index/functions/mixload/), [`pickSeed`](/api/index/functions/pickseed/), [`selectionChannel`](/api/index/functions/selectionchannel/), [`stage1`](/api/index/functions/stage1/), [`EffectiveSeeds`](/api/index/interfaces/effectiveseeds/) | [`hash.ts`](/engine/hash/) | No comment. |
 | Mapping | [`applyNumericMapping`](/api/index/functions/applynumericmapping/), [`applyTileMapping`](/api/index/functions/applytilemapping/), [`isTileMapping`](/api/index/functions/istilemapping/), [`paletteTotal`](/api/index/functions/palettetotal/) | [`mapping.ts`](/engine/mapping/) | No comment. |
-| Registries | [`acceptedBlends`](/api/index/functions/acceptedblends/), [`blends`](/api/index/variables/blends/), [`isAccepted`](/api/index/functions/isaccepted/), [`TARGETS`](/api/index/variables/targets/), [`BlendRegistration`](/api/index/interfaces/blendregistration/), [`BlendValue`](/api/index/type-aliases/blendvalue/), [`TargetSpec`](/api/index/interfaces/targetspec/); [`Registry`](/api/index/classes/registry/), [`ParamSchema`](/api/index/type-aliases/paramschema/), [`ParamSpec`](/api/index/type-aliases/paramspec/); [`selections`](/api/index/variables/selections/), [`SelectionRegistration`](/api/index/interfaces/selectionregistration/); [`evalSource`](/api/index/functions/evalsource/), [`sources`](/api/index/variables/sources/), [`SourceRegistration`](/api/index/interfaces/sourceregistration/) | `registry/*.ts` | No comment. |
+| Registries | [`acceptedBlends`](/api/index/functions/acceptedblends/), [`blends`](/api/index/variables/blends/), [`isAccepted`](/api/index/functions/isaccepted/), [`TARGETS`](/api/index/variables/targets/), [`BlendRegistration`](/api/index/interfaces/blendregistration/), [`BlendValue`](/api/index/type-aliases/blendvalue/), [`TargetSpec`](/api/index/interfaces/targetspec/); [`Registry`](/api/index/classes/registry/), [`ParamSchema`](/api/index/type-aliases/paramschema/), [`ParamSpec`](/api/index/type-aliases/paramspec/); [`isCoordinateBound`](/api/index/functions/iscoordinatebound/), [`selections`](/api/index/variables/selections/), [`SelectionRegistration`](/api/index/interfaces/selectionregistration/); [`evalSource`](/api/index/functions/evalsource/), [`sources`](/api/index/variables/sources/), [`SourceRegistration`](/api/index/interfaces/sourceregistration/) | `registry/*.ts` | `isCoordinateBound` since 0.12.0 (B-033). |
 | Migration | [`migrate`](/api/index/functions/migrate/), [`MIGRATIONS`](/api/index/variables/migrations/), [`Migration`](/api/index/interfaces/migration/), [`MigrationOutcome`](/api/index/type-aliases/migrationoutcome/) | `migrate.ts` | The migration table and the walk over it. Runs **before** `validate()`, because validation may not coerce. |
 | Validation | [`SCHEMA_VERSION`](/api/index/variables/schema_version/), [`validate`](/api/index/functions/validate/), [`ErrorCode`](/api/index/type-aliases/errorcode/), [`ValidationError`](/api/index/interfaces/validationerror/) | `validate.ts` | A separate function, off the critical path. `generate()` trusts its input; this is what earns that trust. |
 | Loading | [`assertValidFile`](/api/index/functions/assertvalidfile/), [`loadTilesetFile`](/api/index/functions/loadtilesetfile/) | [`load.ts`](/engine/load/) | The two-in-one door for a plain consumer. A host that needs migration steps or structured errors (the editor) uses `migrate`/`validate` directly. `assertValidFile` is public because `<Tileset>` asserts with it under `DEV`. |
@@ -73,14 +73,14 @@ Modules in this section that are reachable only inside the package: `dev.ts` (`D
 
 ### Callers / callees
 
-The apps import this entry as `@vit-foundation/gen-tilesets`: 30 non-test files in `apps/editor/src` and
+The apps import this entry as `@vit-foundation/gen-tilesets`: 53 non-test files in `apps/editor/src` and
 `apps/demo/src`. Each symbol's own page lists its call sites.
 
 ### Tests
 
 No test file. The package's own tests import from the individual modules (for example
-`./generate.js`), not from `index.ts`. Twelve editor test files (`apps/editor/src/*.test.ts`,
-`controls/*.test.ts`) import from `@vit-foundation/gen-tilesets`, so the symbols they use are exercised
+`./generate.js`), not from `index.ts`. Twenty-four editor test files (`apps/editor/src/*.test.ts`,
+`controls/*.test.ts`, `lib/**/*.test.ts`) import from `@vit-foundation/gen-tilesets`, so the symbols they use are exercised
 through this entry. Nothing pins the export list as a whole.
 
 ### Gotchas & rejected alternatives

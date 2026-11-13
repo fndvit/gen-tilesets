@@ -35,25 +35,35 @@
 
   ## Reports appear after an attempt, in a popup
 
-  A refusal or a newer-version file is shown in a closable `ui/Popup` once the
-  attempt ends, and never takes space in the layout (Pol, 2026-11-04). Closing
-  it clears the report.
+  A refusal or a newer-version file is shown in `ImportRefused.svelte`, a
+  closable `ui/Popup`, once the attempt ends, and never takes space in the
+  layout (Pol, 2026-11-04). Closing it clears the report. The New tileset
+  popup reports a template that fails to open in the same component.
 
   An import that opened with notes (an upgrade, unreadable pictures)
   opens: there is nothing to answer, so its notes are notices in the preview's
   stack instead (Stage 2, W3), beside the picture they are about.
+
+  ## It asks first, unless there is nothing to lose
+
+  An import cannot be undone (`session.open` says why), so a file that is
+  ready to open waits on a Dialog with New tileset's warning line
+  (`LossWarning.svelte`). It asks only once the file has validated: a refused
+  file changes nothing, and a question before the refusal would guard nothing.
+  When the current tileset `isBlank` (`document.ts`), it opens at once (Pol,
+  2026-11-09).
 -->
 <script lang="ts">
-  import { migrate, validate, type TilesetFile, type ValidationError } from "@vit-foundation/gen-tilesets";
+  import type { ValidationError } from "@vit-foundation/gen-tilesets";
   import { unzipSync } from "fflate";
-  import { importNotices } from "../advisories.js";
-  import { replaceAll, type Incoming } from "../assets.js";
-  import { drafting } from "../drafting.svelte.js";
-  import { mimeOf, nameOf, readArchive, type Archive } from "../import.js";
-  import { notices } from "../notices.svelte.js";
+  import { adopt } from "../adopt.js";
+  import { isBlank } from "../document.js";
+  import { prepareArchive, type Archive, type Prepared } from "../import.js";
   import { session } from "../session.svelte.js";
+  import ImportRefused from "./ImportRefused.svelte";
+  import LossWarning from "./LossWarning.svelte";
   import Button from "./ui/Button.svelte";
-  import Popup from "./ui/Popup.svelte";
+  import Dialog from "./ui/Dialog.svelte";
 
   interface Props {
     /** The element that takes dropped zips and folders. */
@@ -84,6 +94,10 @@
   let newer = $state<number | null>(null);
 
   let picker = $state<HTMLInputElement | null>(null);
+
+  /** A validated file waiting on the author's answer, and whether the question shows. */
+  let pending = $state.raw<Extract<Prepared, { kind: "ready" }> | null>(null);
+  let asking = $state(false);
 
   function reset(): void {
     failure = null;
@@ -191,61 +205,34 @@
   /**
    * §12.4's sequence, in order, with no partial states.
    *
-   * Read → parse → **migrate** → **validate** → attach → swap. Nothing before
-   * the last two lines touches the document, so every refusal above them leaves
-   * the author exactly where they were.
-   *
-   * **Migration precedes validation** and is a separate function — `06` §9.2
-   * forbids validation from coercing anything, and rewriting a `schemaVersion`
-   * is a coercion. `validate()` therefore still knows exactly one version, and
-   * sees a file that already claims it.
+   * `prepareArchive` (`import.ts`) reads, migrates and validates, and touches
+   * nothing; `adopt` (`adopt.ts`) swaps the document in. So every refusal leaves
+   * the author exactly where they were. The New tileset popup's templates go
+   * through the same pair (B-016).
    */
   async function open(archive: Archive): Promise<void> {
-    // A `meta.src` the archive did not carry (`missing`) is left to §12.3: the
-    // asset has no file, so it fails to draw and the preview's notice says so.
-    const { file: read, assets } = readArchive(archive);
-
-    const outcome = migrate(read);
-    // §12.4's case, and the only one where *update the editor, not the file* is
-    // the right advice. An **older** file is migrated below, not refused.
-    if (outcome.kind === "newer") {
-      newer = outcome.declared;
+    const prepared = prepareArchive(archive);
+    if (prepared.kind === "newer") {
+      newer = prepared.declared;
       return;
     }
-    // Absent, non-integer, or a past version with no path. Left to `validate()`,
-    // which reports it at `/schemaVersion` like any other error rather than
-    // getting a screen of its own for a problem it does not have.
-    const file = outcome.kind === "migrated" ? outcome.file : read;
-
-    const found = validate(file);
-    if (found.length > 0) {
-      errors = found;
+    if (prepared.kind === "invalid") {
+      errors = prepared.errors;
       return;
     }
-
-    const incoming: Incoming[] = assets.map((asset) => ({
-      tileId: asset.tileId,
-      assetId: asset.assetId,
-      file: new File([asset.bytes as BlobPart], nameOf(asset.path), { type: mimeOf(asset.path) }),
-    }));
-
-    const failed = await replaceAll(incoming);
-
-    // Validated above, so this is a `TilesetFile` by the only test there is.
-    session.open(file as TilesetFile);
-    // A draft built against the outgoing document names ids the incoming one
-    // does not have.
-    drafting.discard();
-
-    // A new document starts with no notices, then gets its own. Non-fatal:
-    // the upgrade already happened (**E16**), and a document whose pictures
-    // are absent is still a legal file the author can repair by dropping the
-    // images back in. Refusing would throw away the operations, the seed and
-    // the layout over a picture.
-    notices.clear();
-    for (const notice of importNotices({ upgrades: outcome.kind === "migrated" ? outcome.steps : [], failed })) {
-      notices.push(notice);
+    if (isBlank(session.file)) {
+      await adopt(prepared);
+      return;
     }
+    pending = prepared;
+    asking = true;
+  }
+
+  /** The Dialog's verb. The file was validated before the question, so this only swaps it in. */
+  async function confirmImport(): Promise<void> {
+    const prepared = pending;
+    pending = null;
+    if (prepared !== null) await adopt(prepared);
   }
 
   async function run(archive: Promise<Archive>): Promise<void> {
@@ -329,72 +316,21 @@
   aria-hidden="true"
 />
 
-<Popup title="Import refused" bind:open={reporting} onClose={reset}>
-  {#if failure !== null}
-    <p class="t-body">Not opened. Nothing in the current document has changed.</p>
-    <p class="t-console detail">{failure}</p>
-  {/if}
+<ImportRefused bind:open={reporting} {failure} {newer} {errors} onClose={reset} />
 
-  <!--
-    §12.4's own case: the file was written by a **newer** build, and the action
-    is to update the editor rather than to fix the file. It is the one failure
-    the author cannot repair by editing anything.
-
-    It is its own message rather than a row in the error list because there is
-    nothing to list: no field is wrong, and `06` **C2** forbids inferring a shape
-    from the keys present, so the file was never walked.
-  -->
-  {#if newer !== null}
-    <p class="t-body">
-      This file was written by a newer build (schemaVersion {newer}). Update the editor, not the
-      file.
-    </p>
-  {/if}
-
-  <!--
-    **C6**: no partial load and no severity axis. The file was not opened; the
-    document on screen is the one that was already there.
-  -->
-  {#if errors.length > 0}
-    <p class="t-body">Not opened. Nothing in the current document has changed.</p>
-    <ul class="t-console">
-      {#each errors.slice(0, 12) as error, i (i)}
-        <li><strong>{error.path || "/"}</strong> {error.code} {error.message}</li>
-      {/each}
-      {#if errors.length > 12}
-        <li>…and {errors.length - 12} more</li>
-      {/if}
-    </ul>
-  {/if}
-
-</Popup>
+<Dialog
+  title="Replace the current tileset?"
+  bind:open={asking}
+  confirmLabel="Import"
+  wide
+  onConfirm={() => void confirmImport()}
+  onCancel={() => (pending = null)}
+>
+  <LossWarning />
+</Dialog>
 
 <style>
   .picker {
     display: none;
-  }
-
-  p {
-    margin: 0 0 var(--space-4);
-  }
-
-  .detail {
-    overflow-wrap: anywhere;
-  }
-
-  ul {
-    display: grid;
-    gap: var(--space-4);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    line-height: var(--leading-hint);
-    text-box: none;
-    overflow-wrap: anywhere;
-  }
-
-  strong {
-    font-weight: inherit;
-    text-decoration: underline;
   }
 </style>

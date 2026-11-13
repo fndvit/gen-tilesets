@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from "vitest";
 import { newDocument, setCellSize, setReferenceWidth, setRows, setYOffset } from "./document.js";
-import { applied, appliedLive, historyOf, replaced, settled, undone, UNDO_LIMIT } from "./history.js";
+import { applied, appliedLive, historyOf, settled, undone, UNDO_LIMIT } from "./history.js";
 
 describe("a stack of whole values — 09 §4.4", () => {
   it("starts with nothing to undo", () => {
@@ -50,7 +50,7 @@ describe("a stack of whole values — 09 §4.4", () => {
         id: "painted",
         salt: 0,
         reseedOnLoad: false,
-        selection: { type: "cellList", cells: [[9, 4]] },
+        selection: [{ type: "cellList", cells: [[9, 4]] }],
         source: { type: "constant" },
         target: "opacity",
         mapping: { range: [1, 1] },
@@ -61,17 +61,12 @@ describe("a stack of whole values — 09 §4.4", () => {
     // 400px cells in a 1000px design width: 3 columns, parity-corrected to 4.
     expect(h.current.config.columns).toBeLessThan(9);
     const back = undone(h);
-    expect(back.current.config.operations[0]!.selection).toEqual({
-      type: "cellList",
-      cells: [[9, 4]],
-    });
-  });
-
-  it("a replacement is undoable — import's path (New document no longer takes it)", () => {
-    const start = newDocument();
-    const h = replaced(applied(historyOf(start), setRows("7")), newDocument());
-    expect(h.current.config.rows).toBe(5);
-    expect(undone(h).current.config.rows).toBe(7);
+    expect(back.current.config.operations[0]!.selection).toEqual([
+      {
+        type: "cellList",
+        cells: [[9, 4]],
+      },
+    ]);
   });
 });
 

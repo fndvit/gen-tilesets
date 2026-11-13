@@ -32,7 +32,7 @@ cell state), a kind of tile is a **Tile** (not a tile type), and one of a tile's
 | **Tile** | A kind of tile, with an `id`, a `name` and one or more TileAssets. | [types.ts](/engine/types/) |
 | **TileAsset** | One drawing of a Tile, with an `id`, a `weight` and free-form `meta` (`meta.src` by convention). Chosen per cell by a weighted walk in id order. | [assets.ts](/engine/assets/) |
 | **Operation** | One step of the stack: a Selection, a Source, a Mapping, a Target and a Blend, plus `id`, `salt` and `reseedOnLoad`. | [types.ts](/engine/types/), [generate.ts](/engine/generate/) |
-| **Selection** | Which cells an Operation acts on (`all`, `rect`, `checkerboard`, `everyNth`, `random`, `cellList`). *Coordinate-bound* Selections (`rect`, `cellList`) name cells by position and cannot follow a resize. | [selections.ts](/engine/selections/), [selection.ts](/engine/selection/) |
+| **Selection** | Which cells an Operation acts on (`all`, `rect`, `checkerboard`, `everyNth`, `rowColumn`, `random`, `cellList`). `everyNth` counts cells left to right, row after row; `rowColumn` picks every Nth column or row. An Operation's `selection` is a list of one or more *layers*, each one Selection, and the Operation acts on every cell any layer selects. *Coordinate-bound* Selections (`rect`, `cellList`) name cells by position and cannot follow a resize; an Operation is coordinate-bound if any of its layers is. | [selections.ts](/engine/selections/), [selection.ts](/engine/selection/) |
 | **Source** | A number in `[0, 1]` per cell (`constant`, `random`, `valueNoise`, `gradient`). | [sources.ts](/engine/sources/) |
 | **Mapping** | Turns a Source's number into a value: a numeric range (optionally stepped), or a weighted palette of tile ids (with `null` for empty). | [mapping.ts](/engine/mapping/) |
 | **Target** | Which field of the TileState an Operation writes: `tileId` or a numeric attribute. | [blends.ts](/engine/blends/), [attributes.ts](/engine/attributes/) |
@@ -52,7 +52,7 @@ cell state), a kind of tile is a **Tile** (not a tile type), and one of a tile's
 | **Seed** | A string, a runtime parameter. The engine never applies `defaultSeed` itself; the renderer does. | [hash.ts](/engine/hash/) |
 | **loadSalt** | An integer the host draws once per page load. It only affects channels flagged `reseedOnLoad`. | [hash.ts](/engine/hash/) |
 | **Salt** | `Operation.salt` and `config.assetSalt`: integers in `[0, 2³²)` that reroll one channel. | [hash.ts](/engine/hash/), [reseed.ts](/editor/reseed/) |
-| **Channel** | The string that separates hash streams: an `operationId`, `operationId + ":selection"`, or `"asset"`. | [hash.ts](/engine/hash/) |
+| **Channel** | The string that separates hash streams: an `operationId`, `operationId + ":selection"` (selection layer 0; layer i ≥ 1 uses `operationId:i:selection`), or `"asset"`. | [hash.ts](/engine/hash/) |
 | **Effective seed** | The seed a channel actually hashes against: `plain`, or `onLoad` (mixed with `loadSalt`) when the channel is flagged. | [hash.ts](/engine/hash/) |
 | **ctx** | The per-Operation context handed to Selections and Sources: grid size, extent, effective seed, operation id, salt. | [ctx.ts](/engine/ctx/) |
 | **Registry** | The named sets of Selections, Sources and Blends, with parameter schemas. An unknown name throws. | [registry.ts](/engine/registry/) |

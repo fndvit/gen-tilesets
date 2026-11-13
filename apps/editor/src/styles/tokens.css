@@ -81,6 +81,7 @@
   --sidebar-w: clamp(400px, 30vw, 560px);
   /* Pointer targets (WCAG 2.2, 2.5.8): nothing that acts is smaller than this. */
   --target-min: 24px;
+  --checkbox: 16px; /* the box; its label row is the target, at least --target-min (batch 03 T-07) */
   --control-h: 30px; /* fields, segments, buttons */
   --header-h: 52px; /* a section header: title over its summary; also the two top bars */
   --group-h: 34px; /* a nested group's header (rule, tile group) */
@@ -135,6 +136,24 @@
   --explainer-w: 340px; /* the Explainer popover's widest */
   --field-scale-h: 6px; /* the field preview's 0–1 scale */
   --field-preview-max-h: 240px; /* a tall grid's field preview, so the fields stay in view */
+  /* Starters (B-016): the New tileset popup. */
+  --radio-described-h: 52px; /* a described Radio list row: label over a line of description */
+  --template-thumb-w: 96px; /* a template's thumbnail, 16:10 */
+  /* Onboarding (B-017): the tour. */
+  /*
+    The tour is prose read once, not text scanned beside the controls, so it is a
+    step larger and roomier than an Explainer (Pol, O3c: at 13px in 340px it read
+    flat). At 15px, 340px held about 40 characters a line; 380px holds about 48.
+  */
+  --text-tour-size: 15px;
+  --leading-tour: 1.5;
+  --tour-bubble-w: 380px; /* a step's bubble */
+  --tour-welcome-w: 440px; /* the Welcome card, wider than a step's bubble */
+  --tour-pad: 20px; /* the bubble's padding: the space scale stops at 16px, and one user doesn't extend it */
+  /* Starters (B-016 S3c): the Tile gallery. */
+  --gallery-cell: 64px; /* a cell: a target well above 24px (2.5.8) */
+  --gallery-thumb: 52px; /* its thumbnail, inside the cell's 6px of wash */
+  --gallery-badge: 18px; /* the picked cell's check badge */
 
   /* ── Border and radius ─────────────────────────────────────────────── */
   --rule-w: 1px;
@@ -155,6 +174,8 @@
   /* ── Motion ────────────────────────────────────────────────────────── */
   --dur-fast: 120ms;
   --dur-slow: 300ms;
+  /* Closing a section or group: the fold and the scroll that leads it (batch 03 T-05). */
+  --dur-close: 220ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --marquee-speed: 40px; /* per second */
   --scrollbar-opacity: 0.6;
@@ -213,6 +234,12 @@
   --color-erase: var(--red-600); /* cells a stroke removes */
   /* A failure notice's icon, and nothing else. An advisory has no colour: it is ink (E16). */
   --color-danger: var(--red-600);
+  /*
+    The tour's backdrop (B-017, Pol, O1): darker than a Popup's 24%, because it
+    has to say "only the cut-out is live". The tour's bubble is white on it, so
+    no text contrast depends on it.
+  */
+  --color-scrim: color-mix(in srgb, var(--color-ink) 40%, transparent);
 
   /* The preview's handles draw in these. */
   --color-rule: var(--color-edge);

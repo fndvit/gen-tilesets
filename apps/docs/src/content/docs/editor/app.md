@@ -15,8 +15,9 @@ is the only top-level component. It defines the layout: a sidebar on the left (`
 and the preview on the right. The page itself never scrolls, so whatever the author changes in
 the sidebar, the picture stays on screen. There is no header.
 
-The sidebar is two parts, as in Figma. The top part scrolls and holds the sections: Grid & Size,
-Breakpoints, Derived, Tiles and Operations. The bottom part is a fixed black footer with the
+The sidebar is two parts, as in Figma. The top part scrolls and holds the sections: Grid & Size
+(with its folded Details, which was the Derived section), Tiles, Operations and Breakpoints, in the
+order a tileset is built in (batch 01, T-03). The bottom part is a fixed black footer with the
 seed, undo, import, new document and download. The shell asks with a dialog before an edit
 that would damage hand-placed work, and before starting a new document. Everything else the
 document holds, such
@@ -60,13 +61,13 @@ Which component renders which, in source order. Conditional children are marked.
     - `aside` (sidebar, 1px ink frame, `--color-surface`)
       - `.scrollable`, holding a [`ScrollArea`](/editor/ui-scroll-area/) (overlay scroll handle)
         - `.sections` (a one-column grid, no gap, 12px bottom padding)
-          - [`GridSection`](/editor/grid-section/) "Grid & Size"
-          - [`BreakpointsSection`](/editor/breakpoints-section/) (open when the file has rules)
-          - [`DerivedSection`](/editor/derived-section/) (closed)
+          - [`GridSection`](/editor/grid-section/) "Grid & Size", ending in a folded "Details"
+            group ([grid-details.ts](/editor/grid-details/))
           - [`TilesSection`](/editor/tiles-section/) "Tiles"
           - [`OperationsSection`](/editor/operations-section/) "Operations"
             - an [`OperationHeader`](/editor/operation-header/) per Operation, and
               [`OperationBody`](/editor/operation-body/) under the open one (*if* a draft is open)
+          - [`BreakpointsSection`](/editor/breakpoints-section/) (open when the file has rules)
       - [`SidebarFooter`](/editor/sidebar-footer/) (`.fixed`)
         - [`ImportPanel`](/editor/import-panel/), [`Popup`](/editor/ui-popup/)s for reports
     - `section.preview`: [`PreviewTopBar`](/editor/preview-bars/), then `.canvas` (the backdrop)
@@ -78,10 +79,12 @@ Which component renders which, in source order. Conditional children are marked.
           - `<Tileset>` from `@vit-foundation/gen-tilesets/Tileset.svelte`
           - [`SelectionOverlay`](/editor/selection-overlay/) (*if* `shadow !== null`)
           - [`PaintLayer`](/editor/paint-layer/) (*if* the draft has a `cellList` param and `renderBox` is bound)
+          - else [`RectLayer`](/editor/rect-layer/) (*if* the draft's Selection is a rectangle, `rectangle !== null`, and `renderBox` is bound; batch 02 T-01)
       - `NoticeStack` (`lib/preview/NoticeStack.svelte`), after the `ScrollArea` and inside
         `.canvas` (`position: relative`), so it stays put while the picture scrolls. It gets
         `notices.shown(conditions)` and `onDismiss={(n) => notices.dismiss(n)}`.
-- two [`Dialog`](/editor/ui-dialog/)s after `main`: E12's resize confirmation and New tileset.
+- after `main`: E12's resize confirmation, a [`Dialog`](/editor/ui-dialog/), and the
+  [New tileset](/editor/new-tileset/) popup.
 - `<svelte:window>` forwards `oninputcapture`, `onchange`, `onfocusout` and `onkeydown` to
   `entry` (`entry.svelte.ts`), which tracks whether the author is entering a value.
 
@@ -94,6 +97,7 @@ Which component renders which, in source order. Conditional children are marked.
 | [`session`](/editor/session/) | `file`; `apply`, `reset` |
 | [`drafting`](/editor/drafting/) | `draft`, `editing`; `discard` |
 | [`notices`](/editor/notices/) | `shown`, `forget`, `dismiss`, `clear` |
+| [`keeping`](/editor/keeping/) | `notice`; `schedule` |
 | `entry` (`entry.svelte.ts`) | `active`; `input`, `done`, `keydown` |
 | [`opening`](/editor/opening/) | `open` (the orphan notice's action) |
 | local `$state` | `failures`, `conditions`, `renderBox`, `pending`, `askingResize`, `askingNew` |
@@ -104,13 +108,16 @@ Which component renders which, in source order. Conditional children are marked.
 | --- | --- | --- |
 | `file`, `config`, `rules` | `session.file` (`rules` is `file.responsive ?? []`) | everything |
 | `drawn` | `draftFile(file, drafting.draft)` ([draft.svelte.ts](/editor/draft/)), or `null` with no draft | `shown`, the draft cue, `failures`' `drafted` |
-| `shown` | `drawn ?? file` | `<Tileset>`, `liveFailures` |
+| `shown` | `withoutHidden(drawn ?? file, preview.hidden, <id of the operation open for editing>)` ([visibility.ts](/editor/visibility/); batch 02 T-02): the hidden operations left out, except the open one | `<Tileset>`, `liveFailures` |
 | `shapedAt(Wpx)` | [`reshape`](/api/index/functions/reshape/)`(file, `[`ruleOverride`](/api/index/functions/ruleoverride/)`(`[`activeRules`](/api/index/functions/activerules/)`(rules, Wpx)))` | the frame's ratio and both overlays' geometry; from the saved file even while a draft is drawn, which has the same shape (`draftFile` changes only `config.operations`) |
 | `risked` | `atRisk(config)` from [orphans.ts](/editor/orphans/) | confirmation, Grid & Size hints, Breakpoints' pinned fields |
 | `orphaned` | `orphans(config, config.defaultSeed, loadSalt)` | `current` |
 | `liveFailures` | the `failures` whose asset still has the same `meta` object, and, for one reported while a draft was drawn, whose tile a palette in `shown` still names (`paintedTiles`), as text | `current` |
-| `current` | `documentNotices(file, orphaned, liveFailures, openOperation)` from `advisories.ts` | `conditions` |
-| `painting` | the draft's Selection schema, looked up via [`selections`](/api/index/variables/selections/), searched for a param of type `cellList` | `PaintLayer`, `PreviewFrame`'s `painting` |
+| `cameWith` | the orphaned Operations for which `cameWithFile(op, config, session.opened)` ([orphans.ts](/editor/orphans/)) holds | `current` |
+| `current` | `documentNotices(file, orphaned, liveFailures, { onOpen: openOperation, onRemove: trimOperation, cameWithFile: cameWith })` from `advisories.ts` | `conditions` |
+| `layer` | `activeLayer(drafting.draft)` from [draft.svelte.ts](/editor/draft/): the selection layer the Selection step has open (B-033), or `null` with no draft | `painting`, `rectangle`, `paintCells`, `drawRect` |
+| `painting` | the active layer's Selection schema, looked up via [`selections`](/api/index/variables/selections/), searched for a param of type `cellList`; `{ name, cells }` from `layer.params` | `PaintLayer`, `PreviewFrame`'s `painting` |
+| `rectangle` | `null` while `painting` is set; else, when `rectParams` ([paint.ts](/editor/paint/)) holds for the active layer's Selection schema, `{ rect }`, the four values from `layer.params` or `null` while one is not a number | `RectLayer` |
 | `loadSalt` | `preview.loadSalt` ([view.svelte.ts](/editor/preview-width/)) | `<Tileset>`, `SelectionOverlay`, `orphaned` |
 | `shadow` | `shadowConfig(config, draft)` ([draft.svelte.ts](/editor/draft/)) | `SelectionOverlay` |
 
@@ -146,7 +153,12 @@ Which component renders which, in source order. Conditional children are marked.
   too. A failure reported while a draft was drawn also goes once no palette in `shown` names its
   tile, so discarding a draft takes its pictures' failures with it. A failure from the saved file
   is kept as before.
-- **`renderBox`** is bound out so `PaintLayer` can convert pointer events into render space.
+- **Hidden operations** (batch 02 T-02, D-02 A). Only the picture reads `shown`; advisories,
+  `shapedAt`, the `.json` export and undo read `file`, which keeps every operation. An `$effect`
+  writes `pruned(preview.hidden, file.config.operations)` back, so an id the file no longer has is
+  forgotten and a new operation given that id starts visible.
+- **`renderBox`** is bound out so `PaintLayer` and `RectLayer` can convert pointer events into render space.
+- **`drawRect(rect)`** assigns the four values into the active layer's `params`, as `paintCells` writes the brush's list there (B-033: the brush and the drag edit the layer the Selection step has open, and only it). The file is untouched until the draft is saved.
   Since the canvas substrate became the default, the box is the canvas's wrapper `<div>`, which
   is why it is typed `HTMLElement`.
 
@@ -157,7 +169,9 @@ controls keep reading the base, because the base is what they edit.
 #### Notices
 
 `current = documentNotices(file, orphaned, liveFailures)` is every condition the document holds:
-§12.2's advisories and §12.3's failures. It is derived, so a notice goes away by itself when the
+§12.2's advisories and §12.3's failures, plus `keeping.notice` ("Changes won't be kept across
+reloads", B-016 S4a) when there is one. That one is a condition rather than a pushed notice, so
+New and Import, which clear pushed notices, do not hide it. It is derived, so a notice goes away by itself when the
 document no longer has the condition.
 
 A numeric field commits on every keystroke that parses (**E5**), so `current` moves while the
@@ -173,7 +187,8 @@ size, design width and the alignment toggle, once the value is committed (the tw
 `NumericInput`'s `commit="blur"`). If `needsConfirmation(config)` is true it parks
 `{ field, value, apply: transition }` in `pending` and opens a [`Dialog`](/editor/ui-dialog/);
 otherwise it applies at once. The dialog asks "Change cell size to 54?", lists every Operation in
-`risked` in a well (its index square, then `id · selection type`), and its verb, "Change cell
+`risked` in a well (its index square, then `id · ` and the selection's layer types joined with
+" + ", from `selectionTypes` in [layers.ts](/editor/layers/), B-033), and its verb, "Change cell
 size", calls `session.apply(pending.apply)`. Cancel drops `pending`; the field already shows the
 file's value, because its draft went when it committed. Holding a `Transition` rather than a
 value means the confirm step does not have to work out which field the value belonged to.
@@ -184,6 +199,11 @@ value means the confirm step does not have to work out which field the value bel
 (one per orphaned operation, at most three). It calls `opening.open(id, "selection")`, which goes
 through the unsaved-changes guard, opens the operation on its Selection step, and unfolds the
 Operations section.
+
+`trimOperation(id)` is the notice's "Remove N cells outside the grid" (batch 01, T-05, D-03 A):
+`session.apply(trimToGrid(id))`, one undoable step. `cameWith` decides the notice's wording: for
+cells that were already outside the grid in the file as opened, it does not offer Undo, which
+would go back to the previous document.
 
 #### Operations panel
 
@@ -197,11 +217,25 @@ undone away). Committing it would otherwise run `replaceOperation` against an id
 nothing, which `session.apply` correctly declines to push, so the button would seem to work
 and do nothing.
 
+#### Kept across reloads
+
+An effect hands every `session.file` to `keeping.schedule` ([keeping](/editor/keeping/)), which
+writes it to IndexedDB. The kept tileset is reopened in `main.ts` before `App` mounts, so App
+starts with it already open.
+
+#### The tour
+
+`touring` (`TourRun | null`) is seeded once from the `tourRun` mount prop (a first visit) and
+renders [Tour](/editor/tour-dialog/) while it is set; `onEnd` clears it. The top bar's **"?"**
+(`onTour`) keeps its button as `tourTrigger` and sets `touring = "replay"`. `returnFocus` is
+`tourTrigger` on a replay only.
+
 #### New document
 
-The footer's *New* button calls `newTileset` (passed as `onNew`), which is **confirmed and not
-undoable**. The button opens a [`Dialog`](/editor/ui-dialog/), "Start a new tileset?", and only
-its verb, "Start new", calls `newTileset`. That calls
+The top bar's *New* button sets `askingNew` (passed as `onNew`), which opens the
+[New tileset](/editor/new-tileset/) Form popup (B-016). Its **Empty** choice calls `newTileset`,
+which is **confirmed and not undoable**; its templates open through Import's sequence instead
+(`prepareArchive` + `adopt`, also not undoable), so App does nothing more for them. `newTileset` calls
 `session.reset()`, sets `failures = []`, calls `notices.clear()`, and awaits `replaceAll([])` to reclaim every picture the
 session held. Reset comes first so the outgoing document is already gone from the preview: no
 `<img>` then draws an object URL `replaceAll` has just revoked, and nothing reports those as
@@ -220,11 +254,11 @@ failures.
   appears every time teaches the author to dismiss it before reading".
 - **`loadSalt` writes no field and is held for the session** (**R12**). Only the footer's Fresh
   load button moves it.
-- **`columns` is displayed, never edited** (**E1**). The Derived section shows it.
+- **`columns` is displayed, never edited** (**E1**). Grid & Size's Details shows it.
 - **Advisories never block and never modify the file** (**E16**): orphans, inert flags and the
   empty-document note.
 - **The draft is not in the document** (**E3**). The overlay resolves against a local shadow
-  config, and `paintCells` writes into `draft.selectionParams` only.
+  config, and `paintCells` writes into the active layer's `params` only.
 
 ### Callers / callees
 
@@ -242,8 +276,11 @@ Callees, by import: from the package, [`selections`](/api/index/variables/select
 `Tileset.svelte`; from the editor, `advisories.ts` (`documentNotices`), `entry.svelte.ts`,
 `notices.svelte.ts` (and the `Notice` type from `notices.ts`), `assets.ts` (`editorProvider`, `replaceAll`, `stored`), `document.ts`
 (the `Transition` type), `draft.svelte.ts` (`toShadowOperation`), `drafting.svelte.ts`, `opening.svelte.ts`, `orphans.ts`, `session.svelte.ts`,
-the six `lib/sections/` components (Grid, Breakpoints, Derived, Tiles, Operations, SidebarFooter),
-`PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer` and `ui/Dialog`.
+the five `lib/sections/` components (Grid, Tiles, Operations, Breakpoints, SidebarFooter),
+`PreviewFrame`, `NoticeStack`, `SelectionOverlay`, `PaintLayer`, `RectLayer`, `ui/Dialog` and
+`sections/NewTileset`;
+`lib/preview/visibility.ts` (`withoutHidden`, `pruned`); `paint.ts`
+(`rectParams`).
 
 ### Tests
 

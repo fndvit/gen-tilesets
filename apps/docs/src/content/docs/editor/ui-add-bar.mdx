@@ -31,6 +31,7 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 | `onclick` | `(event: MouseEvent) => void` | required | |
 | `variant` | `"bar" \| "square"` | `"bar"` | `bar`: 100% × `--bar-h-add` (32px; 28 in Figma). `square`: `--thumb` × `--thumb` (32px). |
 | `disabled` | `boolean` | `false` | |
+| `haspopup` | `"dialog"` | none | `aria-haspopup`, for a bar that opens a dialog first. Tiles' bars open the [Tile gallery](/editor/tile-gallery/) (B-016 S3c). |
 
 ### Inputs → outputs
 
@@ -42,7 +43,8 @@ The real component from `apps/editor`, rendered alone. The story loads the edito
 ### Callers / callees
 
 Callers: `lib/sections/BreakpointsSection.svelte` (Add breakpoint), `lib/sections/TilesSection.svelte`
-(Add tile group), `lib/tiles/TileGroup.svelte` (the square "+"),
+(Add tile group, which opens the Tile gallery), `lib/tiles/TileGroup.svelte` (the square "+",
+which opens it for the group),
 `lib/sections/OperationsSection.svelte` (Add operation), `controls/PaletteList.svelte` (Add entry, which
 opens the tile picker). Callees: `lib/ui/Icon.svelte`.
 

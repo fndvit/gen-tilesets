@@ -10,7 +10,7 @@ sidebar:
 
 ## Overview
 
-The Explainer is a small white panel that opens under a button and explains something: what the
+The Explainer is a small white panel that opens from a button and explains something: what the
 params do, measured figures as small bars, and a note. It is used for "ⓘ How noise works" on the
 Pattern step under Noise (item 12). Hints open only on hover, so an explanation that keyboard users
 also need lives here. It never holds a control.
@@ -32,7 +32,8 @@ button. Tabbing out of it closes it too.
 
 `explainer.ts` holds the content's shape: `title`, `intro`, `params` (`{ name, text }`), `shares`
 (`{ label, shares }` rows, drawn by ratio), `sharesBy` (what a row's label counts, for screen
-readers), `advice` and `note`.
+readers), `advice` and `note`. An empty `note` (`""`) draws nothing, not a bare hairline; the Tiles explainer has
+none (batch 03, T-03).
 
 `noise-explainer.ts` holds `NOISE_EXPLAINER`, the N1 mock's text. Its bars are the shares three
 equal entries paint under Octaves 1, 2 and 3 (23/52/26, 15/68/17, 12/75/14), measured in N1 with
@@ -41,8 +42,13 @@ them: re-measure if the engine's noise changes.
 
 ### Inputs → outputs
 
-- **Placement:** [`placeAt`](/editor/ui-popover-ts/) with 420px of room, `position: fixed`, at
-  most `--explainer-w` (340px) wide and never taller than the space on its side (it scrolls).
+- **Placement:** `position: fixed`, at most `--explainer-w` (340px) wide, from the panel's
+  measured size once it mounts (`scrollHeight`, before the first paint). Inside the sidebar
+  (`anchor.closest("aside")`) it opens beside the sidebar over the preview, level with its trigger
+  and kept inside the window ([`placeBeside`](/editor/ui-popover-ts/), batch 02 D-04 A). With no
+  room there (the stacked layout below 40rem) or outside the sidebar, it hangs below or above the
+  trigger, whichever side it fits on or has more room ([`placeOnLargerSide`](/editor/ui-popover-ts/)),
+  and scrolls when taller than that side. The margins are the `--space-4` token, read from the panel.
   A window resize closes it.
 - **Focus:** the panel (`role="dialog"`, named by its heading) takes focus when it opens. It is not
   a focus trap: focus leaving it for anything but the trigger closes it without refocusing.
@@ -52,7 +58,8 @@ them: re-measure if the engine's noise changes.
 
 ### Callers
 
-`lib/operations/OperationBody.svelte`. The trigger is a tertiary [Button](/editor/ui-button/) with
+`lib/sections/OperationsSection.svelte` ("How operations work"), `lib/sections/SidebarFooter.svelte`
+("How randomness works") and `lib/operations/OperationBody.svelte`. The trigger is a tertiary [Button](/editor/ui-button/) with
 the `info` icon at the right of the Pattern's options bar, shown only under Noise; the popover
 closes when the step or the Pattern changes.
 

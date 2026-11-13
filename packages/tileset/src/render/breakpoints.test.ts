@@ -23,7 +23,7 @@ const hero = (): TilesetFile => ({
     operations: [
       {
         id: "fill",
-        selection: { type: "all" },
+        selection: [{ type: "all" }],
         source: { type: "random" },
         target: "tileId",
         mapping: { palette: [{ tileId: "t", weight: 1 }, { tileId: null, weight: 1 }] },

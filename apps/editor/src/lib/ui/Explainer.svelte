@@ -6,10 +6,15 @@
   so it is a `role="dialog"` that takes focus itself, not a focus trap: Tab
   moves on and closes it, as the tile picker does.
 
-  Placed `fixed` against its trigger by `placeAt` (shared with `TilePicker`),
-  right edge to the trigger's right edge, because its trigger sits at the right
-  of the options bar. Esc, ✕ or a press outside closes it; Esc and ✕ return
-  focus to the trigger.
+  Placed `fixed`, by rules in `popover.ts` (shared with `TilePicker`), from
+  its measured size. In the sidebar it opens beside it, over the preview, level
+  with its trigger (`placeBeside`, batch 02 D-04 A), because an explainer is
+  taller than the room above or below a trigger at common window heights.
+  Where there is no room beside the sidebar (the stacked layout below 40rem),
+  or outside the sidebar, it hangs above or below the trigger, whichever side
+  fits or has more room (`placeOnLargerSide`), right edge to the trigger's
+  right edge, because its triggers sit at the right of a bar. Esc, ✕ or a
+  press outside closes it; Esc and ✕ return focus to the trigger.
 
   What it says is `content`, data from the caller (`explainer.ts`), so this
   file knows nothing about noise.
@@ -17,7 +22,7 @@
 <script lang="ts">
   import type { ExplainerContent } from "./explainer.js";
   import IconButton from "./IconButton.svelte";
-  import { placeAt, pressedOutside } from "./popover.js";
+  import { placeBeside, placeOnLargerSide, pressedOutside, type BesidePlacement } from "./popover.js";
 
   interface Props {
     anchor: HTMLElement;
@@ -31,11 +36,27 @@
   const titleId = $props.id();
   let panel = $state<HTMLElement | undefined>(undefined);
   let place = $state({ top: 0, left: 0, right: 0, up: false });
+  let beside = $state<BesidePlacement | undefined>(undefined);
+
+  /** A length token in px, read from the panel so the rules and the CSS share one number. */
+  const px = (el: HTMLElement, token: string): number => parseFloat(getComputedStyle(el).getPropertyValue(token)) || 0;
 
   $effect(() => {
-    // About the panel's height at 340px before it opens upward instead.
-    place = placeAt(anchor.getBoundingClientRect(), { width: window.innerWidth, height: window.innerHeight }, 420);
-    panel?.focus();
+    if (panel === undefined) return;
+    // Measured once mounted, before the first paint: `scrollHeight` is the
+    // whole content even while `max-height` cuts it, and the width is the
+    // same in every placement, so nothing reflows after placing.
+    const viewport = { width: window.innerWidth, height: window.innerHeight };
+    const size = { width: panel.offsetWidth, height: panel.scrollHeight };
+    const box = anchor.getBoundingClientRect();
+    const sidebar = anchor.closest("aside");
+    const margin = px(panel, "--space-4");
+    // A local, not `beside`: reading state an effect writes would make it rerun itself.
+    const nextTo = sidebar === null ? undefined : placeBeside(sidebar.getBoundingClientRect(), box, viewport, size, margin);
+    // Above or below, it also needs its gap to the trigger and the window margin.
+    if (nextTo === undefined) place = placeOnLargerSide(box, viewport, size.height + px(panel, "--space-2") + margin);
+    beside = nextTo;
+    panel.focus();
   });
 
   function onkeydown(event: KeyboardEvent): void {
@@ -64,12 +85,15 @@
 
 <div
   class="explainer"
-  class:up={place.up}
+  class:up={beside === undefined && place.up}
+  class:beside={beside !== undefined}
   role="dialog"
   aria-labelledby={titleId}
   tabindex="-1"
   bind:this={panel}
-  style="--top: {place.top}px; --right: {place.right}px;"
+  style={beside === undefined
+    ? `--top: ${place.top}px; --right: ${place.right}px;`
+    : `--top: ${beside.top}px; --left: ${beside.left}px; --max-h: ${beside.maxHeight}px;`}
   {onkeydown}
   {onfocusout}
 >
@@ -103,7 +127,8 @@
     </ul>
   {/if}
   <p class="t-body">{content.advice}</p>
-  <p class="note t-body">{content.note}</p>
+  <!-- An empty note draws nothing, not a bare hairline (the Tiles explainer has none, D-01). -->
+  {#if content.note !== ""}<p class="note t-body">{content.note}</p>{/if}
 </div>
 
 <style>
@@ -135,6 +160,14 @@
     top: auto;
     bottom: calc(100vh - var(--top) + var(--space-2));
     max-height: calc(var(--top) - 2 * var(--space-4));
+  }
+
+  /* Beside the sidebar: `placeBeside` has already kept it inside the window. */
+  .explainer.beside {
+    top: var(--top);
+    right: auto;
+    left: var(--left);
+    max-height: var(--max-h);
   }
 
   .explainer:focus-visible {

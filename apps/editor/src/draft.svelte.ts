@@ -37,6 +37,7 @@ import {
   type Operation,
   type PaletteEntry,
   type ParamSchema,
+  type Selection,
   type TargetName,
   type TilesetConfig,
   type TilesetFile,
@@ -85,9 +86,17 @@ export interface Draft {
    */
   salt: number;
   reseedOnLoad: boolean;
-  /** `null` until the author picks one. No default is invented (`DECISIONS.md` D7). */
-  selectionType: string | null;
-  selectionParams: Record<string, unknown>;
+  /**
+   * The Selection's layers (B-033), at least one — `Operation.selection` is a
+   * list since schema v6. A layer's `type` is `null` until the author picks one;
+   * no default is invented (`DECISIONS.md` D7).
+   */
+  layers: DraftLayer[];
+  /**
+   * The layer the Selection step's controls and the preview's brush and drag
+   * edit. Always a valid index into `layers`.
+   */
+  activeLayer: number;
   target: TargetName | null;
   sourceType: string | null;
   sourceParams: Record<string, unknown>;
@@ -134,6 +143,100 @@ export function defaultParams(schema: ParamSchema): Record<string, unknown> {
   return out;
 }
 
+/** One selection layer as the draft holds it: a type, or none yet, and its parameters. */
+export interface DraftLayer {
+  type: string | null;
+  params: Record<string, unknown>;
+}
+
+/**
+ * The layer the controls edit — `draft.layers[draft.activeLayer]`. The object
+ * itself, so a control writes through it into the draft (`layer.params[name] =
+ * v`), never a copy.
+ */
+export function activeLayer(draft: Draft): DraftLayer {
+  return draft.layers[draft.activeLayer]!;
+}
+
+/**
+ * Adds an untyped layer at the end and opens it (B-033, Block 3).
+ *
+ * Untyped rather than a copy of the open layer: no Selection type has a
+ * default anywhere (`DECISIONS.md` D7), and a copy would select exactly the
+ * same cells, so the new layer would add nothing until changed. The draft is
+ * incomplete until the author picks a type (`isComplete`); the overlay and the
+ * live picture keep the typed layers meanwhile (`toShadowOperation`, `draftFile`).
+ */
+export function addLayer(draft: Draft): void {
+  draft.layers.push({ type: null, params: {} });
+  draft.activeLayer = draft.layers.length - 1;
+}
+
+/**
+ * Removes layer `i` and returns the index now open.
+ *
+ * **Never the last layer.** A selection holds at least one (`validate()`
+ * refuses an empty list), so removing the only one is a no-op; the UI hides
+ * the × at one layer, and this is the gate behind it.
+ *
+ * **The open layer stays the same layer.** Removing one before it shifts the
+ * index down by one. Removing the open one opens its predecessor, which is the
+ * row the eye was just above, or the new first layer when it was first. Rejected:
+ * leaving the index alone, which would silently open the *next* layer when an
+ * earlier one went, and point past the end when the last one went.
+ */
+export function removeLayer(draft: Draft, i: number): number {
+  if (draft.layers.length <= 1 || i < 0 || i >= draft.layers.length) return draft.activeLayer;
+  draft.layers.splice(i, 1);
+  if (i < draft.activeLayer || (i === draft.activeLayer && i > 0)) draft.activeLayer -= 1;
+  return draft.activeLayer;
+}
+
+/** Opens layer `i`, clamped into range so `activeLayer` is always a valid index. */
+export function openLayer(draft: Draft, i: number): void {
+  draft.activeLayer = Math.min(Math.max(0, Math.trunc(i)), draft.layers.length - 1);
+}
+
+/**
+ * Whether removing layer `i` moves the scatter of a Random layer after it —
+ * the × hint (Pol, Block 3).
+ *
+ * Random layers are channelled **by position** (`layerOwner`, Block 1): layer
+ * `j` hashes on `opId:j:selection`. Removing an earlier layer renumbers the
+ * ones after it, so a Random layer there gets a new channel and a new scatter.
+ *
+ * **A name check, the one in this file.** A Selection registration has no
+ * `stochastic` declaration to read (Sources do, **X5**), and adding one changes
+ * the Registry contract, which `rectParams` (`paint.ts`) already declined for
+ * the same kind of reason. The cost is only a missing hint on a stochastic
+ * Selection registered later; nothing about the picture depends on it.
+ */
+export function shiftsScatter(draft: Draft, i: number): boolean {
+  return draft.layers.slice(i + 1).some((layer) => layer.type === "random");
+}
+
+/**
+ * The layers that have a type, as the Selections they denote.
+ *
+ * The one rule the overlay (`toShadowOperation`) and the live picture
+ * (`draftFile`, through `typedOnly`) share: an untyped layer is left out, not
+ * a reason to draw nothing.
+ */
+function typedLayers(draft: Draft): Selection[] {
+  return draft.layers.flatMap((layer) => (layer.type === null ? [] : [{ type: layer.type, ...layer.params }]));
+}
+
+/**
+ * The draft with its untyped layers dropped, for `draftFile`; the draft itself
+ * when every layer is typed. `activeLayer` is reset because the indices moved,
+ * and nothing that reads this copy looks at it. Not for Save: `toOperation` on
+ * the real draft still refuses an untyped layer.
+ */
+function typedOnly(draft: Draft): Draft {
+  if (draft.layers.every((layer) => layer.type !== null)) return draft;
+  return { ...draft, layers: draft.layers.filter((layer) => layer.type !== null), activeLayer: 0 };
+}
+
 export function newDraft(id: string): Draft {
   return {
     id,
@@ -142,8 +245,8 @@ export function newDraft(id: string): Draft {
     // explicitly anyway. Step 9's controls are on the stack row, not here.
     salt: 0,
     reseedOnLoad: false,
-    selectionType: null,
-    selectionParams: {},
+    layers: [{ type: null, params: {} }],
+    activeLayer: 0,
     target: null,
     sourceType: null,
     sourceParams: {},
@@ -203,7 +306,7 @@ export function retarget(draft: Draft, target: TargetName): void {
  */
 export function isComplete(draft: Draft): boolean {
   if (
-    draft.selectionType === null ||
+    draft.layers.some((layer) => layer.type === null) ||
     draft.target === null ||
     draft.sourceType === null ||
     draft.blend === null
@@ -271,7 +374,10 @@ export function mappingOf(draft: Draft): Operation["mapping"] {
  * builds one for committing, and it still refuses an incomplete draft.
  */
 export function toShadowOperation(draft: Draft): Operation | null {
-  if (draft.selectionType === null) return null;
+  // The layers chosen so far (B-033). A layer just added and not yet typed is
+  // left out, so the overlay keeps showing the others while the author picks.
+  const selection = typedLayers(draft);
+  if (selection.length === 0) return null;
   return {
     id: draft.id,
     // **Read**, unlike the three placeholders below: `selection()` reaches these
@@ -281,7 +387,7 @@ export function toShadowOperation(draft: Draft): Operation | null {
     // Operation does not have, so the overlay would disagree with the picture.
     salt: draft.salt,
     reseedOnLoad: draft.reseedOnLoad,
-    selection: { type: draft.selectionType, ...draft.selectionParams },
+    selection,
     // The draft's own pattern once one is chosen: `selection()` does not read
     // it, but the palette's measured coverage (`fieldOf`) does, against this
     // same shadow. A placeholder until then, never read.
@@ -341,6 +447,15 @@ function withOperation(config: TilesetConfig, operation: Operation): TilesetConf
  * draft**): `file` with `toOperation(draft)` in it, by `withOperation`'s rule,
  * or `null` while the draft cannot paint (`isComplete`).
  *
+ * **Untyped layers are left out of the picture** (B-033, Block 3 fix), the
+ * same rule `toShadowOperation` applies to the overlay: a layer just added
+ * selects nothing yet. Rejected: refusing the whole draft while any layer is
+ * untyped, which is what `isComplete` alone does. Then "+ Add selection layer"
+ * dropped the draft from the preview, and the earlier layers looked lost
+ * (Pol, 2026-11-12). Save stays strict: `toOperation` and `isComplete` still
+ * refuse an untyped layer, because the file holds only legal Operations (**E5**).
+ * With no typed layer at all there is nothing to draw, so that is `null`.
+ *
  * Built from `toOperation`, not from the shadow, on purpose: the shadow carries
  * placeholders for the steps not answered yet, and `toOperation` is exactly
  * what Save commits, so the live picture is the saved one (Constant's one
@@ -352,7 +467,9 @@ function withOperation(config: TilesetConfig, operation: Operation): TilesetConf
  * lets App measure the preview's shape from the saved file (`shapedAt`).
  */
 export function draftFile(file: TilesetFile, draft: Draft): TilesetFile | null {
-  const operation = toOperation(draft);
+  const typed = typedOnly(draft);
+  if (typed.layers.length === 0) return null;
+  const operation = toOperation(typed);
   if (operation === null) return null;
   return { ...file, config: withOperation(file.config, operation) };
 }
@@ -398,21 +515,24 @@ export function draftFile(file: TilesetFile, draft: Draft): TilesetFile | null {
  * a transition, which is **E3** and **E6** both defeated by an assignment: the
  * picture would move with nothing on the undo stack to move it back.
  *
- * The copies are one level deep, which is the depth the controls write at. A
- * `cellList` is replaced wholesale rather than pushed into (`App.svelte`'s
- * `paintCells`), so its array is not shared even though this does not clone it.
+ * The copies are one level deep, which is the depth the controls write at,
+ * except the selection layers, which are copied whole (B-033): each layer is
+ * its own object holding its own `params`, and a parameter value may itself be
+ * an array (a `cellList`). A `cellList` is replaced wholesale rather than
+ * pushed into (`App.svelte`'s `paintCells`), but copying it costs nothing and
+ * makes the no-aliasing rule hold without relying on that.
  */
 export function fromOperation(op: Operation): Draft {
   const fresh = newDraft(op.id);
-  const { type: selectionType, ...selectionParams } = op.selection;
+  const layers = op.selection.map(({ type, ...params }) => ({ type, params: copyJson(params) }));
   const { type: sourceType, ...sourceParams } = op.source;
   const mapping = op.mapping;
   return {
     ...fresh,
     salt: op.salt ?? 0,
     reseedOnLoad: op.reseedOnLoad === true,
-    selectionType,
-    selectionParams,
+    layers,
+    activeLayer: 0,
     sourceType,
     sourceParams,
     target: op.target,
@@ -439,7 +559,7 @@ export function toOperation(draft: Draft): Operation | null {
     id: draft.id,
     salt: draft.salt,
     reseedOnLoad: draft.reseedOnLoad,
-    selection: { type: draft.selectionType!, ...draft.selectionParams },
+    selection: typedLayers(draft),
     source: { type: draft.sourceType!, ...draft.sourceParams },
     target: draft.target!,
     mapping,
@@ -459,7 +579,7 @@ export function toOperation(draft: Draft): Operation | null {
  */
 export function draftDiffers(draft: Draft, op: Operation | null): boolean {
   if (op === null) {
-    return draft.selectionType !== null || draft.target !== null || draft.sourceType !== null;
+    return draft.layers.some((layer) => layer.type !== null) || draft.target !== null || draft.sourceType !== null;
   }
   const current = toOperation(draft);
   if (current === null) return true;
@@ -473,4 +593,9 @@ function stableJson(value: unknown): string {
       ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)))
       : v,
   );
+}
+
+/** A deep copy of plain file data — numbers, strings, arrays and objects. */
+function copyJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }

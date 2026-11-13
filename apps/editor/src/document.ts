@@ -33,10 +33,11 @@
  *
  * Transient UI state lives **beside** the file, keyed by the identifiers the file
  * already carries — `Operation.id`, `Tile.id`, `TileAsset.id` (§4.1). It is
- * session-scoped and does not survive a reload.
+ * session-scoped and does not survive a reload. The file does (`keep.ts`).
  */
 
 import {
+  SCHEMA_VERSION,
   shapeOf,
   validate,
   type Layout,
@@ -56,6 +57,8 @@ import {
   RULE_PARSERS,
   type RuleField,
 } from "./fields.js";
+import { cellsOf } from "./layers.js";
+import { outsideCells } from "./orphans.js";
 import { nextSalt } from "./reseed.js";
 import { memorableSeed } from "./seed.js";
 
@@ -123,9 +126,9 @@ const NEW_ALIGNMENT = "gutter" as const;
 
 export function newDocument(): TilesetFile {
   return {
-    // Required. Absent or unknown is a load failure (`06` **C2**). 4 since
-    // 0.8.0 added the `translateX`/`translateY` Targets.
-    schemaVersion: 4,
+    // Required. Absent or unknown is a load failure (`06` **C2**). The engine's
+    // own constant, so a schema bump cannot leave a new document behind.
+    schemaVersion: SCHEMA_VERSION,
     // Required, advisory, never validated against anything (`06` **C3**). E2
     // makes it truthful by construction.
     engineVersion: ENGINE_VERSION,
@@ -161,6 +164,20 @@ export function newDocument(): TilesetFile {
       horizontalAlignment: NEW_ALIGNMENT,
     },
   };
+}
+
+/**
+ * Whether `file` holds nothing an author would miss: no Tiles, no Operations
+ * and no responsive rules. Import replaces such a file without asking (Pol,
+ * 2026-11-09), because the question would guard nothing.
+ *
+ * The grid's numbers and the seed are left out on purpose. Every file has
+ * them, so counting them would make a fresh New → Empty with its random seed
+ * "not blank" and the question would come back for the one case it was meant
+ * to skip. Losing a row count is not what "Everything … is lost" warns about.
+ */
+export function isBlank(file: TilesetFile): boolean {
+  return file.config.tiles.length === 0 && file.config.operations.length === 0 && (file.responsive ?? []).length === 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -791,5 +808,46 @@ export function removeRuleField(index: number, field: RuleField): Transition {
     if (rule === undefined || rule[field] === undefined) return file;
     const { [field]: _gone, ...rest } = rule;
     return withRules(file, rulesOf(file).map((r, i) => (i === index ? rest : r)));
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Painted cells outside the grid (batch 01, T-05, B-014)
+// ---------------------------------------------------------------------------
+
+/**
+ * Drops the cells of Operation `operationId`'s painted list that lie outside
+ * the current grid — the orphan notice's "Remove N cells outside the grid"
+ * (D-03 A).
+ *
+ * **Not a migration**, which §9.4 refuses: nothing is moved or guessed. A cell
+ * outside the grid is drawn nowhere, so dropping it changes no picture; it only
+ * makes the list say what the grid can show. The author asks for it, and it is
+ * one undoable step like any other transition.
+ *
+ * "Outside" is the grid's bounds, `0 <= x < columns` and `0 <= y < rows`, not a
+ * Selection test (**E8** forbids the editor a second implementation of one):
+ * the question is where the grid ends, which is the file's `rows` and
+ * `columns`, and `orphans.ts` `outsideCells` states it once for this and for
+ * the notice's wording.
+ *
+ * Only a Selection whose parameter *is* the list (`cellList`) is trimmed, in
+ * every layer that is one (B-033); a
+ * `rect` may extend past the grid on purpose (`04` §4.2). Refused by identity
+ * (an unknown id, another Selection type, nothing outside), so `session.apply`
+ * pushes no empty undo entry.
+ */
+export function trimToGrid(operationId: string): Transition {
+  return (file) => {
+    const op = file.config.operations.find((o) => o.id === operationId);
+    if (op === undefined) return file;
+    const outside = new Set(outsideCells(op, file.config));
+    if (outside.size === 0) return file;
+    // Every Handpick layer is trimmed (B-033); any other layer is left alone.
+    const next = op.selection.map((layer) => {
+      const cells = cellsOf(layer);
+      return cells === undefined ? layer : { ...layer, cells: cells.filter((cell) => !outside.has(cell)) };
+    });
+    return replaceOperation({ ...op, selection: next })(file);
   };
 }

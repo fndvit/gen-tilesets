@@ -8,6 +8,8 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { generate } from "./generate.js";
+import { hash, selectionChannel, stage1 } from "./hash.js";
 import { migrate, MIGRATIONS } from "./migrate.js";
 import type { TilesetFile } from "./types.js";
 import { SCHEMA_VERSION, validate } from "./validate.js";
@@ -28,7 +30,7 @@ const current = (): TilesetFile => ({
         id: "op1",
         salt: 3,
         reseedOnLoad: false,
-        selection: { type: "checkerboard", parity: 1 },
+        selection: [{ type: "checkerboard", parity: 1 }],
         source: { type: "constant" },
         target: "tileId",
         mapping: { palette: [{ tileId: "leaf", weight: 1 }] },
@@ -39,8 +41,21 @@ const current = (): TilesetFile => ({
   layout: { cellSize: 175, referenceWidth: 1280, yOffset: 0.25, horizontalAlignment: "gutter" },
 });
 
+/**
+ * The same document as an older version wrote it: before v6 (B-033) each
+ * Operation's `selection` was one Selection object, not a list of layers.
+ */
+const older = (schemaVersion: number): Record<string, unknown> => {
+  const file = current();
+  return {
+    ...file,
+    schemaVersion,
+    config: { ...file.config, operations: file.config.operations.map((op) => ({ ...op, selection: op.selection[0] })) },
+  };
+};
+
 /** The same document as it would have been written before ADR-005. */
-const v1 = (): Record<string, unknown> => ({ ...current(), schemaVersion: 1 });
+const v1 = (): Record<string, unknown> => older(1);
 
 describe("migrate — the v1 → current path", () => {
   it("upgrades a v1 file, one row at a time", () => {
@@ -52,6 +67,8 @@ describe("migrate — the v1 → current path", () => {
       [1, 2],
       [2, 3],
       [3, 4],
+      [4, 5],
+      [5, 6],
     ]);
   });
 
@@ -60,11 +77,10 @@ describe("migrate — the v1 → current path", () => {
    * reach into the file was widening `Operation.target`'s admissible set, so
    * there is nothing in a v1 document to convert.
    */
-  it("changes nothing but the version number", () => {
-    const before = v1();
-    const outcome = migrate(before);
+  it("changes nothing but the version number, and wraps the selection (5 → 6)", () => {
+    const outcome = migrate(v1());
     if (outcome.kind !== "migrated") throw new Error("expected a migration");
-    expect(outcome.file).toEqual({ ...before, schemaVersion: SCHEMA_VERSION });
+    expect(outcome.file).toEqual(current());
   });
 
   /** The whole point: an old file opens. */
@@ -103,14 +119,16 @@ describe("migrate — the v2 → v3 path", () => {
    * "one shape at every width" always was — so there is nothing to convert.
    */
   it("changes nothing but the version number, and adds no rules", () => {
-    const before = { ...current(), schemaVersion: 2 };
+    const before = older(2);
     const outcome = migrate(before);
     if (outcome.kind !== "migrated") throw new Error("expected a migration");
     expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([
       [2, 3],
       [3, 4],
+      [4, 5],
+      [5, 6],
     ]);
-    expect(outcome.file).toEqual({ ...before, schemaVersion: SCHEMA_VERSION });
+    expect(outcome.file).toEqual(current());
     expect("responsive" in (outcome.file as object)).toBe(false);
     expect(validate(outcome.file)).toEqual([]);
   });
@@ -122,12 +140,191 @@ describe("migrate — the v3 → v4 path", () => {
    * file uses neither and there is nothing to convert.
    */
   it("changes nothing but the version number", () => {
-    const before = { ...current(), schemaVersion: 3 };
+    const before = older(3);
     const outcome = migrate(before);
     if (outcome.kind !== "migrated") throw new Error("expected a migration");
-    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([[3, 4]]);
-    expect(outcome.file).toEqual({ ...before, schemaVersion: 4 });
+    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([
+      [3, 4],
+      [4, 5],
+      [5, 6],
+    ]);
+    expect(outcome.file).toEqual(current());
     expect(validate(outcome.file)).toEqual([]);
+  });
+});
+
+describe("migrate — the v4 → v5 path", () => {
+  /**
+   * B-009's row, and the first that rewrites content: the old `everyNth` (every
+   * nth column or row) is `rowColumn` now, and the name counts row-major.
+   */
+  const v4With = (selection: unknown): Record<string, unknown> => {
+    const file = current();
+    return {
+      ...file,
+      schemaVersion: 4,
+      config: { ...file.config, operations: [{ ...file.config.operations[0], selection }] },
+    };
+  };
+  // From v4 the path runs on through 5 -> 6, which wraps each selection.
+  const migrated = (before: unknown): Record<string, unknown> => {
+    const outcome = migrate(before);
+    if (outcome.kind !== "migrated") throw new Error("expected a migration");
+    return outcome.file as Record<string, unknown>;
+  };
+
+  it("changes nothing but the version number when no everyNth is present", () => {
+    const before = older(4);
+    const outcome = migrate(before);
+    if (outcome.kind !== "migrated") throw new Error("expected a migration");
+    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([
+      [4, 5],
+      [5, 6],
+    ]);
+    expect(outcome.file).toEqual(current());
+    expect(validate(outcome.file)).toEqual([]);
+  });
+
+  it("renames everyNth to rowColumn and leaves its parameters alone", () => {
+    const before = v4With({ type: "everyNth", axis: "row", n: 2, offset: 1 });
+    const after = migrated(before) as unknown as TilesetFile;
+    expect(after.config.operations[0]!.selection).toEqual([{ type: "rowColumn", axis: "row", n: 2, offset: 1 }]);
+    // Nothing else in the file moved.
+    expect({ ...after, config: { ...after.config, operations: [] } }).toEqual({
+      ...before,
+      schemaVersion: SCHEMA_VERSION,
+      config: { ...(before.config as object), operations: [] },
+    });
+    expect(validate(after)).toEqual([]);
+  });
+
+  /**
+   * The point of the row: a v4 file draws exactly as it did. The old rule no
+   * longer exists under its old name, so the picture is pinned by hand —
+   * every 3rd **column** of a 4-column grid, columns 0 and 3 in every row.
+   */
+  it("draws a migrated file exactly as the old rule did", () => {
+    const before = v4With({ type: "everyNth", axis: "column", n: 3, offset: 0 });
+    const config = before.config as TilesetFile["config"];
+    config.rows = 3;
+    config.columns = 4;
+    config.operations[0] = {
+      ...config.operations[0]!,
+      source: { type: "constant" },
+      target: "rotation",
+      mapping: { range: [90, 90] },
+    };
+    const rotations = (c: TilesetFile["config"]) => generate(c, "sunset-3").cells.map((s) => s.rotation);
+
+    const after = migrated(before) as unknown as TilesetFile;
+    expect(rotations(after.config)).toEqual([
+      90, 0, 0, 90,
+      90, 0, 0, 90,
+      90, 0, 0, 90,
+    ]);
+    // The accepted cost (B-009 Block 1): the same config handed to `generate()`
+    // without `migrate()` gets the new row-major count — cells 0, 3, 6 and 9.
+    // Since v6 (B-033) it needs the selection as a list for that, too.
+    expect(rotations({ ...config, operations: [{ ...config.operations[0]!, selection: [{ type: "everyNth", n: 3, offset: 0, axis: "column" }] }] })).toEqual([
+      90, 0, 0, 90,
+      0, 0, 90, 0,
+      0, 90, 0, 0,
+    ]);
+  });
+
+  it("survives a malformed config or operations, for validate() to report", () => {
+    for (const config of [undefined, null, 3, "config", []]) {
+      const before = { ...current(), schemaVersion: 4, config };
+      expect(migrated(before)).toEqual({ ...before, schemaVersion: SCHEMA_VERSION });
+    }
+    for (const operations of [undefined, null, {}, "ops"]) {
+      const file = current();
+      const before = { ...file, schemaVersion: 4, config: { ...file.config, operations } };
+      expect(migrated(before)).toEqual({ ...before, schemaVersion: SCHEMA_VERSION });
+    }
+    // Operations and selections that are not objects pass through untouched,
+    // beside one that is renamed.
+    const file = current();
+    const ops = [null, 7, { id: "x" }, { id: "y", selection: "everyNth" }, { id: "z", selection: { type: "everyNth", n: 2 } }];
+    const after = migrated({ ...file, schemaVersion: 4, config: { ...file.config, operations: ops } });
+    expect((after.config as { operations: unknown[] }).operations).toEqual([
+      null,
+      7,
+      { id: "x" },
+      { id: "y", selection: "everyNth" },
+      { id: "z", selection: [{ type: "rowColumn", n: 2 }] },
+    ]);
+  });
+
+  it("does not mutate its input", () => {
+    const before = v4With({ type: "everyNth", axis: "column", n: 3, offset: 0 });
+    const snapshot = structuredClone(before);
+    migrated(before);
+    expect(before).toEqual(snapshot);
+  });
+});
+
+
+describe("migrate — the v5 → v6 path", () => {
+  /**
+   * B-033's row: a selection is a list of layers, so each older selection is
+   * wrapped in a one-item list, and nothing else moves.
+   */
+  const migrated = (before: unknown): Record<string, unknown> => {
+    const outcome = migrate(before);
+    if (outcome.kind !== "migrated") throw new Error("expected a migration");
+    return outcome.file as Record<string, unknown>;
+  };
+
+  it("wraps each selection in a list and changes nothing else", () => {
+    const outcome = migrate(older(5));
+    if (outcome.kind !== "migrated") throw new Error("expected a migration");
+    expect(outcome.steps.map((s) => [s.from, s.to])).toEqual([[5, 6]]);
+    expect(outcome.file).toEqual(current());
+    expect(validate(outcome.file)).toEqual([]);
+  });
+
+  /**
+   * The point of the row: a v5 file draws exactly as it did. A `random`
+   * selection is the case that could move, because each layer has a hash
+   * channel; layer 0 must keep the Operation's own. The old rule is written out
+   * here by hand -- `hash(seed, opId:selection, x, y, salt) < density` -- since
+   * the engine no longer takes the old shape.
+   */
+  it("draws a migrated random selection exactly as the old one-object selection did", () => {
+    const file = older(5) as unknown as TilesetFile;
+    const op = { ...(file.config.operations[0] as unknown as Record<string, unknown>), salt: 7, selection: { type: "random", density: 0.4 } };
+    const before = { ...file, config: { ...file.config, rows: 6, columns: 9, operations: [op] } };
+    const after = migrated(before) as unknown as TilesetFile;
+
+    const painted = generate(after.config, "sunset-3").cells.map((c) => c.tileId !== null);
+    const seed = stage1("sunset-3");
+    const expected: boolean[] = [];
+    for (let y = 0; y < 6; y++) {
+      for (let x = 0; x < 9; x++) expected.push(hash(seed, selectionChannel("op1"), x, y, 7) < 0.4);
+    }
+    expect(painted).toEqual(expected);
+    // Not vacuous: some cells in, some out.
+    expect(painted.some(Boolean)).toBe(true);
+    expect(painted.every(Boolean)).toBe(false);
+  });
+
+  it("leaves a selection that is not an object for validate() to report", () => {
+    const file = current();
+    const ops = [null, { id: "x" }, { id: "y", selection: "rect" }, { id: "z", selection: [{ type: "all" }] }];
+    const after = migrated({ ...file, schemaVersion: 5, config: { ...file.config, operations: ops } });
+    expect((after.config as { operations: unknown[] }).operations).toEqual(ops);
+    for (const config of [undefined, null, 3, []]) {
+      const before = { ...file, schemaVersion: 5, config };
+      expect(migrated(before)).toEqual({ ...before, schemaVersion: 6 });
+    }
+  });
+
+  it("does not mutate its input", () => {
+    const before = older(5);
+    const snapshot = structuredClone(before);
+    migrated(before);
+    expect(before).toEqual(snapshot);
   });
 });
 

@@ -32,10 +32,10 @@ Random the palette list has no order to change (T0).
 | `narrowGrid(file)` | advisory 4 | `columns × cellSize < referenceWidth` |
 | `inertReseed(file)` | advisory 2 | an Operation has `reseedOnLoad` over a Source that is not random (`reseed.ts` `inertFlags`) |
 | `nonSquare(file)` | advisory 7 | an asset's `meta.width` and `meta.height` are both numbers and differ. An unmeasured asset is skipped |
-| `orphanedNotice(orphans, onOpen?)` | advisory 3, §9.4 | `orphans.ts` found Operations a resize left reaching fewer cells. With `onOpen`, one "Open op-2" action per Operation, at most `MAX_OPEN_ACTIONS` (3) |
+| `orphanedNotice(orphans, { onOpen?, onRemove?, cameWithFile? })` | advisory 3, §9.4 | `orphans.ts` found Operations reaching fewer cells than authored. With `onOpen`, one "Open op-2" action per Operation, at most `MAX_OPEN_ACTIONS` (3). With `onRemove`, one "Remove N cells outside the grid" per painted list that has some (with "from op2" when two lists could be meant), at most 3 (batch 01, T-05). N, and the "N of M painted cells outside the grid" line, is `Orphan.outside` when set (a selection of more than one layer, B-033), otherwise `authored − reachable`. Each line names the Operation by `Orphan.selectionType`, its layer types joined with " + " (`op2 · rect + cellList`). Operations in `cameWithFile` were already like this in the opened file: the title becomes "…has cells outside the grid" and the body does not mention Undo; when only some are, those are marked "(as opened)" and the body says where Undo helps |
 | `assetFailures(failures)` | §12.3 | a picture failed to resolve or load. All failures go into one notice |
 | `attachFailures(failures)` | §12.3 | files dropped or picked in Tiles did not attach. Pushed, one notice for the drop |
-| `documentNotices(file, orphans, failures, onOpen?)` | | all of the above, failures first; `onOpen` goes to `orphanedNotice` |
+| `documentNotices(file, orphans, failures, orphanOptions?)` | | all of the above, failures first; `orphanOptions` (`OrphanOptions`) goes to `orphanedNotice` |
 | `exportedEmpty` | advisory 5 | a constant notice, pushed after an export of a document that draws nothing |
 | `importNotices({ upgrades, failed })` | §12.4 | an upgraded file (advisory), and pictures that could not be read (failure) |
 
@@ -73,6 +73,10 @@ Callees: `reseed.ts` (`inertFlags`); the `Notice` type from `notices.ts` and the
   string-sized asset for 7;
 - the orphan wording and a signature that changes with the counts;
 - no action without `onOpen`, and with it one "Open" per orphan, at most three;
+- cells outside the grid (batch 01, T-05): after a resize here, today's title and Undo text plus
+  "Remove N cells outside the grid"; after opening a file that holds them, no Undo and a title
+  that says so; no Remove for a `rect`; "from op2" when two lists could be meant; the mixed case
+  marks "(as opened)"; the signature changes with where the loss came from;
 - `attachFailures`: nothing for no failures, one notice for many, singular and plural titles;
 - failures collapse into one notice and come first;
 - import notes, and a clean import that pushes nothing.

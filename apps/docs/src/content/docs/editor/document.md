@@ -66,7 +66,13 @@ transition of its own: it is committed with the rest of the Operation by `replac
 
 #### Operation stack
 
-`addOperation`, `removeOperation`, `replaceOperation`, `moveOperation`.
+`addOperation`, `removeOperation`, `replaceOperation`, `moveOperation`, and (batch 01, T-05)
+`trimToGrid`, which drops a painted list's cells outside the grid: the orphan notice's "Remove N
+cells outside the grid". It is not §9.4's refused migration: nothing is moved or guessed, and a cell
+outside the grid draws nowhere, so no picture changes. Since a selection is a list of layers
+(B-033), it maps over `op.selection`: every Handpick layer (one with a `cells` list, read with
+`cellsOf` from [layers.ts](/editor/layers/)) is trimmed, and any other layer, such as a `rect`, is
+kept as it is.
 
 #### Breakpoints (responsive rules)
 
@@ -106,6 +112,7 @@ returns no errors.
 | `removeOperation(id)` | `→ Transition` | no Operation has that id |
 | `replaceOperation(op)` | `→ Transition` | rules present and result invalid |
 | `moveOperation(id, index)` | `→ Transition` | unknown id, index out of range, or same index |
+| `trimToGrid(id)` | `→ Transition` | unknown id, a Selection with no painted list, or no cell outside the grid |
 | `addRule()` | `→ Transition` | neither candidate rule validates |
 | `removeRule(index)` | `→ Transition` | index out of range; result invalid |
 | `moveRule(index, to)` | `→ Transition` | either index out of range, or equal; result invalid |
@@ -115,8 +122,8 @@ returns no errors.
 
 ### Inputs → outputs
 
-**`newDocument()`.** It returns `schemaVersion: 4` (the comment says this is *4 since 0.8.0 added
-the translateX/translateY Targets*), `engineVersion: ENGINE_VERSION`, and a config with
+**`newDocument()`.** It returns `schemaVersion: SCHEMA_VERSION`, the engine's own constant, so a
+schema bump cannot leave a new document behind, `engineVersion: ENGINE_VERSION`, and a config with
 `rows: 5`, `columns: deriveColumns(1000, 100, "gutter")` = 10, a `memorableSeed()`,
 `assetSalt: 0`, `reseedAssetsOnLoad: false` and empty `tiles` and `operations`. The layout is
 `cellSize: 100`, `referenceWidth: 1000`, `yOffset: 0`, `horizontalAlignment: "gutter"`. That
@@ -195,19 +202,20 @@ index is an argument: the subject is named by id, but a destination has no id.
 | `App.svelte:346` | `ENGINE_VERSION` shown in the header |
 | `lib/sections/TilesSection.svelte:73`, `:80`, `:102`, `:112`, `:127`, `:133`, `:174` | `addTiles`, `addAssets`, `tileReferences`, `deleteTile`, `deleteAsset`, `setAssetWeight` (weight passed as `String(weight)`), `renameTile`, `resetAssetWeights` |
 | `lib/sections/OperationsSection.svelte:92`, `:110`, `:112`, `:113` | `rerollOperation`, `removeOperation`, `moveOperation` |
-| `lib/operations/OperationBody.svelte:257` | `replaceOperation` or `addOperation` on commit |
+| `lib/operations/OperationBody.svelte:382` | `replaceOperation` or `addOperation` on commit |
 
 `setReseedOnLoad` was removed in Block F: since Block E the flag is a toggle on the draft,
 committed with the rest of the Operation by `replaceOperation`, and only a test called it.
 
 Callees: `deriveColumns` (`derive.ts`); `parseRows`, `parseCellSize`, `parseReferenceWidth`,
 `parseYOffset`, `parseWeight`, `RULE_PARSERS` (`fields.ts`); `nextSalt` (`reseed.ts`);
+`outsideCells` (`orphans.ts`, for `trimToGrid`); `cellsOf` (`layers.ts`, for `trimToGrid`);
 `memorableSeed` (`seed.ts`); [`validate`](/api/index/functions/validate/) and
 [`shapeOf`](/api/index/functions/shapeof/) from the engine.
 
 ### Tests
 
-- **`document.test.ts`.** `newDocument` has `schemaVersion: 4`, empty tiles and operations, and
+- **`document.test.ts`.** `newDocument` has `schemaVersion: SCHEMA_VERSION`, empty tiles and operations, and
   actually validates. That matters because `<Tileset>` asserts validity in DEV. `columns` is
   10, even, and covers the width; there is no bleed and `yOffset` is 0; the optional fields are
   written explicitly; a fresh seed matches `/^[a-z]+-[a-z]+-\d{1,2}$/`. The three destructive

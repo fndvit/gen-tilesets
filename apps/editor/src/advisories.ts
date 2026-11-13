@@ -118,44 +118,93 @@ export function nonSquare(file: TilesetFile): Notice | null {
 /** More than three "Open" buttons would crowd a 360px notice; the rest are in its data. */
 export const MAX_OPEN_ACTIONS = 3;
 
+/** What the orphan notice can do besides describe, and what it knows of the session. */
+export interface OrphanOptions {
+  /** "Open op-2": opens the operation on its Selection step. */
+  onOpen?: ((operationId: string) => void) | undefined;
+  /** "Remove N cells outside the grid": the `trimToGrid` transition, through `session.apply`. */
+  onRemove?: ((operationId: string) => void) | undefined;
+  /**
+   * Ids of the orphaned Operations whose loss came with the opened file
+   * (`orphans.ts` `cameWithFile`). For those, Undo would go back to the
+   * previous document, not put the grid back, so the notice does not offer it.
+   */
+  cameWithFile?: ReadonlySet<string> | undefined;
+}
+
 /**
- * Advisory 3, widened by §9.4 — Operations a resize left reaching fewer cells.
- * `04` §4.4's distinction survives in the wording: a `cellList` is told how
- * many entries are unreachable, a Selection that matches nothing is told so.
+ * Advisory 3, widened by §9.4 — Operations reaching fewer cells than they were
+ * authored to. `04` §4.4's distinction survives in the wording: a `cellList` is
+ * told how many entries are unreachable, a Selection that matches nothing is
+ * told so.
  *
  * With `onOpen`, the notice carries "Open op-2", one action per orphaned
  * Operation up to `MAX_OPEN_ACTIONS` (Pol, W4). The caller routes it through
  * the unsaved-changes guard (`opening.svelte.ts`).
+ *
+ * **Batch 01, T-05 (B-014, D-03 A).** Painted cells outside the grid cannot be
+ * painted out, because the preview does not show them. So with `onRemove`, a
+ * painted list with cells outside the grid also gets "Remove N cells outside
+ * the grid" (the op id is added when two lists could be meant), up to the same
+ * limit. And the wording tells the truth after an import: a loss that came
+ * with the opened file (`cameWithFile`) was not made by a resize and cannot be
+ * undone back into the grid, so its notice does not mention Undo. A loss made
+ * in this session keeps today's text, Undo included.
  */
 export function orphanedNotice(
   orphans: readonly Orphan[],
-  onOpen?: (operationId: string) => void,
+  { onOpen, onRemove, cameWithFile = new Set<string>() }: OrphanOptions = {},
 ): Notice | null {
   if (orphans.length === 0) return null;
+
+  // A Selection of layers counts its loss directly (`Orphan.outside`, B-033).
+  const lost = (o: Orphan): number => o.outside ?? (o.authored === undefined ? 0 : o.authored - o.reachable);
+  const arrived = orphans.filter((o) => cameWithFile.has(o.operationId));
+  const allArrived = arrived.length === orphans.length;
+  const mixed = arrived.length > 0 && !allArrived;
+  const one = orphans.length === 1;
+
+  const removable = orphans.filter((o) => o.authored !== undefined && lost(o) > 0);
+  const removeLabel = (o: Orphan): string =>
+    `Remove ${count(lost(o), "cell", "cells")} outside the grid` + (removable.length > 1 ? ` from ${o.operationId}` : "");
+
+  const title = arrived.length === 0
+    ? one ? "An operation lost cells in a resize" : "Operations lost cells in a resize"
+    : one ? "An operation has cells outside the grid" : "Operations have cells outside the grid";
+
+  const fix = removable.length > 0 ? "remove the cells outside the grid, or edit the selection" : "edit the selection";
+  const body = arrived.length === 0
+    ? "Nothing was moved for you. Undo puts the grid back, or edit the selection."
+    : allArrived
+      ? `${one ? "It was" : "They were"} like this in the file you opened. Nothing was moved for you: ${fix}.`
+      : `Nothing was moved for you. Undo puts the grid back where a resize here caused it; where the file you opened came like this, ${fix}.`;
+
+  const actions = [
+    ...(onOpen
+      ? orphans.slice(0, MAX_OPEN_ACTIONS).map((o) => ({ label: `Open ${o.operationId}`, run: () => onOpen(o.operationId) }))
+      : []),
+    ...(onRemove
+      ? removable.slice(0, MAX_OPEN_ACTIONS).map((o) => ({ label: removeLabel(o), run: () => onRemove(o.operationId) }))
+      : []),
+  ];
+
   return {
     key: "orphaned",
-    signature: JSON.stringify(orphans),
+    signature: JSON.stringify({ orphans, arrived: arrived.map((o) => o.operationId) }),
     kind: "advisory",
-    title: orphans.length === 1 ? "An operation lost cells in a resize" : "Operations lost cells in a resize",
+    title,
     data: orphans.map((o) => {
-      const lost = o.authored === undefined ? 0 : o.authored - o.reachable;
       const what =
         o.authored !== undefined
-          ? `${lost} of ${count(o.authored, "painted cell", "painted cells")} outside the grid`
+          ? `${lost(o)} of ${count(o.authored, "painted cell", "painted cells")} outside the grid`
           : o.empty
             ? "wholly outside the grid, selects nothing"
             : "reaches fewer cells than it did";
-      return `${o.operationId} · ${o.selectionType}: ${what}`;
+      const origin = mixed && cameWithFile.has(o.operationId) ? " (as opened)" : "";
+      return `${o.operationId} · ${o.selectionType}: ${what}${origin}`;
     }),
-    body: "Nothing was moved for you. Undo puts the grid back, or edit the selection.",
-    ...(onOpen
-      ? {
-          actions: orphans.slice(0, MAX_OPEN_ACTIONS).map((o) => ({
-            label: `Open ${o.operationId}`,
-            run: () => onOpen(o.operationId),
-          })),
-        }
-      : {}),
+    body,
+    ...(actions.length > 0 ? { actions } : {}),
   };
 }
 
@@ -199,11 +248,11 @@ export function documentNotices(
   file: TilesetFile,
   orphans: readonly Orphan[],
   failures: readonly string[],
-  onOpen?: (operationId: string) => void,
+  orphanOptions: OrphanOptions = {},
 ): Notice[] {
   return [
     assetFailures(failures),
-    orphanedNotice(orphans, onOpen),
+    orphanedNotice(orphans, orphanOptions),
     nonSquare(file),
     inertReseed(file),
     parityMismatch(file),

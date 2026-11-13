@@ -29,7 +29,7 @@ import { SCHEMA_VERSION, validate } from "./validate.js";
  * proper type.
  *
  * **The cast is the whole point.** `TilesetFile.schemaVersion` is the literal
- * type `2`, so a `JSON` import — which widens it to `number` — never assigns to
+ * type `SCHEMA_VERSION`, so a `JSON` import — which widens it to `number` — never assigns to
  * `TilesetFile` on its own. Validation is what earns it, and this is the only
  * place in the package that performs it.
  *

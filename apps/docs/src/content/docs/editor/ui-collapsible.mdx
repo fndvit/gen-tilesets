@@ -49,6 +49,8 @@ body have different padding and frames in Figma.
 | `hint` | `string` | — | Explanation shown on hovering the title ([`Hint`](/editor/ui-hint/)). Only with `onRename`. |
 | `actions` | `Snippet` | — | Controls at the bar's right end, e.g. the trash `IconButton`. |
 | `extras` | `Snippet` | — | Decorative content at the right of the title. |
+| `tour` | `string` | — | `data-tour` on the whole card; the [tour](/editor/tour-dialog/) finds its targets by it (B-017). |
+| `tourHeading` | `string` | — | `data-tour` on the header alone. |
 | `children` | `Snippet` | required | The body. |
 
 ### Inputs → outputs
@@ -62,9 +64,29 @@ body have different padding and frames in Figma.
   overlay handle.
 - With `onRename`, the `InlineEdit` and the `note` sit in a `Hint` wrapper, whose id goes to the
   `InlineEdit`'s `aria-describedby`. Without it, the note follows the title inside the button.
-- The body is `<div id>` (from `$props.id()`) and is rendered only while open. It slides open and
-  closed (`svelte/transition` `slide`) over `--dur-fast`, read by
-  [`motionDuration`](/editor/ui-motion/), so it is instant under `prefers-reduced-motion`.
+- The body is `<div id>` (from `$props.id()`) and is rendered only while open. It slides open
+  (`svelte/transition` `slide`) over `--dur-fast` with `slide`'s own curve, and shut over
+  `--dur-close` (220 ms) with `--ease`, read by [`motionDuration`](/editor/ui-motion/), so both are
+  instant under `prefers-reduced-motion`. Which way it folds is read from `open` when the fold
+  starts: a `transition:` is told "both" either way, and separate `in:`/`out:` would not reverse,
+  so a quick reopen would show the closing body and the new one together.
+- In the section variant the heading is `position: sticky; top: 0` with the card's background
+  and `z-index: 2`, so an open section's header (and its ink rule) stays at the top of the
+  sidebar's scroller while the body scrolls under it. It sticks within its own card, so the next
+  section's header pushes it away; headers never stack. Groups do not stick. Everything in a
+  section's body has `scroll-margin-top: var(--header-h)`, so a field focused by Shift+Tab, or a
+  card scrolled into view, stops below the stuck header rather than behind it (WCAG 2.4.11).
+- Opened by the user from its own header, it scrolls its nearest scroll container once the slide
+  has ended, until its bottom is in view but never past its own top, and never under an enclosing
+  section's stuck header ([`reveal.ts`](/editor/ui-reveal-ts/)), over `--dur-slow` on `--ease`, or
+  instant under reduced motion.
+- Closed by the user from its own header, before the body goes, it scrolls its scroll container up
+  by `closeDrop` (how much the body's removal would otherwise clamp the scroll) over the fold's
+  `--dur-close` and `--ease`, so the sidebar moves smoothly instead of jumping when a section near
+  the bottom closes (B-028). The scroll starts before `open` changes, so it never runs behind
+  the fold. An open from outside (`Section`'s `reveal` and "+", `opening.open`) does not scroll
+  here: those callers scroll for themselves, and `OperationsSection` scrolls the opened card,
+  which a reveal of the whole section would move away again.
 - The chevron sits in a `--target-min` (24px) box and rotates 180° when open, over `--dur-fast`.
 - Both variants are 32px tall (`--bar-h-section`, `--bar-h-group`; Figma 25 and 24). The bar
   itself never changes on hover (Pol, Block F review): the chevron and the title dim to
@@ -79,7 +101,7 @@ body have different padding and frames in Figma.
 
 ### Callers / callees
 
-Callers: `lib/Section.svelte`, `lib/sections/BreakpointsSection.svelte` (rules, `variant="group"`), `lib/tiles/TileGroup.svelte`. Callees: `lib/ui/Icon.svelte` (`fold`), `lib/ui/InlineEdit.svelte`, `lib/ui/Hint.svelte`.
+Callers: `lib/Section.svelte`, `lib/sections/BreakpointsSection.svelte` (rules, `variant="group"`), `lib/sections/GridSection.svelte` (Details, `variant="group"`), `lib/tiles/TileGroup.svelte`. Callees: `lib/ui/Icon.svelte` (`fold`), `lib/ui/InlineEdit.svelte`, `lib/ui/Hint.svelte`, `lib/ui/motion.ts`, `lib/ui/reveal.ts`.
 
 ### Tests
 

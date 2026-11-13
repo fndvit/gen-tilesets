@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  addRule,
+  addTiles,
+  isBlank,
   newDocument,
   rerollSeed,
   setCellSize,
@@ -8,10 +11,12 @@ import {
   setReferenceWidth,
   setRows,
   setYOffset,
+  trimToGrid,
   type Transition,
 } from "./document.js";
 import { parseCellSize, parseReferenceWidth, parseRows, parseYOffset } from "./fields.js";
-import { validate } from "@vit-foundation/gen-tilesets";
+import { SCHEMA_VERSION, validate, type Operation, type TilesetConfig, type TilesetFile } from "@vit-foundation/gen-tilesets";
+import { orphans } from "./orphans.js";
 
 const doc = () => newDocument();
 
@@ -22,7 +27,7 @@ const run = (...transitions: Transition[]) =>
 describe("newDocument — 08 §3.4's valid skeleton", () => {
   it("is a legal file with nothing in it — 06 §5", () => {
     const file = doc();
-    expect(file.schemaVersion).toBe(4);
+    expect(file.schemaVersion).toBe(SCHEMA_VERSION);
     expect(file.engineVersion).toEqual(expect.any(String));
     expect(file.config.tiles).toEqual([]);
     expect(file.config.operations).toEqual([]);
@@ -207,5 +212,88 @@ describe("the seed — 09 §8.2, 02 §6.6", () => {
     expect(after.layout).toEqual(before.layout);
     expect(after.config.columns).toBe(before.config.columns);
     expect(after.config.operations).toBe(before.config.operations);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Batch 01, T-05 (B-014): painted cells outside the grid
+// ---------------------------------------------------------------------------
+
+const SEED = "fixed-seed-1";
+
+const painted = (id: string, cells: [number, number][]): Operation => ({
+  id,
+  salt: 0,
+  reseedOnLoad: false,
+  selection: [{ type: "cellList", cells }],
+  source: { type: "constant" },
+  target: "opacity",
+  mapping: { range: [1, 1] },
+  blend: "set",
+});
+
+const shaped = (operations: Operation[], over: Partial<TilesetConfig> = {}): TilesetFile => {
+  const file = newDocument();
+  return { ...file, config: { ...file.config, operations, ...over } };
+};
+
+describe("trimToGrid — the notice's Remove action", () => {
+  it("keeps exactly the cells inside the grid, in order, and the orphan goes away", () => {
+    const file = shaped([painted("op1", [[0, 0], [9, 0], [1, 1], [0, 9]])], { columns: 4, rows: 3 });
+    const c = file.config;
+    const next = trimToGrid("op1")(file);
+    expect((next.config.operations[0]!.selection[0] as { cells?: unknown }).cells).toEqual([[0, 0], [1, 1]]);
+    expect(orphans(c, SEED)).toHaveLength(1);
+    expect(orphans(next.config, SEED)).toEqual([]);
+  });
+
+  it("changes nothing else about the operation or the file", () => {
+    const file = shaped([painted("op1", [[0, 0], [9, 0]]), painted("op2", [[9, 9]])], { columns: 4, rows: 3 });
+    const next = trimToGrid("op1")(file);
+    const { selection: _a, ...restBefore } = file.config.operations[0]!;
+    const { selection: _b, ...restAfter } = next.config.operations[0]!;
+    expect(restAfter).toEqual(restBefore);
+    expect(next.config.operations[1]).toBe(file.config.operations[1]);
+    expect(next.layout).toBe(file.layout);
+  });
+
+  it("trims every Handpick layer and leaves the other layers alone (B-033)", () => {
+    const rect = { type: "rect", x: 10, y: 10, width: 2, height: 2 };
+    const layered: Operation = {
+      ...painted("op1", []),
+      selection: [{ type: "cellList", cells: [[0, 0], [9, 0]] }, rect, { type: "cellList", cells: [[0, 9], [1, 1]] }],
+    };
+    const file = shaped([layered], { columns: 4, rows: 3 });
+    const next = trimToGrid("op1")(file);
+    expect(next.config.operations[0]!.selection).toEqual([
+      { type: "cellList", cells: [[0, 0]] },
+      rect,
+      { type: "cellList", cells: [[1, 1]] },
+    ]);
+    expect(orphans(next.config, SEED)).toEqual([]);
+    // Never mutated: the input still holds the outside cells.
+    expect((file.config.operations[0]!.selection[0] as { cells?: unknown }).cells).toEqual([[0, 0], [9, 0]]);
+  });
+
+  it("refuses by identity: unknown id, nothing outside, or not a painted list", () => {
+    const rect: Operation = { ...painted("op2", []), selection: [{ type: "rect", x: 10, y: 10, width: 2, height: 2 }] };
+    const file = shaped([painted("op1", [[0, 0]]), rect], { columns: 4, rows: 3 });
+    expect(trimToGrid("nope")(file)).toBe(file);
+    expect(trimToGrid("op1")(file)).toBe(file);
+    expect(trimToGrid("op2")(file)).toBe(file);
+  });
+});
+
+describe("isBlank — whether Import asks first", () => {
+  it("is true for a new document, and after editing only the grid or the seed", () => {
+    expect(isBlank(doc())).toBe(true);
+    expect(isBlank(run(setRows("7"), setCellSize("50"), rerollSeed()))).toBe(true);
+  });
+
+  it("is false once there is a Tile, an Operation or a responsive rule", () => {
+    const tile = { id: "t1", name: "Blue", assets: [{ id: "a1", weight: 1, meta: { src: "tiles/t1/a1.png" } }] };
+    expect(isBlank(run(addTiles([tile])))).toBe(false);
+    expect(isBlank(shaped([painted("op1", [[0, 0]])]))).toBe(false);
+    expect(isBlank(run(addRule()))).toBe(false);
   });
 });

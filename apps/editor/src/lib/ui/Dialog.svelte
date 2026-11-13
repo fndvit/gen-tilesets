@@ -1,6 +1,7 @@
 <!--
   A blocking question with one answer that acts: "Change columns to 8?",
-  "Start a new tileset?", "Discard your changes?".
+  "Discard your changes?". (New tileset was one until B-016 made it a Form
+  popup, `sections/NewTileset.svelte`.)
 
   It is a `Popup` announced as an `alertdialog`. The title is the question. The
   body says what changes and how to undo it, and lists anything affected.
@@ -30,6 +31,8 @@
     /** Cancel, Esc, or `open = false` from outside. */
     onCancel?: () => void;
     children: Snippet;
+    /** A `wide` Popup, for a body line that must not wrap (Import's `LossWarning`). */
+    wide?: boolean;
   }
 
   let {
@@ -40,6 +43,7 @@
     onConfirm,
     onCancel,
     children,
+    wide = false,
   }: Props = $props();
 
   /** Set by the verb, so the close that follows is not read as a cancel. */
@@ -51,7 +55,7 @@
   }
 </script>
 
-<Popup {title} bind:open alert onClose={closed}>
+<Popup {title} bind:open alert {wide} onClose={closed}>
   {@render children()}
   {#snippet actions(close)}
     <Button label={cancelLabel} onclick={close} />

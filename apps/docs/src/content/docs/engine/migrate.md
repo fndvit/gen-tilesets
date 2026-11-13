@@ -50,10 +50,34 @@ The table today:
 | 1 → 2 | "nothing to do — ADR-005 widened Operation.target and changed no key" | Sets `schemaVersion: 2`. |
 | 2 → 3 | "nothing to do — 0.7.0 added the optional `responsive` rules and changed no key" | Sets `schemaVersion: 3`. |
 | 3 → 4 | "nothing to do — 0.8.0 widened Operation.target with translateX/translateY and changed no key" | Sets `schemaVersion: 4`. |
+| 4 → 5 | "renamed the everyNth Selection to rowColumn — everyNth now counts cells row after row" | Sets `schemaVersion: 5` and rewrites `selection.type: "everyNth"` to `"rowColumn"` in every Operation, keeping every other key. |
+| 5 → 6 | "wrapped every Operation's selection in a list — a selection is made of layers now" | Sets `schemaVersion: 6` and replaces each Operation's `selection` object with a one-item list holding it (B-033). |
 
-Every row is a no-op beyond the version number. The comments say why each bump still exists: so
-that an older engine meeting a file that *uses* the new feature refuses it by version rather than
-with an unknown key or an `OUT_OF_RANGE` target (cites **C2**).
+The first three rows are no-ops beyond the version number. The comments say why each bump still
+exists: so that an older engine meeting a file that *uses* the new feature refuses it by version
+rather than with an unknown key or an `OUT_OF_RANGE` target (cites **C2**).
+
+**4 → 5 is the first row that rewrites content** (B-009). The old `everyNth` (every nth column or
+row) became `rowColumn` with the same params and impl, and the name `everyNth` went to a new
+row-major count; the rename is what makes a v4 file draw exactly as it did. Because it runs before
+`validate()`, it assumes nothing: when `config` is not an object or `config.operations` is not an
+array only the version changes, and an Operation or selection that is not an object passes
+through as it is. Only `config.operations` is walked, because responsive rules hold no Operations.
+
+The cost it accepts: a config handed to `generate()` **without** `migrate()` that uses the old
+`everyNth` now draws with the new count.
+
+**5 → 6 rewrites content too** (B-033). An Operation's `selection` is a list of layers since v6,
+always, even of one (Pol), so each older selection becomes `[selection]`. The comment says the
+wrapped file draws byte-identically: layer 0 hashes on the Operation's own `opId:selection`
+channel, exactly as the lone Selection did. It follows 4 → 5's discipline: when `config` is not an
+object or `config.operations` is not an array only the version changes, and only a `selection`
+that is an object (not already an array) is wrapped; anything else passes through for
+`validate()` to report. Nothing is mutated.
+
+The cost this row accepts: code that hands `generate()` an old-shaped config **without**
+`migrate()`, or builds an `Operation` in TypeScript with an object `selection`, breaks. Under 0.x
+that is a version bump and a changelog line.
 
 ### Inputs → outputs
 
@@ -104,13 +128,24 @@ Tests elsewhere that call it: `apps/editor/src/import.test.ts` (imports `migrate
 
 ### Tests: `migrate.test.ts`
 
-- A v1 file migrates through `[1,2]`, `[2,3]`, `[3,4]` in order, and the result equals the input
-  with only `schemaVersion` changed.
+- A v1 file migrates through `[1,2]`, `[2,3]`, `[3,4]`, `[4,5]`, `[5,6]` in order, and the result
+  equals the current document: only `schemaVersion` changed and the selection is wrapped in a list
+  (5 → 6). The test fixtures write the older versions with an object `selection`, as they were.
 - The migrated file validates clean. This is the "an old file opens" property.
 - The input object is not mutated.
 - A v1 file with an unrelated unknown key still migrates; `validate()` then reports exactly
   `UNKNOWN_KEY` at `/somethingElse`.
-- The v2 → v3 path adds no `responsive` key. The v3 → v4 path takes one step.
+- The v2 → v3 path adds no `responsive` key. The v3 path takes `[3,4]`, `[4,5]`, `[5,6]`; the v4 path `[4,5]`, `[5,6]`.
+- The v4 → v5 path: a file with no `everyNth` changes only its version; an `everyNth` selection
+  becomes `rowColumn` with its params untouched; `generate()` on the migrated file matches a
+  hand-written grid of the old column rule, while the unmigrated config draws the new count; a
+  malformed `config`, `operations`, Operation or selection survives; the input is not mutated.
+- The v5 → v6 path (B-033) takes only `[5,6]`, wraps each selection in a list and changes nothing
+  else, and the result validates. `generate()` on a migrated v5 file with a `random` selection
+  equals the hand-written old rule, `hash(stage1(seed), selectionChannel("op1"), x, y, salt) <
+  density`, cell for cell. A `null` Operation, one with no selection, a string selection and one
+  already a list pass through unchanged, and a malformed `config` changes only the version. The
+  input is not mutated.
 - `current`, `newer` (with `declared`), and `unrecognized` for absent, `"2"`, `1.5`, `0`, `-3`,
   `null`, `[]` and `"{}"`.
 - The table is well-formed: adjacent (`to === from + 1`), contiguous, starts at 1, ends at

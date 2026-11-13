@@ -15,14 +15,16 @@ import {
   inertFlags,
   loadVaries,
   nextSalt,
+  reseedOnLoadChip,
   SALT_MODULUS,
+  withReseedOnLoad,
 } from "./reseed.js";
 
 const op = (over: Partial<Operation> = {}): Operation => ({
   id: "op1",
   salt: 0,
   reseedOnLoad: false,
-  selection: { type: "all" },
+  selection: [{ type: "all" }],
   source: { type: "random" },
   target: "opacity",
   mapping: { range: [0, 1] },
@@ -143,5 +145,35 @@ describe("drawing a loadSalt — 07 §9.3", () => {
   it("draws more than one value", () => {
     const drawn = new Set(Array.from({ length: 50 }, drawLoadSalt));
     expect(drawn.size).toBeGreaterThan(1);
+  });
+});
+
+describe("the closed card's Reseed on load chip — batch 01, T-11", () => {
+  it("shows the flag over a random-based Source", () => {
+    expect(reseedOnLoadChip(op({ source: { type: "random" } }))).toBe(false);
+    expect(reseedOnLoadChip(op({ source: { type: "random" }, reseedOnLoad: true }))).toBe(true);
+    expect(reseedOnLoadChip(op({ source: { type: "valueNoise", cellsPerFeature: 4, octaves: 1 } }))).toBe(false);
+  });
+
+  it("is absent where the registry says the Source is not random, as the toggle is inside the card", () => {
+    expect(reseedOnLoadChip(op({ source: { type: "constant" } }))).toBeNull();
+    expect(reseedOnLoadChip(op({ source: { type: "gradient", angle: 0 } }))).toBeNull();
+  });
+
+  it("writes the flag explicitly and changes nothing else", () => {
+    const before = op({ salt: 7 });
+    const { reseedOnLoad: _a, ...restBefore } = before;
+    for (const on of [true, false]) {
+      const after = withReseedOnLoad(before, on);
+      expect(after.reseedOnLoad).toBe(on);
+      const { reseedOnLoad: _b, ...restAfter } = after;
+      expect(restAfter).toEqual(restBefore);
+    }
+  });
+
+  it("turning it on makes a fresh load vary, so the footer's preview enables", () => {
+    const flagged = withReseedOnLoad(op(), true);
+    expect(loadVaries(config([op()]))).toBe(false);
+    expect(loadVaries(config([flagged]))).toBe(true);
   });
 });

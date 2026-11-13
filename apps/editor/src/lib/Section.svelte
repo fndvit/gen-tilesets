@@ -17,12 +17,26 @@
   `onAdd` puts a "+" in the header for a section that holds a list
   (breakpoints, tiles, operations), so adding never needs a scroll to the end of
   the list; it opens the section too, so the new item is in view. `reveal` opens
-  it from outside: the orphan notice's "Open op-2" (Stage 2 W4).
+  it from outside: the orphan notice's "Open op-2" (Stage 2 W4). Tiles' "+"
+  opens the Tile gallery rather than adding at once, so it says so with
+  `addHaspopup` (B-016 S3c).
+
+  `actions` puts further header controls before the "+": the Operations
+  section's (i), which opens "How operations work" (batch 01, T-07). They sit
+  outside the disclosure button, so pressing one does not fold the section.
 
   **The collapsed state is transient.** `09` §12 lists persisted editor state,
   collapsed panels among them, as `[POSTPONED]`, and **E4** forbids `meta` as
   the place to put it. So it lives in `Collapsible`, per session, and neither
   reads nor writes the file.
+
+  `tour`, `tourHeading` and `tourAdd` put a `data-tour` value on the card, its
+  header and its "+", for the onboarding tour (B-017, `lib/Tour.svelte`). The
+  tour finds what it points at by that attribute, so renaming a label or a
+  class can't break it. Rejected: finding targets by `aria-label`, which is
+  text for people and changes with the wording, or by class, which is styling.
+  `Collapsible`, `IconButton`, `Button`, `TileGroup` and `OperationCard` take
+  the same optional prop for the same reason; undefined, it draws nothing.
 
   There is no destructive look. A section whose edits can damage work is
   protected by the confirmation gate in `App.svelte` (§9.3), not by its colour.
@@ -42,12 +56,33 @@
     onAdd?: (() => void) | undefined;
     /** The "+" button's name: "Add breakpoint". */
     addLabel?: string | undefined;
+    /** Set when the "+" opens a dialog rather than adding at once: Tiles' opens the Tile gallery. */
+    addHaspopup?: "dialog" | undefined;
     /** A counter: each change unfolds the section (something outside asked to show an item in it). */
     reveal?: number;
+    /** Header controls before the "+" (an (i) that opens an explainer). Outside the disclosure button. */
+    actions?: Snippet | undefined;
+    /** `data-tour` on the card, its header and its "+" (see above). */
+    tour?: string | undefined;
+    tourHeading?: string | undefined;
+    tourAdd?: string | undefined;
     children: Snippet;
   }
 
-  let { title, open = true, summary, onAdd, addLabel, reveal = 0, children }: Props = $props();
+  let {
+    title,
+    open = true,
+    summary,
+    onAdd,
+    addLabel,
+    addHaspopup,
+    reveal = 0,
+    actions,
+    tour,
+    tourHeading,
+    tourAdd,
+    children,
+  }: Props = $props();
 
   // `open` seeds the state once. A later change to the prop would reopen a
   // section the author had just closed.
@@ -59,10 +94,17 @@
   });
 </script>
 
+{#snippet header()}
+  {@render actions?.()}
+  {#if onAdd}{@render add()}{/if}
+{/snippet}
+
 {#snippet add()}
   <IconButton
     icon="plus"
     label={addLabel ?? `Add to ${title}`}
+    haspopup={addHaspopup}
+    tour={tourAdd}
     onclick={() => {
       expanded = true;
       onAdd?.();
@@ -70,7 +112,15 @@
   />
 {/snippet}
 
-<Collapsible {title} {summary} variant="section" bind:open={expanded} actions={onAdd ? add : undefined}>
+<Collapsible
+  {title}
+  {summary}
+  variant="section"
+  bind:open={expanded}
+  actions={onAdd || actions ? header : undefined}
+  {tour}
+  {tourHeading}
+>
   <div class="content">
     {@render children()}
   </div>

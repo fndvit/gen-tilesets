@@ -29,7 +29,7 @@ banner, then give the banner rules of its own.
 
 | Field | Means | Note |
 | --- | --- | --- |
-| `rows`, `columns` | the grid | Fixed by a coordinate-bound Operation. See below. |
+| `rows`, `columns` | the grid | Fixed by a coordinate-bound Operation (one with a `rect` or `cellList` layer). See below. |
 | `cellSize` | design px per cell | CSS px under `sizing: "fixed"`. **Under `"fluid"` it changes nothing on its own.** See below. |
 | `bleed` | columns that overhang the box, in cells | If absent, the base's bleed is kept, in cells. `0` fits the grid to its box exactly. |
 | `yOffset` | fraction of a cell, `[0, 1)` | Shifts the grid up, clipping the top of row 0. |
@@ -72,7 +72,7 @@ A rule is a width condition plus the shape fields it changes:
 
 ```json
 {
-  "schemaVersion": 4,
+  "schemaVersion": 6,
   "config": { "rows": 8, "columns": 25, "…": "…" },
   "layout": { "cellSize": 60, "referenceWidth": 1440, "yOffset": 0, "horizontalAlignment": "column" },
   "responsive": [
@@ -134,8 +134,11 @@ it. `scrollbar-gutter: stable` on the page root fixes it.
 **An Operation that picks cells by hand fixes the grid's `rows` and `columns`.** `rect` and
 `cellList` hold literal cell coordinates, which mean something only in the grid they were drawn in.
 The rest of the shape can still change: `cellSize`, `bleed` and `yOffset` move no cell, so a file
-with a `rect` can still take them. `all`, `checkerboard`, `everyNth` and `random` are rules, and they
-hold at any size.
+with a `rect` can still take them. `all`, `checkerboard`, `everyNth`, `rowColumn` and `random` are
+rules, and they hold at any size. An Operation's `selection` is a list of layers, and the
+Operation is coordinate-bound if **any** of its layers is: a `random` layer beside a `rect` layer
+still fixes the grid. `everyNth` holds but *looks* different at another column count:
+it counts cells row after row, so with N = 3, 10 columns give diagonals and 9 give vertical stripes.
 
 This is checked everywhere it can go wrong:
 

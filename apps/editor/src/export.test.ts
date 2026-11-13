@@ -10,7 +10,7 @@
  * in*, because that is where E14 is either held or quietly broken.
  */
 
-import type { Operation, Tile, TilesetFile } from "@vit-foundation/gen-tilesets";
+import { SCHEMA_VERSION, type Operation, type Tile, type TilesetFile } from "@vit-foundation/gen-tilesets";
 import { describe, expect, it } from "vitest";
 import { ENGINE_VERSION, newDocument } from "./document.js";
 import { drawsNothing, entries, FILE_NAME, serialize } from "./export.js";
@@ -27,7 +27,7 @@ const paletteOp = (id: string, tileIds: (string | null)[]): Operation => ({
   id,
   salt: 0,
   reseedOnLoad: false,
-  selection: { type: "all" },
+  selection: [{ type: "all" }],
   source: { type: "random" },
   target: "tileId",
   mapping: { palette: tileIds.map((tileId) => ({ tileId, weight: 1 })) },
@@ -46,7 +46,7 @@ const bytes = () => new Uint8Array([1, 2, 3]);
 describe("the file — 09 §11.3", () => {
   it("carries schemaVersion and engineVersion, always", () => {
     const parsed = JSON.parse(serialize(newDocument()));
-    expect(parsed.schemaVersion).toBe(4);
+    expect(parsed.schemaVersion).toBe(SCHEMA_VERSION);
     expect(typeof parsed.engineVersion).toBe("string");
   });
 
@@ -78,7 +78,7 @@ describe("the file — 09 §11.3", () => {
         id: "op1",
         salt: 0,
         reseedOnLoad: false,
-        selection: { type: "all" },
+        selection: [{ type: "all" }],
         source: { type: "random" },
         target: "opacity",
         mapping: { range: [0, 1] },
@@ -144,7 +144,8 @@ describe("the folder — 09 §11.1", () => {
   });
 
   it("refuses to ship a folder missing an asset's bytes", () => {
-    // The store is session-scoped, so this is reachable. A quietly incomplete
+    // An archive missing a picture, or a reload whose kept bytes did not come
+    // back, makes this reachable. A quietly incomplete
     // folder is R3's substitution problem moved into the artifact, where no
     // `onAssetError` ever fires for it.
     const file = docWith([tile("t1", [asset("a1", "tiles/t1/a1.png")])]);
@@ -188,7 +189,7 @@ describe("§12.2's fifth advisory — the document draws nothing", () => {
         id: "op1",
         salt: 0,
         reseedOnLoad: false,
-        selection: { type: "all" },
+        selection: [{ type: "all" }],
         source: { type: "random" },
         target: "rotation",
         mapping: { range: [0, 90] },

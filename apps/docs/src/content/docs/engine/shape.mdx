@@ -82,8 +82,10 @@ Then:
 `OUT_OF_RANGE`); `cellSize > 0`; `yOffset` in `[0, 1)`; `bleed` always passes here, because its
 bound (`columns - bleed > 0`) depends on the resolved shape.
 
-**`coordinateBoundOperations(ops)`.** The Operations whose Selection registration has
-`coordinateBound: true`, in stack order. An unregistered type is skipped, not reported.
+**`coordinateBoundOperations(ops)`.** The Operations for which `isCoordinateBound(op.selection)`
+is true, in stack order: since B-033 a selection is a list of layers, and it pins the grid when any
+layer's registration is coordinate-bound (`isCoordinateBound` from
+[selections.ts](/engine/selections/)). An unregistered type is skipped, not reported.
 
 **`reshapeErrors(file, s)`** returns messages, empty when sound:
 
@@ -97,7 +99,11 @@ bound (`columns - bleed > 0`) depends on the resolved shape.
    derived from `referenceWidth / cellSize`, so 7/6 of a column would otherwise print as
    `1.1666666666666679`.
 4. If `s` names `rows` or `columns`: one message per coordinate-bound Operation, listing the
-   procedural Selections as the alternative.
+   procedural Selections (the registrations whose `coordinateBound` is false) as the
+   alternative. The message names the Operation by its **coordinate-bound layers' types**
+   (B-033): *the coordinate-bound Selection "rect"* for one type, *the coordinate-bound
+   Selections "rect", "cellList"* for several. A procedural layer beside them is not named, and a
+   one-layer selection reads exactly as before layers existed.
 
 ### Invariants
 
@@ -109,6 +115,10 @@ bound (`columns - bleed > 0`) depends on the resolved shape.
   host rules) and `<TileDecoration>` call it under `DEV` and throw; production does not.
 - **Read the registry flag, never a list of names.** The registry is open, and a list would
   silently classify a later Selection as reusable.
+- **Procedural holds, but may not look the same.** `all`, `checkerboard`, `rowColumn`, `everyNth`
+  and `random` hold at any size. `everyNth` counts cells row after row, so where each row's count
+  starts moves with `columns`: the same file at another column count draws a different pattern
+  (diagonals at 10 columns, stripes at 9, for n = 3). The module header says so.
 - **One statement of each field's domain.** `shapeFieldProblem` is read by `reshapeErrors`,
   `validate()` and `render/options.ts`, so they cannot disagree.
 - **`validate.ts` depends on this module, not the reverse,** which is why `shapeFieldProblem`'s
@@ -118,15 +128,15 @@ bound (`columns - bleed > 0`) depends on the resolved shape.
 
 | Symbol | Caller |
 | --- | --- |
-| `reshape` | `render/Tileset.svelte:302`, `render/TileDecoration.svelte:92`, `render/breakpoints.ts:102`, `validate.ts:870`, `apps/editor/src/App.svelte:88` |
+| `reshape` | `render/Tileset.svelte:302`, `render/TileDecoration.svelte:92`, `render/breakpoints.ts:102`, `validate.ts:887`, `apps/editor/src/App.svelte:155` |
 | `reshapeErrors` | `render/TileDecoration.svelte:84` (under `DEV`); `responsive.ts:130` (inside `rulesReshapeErrors`) |
 | `shapeOf` | `apps/editor/src/document.ts:706`, `:759` |
-| `SHAPE_FIELDS` | `render/options.ts:321`, `:467`; `validate.ts:810`, `:831`, `:838`; `responsive.ts:80` |
-| `shapeFieldProblem` | `render/options.ts:470`, `validate.ts:834` |
-| `coordinateBoundOperations` | `validate.ts:862` |
-| `coordinateBoundMessage` | `validate.ts:843` |
+| `SHAPE_FIELDS` | `render/options.ts:321`, `:467`; `validate.ts:826`, `:847`, `:854`; `responsive.ts:80` |
+| `shapeFieldProblem` | `render/options.ts:470`, `validate.ts:850` |
+| `coordinateBoundOperations` | `validate.ts:879` |
+| `coordinateBoundMessage` | `validate.ts:859` |
 
-Callees: `selections.has`, `selections.get`, `selections.all` (`registry/selections.ts`).
+Callees: `isCoordinateBound`, `selections.all` (`registry/selections.ts`).
 
 ### Tests: `shape.test.ts`
 
@@ -150,7 +160,9 @@ The file states that it asserts properties, not fixed expected values.
 - **`reshapeErrors`:** passes a procedural file at any shape; flags `rect`/`cellList` when
   `rows`/`columns` are named (by name, not value; one message per Operation in stack order); lets a
   pinned file change `cellSize`, `bleed`, `yOffset`; follows the registry, not a name list; leaves
-  an unknown Selection type to `validate()`; reports bad values, unknown keys and a no-box bleed,
+  an unknown Selection type to `validate()`; pins the grid exactly when one of an Operation's
+  layers is bound, and names it by the bound layer, not the procedural one beside it (B-033);
+  reports bad values, unknown keys and a no-box bleed,
   including an inherited bleed that no longer fits; names an inherited bleed as "the file's bleed
   (1 columns, kept)" rather than `undefined`; rounds an inherited fractional bleed for reading
   ("1.1667 columns" for 22 columns of 48 px over a 1000 px box).
@@ -178,8 +190,8 @@ The file states that it asserts properties, not fixed expected values.
   wording is unpinned. **Fixed in 0.8.1:** the message names the effective bleed, and a new test
   pins the wording. Since then a given bleed is quoted verbatim and an inherited one is rounded to
   4 decimals.
-- `coordinateBoundOperations` guards with `selections.has` so an unknown type is skipped. The
-  header says `apps/editor/src/orphans.ts`'s `atRisk()` "reads the same flag for the same reason",
-  but `atRisk` (`orphans.ts:44`) calls `selections.get` without the guard, so it throws on an
-  unknown type. In practice the editor only holds validated configs, so the difference is latent.
-  Not this file's code, but the comment presents the two as equivalent.
+- `coordinateBoundOperations` skips an unknown type. The header says
+  `apps/editor/src/orphans.ts`'s `atRisk()` "reads the same flag for the same reason", but
+  `atRisk` used to call `selections.get` without a guard, so it threw on an unknown type.
+  **Resolved in B-033:** both now go through `isCoordinateBound`, which answers `false` for an
+  unknown type.

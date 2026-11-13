@@ -16,6 +16,22 @@
   - **Chips: where and how.** One per other step: Selection, Pattern and Blend,
     each a muted step name over its answer. A chip opens its own step. They wrap
     rather than clip, so a long answer or a narrow sidebar never hides one.
+  - **Reseed on load, on a row of its own under the chips** (batch 01 T-11,
+    B-021; a checkbox since batch 03 T-07, B-029, D-03 A). Where the Pattern is
+    random-based (`reseedOnLoad` given), a `Checkbox` labelled "Reseed on
+    load" sets the flag without opening the card. It was a last chip, which
+    landed in a different place on every card, or on a second line; on its own
+    row at the card's left edge it is in the same place on every card and
+    always has room for its label, for one more line of height. Absent where
+    the Pattern is not random-based, as inside the card.
+  - **Hide, first of the actions** (batch 02 T-02, B-012). An eye that hides
+    the operation from the preview while the editor is open (D-02 A; the file
+    is untouched). A hidden card says "Hidden" in words, its index square goes
+    hollow and its title muted, so the state is never colour alone. One
+    label, "Hide operation N", with `aria-pressed`: the APG toggle-button
+    pattern, where a label that flipped to "Show" *and* a pressed state would
+    announce "Show …, pressed" and contradict itself. Absent on a new
+    operation, which is not in the file to be hidden.
   - **Actions, right.** Re-seed stays visible because it is the operation's
     everyday action. Move earlier, Move later and Delete sit in a "more" menu,
     so they are a click away without crowding every row; the moves are still
@@ -25,14 +41,25 @@
   Open, the card lifts to white with an accent edge, and `children` (the
   stepper, `OperationBody`) replaces the chips: every answer is then on the
   stepper's own rows.
+
+  **Opened from its own title or a chip, it scrolls into view** (batch 03
+  T-06, B-027), as a section does: once the stepper is laid out, the sidebar
+  scrolls until the card's end shows, never pushing its top under the
+  Operations header (`reveal.ts` `revealOpened`). Only then: an open from
+  outside (the orphan notice, the tour) is scrolled by `OperationsSection`'s
+  `scrollIntoView`, and a second scroll would fight it.
 -->
 <script lang="ts">
   import type { Tile } from "@vit-foundation/gen-tilesets";
-  import type { Snippet } from "svelte";
+  import { tick, type Snippet } from "svelte";
   import { thumbOf } from "../../controls/palette.js";
   import type { Step } from "../../draft.svelte.js";
+  import { opening } from "../../opening.svelte.js";
+  import { RESEED_ON_LOAD_HINT } from "../../reseed.js";
+  import Checkbox from "../ui/Checkbox.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import Menu from "../ui/Menu.svelte";
+  import { revealOpened } from "../ui/reveal.js";
   import { STEP_LABELS, summaryCells, UNANSWERED, writesOf, type SummaryParts } from "./labels.js";
 
   interface Props {
@@ -47,14 +74,28 @@
     onDelete: () => void;
     /** Absent for an operation that is not in the file yet (nothing to re-seed). */
     onReseed?: (() => void) | undefined;
+    /** Whether the operation is hidden from the preview (`preview.hidden`). */
+    hidden?: boolean;
+    /** Hides or shows it. Absent for an operation that is not in the file yet. */
+    onToggleHidden?: (() => void) | undefined;
     onMoveUp: () => void;
     onMoveDown: () => void;
     canMoveUp: boolean;
     canMoveDown: boolean;
+    /**
+     * The Reseed on load flag, for the closed card's chip; `undefined` where
+     * the Pattern is not random-based and the chip is absent
+     * (`reseed.ts` `reseedOnLoadChip`).
+     */
+    reseedOnLoad?: boolean | undefined;
+    /** Sets the flag from the chip. The chip is absent without it. */
+    onReseedOnLoad?: ((on: boolean) => void) | undefined;
     /** Id of the open body, for `aria-controls`. */
     panelId?: string | undefined;
     /** The stepper, shown while open. */
     children?: Snippet | undefined;
+    /** `data-tour`, for the onboarding tour (`Section.svelte` says why). */
+    tour?: string | undefined;
   }
 
   let {
@@ -66,12 +107,17 @@
     onClose,
     onDelete,
     onReseed,
+    hidden = false,
+    onToggleHidden,
     onMoveUp,
     onMoveDown,
     canMoveUp,
     canMoveDown,
+    reseedOnLoad,
+    onReseedOnLoad,
     panelId,
     children,
+    tour,
   }: Props = $props();
 
   const writes = $derived(writesOf(parts, tiles));
@@ -82,9 +128,49 @@
   const thumbs = $derived((writes?.tileIds ?? []).slice(0, 4).map((id) => thumbOf(tiles, id)));
 
   const name = $derived(`operation ${index}`);
+
+  let card: HTMLElement | undefined = $state();
+
+  /**
+   * Set when the user presses this closed card's title or a chip, cleared
+   * when the card opens and has been revealed.
+   *
+   * The open is not always at once: with unsaved changes in another draft it
+   * waits behind "Discard your changes?" (`opening.guard`). So the reveal
+   * follows `open` turning true, not the click; Discard then reveals after
+   * the dialog. Keep editing leaves the card closed, and the request is
+   * dropped, or a later open from the orphan notice would find it and scroll
+   * a second time. `opening.asking` is read, never written: it is the only
+   * place that says the dialog was answered.
+   */
+  let requested = false;
+
+  function select(step: Step): void {
+    if (!open) requested = true;
+    onSelect(step);
+  }
+
+  $effect(() => {
+    if (open) {
+      if (!requested || !card) return;
+      requested = false;
+      const opened = card;
+      // After the stepper is laid out, so its final height is known.
+      void tick().then(() => revealOpened(opened));
+    } else if (!opening.asking) {
+      requested = false;
+    }
+  });
 </script>
 
-<article class="card" class:open aria-label="Operation {index}">
+<article
+  bind:this={card}
+  class="card"
+  class:open
+  class:hidden
+  aria-label="Operation {index}{hidden ? ', hidden' : ''}"
+  data-tour={tour}
+>
   <div class="head">
     <span class="index t-console" aria-hidden="true">{index}</span>
     <button
@@ -93,7 +179,7 @@
       aria-expanded={open}
       aria-controls={panelId}
       title={writes === null ? undefined : `${writes.target} ${writes.detail}`}
-      onclick={() => onSelect("attribute")}
+      onclick={() => select("attribute")}
     >
       <span class="visually-hidden">Operation {index}:</span>
       <span class="target t-title">{writes?.target ?? "New operation"}</span>
@@ -112,7 +198,18 @@
         <span class="detail t-console">{writes.detail}</span>
       {/if}
     </button>
+    {#if hidden}
+      <span class="hidden-tag t-console">Hidden</span>
+    {/if}
     <span class="actions">
+      {#if onToggleHidden}
+        <IconButton
+          icon={hidden ? "eye-off" : "eye"}
+          label="Hide {name}"
+          pressed={hidden}
+          onclick={onToggleHidden}
+        />
+      {/if}
       {#if onReseed}
         <IconButton icon="reseed" strong label="Re-seed {name}" onclick={onReseed} />
       {/if}
@@ -136,13 +233,23 @@
     <ul class="chips" aria-label="Steps of {name}">
       {#each chips as step (step)}
         <li>
-          <button type="button" class="chip" onclick={() => onSelect(step)}>
+          <button type="button" class="chip" onclick={() => select(step)}>
             <span class="key">{STEP_LABELS[step]}</span>
             <span class="value t-console" class:unset={cells[step] === UNANSWERED}>{cells[step]}</span>
           </button>
         </li>
       {/each}
     </ul>
+    {#if reseedOnLoad !== undefined && onReseedOnLoad}
+      <div class="reseed">
+        <Checkbox
+          label="Reseed on load"
+          hint={RESEED_ON_LOAD_HINT}
+          checked={reseedOnLoad}
+          onChange={onReseedOnLoad}
+        />
+      </div>
+    {/if}
   {/if}
 </article>
 
@@ -188,6 +295,35 @@
 
   .open .index {
     background: var(--color-accent);
+  }
+
+  /*
+    Hidden (batch 02 T-02): dimmed by shape and tone, not by opacity, so every
+    word on the card keeps its contrast. The index square goes hollow, the
+    title's target takes the muted text colour, the thumbnails fade (they are
+    pictures, not text), and the "Hidden" tag says it in words. Open, the
+    accent square wins: the operation is being drawn while it is edited.
+  */
+  .hidden:not(.open) .index {
+    box-sizing: border-box;
+    border: var(--rule-w) solid var(--color-ink);
+    background: transparent;
+    color: var(--color-ink);
+  }
+
+  .hidden .target {
+    color: var(--color-muted);
+  }
+
+  .hidden .thumbs {
+    opacity: 0.5;
+  }
+
+  .hidden-tag {
+    flex: none;
+    color: var(--color-muted);
+    line-height: var(--leading-title);
+    text-box: none;
   }
 
   .title {
@@ -271,6 +407,20 @@
     padding: 0 var(--space-5) var(--space-5) calc(var(--space-5) + var(--op-index) + var(--space-4));
     margin-top: calc(-1 * var(--space-1));
     list-style: none;
+  }
+
+  /* With Reseed on load under them, the chips leave the card's bottom padding to it. */
+  .chips:has(+ .reseed) {
+    padding-bottom: var(--space-3);
+  }
+
+  /*
+    Its own row, at the card's left edge (D-03 A): the box lines up with the
+    index square above it, so the checkbox's wash padding hangs outside the
+    card's padding by --space-2.
+  */
+  .reseed {
+    padding: 0 var(--space-5) var(--space-4) calc(var(--space-5) - var(--space-2));
   }
 
   /* A step's answer: its name, muted, then the answer in mono. */

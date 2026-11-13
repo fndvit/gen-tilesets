@@ -86,7 +86,7 @@
   const selection = [
     { value: "all", label: "All", src: all },
     { value: "checkered", label: "Checkered", src: checkered },
-    { value: "everyNth", label: "Every nth", src: everyNth },
+    { value: "everyNth", label: "Every Nth", src: everyNth },
     { value: "random", label: "Random", src: random },
     { value: "rect", label: "Rect", src: rect },
     { value: "handpick", label: "Handpick", src: handpick },
@@ -316,7 +316,7 @@
     </div>
   {:else if show === "operation-glyph"}
     <div class="row paper" role="radiogroup" aria-label="Examples">
-      <OperationGlyph label="Every nth" src={everyNth} onclick={() => (log = "every nth")} />
+      <OperationGlyph label="Every Nth" src={everyNth} onclick={() => (log = "every Nth")} />
       <OperationGlyph label="Handpick" src={handpick} selected onclick={() => (log = "handpick")} />
       <OperationGlyph label="Opacity" onclick={() => (log = "opacity")} />
     </div>

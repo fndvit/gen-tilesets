@@ -1,6 +1,12 @@
 <!--
   The sidebar's fixed footer, "Randomness": below the scrolling sections, never
-  scrolled or collapsed. A white card on the ground, like a section.
+  scrolled or collapsed. **A card in the top bar's colours** (batch 03, T-04,
+  B-026; Pol, 2026-11-11): the same card as a section, but filled with the
+  grey ground and edged with the ink hairline the top bar draws
+  (`--color-bar-rule`). Both were white cards, so where a section's end met
+  the footer they read as one. Rejected, in order: an inverted black card
+  (controls swapped colours), a white card with a gap and a grey edge, and the
+  inverted card in dark grey.
 
   It holds only what decides the picture's randomness: the seed and the three
   ways to draw again. The document's actions (Undo, New, Import, Export) moved
@@ -23,12 +29,23 @@
   import { session } from "../../session.svelte.js";
   import { preview } from "../preview/view.svelte.js";
   import Button from "../ui/Button.svelte";
+  import Explainer from "../ui/Explainer.svelte";
   import FieldRow from "../ui/FieldRow.svelte";
   import Hint from "../ui/Hint.svelte";
   import IconButton from "../ui/IconButton.svelte";
   import Toggle from "../ui/Toggle.svelte";
+  import { RANDOMNESS_EXPLAINER } from "./randomness-explainer.js";
 
   const config = $derived(session.file.config);
+
+  /**
+   * "How randomness works" (batch 01, T-07, B-019), wired as `OperationBody`
+   * wires "How noise works". `Explainer` places itself: beside the sidebar,
+   * level with the trigger and kept inside the window; above the trigger in
+   * the stacked layout, since the footer is at the foot of the window.
+   */
+  let explaining = $state<HTMLButtonElement | undefined>(undefined);
+  let explainTrigger = $state<HTMLButtonElement | undefined>(undefined);
   const seedId = $props.id();
 
   /** §8.5's disabled condition. */
@@ -38,16 +55,29 @@
    * `06` §10.4's second diagnostic (an Operation flagged over a non-random
    * Source) is a notice in the preview's stack now (`advisories.ts`
    * `inertReseed`, Stage 2 W3), not a clause in this hint.
+   *
+   * The disabled text names the two switches that would enable the button
+   * (B-015): the reason alone left the user to find them.
    */
   const freshLoadHint = $derived(
     varies
       ? "Shows what another visitor's load looks like. Writes nothing to the file."
-      : "Nothing is set to reseed on load, so every load looks the same.",
+      : "Nothing reseeds on load, so every load looks the same. Set Assets on load to Reseed, or turn on Reseed on load in an operation.",
   );
 </script>
 
-<div class="fixed">
-  <h2 class="title t-title">Randomness</h2>
+<!-- `data-tour`: the onboarding tour's Randomness step cuts out the whole footer. -->
+<div class="fixed" data-tour="footer">
+  <div class="heading">
+    <h2 class="title t-title">Randomness</h2>
+    <IconButton
+      icon="info"
+      label="How randomness works"
+      expanded={explaining !== undefined}
+      bind:element={explainTrigger}
+      onclick={() => (explaining = explaining === undefined ? explainTrigger : undefined)}
+    />
+  </div>
   <!--
     `09` §8.2, the seed field. **The author never sees a hash** (`02` §6.6): they
     type a string, and that is the whole interface. **There is no separate
@@ -127,11 +157,31 @@
   </div>
 </div>
 
+{#if explaining !== undefined}
+  <Explainer
+    anchor={explaining}
+    content={RANDOMNESS_EXPLAINER}
+    onClose={(refocus) => {
+      const trigger = explaining;
+      explaining = undefined;
+      if (refocus) trigger?.focus();
+    }}
+  />
+{/if}
+
 <style>
   .fixed {
     /* Hints open upward: below the footer is the edge of the screen. */
     --hint-top: auto;
     --hint-bottom: calc(100% + var(--space-2));
+
+    /*
+      Filled with the ground's grey, so a field is one step darker than that
+      (principle 1) instead of the same grey, where it would vanish.
+      grey-500, the field's edge, is 3.3:1 on grey-200 (1.4.11).
+    */
+    --color-field: var(--grey-200);
+    --color-field-hover: var(--grey-300);
 
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -139,12 +189,24 @@
     margin: 0 var(--space-4) var(--space-4);
     padding: var(--space-6) var(--space-7) var(--space-7);
     border-radius: var(--radius);
-    background: var(--color-card);
+    background: var(--color-ground);
+    /* The top bar's hairline, round the card. Inset, so it takes no space. */
+    box-shadow: inset 0 0 0 var(--rule-w) var(--color-bar-rule);
     color: var(--color-ink);
   }
 
+  /* The title, and its (i) at the right end, as a section header holds its controls. */
+  .heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    /* The 28px button would push the card taller than the title; pull it back into the padding. */
+    margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)) 0 0;
+  }
+
   .title {
-    margin: 0 0 var(--space-2);
+    margin: 0;
   }
 
   /* The field gives way before the row grows past a narrow sidebar (WCAG 1.4.10). */

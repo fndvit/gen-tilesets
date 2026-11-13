@@ -18,8 +18,8 @@ with no `svelte.config.js` is enough, because the package declares the `svelte` 
 
 ## 1. Export the tileset from the editor
 
-In the [editor](https://gen-tilesets-editor.vercel.app), press **Download tileset.zip** below the
-sidebar's sections. The editor's asset store lasts only for the session. If you reloaded the page
+In the [editor](https://gen-tilesets-editor.vercel.app), press **Export** in the sidebar's top bar
+(or Export's menu → **Tileset (.zip)**). The editor's asset store lasts only for the session. If you reloaded the page
 after attaching your images, the export throws instead of shipping an archive with missing files.
 Import your last zip again, then export.
 

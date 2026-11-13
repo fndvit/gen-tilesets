@@ -24,8 +24,16 @@
     strong?: boolean;
     /** For a menu trigger. */
     expanded?: boolean | undefined;
-    haspopup?: "menu" | undefined;
+    /**
+     * For a toggle (batch 02 T-02: hide an operation). Absent, the button is a
+     * plain action and says nothing; given, it is `aria-pressed` and the icon is
+     * drawn in ink while pressed, so the state is not only in the icon's shape.
+     */
+    pressed?: boolean | undefined;
+    haspopup?: "menu" | "dialog" | undefined;
     element?: HTMLButtonElement | undefined;
+    /** `data-tour`, for the onboarding tour to find it (`Section.svelte` says why). */
+    tour?: string | undefined;
   }
 
   let {
@@ -35,8 +43,10 @@
     disabled = false,
     strong = false,
     expanded,
+    pressed,
     haspopup,
     element = $bindable(),
+    tour,
   }: Props = $props();
 </script>
 
@@ -47,8 +57,10 @@
   class:strong
   aria-label={label}
   aria-expanded={expanded}
+  aria-pressed={pressed}
   aria-haspopup={haspopup}
   title={label}
+  data-tour={tour}
   {disabled}
   {onclick}
 >
@@ -82,6 +94,11 @@
   .icon-button:hover:not(:disabled),
   .icon-button[aria-expanded="true"] {
     background: var(--color-hover);
+    color: var(--color-ink);
+  }
+
+  /* A pressed toggle keeps the ink the hover gives, at rest too. */
+  .icon-button[aria-pressed="true"] {
     color: var(--color-ink);
   }
 

@@ -18,7 +18,7 @@
  */
 
 import type { EvalCtx } from "../ctx.js";
-import type { Extent } from "../types.js";
+import type { Extent, Selection } from "../types.js";
 import { hash, selectionChannel } from "../hash.js";
 import { Registry, type ParamSchema } from "./registry.js";
 
@@ -174,9 +174,14 @@ selections.register({
  *
  * Recorded because the asymmetry with `checkerboard` above looks alarming and
  * the next reader will check.
+ *
+ * **This was `everyNth` until schema v5** (B-009), with these params and this
+ * impl unchanged. `migrate()`'s 4 → 5 row renames it in every older file, so a
+ * migrated file draws byte-identically; the name went to the row-major count
+ * below.
  */
 selections.register({
-  name: "everyNth",
+  name: "rowColumn",
   coordinateBound: false,
   params: {
     axis: { type: "enum", values: ["column", "row"] },
@@ -187,6 +192,37 @@ selections.register({
     const coord = p.axis === "column" ? cx : cy;
     return (coord - ((p.offset as number) ?? 0)) % (p.n as number) === 0;
   },
+});
+
+/**
+ * `(cy * columns + cx - offset) mod n == 0` — every nth cell, counted left to
+ * right and row after row, the count carrying across a row boundary.
+ *
+ * **`%` is correct here for `rowColumn`'s reason above:** the test is against
+ * zero, so a negative operand (an `offset` past the cell index) is harmless.
+ *
+ * **The count is row-major over the grid as drawn**, `ctx.columns`, so the
+ * picture depends on the column count: n = 3 is diagonals at 10 columns and
+ * vertical stripes at 9. It still *holds* at any size — it is a rule, and
+ * nothing in it names a cell — but a resize or a breakpoint that changes the
+ * column count changes what it looks like (Pol, B-009 Block 1: accept it and say
+ * so in the editor's hint).
+ *
+ * Rejected: counting against the design width (`ceil(referenceWidth /
+ * cellSize)`), which would keep the pattern still across a resize. The engine
+ * never sees `Layout` (`02` **G5**), and the count would then disagree with the
+ * cells the author sees whenever the grid is reshaped — a pattern whose rows
+ * visibly do not continue into each other.
+ */
+selections.register({
+  name: "everyNth",
+  coordinateBound: false,
+  params: {
+    n: { type: "integer", min: 1 },
+    offset: { type: "integer", default: 0 },
+  },
+  impl: (p, cx, cy, ctx) =>
+    (cy * ctx.columns + cx - ((p.offset as number) ?? 0)) % (p.n as number) === 0,
 });
 
 /**
@@ -258,3 +294,26 @@ selections.register({
     return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
   },
 });
+
+/**
+ * Whether an Operation's selection holds literal cell coordinates, so it pins
+ * `rows` and `columns` (`04` §4.4, `09` **E12**): true when **any layer** is
+ * coordinate-bound (B-033). A selection is a list of layers since schema v6, so
+ * this — not one registration's flag — is the question every caller asks.
+ *
+ * **Total over unvalidated input**, because `validate()`'s resize rule and the
+ * editor call it on files not yet known to be valid: a selection that is not an
+ * array, a layer that is not an object, or an unknown type counts as not bound,
+ * and is left to the error `validate()` raises at its own path.
+ */
+export function isCoordinateBound(selection: readonly Selection[]): boolean {
+  if (!Array.isArray(selection)) return false;
+  return selection.some(
+    (layer) =>
+      typeof layer === "object" &&
+      layer !== null &&
+      typeof layer.type === "string" &&
+      selections.has(layer.type) &&
+      selections.get(layer.type).coordinateBound,
+  );
+}

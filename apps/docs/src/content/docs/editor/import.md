@@ -15,9 +15,11 @@ tileset file and a folder of tile pictures. Something else unpacks it into a lis
 module receives that list and works out two things: which part is the tileset document, and
 which picture belongs to which tile.
 
-It does not check whether the document is valid, and it never touches the editor's open
-document. It only hands back what it found, including any pictures the document mentions but the
-archive does not carry. The import panel then upgrades, validates and opens the document.
+`readArchive` does not check whether the document is valid. It only hands back what it found,
+including any pictures the document mentions but the archive does not carry. `prepareArchive`
+then upgrades and validates it, and says whether it can open. Neither touches the editor's open
+document: [adopt.ts](/editor/adopt/) does the swap. Import and the New tileset popup's templates
+(B-016) both run that pair.
 
 It is the first step of the editor's own pipeline:
 **import** → document → draft/history → preview → export. It is also the mirror image of
@@ -43,9 +45,13 @@ each asset's `meta.src` with the bytes at that path, and returns the document **
 | `readArchive(archive)` | function | `Archive → ArchiveContents`. Throws only when there is no document or it is not JSON. |
 | `nameOf(path)` | function | The basename of a path, used as the `File` name of an incoming asset. |
 | `mimeOf(path)` | function | A MIME type guessed from the extension, or `""`. |
+| `Prepared` | type | `{ kind: "newer", declared }`, `{ kind: "invalid", errors }`, or `{ kind: "ready", file, incoming, upgrades }`. |
+| `prepareArchive(archive)` | function | `Archive → Prepared`: read → **migrate** → **validate** → wrap each asset's bytes in a `File`. Pure. Throws only where `readArchive` does. |
 
-Engine types used: [`TilesetFile`](/api/index/interfaces/tilesetfile/),
-[`TileAsset`](/api/index/interfaces/tileasset/). It imports `FILE_NAME` (`"tileset.json"`) from
+Engine functions and types used: [`migrate`](/api/index/functions/migrate/),
+[`validate`](/api/index/functions/validate/), [`TilesetFile`](/api/index/interfaces/tilesetfile/),
+[`TileAsset`](/api/index/interfaces/tileasset/), `Migration`, `ValidationError`. `Incoming` is a
+type from [assets.ts](/editor/assets/). It imports `FILE_NAME` (`"tileset.json"`) from
 [export.ts](/editor/export/).
 
 ### Inputs → outputs
@@ -64,6 +70,17 @@ Engine types used: [`TilesetFile`](/api/index/interfaces/tilesetfile/),
    has bytes at that path, the asset joins `assets`. If it does not, the path joins `missing`.
 
 Archive entries that no `meta.src` names are never read.
+
+`prepareArchive(archive)`:
+
+1. `readArchive(archive)`. Its `missing` list is not used: a `meta.src` the archive did not carry
+   leaves the asset without a file, so it fails to draw and §12.3's failure notice says so.
+2. `migrate(file)`. On `"newer"`, return `{ kind: "newer", declared }` before validating.
+3. Take `outcome.file` if `"migrated"`, else the raw file. `"unrecognized"` falls through to
+   `validate()`, which reports it at `/schemaVersion`.
+4. `validate(file)`. Any error: return `{ kind: "invalid", errors }`.
+5. Wrap each asset's bytes in a `File` (`nameOf`, `mimeOf`) and return `"ready"`, with the
+   migration's steps as `upgrades` (empty for a current file).
 
 `nameOf` returns the text after the last `/`, or the whole string if there is none.
 
@@ -88,16 +105,16 @@ Anything else returns `""` rather than a guess.
 
 | Caller | Uses | Why |
 | --- | --- | --- |
-| `lib/ImportPanel.svelte:39` | import of `mimeOf`, `nameOf`, `readArchive`, `Archive` | |
-| `lib/ImportPanel.svelte:181` | `readArchive(archive)` | First step of `open()`. Its output then goes through [`migrate`](/api/index/functions/migrate/) (`:183`) and [`validate`](/api/index/functions/validate/) (`:195`). |
-| `lib/ImportPanel.svelte:204` | `nameOf`, `mimeOf` | Wraps each `AssetBytes` in a `File` for `replaceAll` ([assets.ts](/editor/assets/)). |
+| `lib/ImportPanel.svelte` `open()` | `prepareArchive(archive)` | The panel shows `"newer"` and `"invalid"` in its popup and hands `"ready"` to [`adopt`](/editor/adopt/). |
+| `adopt.ts` | the `Prepared` type | `adopt` takes the `"ready"` case. |
+| `starters.ts` | `readArchive`, `nameOf`, `mimeOf`, `Archive` | `loadTemplate` uses `readArchive`'s `missing` list to know which pictures to fetch; `loadGalleryFiles` names and types its `File`s. See [starters.ts](/editor/starters/). |
 
-The panel's order is read → parse → migrate → validate → attach → swap. A `"newer"` migration
-outcome stops before validation (`:186`). A non-empty error list stops before anything is
-attached (`:196`). Only then do `replaceAll` (`:207`), `session.open` (`:210`) and
-`drafting.discard()` (`:213`) run.
+The order is read → parse → migrate → validate → attach → swap. A `"newer"` migration outcome
+stops before validation. A non-empty error list stops before anything is attached. Only a
+`"ready"` result reaches `adopt`.
 
-Callees: `FILE_NAME` from `export.ts`, `TextDecoder`, `JSON.parse`.
+Callees: `FILE_NAME` from `export.ts`, `TextDecoder`, `JSON.parse`, `migrate`, `validate`,
+`File`.
 
 ### Tests: `import.test.ts`
 
@@ -110,8 +127,13 @@ Callees: `FILE_NAME` from `export.ts`, `TextDecoder`, `JSON.parse`.
   `[{ id: 7 }, null]`) without throwing, and skips an asset with no `meta.src`.
 - **End to end through a real zip** (`fflate` `zipSync`/`unzipSync`). A current export comes back
   as `migrate()` → `"current"` and validates. A v1 archive migrates, validates, and equals the
-  original with all three assets present. A v5 archive yields `"newer"`. A v1 archive with an
+  original with all three assets present. An archive at `SCHEMA_VERSION + 1` (7 today) yields `"newer"`. A v1 archive with an
   unknown key migrates and then reports `UNKNOWN_KEY` at `/colour`, not at `/schemaVersion`.
+- **`prepareArchive`.** A current archive is ready, with its pictures as named, typed `File`s and
+  no upgrades. A v1 archive is ready, with upgrades from 1, 2, 3, 4 and 5. A newer archive is `"newer"`
+  even when it is also invalid, so validation never ran. An unknown key is `"invalid"` with
+  `UNKNOWN_KEY` at `/colour`. A missing picture is still ready, without it. An empty archive
+  throws.
 - `nameOf` and `mimeOf` on representative paths.
 
 ### Gotchas & rejected alternatives
