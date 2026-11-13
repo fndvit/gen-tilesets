@@ -1,8 +1,27 @@
 # Release 0.12.0: dev → main, first npm publish
 
-Handoff brief. Block 1 (the audit) was done and **Pol confirmed the checklist on 2026-11-13**.
-Block 2 was done and confirmed on 2026-11-13, on branch `release-0.12.0`. "Where things stand"
-describes `dev` before Block 2. On the branch, the version is 0.12.0.
+Handoff brief.
+
+**Status, 2026-11-13: Blocks 1–3 are done. Block 4 is for a new conversation.**
+- Block 1, the audit: Pol confirmed the checklist.
+- Block 2, implement: done and confirmed.
+- Block 3, review: done. Its fixes are committed, and Pol moved on to Block 4.
+
+All the work is on the local branch `release-0.12.0` (cut from `dev` at c34e9aa), in the four commits below,
+plus the commit that wrote this handoff. Nothing is pushed:
+
+```
+7497b3c Release 0.12.0: review fixes
+8cb7b50 Release 0.12.0: changelog section and version bump
+24c38a5 Release 0.12.0: bring the docs up to date
+f5bc595 Release 0.12.0: the brief for Blocks 2–4
+```
+
+"Where things stand" below describes `dev` before Block 2. On the branch, the version is 0.12.0 and
+the CHANGELOG has a 0.12.0 section.
+
+**To start the next conversation:** "Continue the 0.12.0 release from docs/plans/release-0.12.0.md,
+Block 4." Run `git switch release-0.12.0` first; the session may open on `dev`.
 
 ## Where things stand (2026-11-13)
 
@@ -107,13 +126,25 @@ Check every line number against the file first. They were right on 2026-11-13.
 - Bump `packages/tileset/package.json` to `0.12.0`, **in that file only** (invariant E2).
 - Commit in pieces: the brief, the docs fixes, then the changelog and the bump.
 
-## Block 3: Review
+## Block 3: Review (done 2026-11-13)
 
-- Run `/code-review` on `git diff dev..release-0.12.0`.
-- Read CHANGELOG 0.12.0 again against `git diff origin/main..dev -- packages/tileset/src`. Every
-  package change must be in it, and every claim in it must be true.
+- `/code-review` (medium) on `dev..release-0.12.0`: nine findings, eight fixed in 7497b3c.
+  - A rule against pushing a tag, in `RELEASING.md`, `CLAUDE.md` and `versioning.md`.
+  - Tests run before the hand publish.
+  - Two changelog details: the coordinate-bound message, and zero-area extents.
+  - Stale schema-2 comments in `load.ts` and its test.
+  - The `versioning.md` gotcha.
+  - A duplicate link.
+  - This brief's status.
+- Not fixed, on purpose: `apps/demo/public/readme/tileset.json` is schema 4. It loads through
+  `loadTilesetFile`, which migrates it.
+- I compared CHANGELOG 0.12.0 with `git diff origin/main..dev -- packages/tileset/src`. Every package
+  change is in it. The one new root export is `isCoordinateBound`.
 
 ## Block 4: Test, PRs, publish
+
+Steps 1–3 are Claude's. Steps 4–5 are Pol's; Claude hands over the commands and then checks.
+Step 2 is the largest and needs network access for the throwaway apps' installs.
 
 1. Run `pnpm test`, `pnpm typecheck` and `pnpm changelog check`; all must be green.
    `pnpm changelog draft 0.12.1 --title x` must refuse because there is nothing to fold. Build the
@@ -122,7 +153,14 @@ Check every line number against the file first. They were right on 2026-11-13.
 2. Do the full tarball check from `packages/tileset/RELEASING.md` "Verifying a release": SvelteKit,
    plain Vite, and React with no Svelte, as throwaway apps in the scratchpad. Use a config whose
    selection is an array. Steps 5–6 too.
-3. Write the PR body to the scratchpad. Hand Pol:
+   - Build the tarball with `pnpm build && pnpm pack` in `packages/tileset`. Delete the `.tgz`
+     afterwards: it must not be committed.
+   - Also feed one app a schema-4 file (`apps/demo/public/readme/tileset.json`) through
+     `loadTilesetFile`. It must draw, which shows that migration ships in `dist`.
+   - Check that the tarball's `package.json` says `0.12.0`, and that its `exports` point at `dist`.
+   - Report what passed. If anything fails, stop and tell Pol before going further.
+3. Write the PR body to the scratchpad: what the release contains, the four commits, the Block 3
+   findings, and the tarball results. End it with the attribution line. Hand Pol:
    `! git push -u origin release-0.12.0 && gh pr create --base dev --title "Release 0.12.0" --body-file <file>`
    After Pol merges it: `! git pull --ff-only origin dev && gh pr create --base main --head dev --title "Release 0.12.0" --body-file <file>`
    Then Pol merges with "Create a merge commit".
