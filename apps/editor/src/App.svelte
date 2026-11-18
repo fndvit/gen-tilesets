@@ -22,6 +22,17 @@
   there is no half-painted state (Pol, N1). **E3** is untouched: nothing here
   writes to `session.file`, and the editing controls keep reading it.
 
+  **Amended for Decorations mode.** The preview bar's Page | Decorations switch
+  (`lib/preview/decorations.ts`) draws the same `shown` file through the
+  package's `<TileDecoration>` instead, at fixed shapes, for a file authored as
+  a decoration style. That is still no second implementation: `TileDecoration`
+  is a preset over the same `TilesetRenderer`, the very component a host page
+  mounts, so what S2 guarantees holds for a decoration as for a page. Rejected:
+  reshaping the file here and drawing it with `<Tileset>`, which is a second
+  path that could drift from the preset. The overlays and brushes are Page-only:
+  they need the render box and the page's shape, which a decoration has neither
+  of, and the Selections they edit cannot be placed in a decoration anyway.
+
   **`09` §3.1 — this document specifies affordances, not appearance.** Panel
   layout, colour, and shortcuts are specified nowhere in the package, on purpose.
   What is load-bearing below is which control writes which field, and that is
@@ -45,6 +56,7 @@
   import { atRisk, cameWithFile, needsConfirmation, orphans } from "./orphans.js";
   import PaintLayer from "./lib/PaintLayer.svelte";
   import RectLayer from "./lib/RectLayer.svelte";
+  import DecorationPreview from "./lib/preview/DecorationPreview.svelte";
   import PreviewFrame from "./lib/preview/PreviewFrame.svelte";
   import NoticeStack from "./lib/preview/NoticeStack.svelte";
   import PreviewGrid from "./lib/preview/PreviewGrid.svelte";
@@ -541,6 +553,13 @@
         -->
         <!-- Centred in the visible height, so a change of rows recentres it; taller, it scrolls. -->
         <div class="stage">
+        {#if preview.mode === "decorations"}
+          <DecorationPreview
+            style={shown}
+            options={{ loadSalt, provider: editorProvider, onAssetError }}
+            operations={config.operations}
+          />
+        {:else}
         <PreviewFrame
           ratio={(Wpx) => {
             const f = shapedAt(Wpx);
@@ -612,6 +631,7 @@
             {/if}
           {/snippet}
         </PreviewFrame>
+        {/if}
         </div>
       </div>
     </ScrollArea>

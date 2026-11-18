@@ -23,6 +23,13 @@ top bar (Stage 2): "So there is only the top UI". The bar stays put; only the pi
   framed swatch that opens the colour picker for the background. There is no reset button (Pol,
   P2 review); white is picked like any other colour.
 
+- **Decorations mode.** A **Page | Decorations** switch leads the bar. In Decorations the width
+  readout, the breakpoints and the size presets give way to: a "Decoration" readout (the custom
+  spot's size in px, or how many shapes the gallery holds; its hint says the file's breakpoints
+  do not apply), **Gallery | Custom**, Custom's **Columns** and **Rows** fields
+  ([NumericInput](/editor/numeric-input/) with `parseSpan`), **Cell px** 24 / 44 / 64 / 96, and
+  **Reroll spots**. Grid and the swatch stay. See [DecorationPreview](/editor/decoration-preview/).
+
 All of it is preview state ([view.svelte.ts](/editor/preview-width/)) and writes no field.
 
 ## In detail

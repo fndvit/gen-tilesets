@@ -13,6 +13,7 @@
  * is in `width.ts`, which is tested; this module only holds runes.
  */
 
+import { DEFAULT_CELL, DEFAULT_CUSTOM, type CellSetting, type Span } from "./decorations.js";
 import { roomFor, WHITE, widthFor, zoomFor } from "./width.js";
 
 /** How much room the preview column has, from `PreviewFrame`'s track. */
@@ -64,6 +65,28 @@ let loadSalt = $state(0);
  */
 let hidden = $state.raw<ReadonlySet<string>>(new Set());
 
+/**
+ * What the preview draws the file as: a page tileset at a width (`<Tileset>`),
+ * or a decoration style at fixed shapes (`<TileDecoration>`, `decorations.ts`).
+ * Page is a fresh editor's state; the rest of the decoration fields below are
+ * read only in Decorations mode, and kept across a switch back and forth.
+ */
+let mode = $state<"page" | "decorations">("page");
+/** Gallery: the fixed shapes side by side. Custom: one shape the author types. */
+let decorationView = $state<"gallery" | "custom">("gallery");
+/** CSS px per tile, for every spot, or Fit (`fitGallery`). */
+let decorationCell = $state<CellSetting>(DEFAULT_CELL);
+/**
+ * The px the spots are drawn at: `decorationCell`, or what Fit chose. Written
+ * by `DecorationPreview`, which alone knows the area, and read by the bar's
+ * readout, as `available` is written by `PreviewFrame`.
+ */
+let drawnDecorationCell = $state(0);
+/** Custom's shape. Replaced, never mutated. */
+let custom = $state.raw<Span>(DEFAULT_CUSTOM);
+/** How many times Reroll spots was pressed: half of each spot's seed (`spotSeed`). */
+let reroll = $state(0);
+
 const room = $derived(roomFor(available));
 const width = $derived(widthFor(requested, room));
 const zoom = $derived(zoomFor(width, room, available));
@@ -109,6 +132,48 @@ export const preview = {
   },
   set hidden(next: ReadonlySet<string>) {
     hidden = next;
+  },
+
+  get mode(): "page" | "decorations" {
+    return mode;
+  },
+  set mode(next: "page" | "decorations") {
+    mode = next;
+  },
+
+  get decorationView(): "gallery" | "custom" {
+    return decorationView;
+  },
+  set decorationView(next: "gallery" | "custom") {
+    decorationView = next;
+  },
+
+  get decorationCell(): CellSetting {
+    return decorationCell;
+  },
+  set decorationCell(next: CellSetting) {
+    decorationCell = next;
+  },
+
+  get drawnDecorationCell(): number {
+    return drawnDecorationCell;
+  },
+  set drawnDecorationCell(next: number) {
+    drawnDecorationCell = next;
+  },
+
+  get custom(): Span {
+    return custom;
+  },
+  set custom(next: Span) {
+    custom = next;
+  },
+
+  get reroll(): number {
+    return reroll;
+  },
+  set reroll(next: number) {
+    reroll = next;
   },
 
   /** The column less the handle gutters: what Fill fills. */

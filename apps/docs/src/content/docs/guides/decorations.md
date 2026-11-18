@@ -36,6 +36,11 @@ are placeholders that every placement overrides.
 **`options.seed` is what makes two decorations of the same size differ.** Give each spot its own
 seed string. Two spots with the same size and the same seed show the same picture.
 
+**Preview a style in the editor.** Switch the editor's preview from **Page** to **Decorations**:
+it draws the file you are editing through `<TileDecoration>`, either as a gallery of seven shapes
+(1×1 to 4×1) or at one shape you type, at a cell size of your choice. **Reroll spots** gives every
+spot a new seed. The preview tells you if an operation stops the file being a decoration style.
+
 ## A style must be reusable at any size
 
 - **No `rect` and no `cellList` Selection,** in any layer of an Operation's `selection`. Both hold literal cell coordinates, which mean nothing

@@ -31,6 +31,11 @@ None of it reaches the document. It is session state that a reload forgets.
 | `showGrid` | get / set | Whether the grid is drawn. Starts `true`. |
 | `hidden` | get / set | The ids of operations hidden from the picture (batch 02 T-02, B-012). Starts empty; a `ReadonlySet<string>` held with `$state.raw` and replaced, never mutated (`toggled`, `pruned` in [visibility.ts](/editor/visibility/)). **Only while the editor is open** (D-02 A): never in the file. Set by the card's eye in `OperationsSection`; read by `App.svelte` and `ExportImage` through `withoutHidden`. |
 | `loadSalt` | get / set | §8.5's load-preview value. Starts `0`; only the footer's Fresh load sets it (**R12**). Writes no field. Read by `App.svelte` for `<Tileset>` and the overlay, and by `OperationBody` for the palette's measured coverage, so both count the same load. |
+| `mode` | get / set | `"page"` (the starting state) or `"decorations"`: what the picture area draws ([DecorationPreview](/editor/decoration-preview/)). |
+| `decorationView` | get / set | `"gallery"` (starts) or `"custom"`. |
+| `decorationCell` | get / set | CSS px per tile for every decoration spot. Starts `DEFAULT_CELL` (44). |
+| `custom` | get / set | Custom's `{ rows, columns }`. Starts `DEFAULT_CUSTOM` (3 × 2). `$state.raw`, replaced. |
+| `reroll` | get / set | How many times Reroll spots was pressed; half of each spot's seed (`spotSeed`). Starts `0`. |
 | `room` | get | `roomFor(available)`. |
 | `width` | get | `widthFor(requested, room)`: `Wpx`. |
 | `zoom` | get | `zoomFor(width, room, available)`. |

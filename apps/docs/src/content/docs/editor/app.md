@@ -72,8 +72,10 @@ Which component renders which, in source order. Conditional children are marked.
         - [`ImportPanel`](/editor/import-panel/), [`Popup`](/editor/ui-popup/)s for reports
     - `section.preview`: [`PreviewTopBar`](/editor/preview-bars/), then `.canvas` (the backdrop)
       holding a [`ScrollArea`](/editor/ui-scroll-area/) (`fill`) and `.preview-body` (clips the grid)
-      - `.stage` (centres the frame in the visible height), holding
-        [`PreviewFrame`](/editor/preview-frame/)
+      - `.stage` (centres the frame in the visible height), holding, in Decorations mode
+        (`preview.mode === "decorations"`), [`DecorationPreview`](/editor/decoration-preview/)
+        with `style={shown}`, the same options less the seed, and `operations={config.operations}`;
+        otherwise [`PreviewFrame`](/editor/preview-frame/)
         - `children(Wpx)` snippet:
           - [`PreviewGrid`](/editor/preview-grid/) (*if* `preview.showGrid`)
           - `<Tileset>` from `@vit-foundation/gen-tilesets/Tileset.svelte`
@@ -133,6 +135,12 @@ Which component renders which, in source order. Conditional children are marked.
   rejected because it could drift from what Save produces. **E3** is untouched. `shapedAt` keeps
   reading the saved file: reshaping `shown`, a new object on every change, rebuilt both overlays
   each time (N3 measured it as most of a weight drag's cost on 61×120).
+- **Decorations mode** (the second **S2** amendment in the header comment). The bar's Page |
+  Decorations switch swaps `PreviewFrame` for [DecorationPreview](/editor/decoration-preview/),
+  which draws the same `shown` through the package's `<TileDecoration>`: a preset over the same
+  `TilesetRenderer`, so still no second implementation. The overlays and brushes are Page-only.
+  Rejected: reshaping the file in the editor and drawing it with `<Tileset>`, a second path that
+  could drift from the preset.
 - **The draft cue.** While `drawn !== null`, `.canvas` gets `.drafting` (a 2px `--color-accent`
   inset frame on an `::after` over the picture, under the notices, letting the pointer through),
   and [NoticeStack](/editor/notice-stack/) gets `draft`, which shows the "Draft · not saved" tag.

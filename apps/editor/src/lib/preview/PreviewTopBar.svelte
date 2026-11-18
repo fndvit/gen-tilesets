@@ -14,14 +14,24 @@
   with the rule taking over. Pressing one shows the preview at exactly that
   bound; bounds are inclusive, so the rule it names applies there.
 
+  **Decorations mode** (`decorations.ts`). The Page | Decorations switch leads
+  the bar, because it decides what every other control means. In Decorations
+  the width readout, breakpoints and size presets go: a decoration's width is
+  `columns * cellSize`, not a width the preview chooses. In their place:
+  Gallery | Custom, Custom's rows and columns, the cell size and Reroll. Grid
+  and the background stay, since both still mean something to a decoration.
+
   Everything here is preview state (`view.svelte.ts`) and writes no field
   (**E11**). What used to be the preview's notes, that a resize changes nothing
   in the file, is the readout's hint, with the zoom and the rules that hold.
 -->
 <script lang="ts">
   import type { ResponsiveRule } from "@vit-foundation/gen-tilesets";
+  import NumericInput from "../NumericInput.svelte";
+  import Button from "../ui/Button.svelte";
   import Hint from "../ui/Hint.svelte";
   import Toggle from "../ui/Toggle.svelte";
+  import { CELL_SIZES, FIT, GALLERY, parseSpan, type CellSetting } from "./decorations.js";
   import { preview } from "./view.svelte.js";
   import { activeBound, boundsOf, holdingLabel, PRESETS } from "./width.js";
   import WidthChoices from "./WidthChoices.svelte";
@@ -42,6 +52,34 @@
   const breakpoints = $derived(bounds.map((b) => ({ value: b, label: String(b) })));
   const activeBreakpoint = $derived(activeBound(bounds, preview.width) ?? undefined);
 
+  const modes = [
+    { value: "page" as const, label: "Page" },
+    { value: "decorations" as const, label: "Decorations" },
+  ];
+  const views = [
+    { value: "gallery" as const, label: "Gallery" },
+    { value: "custom" as const, label: "Custom" },
+  ];
+  const cells: { value: CellSetting; label: string }[] = [
+    { value: FIT, label: "Fit" },
+    ...CELL_SIZES.map((c) => ({ value: c as CellSetting, label: `${c}` })),
+  ];
+
+  const decorationHint =
+    "Draws this file as a decoration style, with the same component a page uses. " +
+    "The file's breakpoints do not apply to a decoration. Nothing here changes the file.";
+
+  /**
+   * Custom: the spot's size in px. Gallery: how many shapes, at what cell.
+   * Both at the cell actually drawn, so under Fit it says what Fit chose.
+   */
+  const decorationReadout = $derived.by(() => {
+    const cell = preview.drawnDecorationCell;
+    return preview.decorationView === "custom"
+      ? `${preview.custom.columns * cell} × ${preview.custom.rows * cell} px`
+      : `${GALLERY.length} shapes · ${cell} px cells`;
+  });
+
   const hint = $derived(
     [
       preview.zoom < 1 ? `Shown at ${Math.round(preview.zoom * 100)}% to fit the column.` : "",
@@ -55,6 +93,52 @@
 
 <div class="top-bar">
   <div class="where">
+    <WidthChoices choices={modes} chosen={preview.mode} onChoose={(m) => (preview.mode = m)} label="Preview as" />
+
+    {#if preview.mode === "decorations"}
+      <!-- The readout says what the page mode's says: how big the picture is. -->
+      <Hint text={decorationHint}>
+        {#snippet children(id)}
+          <p class="readout" aria-describedby={id}>
+            <span class="t-label">Decoration</span>
+            <span class="value t-value">{decorationReadout}</span>
+          </p>
+        {/snippet}
+      </Hint>
+
+      <WidthChoices
+        choices={views}
+        chosen={preview.decorationView}
+        onChoose={(v) => (preview.decorationView = v)}
+        label="Decoration view"
+      />
+
+      {#if preview.decorationView === "custom"}
+        <!-- Columns then rows, as the captions read (`spanLabel`). Refused, never clamped (`parseSpan`). -->
+        <div class="span">
+          <NumericInput
+            label="Columns"
+            value={preview.custom.columns}
+            parse={parseSpan}
+            step="1"
+            onCommit={(t) => {
+              const n = parseSpan(t);
+              if (n !== null) preview.custom = { ...preview.custom, columns: n };
+            }}
+          />
+          <NumericInput
+            label="Rows"
+            value={preview.custom.rows}
+            parse={parseSpan}
+            step="1"
+            onCommit={(t) => {
+              const n = parseSpan(t);
+              if (n !== null) preview.custom = { ...preview.custom, rows: n };
+            }}
+          />
+        </div>
+      {/if}
+    {:else}
     <Hint text={hint}>
       {#snippet children(id)}
         <p class="readout" aria-describedby={id}>
@@ -77,9 +161,23 @@
         />
       </div>
     {/if}
+    {/if}
   </div>
 
   <div class="tools">
+    {#if preview.mode === "decorations"}
+      <div class="cell">
+        <span class="t-label" aria-hidden="true">Cell px</span>
+        <WidthChoices
+          choices={cells}
+          chosen={preview.decorationCell}
+          onChoose={(c) => (preview.decorationCell = c)}
+          label="Cell size in px"
+        />
+      </div>
+      <Button label="Reroll spots" icon="reseed" onclick={() => (preview.reroll += 1)} />
+    {/if}
+
     <!--
       The grid is an On/Off switch (B-003), the editor's segmented `Toggle`.
       `Toggle` fills its row, which in a panel makes every control share one
@@ -104,12 +202,14 @@
 
     <!-- The presets touch the swatch, as in Figma, and wrap with it. -->
     <div class="sizes">
-      <WidthChoices
-        {choices}
-        {chosen}
-        onChoose={(value) => (preview.requested = value)}
-        label="Preview size"
-      />
+      {#if preview.mode === "page"}
+        <WidthChoices
+          {choices}
+          {chosen}
+          onChoose={(value) => (preview.requested = value)}
+          label="Preview size"
+        />
+      {/if}
 
       <label class="swatch" style="--swatch: {preview.background};">
         <input type="color" bind:value={preview.background} aria-label="Preview background colour" />
@@ -193,6 +293,24 @@
   }
 
   .sizes {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  /* Custom's two fields, each sized to a label and a few digits rather than the panel row `FieldRow` assumes. */
+  .span {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    --field-label-w: auto;
+  }
+
+  .span > :global(*) {
+    width: 9.5rem;
+  }
+
+  .cell {
     display: flex;
     align-items: center;
     gap: var(--space-4);
