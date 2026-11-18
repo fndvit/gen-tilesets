@@ -265,7 +265,7 @@ Every new `.ts` or `.svelte` file under `src/` needs a page in
 
 ## Starters: templates and the tile gallery (B-016, S2)
 
-Picked by Pol at S1 (`docs/plans/starters-onboarding.md`, "S1 picks"). The sizes here are Claude's,
+Picked by Pol at S1 (`a96b566:docs/plans/starters-onboarding.md` (removed; in git history), "S1 picks"). The sizes here are Claude's,
 judged by WCAG 2.2 AA. Every token named here is in `tokens.css` (the last ones came with S3c).
 
 ### New tileset (a Form popup)
@@ -412,7 +412,7 @@ not happened yet and the user is still in the form to fix it.
 
 ## Onboarding: the tour (B-017, O2)
 
-Picked by Pol at O0 and O1, and the text revised by Pol after O2 (`docs/plans/starters-onboarding.md`,
+Picked by Pol at O0 and O1, and the text revised by Pol after O2 (`a96b566:docs/plans/starters-onboarding.md` (removed; in git history),
 "O0 answers", "O1 picks" and "Tour text, revised"). Built in O3.
 
 ### When it shows
